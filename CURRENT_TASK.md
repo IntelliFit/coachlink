@@ -8,10 +8,13 @@
 - Verification: 文档尾随空白检查与 `git diff --check` 通过；`npm run lint` 按项目配置正常提示改跑 typecheck；`npm run typecheck` 通过；`npm test` 为 35 files / 177 tests 全部通过；`npx next build` 编译成功并生成 522 个静态页面。
 ## 发布请求：合并主分支、全后端重部署、小程序体验版与审核 (`2026-08-20`)
 
-- Status: 用户已授权将本地发布内容提交到 `dev`、合并到 `main`、重部署 Web / 功率分析 Worker / 动效 Worker，并上传新的小程序体验版后提交微信审核。开始前发现本地 `dev` 比 `origin/dev` 落后 21 个提交，必须先安全整合远端开发分支再合并主分支。
+- Status: 代码、三项生产后端和小程序体验版均已完成发布；微信审核未提交，原因是本机没有应用密钥和真实审核类目配置，不能安全猜填。
 - Scope review: 工作区另有 `tmp/` 下 33 个、约 23.5MB 的 PDF 审阅和视频分析截图。这些是临时/第三方原始审阅产物，不是可发布源码；依据知识库语料不入库的既有决策，不能随发布代码提交或部署。其余源码、文档和项目记忆文件将纳入发布提交。
-- Gate results: 远端整合暴露了 `PlanEditorWorkbench` 将主内容容器改为 `View` 后仍保留 `</ScrollView>` 的 JSX 闭合错误，已修正；Next 16 本地 E2E 的 `127.0.0.1` 资源请求也被跨源保护阻断，已按官方 `allowedDevOrigins` 方式修正。`npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）、`npx next build`（534 pages）、小程序 release 构建（2854 modules）和 4 项 E2E（登录会话、订阅状态、完成训练、API/DB 幂等）均通过。
-- Next: 将最终发布提交推送到 `dev`、快进合并 `main`，按现有脚本构建推送三种生产镜像、观察 Kubernetes 滚动更新，并从 `apps/wechat/dist-release` 上传体验版、提交审核。
+- Git: 发布功能提交为 `cff422d6 feat: ship plan revisions and mini-program video fixes`，已先推送 `dev` 再快进合并并推送 `main`。生产首个镜像暴露 standalone 未收录 `bootstrap-env.mjs` 直接依赖 `undici` 的启动错误；最小 Docker 修复提交为 `75415bcb fix: include bootstrap runtime dependency in web image`，同样已先推送 `dev` 后快进 `main`。两远端分支现均指向 `75415bcb`。
+- Gate results: 远端整合暴露了 `PlanEditorWorkbench` 主内容容器闭合错误，已修正；Next 16 本地 E2E 的 `127.0.0.1` 资源请求也按官方 `allowedDevOrigins` 方式修正。最终 `npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）、`npx next build`（534 pages）、小程序 release 构建（2854 modules）及 4 项 E2E（登录会话、订阅状态、完成训练、API/DB 幂等）均通过。
+- Production: Web/API `coachlink-main` 已 3/3 Ready，运行 `coachlink@sha256:79569118cef36d6d42c986c06c3f27f700547fe8459da94c8d1e540dc4d6cc6c`；功率 Worker 1/1 Ready，运行 `coachlink-power-worker@sha256:ac243f18746a953692e7dc1213c971565477f9e4874ed5b90efcbf5f7d62358c`；动作特效普通与优先 Worker 均 1/1 Ready，运行 `coachlink-motion-effects-worker@sha256:55bf1dabe40aaaacef5ec80c48e3d25f40468406ec7da16bb6e14e7fdae850f3`。公网 `https://coachlink.fit/api/healthy` 返回 HTTP 200。
+- WeChat: `apps/wechat/dist-release` 已经 DevTools CLI 成功上传体验版 `2026.08.20.0720`（9.4MB）。审核接口还需要 `WEAPP_APP_SECRET` 与带真实 `first_id/second_id` 的 `apps/wechat/release.weapp.json`；本机只有占位模板且无相关环境变量，未调用审核接口。
+- Next: 提供小程序应用密钥和真实审核类目配置后，执行 `npm run weapp:release:audit` 提交当前体验版审核；未执行正式发布。
 
 ## 更新计划全链路收口 (`2026-08-20`)
 
