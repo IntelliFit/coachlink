@@ -123,6 +123,11 @@ function getPrimaryPosition(action: Action | PublicActionItemDto) {
   return asList(action.positions)[0] || '全身'
 }
 
+function isTrainingAction(action: Action | PublicActionItemDto) {
+  const type = String(action.type || 'STRENGTH').toUpperCase()
+  return type === 'STRENGTH' || type === 'CARDIO'
+}
+
 function normalizeText(value?: string | null) {
   const nextValue = value?.trim() || ''
   return nextValue || null
@@ -223,7 +228,7 @@ export default function ActionLibPage() {
       setPublicLoading(true)
       const res = await listPublicActions({
         page: 1,
-        limit: 120,
+        limit: 500,
         search: search || undefined,
         type: isPlanSelectionMode ? selectionLibraryType : undefined,
         viewerActionType: 'student'
@@ -270,6 +275,7 @@ export default function ActionLibPage() {
 
   const displayedMineActions = useMemo(() => {
     return actions.filter(action =>
+      isTrainingAction(action) &&
       matchesFilter(action, activeMuscleFilter) &&
       matchesFilter(action, activeEquipmentFilter)
     )
@@ -277,6 +283,7 @@ export default function ActionLibPage() {
 
   const displayedPublicActions = useMemo(() => {
     return publicActions.filter(action =>
+      isTrainingAction(action) &&
       (!isPlanSelectionMode || String(action.type || 'STRENGTH').toUpperCase() === selectionLibraryType) &&
       (!publicOnlyWithDemo || !!action.url?.trim()) &&
       matchesFilter(action, activeMuscleFilter) &&
@@ -590,11 +597,18 @@ export default function ActionLibPage() {
         {displayedMineActions.map(action => {
           const isPublishing = publishingActionId === action.id
           const meta = getActionMeta(action)
+          const referenceImageUrl = resolveWeappMediaUrl(action.reference_image_url)
           return (
             <View key={action.id} className='mine-card'>
-              <View className='action-avatar' onClick={() => handleEdit(action.id)}>
-                <Text>{getActionInitial(action.name)}</Text>
-              </View>
+              {referenceImageUrl ? (
+                <View className='action-cover-wrap mine-cover' onClick={() => handleEdit(action.id)}>
+                  <Image className='action-cover' src={referenceImageUrl} mode='aspectFill' />
+                </View>
+              ) : (
+                <View className='action-avatar' onClick={() => handleEdit(action.id)}>
+                  <Text>{getActionInitial(action.name)}</Text>
+                </View>
+              )}
               <View className='mine-main' onClick={() => handleEdit(action.id)}>
                 <Text className='action-title'>{action.name}</Text>
                 <Text className='action-subtitle'>{getPrimaryPosition(action)} · {action.type || 'STRENGTH'}</Text>

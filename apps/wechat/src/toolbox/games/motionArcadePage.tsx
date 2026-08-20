@@ -145,6 +145,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     const [timeLeftMs, setTimeLeftMs] = useState(GAME_DURATION_MS)
     const [playerPosition, setPlayerPosition] = useState({ x: 0.5, y: 0.78 })
     const [motionEnergy, setMotionEnergy] = useState(0)
+    const [trackingLocked, setTrackingLocked] = useState(config.trackingAnchor !== 'head')
     const [items, setItems] = useState<MotionItem[]>([])
     const [recording, setRecording] = useState(false)
     const [replayProcessing, setReplayProcessing] = useState(false)
@@ -192,6 +193,8 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
       const context = Taro.createCameraContext()
       cameraContextRef.current = context
       const tracker = new BodyPointTracker({
+        anchor: config.trackingAnchor,
+        onLockChange: setTrackingLocked,
         onSnapshot: (snapshot) => {
           const projected = projectCameraPointToStage(
             snapshot,
@@ -305,7 +308,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
             y: item.y + item.speedY
           }))
 
-          if (Math.random() < 0.34) {
+          if (itemList.length < config.maxActiveItems && Math.random() < config.spawnChance) {
             itemList = [...itemList, createMotionItem(config, nextItemIdRef.current++)]
           }
 
@@ -593,6 +596,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                   <Text className='intro-tag'>30 秒快开一局</Text>
                   <Text className='intro-tag'>支持保存回放</Text>
                   <Text className='intro-tag'>本地体感驱动</Text>
+                  {config.trackingAnchor === 'head' ? <Text className='intro-tag'>头部锁定接豆</Text> : null}
                 </View>
               </View>
 
@@ -638,6 +642,11 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                   </View>
 
                   <View className='stage-objective'>
+                    {config.trackingAnchor === 'head' ? (
+                      <Text className='stage-objective-text'>
+                        {trackingLocked ? '已锁定头部' : '请将头部保持在画面中'}
+                      </Text>
+                    ) : null}
                     <Text className='stage-objective-text'>碰到 {config.goodItemLabel} 加分</Text>
                     <Text className='stage-objective-text stage-objective-text--bad'>
                       碰到 {config.badItemLabel} 扣分

@@ -4,9 +4,6 @@ import Taro from '@tarojs/taro'
 import { Icon } from '@/components/Icon'
 import BottomNav from '@/components/BottomNav'
 import {
-  Users,
-  Video,
-  Star,
   TrendingUp,
   CheckCircle2,
   CircleDashed,
@@ -24,7 +21,6 @@ import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
-
 interface OverviewData {
   totalStudentCount: number
   pendingReviewCount: number
@@ -173,7 +169,7 @@ function CoachOverview() {
           <View className="stat-tile" onClick={() => navTo('/coach/students')}>
             <View className="tile-header">
               <View className="tile-icon-wrap blue">
-                <Icon component={Users} size={18} color="#CF6D4E" />
+                <View className="people-icon"><View className="people-head people-head-main" /><View className="people-head people-head-side" /><View className="people-body people-body-main" /><View className="people-body people-body-side" /></View>
               </View>
             </View>
             <Text className="tile-label">总学员数</Text>
@@ -182,7 +178,7 @@ function CoachOverview() {
           <View className="stat-tile" onClick={() => navTo('/coach/videos')}>
             <View className="tile-header">
               <View className="tile-icon-wrap amber">
-                <Icon component={Video} size={18} color="#FFA940" />
+                <View className="video-icon"><View className="video-play" /><View className="video-check"><View className="video-check-dot" /></View></View>
               </View>
             </View>
             <Text className="tile-label">待点评视频</Text>
@@ -191,7 +187,7 @@ function CoachOverview() {
           <View className="stat-tile">
             <View className="tile-header">
               <View className="tile-icon-wrap yellow">
-                <Icon component={Star} size={18} color="#CF6D4E" />
+                <View className="rating-star"><View className="rating-star-core" /></View>
               </View>
             </View>
             <Text className="tile-label">平均评分</Text>
@@ -209,7 +205,7 @@ function CoachOverview() {
           <View className="stat-tile" onClick={() => navTo('/coach/wallet')}>
             <View className="tile-header">
               <View className="tile-icon-wrap green">
-                <Icon component={Wallet} size={18} color="#CF6D4E" />
+                <View className="wallet-icon"><View className="wallet-clasp"><View className="wallet-dot" /></View></View>
               </View>
             </View>
             <Text className="tile-label">我的钱包</Text>

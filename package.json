@@ -31,6 +31,7 @@
         "migrate:storage-to-cos": "npx tsx scripts/migrate-supabase-storage-to-cos.ts",
         "replace:storage-urls": "npx tsx scripts/replace-storage-urls.ts",
         "canonical-actions:reference-images": "npx tsx scripts/generate-canonical-action-reference-images.ts",
+        "canonical-actions:import-street-workout": "npx tsx scripts/import-street-workout-actions.ts",
         "canonical-actions:backfill-community-links": "npx tsx scripts/backfill-community-action-canonical-links.ts",
         "canonical-actions:backfill-fallback-images": "npx tsx scripts/backfill-canonical-reference-fallbacks.ts",
         "canonical-actions:bootstrap-from-community": "npx tsx scripts/bootstrap-canonical-actions-from-community.ts",

@@ -9,6 +9,7 @@ export type MotionArcadeGameConfig = {
   heroKicker: string
   heroTitle: string
   key: string
+  maxActiveItems: number
   navTitle: string
   path: string
   recordingActiveLabel: string
@@ -17,6 +18,8 @@ export type MotionArcadeGameConfig = {
   scoreGood: number
   scoreLabel: string
   shareTitle: string
+  spawnChance: number
+  trackingAnchor: 'body' | 'head'
   travelMode: MotionArcadeTravelMode
   visualKey: MotionArcadeVisualKey
 }
@@ -28,6 +31,7 @@ export const MOTION_BEAN_CONFIG: MotionArcadeGameConfig = {
   heroKicker: 'FUN MODE',
   heroTitle: '移动身体，接住能量豆',
   key: 'motion-bean',
+  maxActiveItems: 6,
   navTitle: '接豆派对',
   path: '/toolbox/motion-bean/index',
   recordingActiveLabel: '接豆回放录制中',
@@ -36,6 +40,8 @@ export const MOTION_BEAN_CONFIG: MotionArcadeGameConfig = {
   scoreGood: 1,
   scoreLabel: '当前分数',
   shareTitle: '我在 CoachLink 试玩了接豆派对',
+  spawnChance: 0.055,
+  trackingAnchor: 'head',
   travelMode: 'fall',
   visualKey: 'bean'
 }
@@ -47,6 +53,7 @@ export const PULLUP_RUSH_CONFIG: MotionArcadeGameConfig = {
   heroKicker: 'PULLUP RUN',
   heroTitle: '向上拉，穿过障碍',
   key: 'pullup-rush',
+  maxActiveItems: 24,
   navTitle: '引体冲刺',
   path: '/toolbox/pullup-rush/index',
   recordingActiveLabel: '引体回放录制中',
@@ -55,6 +62,8 @@ export const PULLUP_RUSH_CONFIG: MotionArcadeGameConfig = {
   scoreGood: 2,
   scoreLabel: '冲刺分数',
   shareTitle: '我在 CoachLink 试玩了引体冲刺小游戏',
+  spawnChance: 0.34,
+  trackingAnchor: 'body',
   travelMode: 'rise',
   visualKey: 'pullup'
 }
@@ -66,6 +75,7 @@ export const PUSHUP_DASH_CONFIG: MotionArcadeGameConfig = {
   heroKicker: 'PUSHUP DASH',
   heroTitle: '完成俯卧撑，撞开障碍',
   key: 'pushup-dash',
+  maxActiveItems: 24,
   navTitle: '俯卧撑突围',
   path: '/toolbox/pushup-dash/index',
   recordingActiveLabel: '俯卧撑回放录制中',
@@ -74,6 +84,8 @@ export const PUSHUP_DASH_CONFIG: MotionArcadeGameConfig = {
   scoreGood: 1,
   scoreLabel: '节奏积分',
   shareTitle: '我在 CoachLink 试玩了俯卧撑突围小游戏',
+  spawnChance: 0.34,
+  trackingAnchor: 'body',
   travelMode: 'left',
   visualKey: 'pushup'
 }

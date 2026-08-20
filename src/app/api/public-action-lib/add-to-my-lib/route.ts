@@ -44,6 +44,18 @@ export async function POST(req: Request) {
         const targetTable =
             targetActionType === "coach" ? "coach_actions" : "student_actions";
         const ownerColumn = targetActionType === "coach" ? "coach_id" : "user_id";
+        const canonicalActionId = (publicAction as any).canonical_action_id as string | null;
+        let canonicalReferenceImageUrl: string | null = null;
+        if (canonicalActionId) {
+            const { data: canonicalRow } = await supabase
+                .from("canonical_actions")
+                .select("reference_image_url")
+                .eq("id", canonicalActionId)
+                .maybeSingle();
+
+            canonicalReferenceImageUrl = (canonicalRow as any)?.reference_image_url ?? null;
+        }
+
 
         // 已添加（用同名约束判断）
         const { data: existing } = await supabase
@@ -95,7 +107,7 @@ export async function POST(req: Request) {
         return NextResponse.json<ApiData<AddPublicActionToMyLibResponseDto>>({
             success: true,
             message: "已成功添加到您的动作库",
-            data: { action: newAction },
+            data: { action: { ...newAction, reference_image_url: canonicalReferenceImageUrl } },
         });
     } catch (e) {
         console.error("[public-action-lib] add-to-my-lib unexpected:", e);
@@ -105,4 +117,5 @@ export async function POST(req: Request) {
         );
     }
 }
+
 

@@ -86,6 +86,8 @@ export default function PushupDashPage() {
   const repStartedAtRef = useRef(0)
   const repDownYRef = useRef(0)
   const gameStatusRef = useRef<GameStatus>('idle')
+  const headLockedRef = useRef(false)
+  const headLockLostAtRef = useRef(0)
   const dashActiveRef = useRef(false)
   const dashUntilRef = useRef(0)
   const dashAvailableUntilRef = useRef(0)
@@ -103,6 +105,7 @@ export default function PushupDashPage() {
   const gameStartedAtRef = useRef(0)
 
   const [gameStatus, setGameStatus] = useState<GameStatus>('idle')
+  const [headLocked, setHeadLocked] = useState(false)
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [motionEnergy, setMotionEnergy] = useState(0)
@@ -182,6 +185,22 @@ export default function PushupDashPage() {
     const context = Taro.createCameraContext()
     cameraContextRef.current = context
     const tracker = new BodyPointTracker({
+      anchor: 'head',
+      onLockChange: (locked) => {
+        const now = Date.now()
+        if (!locked && gameStatusRef.current === 'playing' && !headLockLostAtRef.current) {
+          headLockLostAtRef.current = now
+        } else if (locked && headLockLostAtRef.current) {
+          const pausedFor = now - headLockLostAtRef.current
+          gameStartedAtRef.current += pausedFor
+          lastWallSpawnAtRef.current += pausedFor
+          dashUntilRef.current += pausedFor
+          dashAvailableUntilRef.current += pausedFor
+          headLockLostAtRef.current = 0
+        }
+        headLockedRef.current = locked
+        setHeadLocked(locked)
+      },
       onSnapshot: (snapshot) => {
         const projected = projectCameraPointToStage(
           snapshot,
@@ -195,7 +214,7 @@ export default function PushupDashPage() {
         }
         setMotionEnergy(snapshot.energy)
 
-        if (gameStatusRef.current !== 'playing') return
+        if (!headLockedRef.current || gameStatusRef.current !== 'playing') return
         const now = Date.now()
         const directionThreshold = snapshot.source === 'pose' ? 0.008 : 0.016
         const energyThreshold = snapshot.source === 'pose' ? 0.04 : 0.1
@@ -326,6 +345,7 @@ export default function PushupDashPage() {
     if (gameStatus !== 'playing') return
 
     const timer = setInterval(() => {
+      if (!headLockedRef.current) return
       const elapsed = Date.now() - gameStartedAtRef.current
       const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
       const now = Date.now()
@@ -552,6 +572,7 @@ export default function PushupDashPage() {
     setPhaseLabel('等待下压')
     motionRef.current = { energy: 0, x: 0.5, y: 0.7 }
     setMotionEnergy(0)
+    headLockLostAtRef.current = 0
     lastWallSpawnAtRef.current = Date.now()
   }
 
@@ -562,6 +583,10 @@ export default function PushupDashPage() {
     }
     if (replayProcessing) {
       Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
+      return
+    }
+    if (!headLockedRef.current) {
+      Taro.showToast({ title: '请先让头部保持在画面内', icon: 'none' })
       return
     }
     resetForNewGame()
@@ -711,6 +736,13 @@ export default function PushupDashPage() {
                   </View>
                 ) : null}
 
+                {cameraReady && !cameraError && !headLocked ? (
+                  <View className='stage-note'>
+                    <Text className='stage-note-title'>正在锁定头部</Text>
+                    <Text className='stage-note-desc'>请侧身进入画面，让头部完整可见并短暂停留。</Text>
+                  </View>
+                ) : null}
+
                 {cameraError ? (
                   <View className='stage-error'>
                     <Text className='stage-note-title'>相机暂时不可用</Text>
@@ -770,18 +802,18 @@ export default function PushupDashPage() {
 
               <View className='controls-grid'>
                 <View
-                  className={`btn-primary ${cameraError || replayProcessing ? 'disabled' : ''}`}
+                  className={`btn-primary ${cameraError || replayProcessing || !headLocked ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing) startGame(false)
+                    if (!cameraError && !replayProcessing && headLocked) startGame(false)
                   }}
                 >
                   <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
                 </View>
 
                 <View
-                  className={`btn-secondary ${cameraError || replayProcessing ? 'disabled' : ''}`}
+                  className={`btn-secondary ${cameraError || replayProcessing || !headLocked ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing) startGame(true)
+                    if (!cameraError && !replayProcessing && headLocked) startGame(true)
                   }}
                 >
                   <Text className='btn-secondary-text'>开始试玩并录回放</Text>

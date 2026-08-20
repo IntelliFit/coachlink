@@ -51,6 +51,18 @@ export async function POST(req: Request) {
         const targetTable =
             targetActionType === "coach" ? "coach_actions" : "student_actions";
         const ownerColumn = targetActionType === "coach" ? "coach_id" : "user_id";
+        const canonicalActionId = (publicAction as any).canonical_action_id as string | null;
+        let canonicalReferenceImageUrl: string | null = null;
+        if (canonicalActionId) {
+            const { data: canonicalRow } = await supabase
+                .from("canonical_actions")
+                .select("reference_image_url")
+                .eq("id", canonicalActionId)
+                .maybeSingle();
+
+            canonicalReferenceImageUrl = (canonicalRow as any)?.reference_image_url ?? null;
+        }
+
 
         const payload: any = {
             [ownerColumn]: userId,
@@ -91,7 +103,7 @@ export async function POST(req: Request) {
             return NextResponse.json<ApiData<SyncPublicActionToMyLibResponseDto>>({
                 success: true,
                 message: "已覆盖本地同名动作",
-                data: { action: updated },
+                data: { action: { ...updated, reference_image_url: canonicalReferenceImageUrl } },
             });
         }
 
@@ -111,7 +123,7 @@ export async function POST(req: Request) {
         return NextResponse.json<ApiData<SyncPublicActionToMyLibResponseDto>>({
             success: true,
             message: "已同步到本地动作库",
-            data: { action: created },
+            data: { action: { ...created, reference_image_url: canonicalReferenceImageUrl } },
         });
     } catch (e) {
         console.error("[public-action-lib] sync-to-my-lib unexpected:", e);

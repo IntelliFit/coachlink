@@ -5,6 +5,7 @@ import { ArrowUp, LoaderCircle, Sparkles, X } from 'lucide-react'
 import {
   getAiNavigatorTool,
   isRegisteredAiNavigatorResult,
+  type AiNavigatorTool,
   type AiNavigatorResult,
 } from '@coachlink/core'
 import Icon from '@/components/Icon'
@@ -12,7 +13,7 @@ import { aiNavigatorService } from '@/services/aiNavigatorService'
 import { authService } from '@/services/authService'
 import './index.scss'
 
-const MIN_NAVIGATION_CONFIDENCE = 0.6
+const MIN_NAVIGATION_CONFIDENCE = 0.5
 const MAX_QUERY_LENGTH = 160
 
 const HIDDEN_ROUTE_PREFIXES = [
@@ -56,6 +57,7 @@ export default function AiAppNavigator() {
   const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [suggestedTool, setSuggestedTool] = useState<AiNavigatorTool | null>(null)
 
   const syncRouteVisibility = () => {
     const hidden = shouldHideOnRoute(getCurrentPath())
@@ -75,6 +77,7 @@ export default function AiAppNavigator() {
     if (isLoading) return
     setIsOpen(false)
     setFeedback('')
+    setSuggestedTool(null)
     Taro.hideKeyboard()
   }
 
@@ -82,7 +85,7 @@ export default function AiAppNavigator() {
     if (!authService.isAuthenticated()) {
       const modal = await Taro.showModal({
         title: '登录后使用 AI 导航',
-        content: '登录后说出目标，我会直接打开对应功能。',
+        content: '登录后描述目标，我会先推荐功能，由你确认后再打开。',
         confirmText: '去登录',
         cancelText: '暂不',
       })
@@ -92,16 +95,11 @@ export default function AiAppNavigator() {
       return
     }
     setFeedback('')
+    setSuggestedTool(null)
     setIsOpen(true)
   }
 
-  const navigateToResult = async (result: AiNavigatorResult) => {
-    const tool = getValidatedTool(result)
-    if (!tool) {
-      setFeedback('暂时没找到对应功能，请换一种更具体的说法')
-      return
-    }
-
+  const navigateToTool = async (tool: AiNavigatorTool) => {
     if (getCurrentPath() === normalizePath(tool.route)) {
       setIsOpen(false)
       setQuery('')
@@ -117,6 +115,28 @@ export default function AiAppNavigator() {
     Taro.hideKeyboard()
   }
 
+  const presentNavigationSuggestion = (result: AiNavigatorResult) => {
+    const tool = getValidatedTool(result)
+    if (!tool) {
+      setSuggestedTool(null)
+      setFeedback('暂时没找到对应功能，请换一种更具体的说法')
+      return
+    }
+    setSuggestedTool(tool)
+    setFeedback('')
+    Taro.hideKeyboard()
+  }
+
+  const handleConfirmNavigation = async () => {
+    if (!suggestedTool || isLoading) return
+    try {
+      await navigateToTool(suggestedTool)
+    } catch (error) {
+      console.error('[ai-app-navigator] confirmed navigation failed:', error)
+      setFeedback('页面暂时无法打开，请稍后重试')
+    }
+  }
+
   const handleSubmit = async () => {
     const normalizedQuery = query.trim()
     if (!normalizedQuery || isLoading) {
@@ -124,15 +144,16 @@ export default function AiAppNavigator() {
       return
     }
 
+    setSuggestedTool(null)
     setIsLoading(true)
-    setFeedback('正在定位最合适的功能…')
+    setFeedback('正在匹配最合适的功能…')
     try {
       const response = await aiNavigatorService.recognizeIntent(normalizedQuery)
       if (!response.success || !response.data) {
         setFeedback(response.message || 'AI 导航暂时不可用，请稍后重试')
         return
       }
-      await navigateToResult(response.data)
+      presentNavigationSuggestion(response.data)
     } catch (error) {
       console.error('[ai-app-navigator] navigate failed:', error)
       setFeedback('页面暂时无法打开，请稍后重试')
@@ -158,7 +179,7 @@ export default function AiAppNavigator() {
                 </View>
                 <View>
                   <Text className='ai-app-navigator__title'>想去哪里？</Text>
-                  <Text className='ai-app-navigator__subtitle'>说出目标，我会直接打开对应功能</Text>
+                  <Text className='ai-app-navigator__subtitle'>说得模糊也可以，我会先推荐，再由你确认</Text>
                 </View>
               </View>
               <Button
@@ -176,7 +197,7 @@ export default function AiAppNavigator() {
             <Textarea
               className='ai-app-navigator__input'
               value={query}
-              placeholder='例如：帮我测试一下我的引体水平'
+              placeholder='例如：我想玩游戏，或者想测测爆发力'
               maxlength={MAX_QUERY_LENGTH}
               focus
               autoHeight
@@ -185,6 +206,7 @@ export default function AiAppNavigator() {
               disabled={isLoading}
               onInput={(event) => {
                 setQuery(event.detail.value)
+                if (suggestedTool) setSuggestedTool(null)
                 if (feedback) setFeedback('')
               }}
               onConfirm={handleSubmit}
@@ -199,9 +221,35 @@ export default function AiAppNavigator() {
               <Text className='ai-app-navigator__count'>{query.length}/{MAX_QUERY_LENGTH}</Text>
             </View>
 
+            {suggestedTool && (
+              <View className='ai-app-navigator__suggestion'>
+                <Text className='ai-app-navigator__suggestion-eyebrow'>AI 推荐</Text>
+                <Text className='ai-app-navigator__suggestion-title'>{suggestedTool.label}</Text>
+                <Text className='ai-app-navigator__suggestion-description'>{suggestedTool.description}</Text>
+                <Text className='ai-app-navigator__suggestion-note'>只有点击“确认前往”后才会打开该功能</Text>
+                <View className='ai-app-navigator__suggestion-actions'>
+                  <Button
+                    className='ai-app-navigator__suggestion-dismiss'
+                    aria-label='取消当前推荐并重新描述'
+                    hoverClass='ai-app-navigator__suggestion-dismiss--pressed'
+                    onClick={() => setSuggestedTool(null)}
+                  >
+                    重新描述
+                  </Button>
+                  <Button
+                    className='ai-app-navigator__suggestion-confirm'
+                    aria-label={`确认前往${suggestedTool.label}`}
+                    hoverClass='ai-app-navigator__suggestion-confirm--pressed'
+                    onClick={() => void handleConfirmNavigation()}
+                  >
+                    确认前往
+                  </Button>
+                </View>
+              </View>
+            )}
             <Button
               className='ai-app-navigator__submit'
-              aria-label='查找并打开对应功能'
+              aria-label='查找推荐功能'
               disabled={!query.trim() || isLoading}
               hoverClass='ai-app-navigator__submit--pressed'
               onClick={handleSubmit}
@@ -211,11 +259,11 @@ export default function AiAppNavigator() {
                   <View className='ai-app-navigator__spinner'>
                     <Icon component={LoaderCircle} size={20} color='#FFFFFF' strokeWidth={2} />
                   </View>
-                  <Text>正在定位</Text>
+                  <Text>正在匹配</Text>
                 </>
               ) : (
                 <>
-                  <Text>查找并打开</Text>
+                  <Text>查找推荐</Text>
                   <Icon component={ArrowUp} size={20} color='#FFFFFF' strokeWidth={2} />
                 </>
               )}
@@ -229,7 +277,6 @@ export default function AiAppNavigator() {
           hoverClass='ai-app-navigator__fab--pressed'
           onClick={openPanel}
         >
-          <Icon component={Sparkles} size={24} color='#FFFFFF' strokeWidth={2} />
           <Text className='ai-app-navigator__fab-label'>AI</Text>
         </Button>
       )}
