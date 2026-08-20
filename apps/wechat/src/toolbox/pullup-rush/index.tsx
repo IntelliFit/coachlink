@@ -15,7 +15,11 @@ import {
   vibrateForArcadeFeedback
 } from '../games/arcadeFeedback'
 import { BodyPointTracker } from '../games/bodyPointTracker'
-import { projectCameraPointToStage, USER_FACING_CAMERA } from '../cameraTracking'
+import {
+  projectCameraPointToStage,
+  projectHeadAnchorToStage,
+  USER_FACING_CAMERA
+} from '../cameraTracking'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -29,6 +33,15 @@ type RecordedVideo = {
 
 type MotionSnapshot = {
   energy: number
+  x: number
+  y: number
+}
+
+type HeadLockState = {
+  estimated: boolean
+  radiusX: number
+  radiusY: number
+  visible: boolean
   x: number
   y: number
 }
@@ -54,6 +67,7 @@ const JUMP_VELOCITY = -0.034
 const PIPE_SPEED = 0.012
 const PIPE_SPAWN_MS = 1180
 const PULL_TRIGGER_COOLDOWN_MS = 260
+const TRACKING_UI_INTERVAL_MS = 96
 const MAX_LIVES = 2
 
 function clamp(value: number, min: number, max: number) {
@@ -109,8 +123,6 @@ export default function PullupRushPage() {
   const lastReplayCaptureAtRef = useRef(0)
   const motionRef = useRef<MotionSnapshot>({ energy: 0, x: 0.5, y: 0.7 })
   const gameStatusRef = useRef<GameStatus>('idle')
-  const headLockedRef = useRef(false)
-  const headLockLostAtRef = useRef(0)
   const lastPullTriggerAtRef = useRef(0)
   const pendingPullRef = useRef(false)
   const pipesRef = useRef<PipePair[]>([])
@@ -119,6 +131,11 @@ export default function PullupRushPage() {
   const isRecordingRef = useRef(false)
   const feedbackIdRef = useRef(0)
   const cameraStageSizeRef = useRef({ width: 0, height: 0 })
+  const lastTrackingUiAtRef = useRef(0)
+  const headLockVisibleRef = useRef(false)
+  const trackingLockedRef = useRef(false)
+  const trackingActiveRef = useRef(false)
+  const trackingPausedAtRef = useRef(0)
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const gameStartedAtRef = useRef(0)
   const scoreRef = useRef(0)
@@ -129,7 +146,6 @@ export default function PullupRushPage() {
   const livesRef = useRef(MAX_LIVES)
 
   const [gameStatus, setGameStatus] = useState<GameStatus>('idle')
-  const [headLocked, setHeadLocked] = useState(false)
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [motionEnergy, setMotionEnergy] = useState(0)
@@ -145,6 +161,16 @@ export default function PullupRushPage() {
   const [lives, setLives] = useState(MAX_LIVES)
   const [pullCount, setPullCount] = useState(0)
   const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
+  const [trackingLocked, setTrackingLocked] = useState(false)
+  const [trackingActive, setTrackingActive] = useState(false)
+  const [headLock, setHeadLock] = useState<HeadLockState>({
+    estimated: false,
+    radiusX: 0.08,
+    radiusY: 0.1,
+    visible: false,
+    x: 0.5,
+    y: 0.28
+  })
 
   const sharePayload = useMemo(
     () =>
@@ -193,25 +219,39 @@ export default function PullupRushPage() {
   useEffect(() => {
     const context = Taro.createCameraContext()
     cameraContextRef.current = context
+    const updateTrackingActivity = (active: boolean) => {
+      if (trackingActiveRef.current === active) return
+      const now = Date.now()
+      if (!active && gameStatusRef.current === 'playing' && !trackingPausedAtRef.current) {
+        trackingPausedAtRef.current = now
+      } else if (active && trackingPausedAtRef.current) {
+        const pausedFor = now - trackingPausedAtRef.current
+        gameStartedAtRef.current += pausedFor
+        lastPipeSpawnAtRef.current += pausedFor
+        trackingPausedAtRef.current = 0
+      }
+      trackingActiveRef.current = active
+      setTrackingActive(active)
+    }
     const tracker = new BodyPointTracker({
-      anchor: 'head',
+      anchorMode: 'head',
+      headLockConfirmFrames: 3,
+      headLostGraceMs: 720,
       onLockChange: (locked) => {
-        const now = Date.now()
-        if (!locked && gameStatusRef.current === 'playing' && !headLockLostAtRef.current) {
-          headLockLostAtRef.current = now
-        } else if (locked && headLockLostAtRef.current) {
-          const pausedFor = now - headLockLostAtRef.current
-          gameStartedAtRef.current += pausedFor
-          lastPipeSpawnAtRef.current += pausedFor
-          headLockLostAtRef.current = 0
+        trackingLockedRef.current = locked
+        setTrackingLocked(locked)
+        if (!locked) {
+          updateTrackingActivity(false)
+          setHeadLock((previous) => ({ ...previous, visible: false }))
         }
-        headLockedRef.current = locked
-        setHeadLocked(locked)
       },
       onSnapshot: (snapshot) => {
+        const now = Date.now()
+        updateTrackingActivity(snapshot.locked && snapshot.lockState === 'locked')
+        const frameSize = { width: snapshot.frameWidth, height: snapshot.frameHeight }
         const projected = projectCameraPointToStage(
           snapshot,
-          { width: snapshot.frameWidth, height: snapshot.frameHeight },
+          frameSize,
           cameraStageSizeRef.current
         )
         motionRef.current = {
@@ -219,14 +259,37 @@ export default function PullupRushPage() {
           x: projected.x,
           y: projected.y
         }
-        setMotionEnergy(snapshot.energy)
+
+        const headLocked = snapshot.locked
+        if (
+          now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
+          || headLocked !== headLockVisibleRef.current
+        ) {
+          const projectedHead = headLocked
+            ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
+            : null
+          lastTrackingUiAtRef.current = now
+          headLockVisibleRef.current = headLocked
+          setMotionEnergy(snapshot.energy)
+          if (projectedHead) {
+            setHeadLock({
+              estimated: snapshot.lockState === 'holding' || snapshot.target === 'head-estimate',
+              radiusX: projectedHead.radiusX,
+              radiusY: projectedHead.radiusY,
+              visible: true,
+              x: projectedHead.x,
+              y: projectedHead.y
+            })
+          } else {
+            setHeadLock((previous) => ({ ...previous, visible: false }))
+          }
+        }
 
         const upwardThreshold = snapshot.source === 'pose' ? -0.012 : -0.022
         const energyThreshold = snapshot.source === 'pose' ? 0.05 : 0.12
-        const now = Date.now()
         if (
-          headLockedRef.current
-          && gameStatusRef.current === 'playing'
+          gameStatusRef.current === 'playing'
+          && snapshot.locked
           && snapshot.energy >= energyThreshold
           && snapshot.velocityY <= upwardThreshold
           && now - lastPullTriggerAtRef.current >= PULL_TRIGGER_COOLDOWN_MS
@@ -342,10 +405,10 @@ export default function PullupRushPage() {
     if (gameStatus !== 'playing') return
 
     const timer = setInterval(() => {
-      if (!headLockedRef.current) return
-      const elapsed = Date.now() - gameStartedAtRef.current
-      const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
       const now = Date.now()
+      if (!trackingActiveRef.current) return
+      const elapsed = now - gameStartedAtRef.current
+      const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
 
       if (pendingPullRef.current) {
         playerVelocityRef.current = JUMP_VELOCITY
@@ -587,8 +650,8 @@ export default function PullupRushPage() {
     setLives(MAX_LIVES)
     livesRef.current = MAX_LIVES
     pendingPullRef.current = false
-    headLockLostAtRef.current = 0
     lastPipeSpawnAtRef.current = Date.now()
+    trackingPausedAtRef.current = 0
   }
 
   const startGame = (withRecording: boolean) => {
@@ -596,12 +659,12 @@ export default function PullupRushPage() {
       Taro.showToast({ title: '当前设备暂不支持试玩', icon: 'none' })
       return
     }
-    if (replayProcessing) {
-      Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
+    if (!trackingLockedRef.current || !trackingActiveRef.current) {
+      Taro.showToast({ title: '请先让头部进入画面并保持稳定', icon: 'none' })
       return
     }
-    if (!headLockedRef.current) {
-      Taro.showToast({ title: '请先让头部保持在画面内', icon: 'none' })
+    if (replayProcessing) {
+      Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
       return
     }
     resetForNewGame()
@@ -713,6 +776,20 @@ export default function PullupRushPage() {
                   <Text className='stage-objective-text stage-objective-text--bad'>撞柱子或上下边界会掉命</Text>
                 </View>
 
+                {headLock.visible ? (
+                  <View
+                    className={`head-lock-indicator ${headLock.estimated ? 'head-lock-indicator--estimated' : ''}`}
+                    style={{
+                      height: `${clamp(headLock.radiusY * 2, 0.12, 0.3) * 100}%`,
+                      left: `${headLock.x * 100}%`,
+                      top: `${headLock.y * 100}%`,
+                      width: `${clamp(headLock.radiusX * 2, 0.1, 0.24) * 100}%`
+                    }}
+                  >
+                    <Text className='head-lock-label'>已锁定</Text>
+                  </View>
+                ) : null}
+
                 {pipes.map((pipe) => {
                   const topHeight = pipe.gapY
                   const bottomTop = pipe.gapY + pipe.gapHeight
@@ -766,10 +843,17 @@ export default function PullupRushPage() {
                   </View>
                 ) : null}
 
-                {cameraReady && !cameraError && !headLocked ? (
+                {cameraReady && !cameraError && !trackingLocked ? (
                   <View className='stage-note'>
-                    <Text className='stage-note-title'>正在锁定头部</Text>
-                    <Text className='stage-note-desc'>请正对镜头，让头部完整进入画面并短暂停留。</Text>
+                    <Text className='stage-note-title'>请让头部完整进入画面</Text>
+                    <Text className='stage-note-desc'>保持稳定，锁定后即可开始；游戏中丢失会自动暂停。</Text>
+                  </View>
+                ) : null}
+
+                {cameraReady && !cameraError && trackingLocked && !trackingActive ? (
+                  <View className='stage-note'>
+                    <Text className='stage-note-title'>头部暂时丢失，游戏已暂停</Text>
+                    <Text className='stage-note-desc'>回到原锁定区域后会自动继续；离开过久则重新锁定。</Text>
                   </View>
                 ) : null}
 
@@ -827,18 +911,18 @@ export default function PullupRushPage() {
 
               <View className='controls-grid'>
                 <View
-                  className={`btn-primary ${cameraError || replayProcessing || !headLocked ? 'disabled' : ''}`}
+                  className={`btn-primary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && headLocked) startGame(false)
+                    if (!cameraError && !replayProcessing && trackingActive) startGame(false)
                   }}
                 >
                   <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
                 </View>
 
                 <View
-                  className={`btn-secondary ${cameraError || replayProcessing || !headLocked ? 'disabled' : ''}`}
+                  className={`btn-secondary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && headLocked) startGame(true)
+                    if (!cameraError && !replayProcessing && trackingActive) startGame(true)
                   }}
                 >
                   <Text className='btn-secondary-text'>开始试玩并录回放</Text>

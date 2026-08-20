@@ -1,5 +1,53 @@
 import Taro from '@tarojs/taro'
 
+const DATA_IMAGE_RE = /^data:image\/([^;,]+)((?:;[^,]*)?),([\s\S]*)$/i
+
+function hashText(value: string) {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(36)
+}
+
+function extensionForImageSubtype(subtype: string) {
+  const normalized = subtype.toLowerCase()
+  if (normalized === 'svg+xml') return 'svg'
+  if (normalized === 'jpeg' || normalized === 'pjpeg') return 'jpg'
+  return normalized.replace(/[^a-z0-9]/g, '') || 'img'
+}
+
+async function persistDataImage(raw: string): Promise<string> {
+  const match = DATA_IMAGE_RE.exec(raw)
+  if (!match) return raw
+
+  const userDataPath = String(Taro.env?.USER_DATA_PATH || '').replace(/\/$/, '')
+  if (!userDataPath) return raw
+
+  const [, subtype, parameters, payload] = match
+  const isBase64 = /;base64(?:;|$)/i.test(parameters)
+  const extension = extensionForImageSubtype(subtype)
+  const filePath = `${userDataPath}/coachlink-canvas-${hashText(raw)}.${extension}`
+  const fileSystem = Taro.getFileSystemManager()
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      fileSystem.writeFile({
+        filePath,
+        data: isBase64 ? payload.replace(/\s/g, '') : decodeURIComponent(payload),
+        encoding: isBase64 ? 'base64' : 'utf8',
+        success: () => resolve(),
+        fail: reject
+      })
+    })
+    return filePath
+  } catch (error) {
+    console.warn('[resolveCanvasImageSrc] data URI writeFile failed', error)
+    return raw
+  }
+}
+
 /**
  * 将 data URL / 网络图转为 Canvas 2D createImage 可用的本地路径。
  * 优先 getImageInfo → downloadFile → 最终 fallback 用 Taro.request（可带 Authorization）获取并写入本地。
@@ -9,27 +57,7 @@ export async function resolveCanvasImageSrc(src: string): Promise<string> {
   if (!raw) throw new Error('empty image src')
 
   if (/^data:image\//i.test(raw)) {
-    const compact = raw.replace(/\s/g, '')
-    const m = /^data:image\/[^;]+;base64,(.+)$/i.exec(compact)
-    if (!m) return raw
-    const userDataPath = (Taro as unknown as { env?: { USER_DATA_PATH?: string } }).env?.USER_DATA_PATH
-    if (!userDataPath) return raw
-    const path = `${userDataPath}/cv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}.jpg`
-    try {
-      await new Promise<void>((resolve, reject) => {
-        Taro.getFileSystemManager().writeFile({
-          filePath: path,
-          data: m[1],
-          encoding: 'base64',
-          success: () => resolve(),
-          fail: reject
-        })
-      })
-      return path
-    } catch (e) {
-      console.warn('[resolveCanvasImageSrc] data URI writeFile failed', e)
-      return raw
-    }
+    return persistDataImage(raw)
   }
 
   const networkUrl = raw.startsWith('//') ? `https:${raw}` : raw

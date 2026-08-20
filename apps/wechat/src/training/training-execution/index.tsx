@@ -8,7 +8,6 @@ import { authService } from '@/services/authService'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import { addPublicToMyLib, listPublicActions } from '@/services/actionLibPageService'
 import { buildPublicTrainingSharePath } from '@/utils/share'
-import { svgToDataUri } from '@/utils/svgToDataUri'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
 import { buildPlannedSetPreviews } from '@/utils/planSetPrescriptions'
 import {
@@ -16,8 +15,22 @@ import {
   syncTrainingExecutionToStorage,
   trainingExecutionSnapshotKey
 } from '@/utils/trainingExecutionCache'
-import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
-import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
+import posterFrontBase from '@/assets/body-map/poster/front-base.png'
+import posterFrontArms from '@/assets/body-map/poster/front-arms.png'
+import posterFrontBack from '@/assets/body-map/poster/front-back.png'
+import posterFrontChest from '@/assets/body-map/poster/front-chest.png'
+import posterFrontCore from '@/assets/body-map/poster/front-core.png'
+import posterFrontGlutes from '@/assets/body-map/poster/front-glutes.png'
+import posterFrontLegs from '@/assets/body-map/poster/front-legs.png'
+import posterFrontShoulders from '@/assets/body-map/poster/front-shoulders.png'
+import posterBackBase from '@/assets/body-map/poster/back-base.png'
+import posterBackArms from '@/assets/body-map/poster/back-arms.png'
+import posterBackBack from '@/assets/body-map/poster/back-back.png'
+import posterBackChest from '@/assets/body-map/poster/back-chest.png'
+import posterBackCore from '@/assets/body-map/poster/back-core.png'
+import posterBackGlutes from '@/assets/body-map/poster/back-glutes.png'
+import posterBackLegs from '@/assets/body-map/poster/back-legs.png'
+import posterBackShoulders from '@/assets/body-map/poster/back-shoulders.png'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { useSharePoster } from '@/hooks/useSharePoster'
@@ -45,17 +58,14 @@ const WEIGHT_STEP_KG = 2.5
 const REPS_STEP = 1
 const WORKOUT_POSTER_CANVAS_ID = 'workout-share-poster-canvas'
 
-const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#D5D9D5'
-const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
-
-const SUMMARY_MUSCLE_TO_SVG_CATEGORIES: Record<string, string[]> = {
-  胸部: ['胸部'],
-  背部: ['背部'],
-  肩部: ['肩部'],
-  手臂: ['大臂', '小臂'],
-  核心: ['腹部'],
-  腿部: ['大腿', '小腿'],
-  臀部: ['臀部']
+const WORKOUT_POSTER_BODY_MAP_LAYERS: Record<string, { back: string; front: string }> = {
+  胸部: { back: posterBackChest, front: posterFrontChest },
+  背部: { back: posterBackBack, front: posterFrontBack },
+  肩部: { back: posterBackShoulders, front: posterFrontShoulders },
+  手臂: { back: posterBackArms, front: posterFrontArms },
+  核心: { back: posterBackCore, front: posterFrontCore },
+  腿部: { back: posterBackLegs, front: posterFrontLegs },
+  臀部: { back: posterBackGlutes, front: posterFrontGlutes }
 }
 
 const MUSCLE_INFERENCE_RULES: Array<{ label: string; keywords: string[] }> = [
@@ -273,55 +283,6 @@ function parseTimestamp(value?: string | number | Date | null): number | null {
 
 function asTextList(value?: string[] | null) {
   return Array.isArray(value) ? value.filter(Boolean) : []
-}
-
-function parseSvgCategoryMap(svg: string): Record<string, string> {
-  const map: Record<string, string> = {}
-  const singleLineRegex = /<g[^>]*data-name="([^"]+)"[^>]*category="([^"]+)"[^>]*>/g
-  let match: RegExpExecArray | null
-  while ((match = singleLineRegex.exec(svg)) !== null) {
-    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
-      map[match[1]] = match[2]
-    }
-  }
-  const multiLineRegex = /<g\s*\n?\s*data-name="([^"]+)"\s*\n?\s*category="([^"]+)"/g
-  while ((match = multiLineRegex.exec(svg)) !== null) {
-    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
-      map[match[1]] = match[2]
-    }
-  }
-  return map
-}
-
-function highlightSvgCategories(svg: string, selectedParts: string[]) {
-  const categoryMap = parseSvgCategoryMap(svg)
-  const dataNamesToHighlight = new Set<string>()
-  const selectedCategories = new Set(
-    selectedParts.flatMap((part) => SUMMARY_MUSCLE_TO_SVG_CATEGORIES[part] || [part])
-  )
-  Object.entries(categoryMap).forEach(([dataName, category]) => {
-    if (selectedCategories.has(category)) dataNamesToHighlight.add(dataName)
-  })
-
-  let result = svg
-    .replace(/fill:#fff/gi, MUSCLE_FILL_ORIGIN_STYLE)
-    .replace(/fill="#fff"/gi, 'fill="#D5D9D5"')
-
-  dataNamesToHighlight.forEach((dataName) => {
-    const regex = new RegExp(`(<g[^>]*data-name="${dataName}"[^>]*>)([\\s\\S]*?)(</g>)`, 'g')
-    result = result.replace(regex, (_match, open, content, close) => {
-      const highlighted = content.replace(
-        new RegExp(MUSCLE_FILL_ORIGIN_STYLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-        MUSCLE_FILL_HIGHLIGHT_STYLE
-      )
-      return open + highlighted + close
-    })
-  })
-
-  return svgToDataUri(result.replace(
-    /<svg\s/,
-    '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
-  ))
 }
 
 function inferMusclesForAction(actionExecution: ActionExecution, actionDetail: any): string[] {
@@ -2277,8 +2238,12 @@ function TrainingExecution() {
     }
   })()
   const heatmapMuscles = workoutSummary.muscles.map((item) => item.label)
-  const heatmapFrontSvg = highlightSvgCategories(maleFrontSvgRaw, heatmapMuscles)
-  const heatmapBackSvg = highlightSvgCategories(maleBackSvgRaw, heatmapMuscles)
+  const heatmapFrontLayers = heatmapMuscles
+    .map((muscle) => WORKOUT_POSTER_BODY_MAP_LAYERS[muscle]?.front)
+    .filter((src): src is string => Boolean(src))
+  const heatmapBackLayers = heatmapMuscles
+    .map((muscle) => WORKOUT_POSTER_BODY_MAP_LAYERS[muscle]?.back)
+    .filter((src): src is string => Boolean(src))
   const workoutSummaryMaxScore = Math.max(1, ...workoutSummary.muscles.map((item) => item.score))
   const isWorkoutCompleted = String(execution?.status || '').toLowerCase() === 'completed' || !!execution?.completed_at
   const canOpenWorkoutSummary = isWorkoutCompleted && workoutSummary.completedSetTotal > 0
@@ -2298,16 +2263,18 @@ function TrainingExecution() {
     durationMin: workoutSummary.durationMin,
     muscles: workoutSummary.muscles,
     actionRows: workoutSummary.actionRows,
-    frontBodyMap: heatmapFrontSvg,
-    backBodyMap: heatmapBackSvg,
+    frontBodyMap: posterFrontBase,
+    backBodyMap: posterBackBase,
+    frontBodyMapLayers: heatmapFrontLayers,
+    backBodyMapLayers: heatmapBackLayers,
     shareUrl: 'https://coachlink.fit',
     shareMode: 'brand'
   }), [
     dayIndex,
     execution?.completed_at,
     execution?.started_at,
-    heatmapBackSvg,
-    heatmapFrontSvg,
+    heatmapBackLayers,
+    heatmapFrontLayers,
     isImpromptuMode,
     planTitle,
     posterAvatarUrl,
@@ -3204,11 +3171,21 @@ function TrainingExecution() {
 
             <View className="summary-heatmap-row">
               <View className="summary-body-map">
-                <Image className="summary-body-image" src={heatmapFrontSvg} mode="aspectFit" />
+                <View className="summary-body-image-stack">
+                  <Image className="summary-body-image" src={posterFrontBase} mode="aspectFit" />
+                  {heatmapFrontLayers.map((src) => (
+                    <Image key={src} className="summary-body-image summary-body-image--layer" src={src} mode="aspectFit" />
+                  ))}
+                </View>
                 <Text className="summary-body-caption">正面</Text>
               </View>
               <View className="summary-body-map">
-                <Image className="summary-body-image" src={heatmapBackSvg} mode="aspectFit" />
+                <View className="summary-body-image-stack">
+                  <Image className="summary-body-image" src={posterBackBase} mode="aspectFit" />
+                  {heatmapBackLayers.map((src) => (
+                    <Image key={src} className="summary-body-image summary-body-image--layer" src={src} mode="aspectFit" />
+                  ))}
+                </View>
                 <Text className="summary-body-caption">背面</Text>
               </View>
             </View>

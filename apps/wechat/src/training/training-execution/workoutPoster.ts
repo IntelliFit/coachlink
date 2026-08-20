@@ -49,6 +49,8 @@ export interface WorkoutPosterData {
   actionRows: WorkoutPosterActionRow[]
   frontBodyMap: string
   backBodyMap: string
+  frontBodyMapLayers?: string[]
+  backBodyMapLayers?: string[]
   shareUrl: string
   shareMode: 'record' | 'brand'
 }
@@ -337,11 +339,23 @@ export async function drawWorkoutPoster(
   canvas.height = posterHeight * POSTER_DPR
   ctx.setTransform(POSTER_DPR, 0, 0, POSTER_DPR, 0, 0)
 
-  const [avatarImage, frontImage, backImage] = await Promise.all([
+  const frontLayerSources = data.frontBodyMapLayers || []
+  const backLayerSources = data.backBodyMapLayers || []
+  const [avatarImage, frontImage, backImage, ...bodyLayerImages] = await Promise.all([
     loadPosterImage(canvas, data.avatarUrl),
     loadPosterImage(canvas, data.frontBodyMap),
-    loadPosterImage(canvas, data.backBodyMap)
+    loadPosterImage(canvas, data.backBodyMap),
+    ...frontLayerSources.map((src) => loadPosterImage(canvas, src)),
+    ...backLayerSources.map((src) => loadPosterImage(canvas, src))
   ])
+
+  // 人体热图是训练分享图的核心内容。真机若无法加载时直接中止生成，
+  // 避免继续导出一张看似成功、实际正反人体图为空白的海报。
+  if (!frontImage || !backImage || bodyLayerImages.some((image) => !image)) {
+    throw new Error('workout body map image unavailable')
+  }
+  const frontLayerImages = bodyLayerImages.slice(0, frontLayerSources.length) as CanvasImageSource[]
+  const backLayerImages = bodyLayerImages.slice(frontLayerSources.length) as CanvasImageSource[]
 
   ctx.fillStyle = PAPER
   ctx.fillRect(0, 0, WORKOUT_POSTER_WIDTH, posterHeight)
@@ -368,8 +382,10 @@ export async function drawWorkoutPoster(
   ctx.font = '23px sans-serif'
   ctx.fillText(fitText(ctx, data.subtitle || '训练记录', 580), 64, 316)
 
-  if (frontImage) ctx.drawImage(frontImage, 72, 370, 154, 250)
-  if (backImage) ctx.drawImage(backImage, 260, 370, 154, 250)
+  ctx.drawImage(frontImage, 72, 370, 154, 250)
+  ctx.drawImage(backImage, 260, 370, 154, 250)
+  frontLayerImages.forEach((image) => ctx.drawImage(image, 72, 370, 154, 250))
+  backLayerImages.forEach((image) => ctx.drawImage(image, 260, 370, 154, 250))
   ctx.fillStyle = SUBTLE
   ctx.font = '18px sans-serif'
   ctx.textAlign = 'center'

@@ -7,8 +7,9 @@ export type BodyTrackingSource = 'motion' | 'pose'
 
 export type BodyTrackingTarget = 'body' | 'head' | 'head-estimate' | 'motion'
 
+export type BodyTrackingLockState = 'holding' | 'locked' | 'searching'
+
 export type BodyTrackingSnapshot = {
-  anchor: BodyTrackingAnchor
   confidence: number
   energy: number
   frameHeight: number
@@ -16,6 +17,7 @@ export type BodyTrackingSnapshot = {
   headRadiusX: number
   headRadiusY: number
   locked: boolean
+  lockState: BodyTrackingLockState
   source: BodyTrackingSource
   target: BodyTrackingTarget
   velocityX: number
@@ -31,7 +33,9 @@ type CameraFrame = {
 }
 
 type TrackerOptions = {
-  anchor?: BodyTrackingAnchor
+  anchorMode?: 'auto' | 'head'
+  headLockConfirmFrames?: number
+  headLostGraceMs?: number
   onLockChange?: (locked: boolean) => void
   onSnapshot: (snapshot: BodyTrackingSnapshot) => void
   onSourceChange?: (source: BodyTrackingSource) => void
@@ -44,19 +48,23 @@ type PosePoint = {
   y: number
 }
 
+type HeadAnchor = PosePoint & {
+  headRadiusX: number
+  headRadiusY: number
+  target: 'body' | 'head' | 'head-estimate'
+}
+
 const MODEL_FILE_NAME = 'coachlink-movenet-lightning-v4.onnx'
 const MODEL_FILE_SIZE = 9_466_715
 const MODEL_INPUT_SIZE = 192
+const MODEL_INPUT_PIXEL_COUNT = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE
 const POSE_INTERVAL_MS = 48
 const MOTION_INTERVAL_MS = 42
 const MOTION_SAMPLE_STEP = 8
 const MOTION_THRESHOLD = 22
 const POSE_SCORE_THRESHOLD = 0.28
-const HEAD_LOCK_ACQUIRE_FRAMES = 3
-const HEAD_LOCK_CANDIDATE_GAP_MS = 220
-const HEAD_LOCK_LOST_MS = 720
-const HEAD_LOCK_MAX_JUMP = 0.18
-const HEAD_MOTION_ROI_RADIUS = 0.22
+const HEAD_LOCK_CONFIRM_FRAMES = 3
+const HEAD_LOST_GRACE_MS = 720
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value))
@@ -110,7 +118,7 @@ function averageVisible(points: PosePoint[], indices: number[]) {
   }
 }
 
-function buildHeadAnchor(points: PosePoint[], frameAspect: number) {
+function buildHeadAnchor(points: PosePoint[], frameAspect: number): HeadAnchor | null {
   const visibleHead = [0, 1, 2, 3, 4]
     .map((index) => points[index])
     .filter((point) => point?.score >= POSE_SCORE_THRESHOLD)
@@ -153,30 +161,36 @@ function buildHeadAnchor(points: PosePoint[], frameAspect: number) {
         ...hips,
         headRadiusX: 0,
         headRadiusY: 0,
-    locked: true,
         target: 'body' as const
       }
     : null
 }
 
 export class BodyPointTracker {
+  private anchorMode: 'auto' | 'head'
   private destroyed = false
+  private headCandidate: HeadAnchor | null = null
+  private headCandidateFrames = 0
+  private headLockConfirmFrames: number
+  private headLocked = false
+  private headLostGraceMs: number
   private inferenceRunning = false
   private inferenceFailures = 0
+  private lastDirectHeadAt = 0
+  private lastLockedHeadSnapshot: BodyTrackingSnapshot | null = null
   private lastMotionAt = 0
-  private lastHeadCandidateAt = 0
-  private lastHeadSeenAt = 0
   private lastPoseAt = 0
   private lastPoseSnapshotAt = 0
   private lastPoseSnapshot: BodyTrackingSnapshot | null = null
   private lastSnapshot: BodyTrackingSnapshot = {
-    anchor: 'body',
     confidence: 0,
     energy: 0,
     frameHeight: 0,
     frameWidth: 0,
     headRadiusX: 0,
     headRadiusY: 0,
+    locked: false,
+    lockState: 'searching',
     source: 'motion',
     target: 'motion',
     velocityX: 0,
@@ -185,16 +199,20 @@ export class BodyPointTracker {
     y: 0.55
   }
   private options: TrackerOptions
+  private poseFrameHeight = 0
+  private poseFrameWidth = 0
+  private poseInput = new Int32Array(MODEL_INPUT_PIXEL_COUNT * 3)
   private poseIntervalMs: number
-  private headCandidateFrames = 0
-  private headLocked = false
-  private lastHeadPoint: PosePoint | null = null
   private poseSession: any = null
+  private poseSourceIndices: Int32Array | null = null
   private previousGray: Uint8Array | null = null
   private source: BodyTrackingSource = 'motion'
 
   constructor(options: TrackerOptions) {
     this.options = options
+    this.anchorMode = options.anchorMode || 'auto'
+    this.headLockConfirmFrames = Math.max(2, Math.round(options.headLockConfirmFrames || HEAD_LOCK_CONFIRM_FRAMES))
+    this.headLostGraceMs = clamp(Number(options.headLostGraceMs || HEAD_LOST_GRACE_MS), 480, 1500)
     this.poseIntervalMs = clamp(Number(options.poseIntervalMs || POSE_INTERVAL_MS), 40, 120)
     void this.preparePoseSession()
   }
@@ -202,7 +220,7 @@ export class BodyPointTracker {
   processFrame(frame: CameraFrame, at = Date.now()) {
     if (this.destroyed || !frame.width || !frame.height || !(frame.data instanceof ArrayBuffer)) return
 
-    this.updateHeadLock(at)
+    this.expireHeadLock(at)
 
     const rgba = new Uint8Array(frame.data)
     if (this.poseSession) {
@@ -216,7 +234,12 @@ export class BodyPointTracker {
     if (at - this.lastMotionAt < MOTION_INTERVAL_MS) return
     const snapshot = this.trackMotion(rgba, frame.width, frame.height, at)
     this.lastMotionAt = at
-    if (snapshot) this.emit(snapshot)
+    if (!snapshot) return
+    if (this.anchorMode === 'head') {
+      this.emitRestrictedHeadMotion(snapshot, at)
+      return
+    }
+    this.emit(snapshot)
   }
 
   destroy() {
@@ -237,8 +260,10 @@ export class BodyPointTracker {
       const fileSystem = Taro.getFileSystemManager()
       const modelPath = `${wx.env.USER_DATA_PATH}/${MODEL_FILE_NAME}`
       if (!(await fileIsValid(fileSystem, modelPath))) {
+        const token = String(Taro.getStorageSync('token') || '').trim()
         const response = await Taro.downloadFile({
-          url: `${API_BASE_URL.replace(/\/+$/, '')}/api/toolbox/pose-model`
+          url: `${API_BASE_URL.replace(/\/+$/, '')}/api/toolbox/pose-model`,
+          header: token ? { Authorization: `Bearer ${token}` } : {}
         })
         if (response.statusCode !== 200 || !response.tempFilePath) return
         await copyFile(fileSystem, response.tempFilePath, modelPath)
@@ -265,44 +290,13 @@ export class BodyPointTracker {
   private runPose(rgba: Uint8Array, width: number, height: number, at: number) {
     if (!this.poseSession) return
     this.inferenceRunning = true
-    const input = new Int32Array(MODEL_INPUT_SIZE * MODEL_INPUT_SIZE * 3)
-    const scale = Math.min(MODEL_INPUT_SIZE / width, MODEL_INPUT_SIZE / height)
-    const scaledWidth = Math.max(1, Math.round(width * scale))
-    const scaledHeight = Math.max(1, Math.round(height * scale))
-    const offsetX = Math.floor((MODEL_INPUT_SIZE - scaledWidth) / 2)
-    const offsetY = Math.floor((MODEL_INPUT_SIZE - scaledHeight) / 2)
-
-    for (let targetY = 0; targetY < MODEL_INPUT_SIZE; targetY += 1) {
-      for (let targetX = 0; targetX < MODEL_INPUT_SIZE; targetX += 1) {
-        if (
-          targetX < offsetX
-          || targetX >= offsetX + scaledWidth
-          || targetY < offsetY
-          || targetY >= offsetY + scaledHeight
-        ) {
-          continue
-        }
-        const sourceX = Math.min(
-          width - 1,
-          Math.max(0, Math.floor((targetX - offsetX + 0.5) * width / scaledWidth))
-        )
-        const sourceY = Math.min(
-          height - 1,
-          Math.max(0, Math.floor((targetY - offsetY + 0.5) * height / scaledHeight))
-        )
-        const sourceIndex = (sourceY * width + sourceX) * 4
-        const outputIndex = (targetY * MODEL_INPUT_SIZE + targetX) * 3
-        input[outputIndex] = rgba[sourceIndex] || 0
-        input[outputIndex + 1] = rgba[sourceIndex + 1] || 0
-        input[outputIndex + 2] = rgba[sourceIndex + 2] || 0
-      }
-    }
+    const geometry = this.preparePoseInput(rgba, width, height)
 
     let inference: Promise<any>
     try {
       inference = Promise.resolve(this.poseSession.run({
         input: {
-          data: input.buffer,
+          data: this.poseInput.buffer,
           shape: [1, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE, 3],
           type: 'int32'
         }
@@ -317,59 +311,32 @@ export class BodyPointTracker {
         if (this.destroyed) return
         const firstOutput = result?.output_0 || result?.[Object.keys(result || {})[0]]
         const values = tensorData(firstOutput)
-        if (!values || values.length < 51) return
+        if (!values || values.length < 51) {
+          if (this.anchorMode === 'head') this.handleHeadPoseAnchor(null, width, height, Date.now())
+          return
+        }
 
         const points: PosePoint[] = []
         for (let index = 0; index < 17; index += 1) {
           const modelY = values[index * 3] * MODEL_INPUT_SIZE
           const modelX = values[index * 3 + 1] * MODEL_INPUT_SIZE
           points.push({
-            y: clamp((modelY - offsetY) / scaledHeight, 0, 1),
-            x: clamp((modelX - offsetX) / scaledWidth, 0, 1),
+            y: clamp((modelY - geometry.offsetY) / geometry.scaledHeight, 0, 1),
+            x: clamp((modelX - geometry.offsetX) / geometry.scaledWidth, 0, 1),
             score: values[index * 3 + 2]
           })
         }
 
-        const detectedAnchor = buildHeadAnchor(points, width / Math.max(1, height))
-        const head = averageVisible(points, [0, 1, 2, 3, 4])
-        const anchor = this.options.anchor === 'head' ? head : detectedAnchor
-        if (!anchor || anchor.score < POSE_SCORE_THRESHOLD) return
-
+        const anchor = buildHeadAnchor(points, width / Math.max(1, height))
         const completedAt = Date.now()
-        if (this.options.anchor === 'head') {
-          this.observeHead(anchor, completedAt)
-          this.lastPoseSnapshotAt = completedAt
-          if (!this.headLocked) return
-        }
-        const previous = this.lastPoseSnapshot || this.lastSnapshot
-        const elapsedScale = this.lastPoseSnapshotAt
-          ? clamp((completedAt - this.lastPoseSnapshotAt) / this.poseIntervalMs, 0.7, 3)
-          : 1
-        const rawVelocityX = (anchor.x - previous.x) / elapsedScale
-        const rawVelocityY = (anchor.y - previous.y) / elapsedScale
-        const speed = Math.hypot(rawVelocityX, rawVelocityY)
-        const alpha = speed > 0.035 ? 0.94 : speed > 0.012 ? 0.88 : 0.78
-        const x = previous.x * (1 - alpha) + anchor.x * alpha
-        const y = previous.y * (1 - alpha) + anchor.y * alpha
-
-        this.lastPoseSnapshotAt = completedAt
         this.inferenceFailures = 0
-        this.emit({
-          anchor: this.options.anchor || 'body',
-          confidence: anchor.score,
-          energy: clamp(speed * 11, 0, 1),
-          frameHeight: height,
-          frameWidth: width,
-          headRadiusX: this.options.anchor === 'head' ? 0 : detectedAnchor?.headRadiusX || 0,
-          headRadiusY: this.options.anchor === 'head' ? 0 : detectedAnchor?.headRadiusY || 0,
-          locked: this.options.anchor !== 'head' || this.headLocked,
-          source: 'pose',
-          target: this.options.anchor === 'head' ? 'head' : detectedAnchor?.target || 'body',
-          velocityX: (x - previous.x) / elapsedScale,
-          velocityY: (y - previous.y) / elapsedScale,
-          x: clamp(x, 0.04, 0.96),
-          y: clamp(y, 0.06, 0.94)
-        })
+        const visibleAnchor = anchor && anchor.score >= POSE_SCORE_THRESHOLD ? anchor : null
+        if (this.anchorMode === 'head') {
+          this.handleHeadPoseAnchor(visibleAnchor, width, height, completedAt)
+          return
+        }
+        if (!visibleAnchor) return
+        this.emit(this.createPoseSnapshot(visibleAnchor, width, height, completedAt, true, 'locked'))
       })
       .catch((error: unknown) => {
         this.handleInferenceFailure(error)
@@ -378,6 +345,249 @@ export class BodyPointTracker {
         this.inferenceRunning = false
         this.lastPoseAt = Math.max(this.lastPoseAt, at)
       })
+  }
+
+  private createPoseSnapshot(
+    anchor: HeadAnchor,
+    width: number,
+    height: number,
+    completedAt: number,
+    locked: boolean,
+    lockState: BodyTrackingLockState
+  ): BodyTrackingSnapshot {
+    const previous = this.lastPoseSnapshot && completedAt - this.lastPoseSnapshotAt < 650
+      ? this.lastPoseSnapshot
+      : this.lastSnapshot
+    const elapsedScale = this.lastPoseSnapshotAt
+      ? clamp((completedAt - this.lastPoseSnapshotAt) / this.poseIntervalMs, 0.7, 3)
+      : 1
+    const rawVelocityX = (anchor.x - previous.x) / elapsedScale
+    const rawVelocityY = (anchor.y - previous.y) / elapsedScale
+    const speed = Math.hypot(rawVelocityX, rawVelocityY)
+    const alpha = speed > 0.035 ? 0.94 : speed > 0.012 ? 0.88 : 0.78
+    const x = previous.x * (1 - alpha) + anchor.x * alpha
+    const y = previous.y * (1 - alpha) + anchor.y * alpha
+
+    this.lastPoseSnapshotAt = completedAt
+    return {
+      confidence: anchor.score,
+      energy: clamp(speed * 11, 0, 1),
+      frameHeight: height,
+      frameWidth: width,
+      headRadiusX: anchor.headRadiusX,
+      headRadiusY: anchor.headRadiusY,
+      locked,
+      lockState,
+      source: 'pose',
+      target: anchor.target,
+      velocityX: (x - previous.x) / elapsedScale,
+      velocityY: (y - previous.y) / elapsedScale,
+      x: clamp(x, 0.04, 0.96),
+      y: clamp(y, 0.06, 0.94)
+    }
+  }
+
+  private handleHeadPoseAnchor(
+    anchor: HeadAnchor | null,
+    width: number,
+    height: number,
+    completedAt: number
+  ) {
+    const directHead = anchor?.target === 'head' ? anchor : null
+
+    if (!this.headLocked) {
+      if (!directHead) {
+        this.headCandidate = null
+        this.headCandidateFrames = 0
+        if (anchor) {
+          this.emit(this.createPoseSnapshot(anchor, width, height, completedAt, false, 'searching'))
+        }
+        return
+      }
+
+      const candidateDistance = this.headCandidate
+        ? Math.hypot(directHead.x - this.headCandidate.x, directHead.y - this.headCandidate.y)
+        : Number.POSITIVE_INFINITY
+      const confirmationRadius = Math.max(0.08, directHead.headRadiusX * 1.8)
+      this.headCandidateFrames = candidateDistance <= confirmationRadius
+        ? this.headCandidateFrames + 1
+        : 1
+      this.headCandidate = directHead
+
+      const confirmed = this.headCandidateFrames >= this.headLockConfirmFrames
+      if (confirmed) {
+        this.lastDirectHeadAt = completedAt
+        this.setHeadLocked(true)
+      }
+      const snapshot = this.createPoseSnapshot(
+        directHead,
+        width,
+        height,
+        completedAt,
+        confirmed,
+        confirmed ? 'locked' : 'searching'
+      )
+      if (confirmed) this.lastLockedHeadSnapshot = snapshot
+      this.emit(snapshot)
+      return
+    }
+
+    if (directHead) {
+      const previous = this.lastLockedHeadSnapshot
+      const distance = previous
+        ? Math.hypot(directHead.x - previous.x, directHead.y - previous.y)
+        : 0
+      const maximumReacquireDistance = Math.max(0.24, directHead.headRadiusX * 3)
+      if (previous && distance > maximumReacquireDistance) {
+        this.emitHeldHead(completedAt)
+        return
+      }
+
+      this.lastDirectHeadAt = completedAt
+      const snapshot = this.createPoseSnapshot(directHead, width, height, completedAt, true, 'locked')
+      this.lastLockedHeadSnapshot = snapshot
+      this.emit(snapshot)
+      return
+    }
+
+    const previous = this.lastLockedHeadSnapshot
+    if (anchor?.target === 'head-estimate' && previous) {
+      const distance = Math.hypot(anchor.x - previous.x, anchor.y - previous.y)
+      const maximumEstimateDistance = Math.max(0.18, previous.headRadiusX * 2.6)
+      if (distance <= maximumEstimateDistance && completedAt - this.lastDirectHeadAt <= this.headLostGraceMs) {
+        const snapshot = this.createPoseSnapshot(anchor, width, height, completedAt, true, 'holding')
+        this.lastLockedHeadSnapshot = snapshot
+        this.emit(snapshot)
+        return
+      }
+    }
+
+    this.emitHeldHead(completedAt)
+  }
+
+  private emitHeldHead(at: number) {
+    if (!this.headLocked || !this.lastLockedHeadSnapshot) return
+    if (at - this.lastDirectHeadAt > this.headLostGraceMs) {
+      this.expireHeadLock(at)
+      return
+    }
+
+    const progress = clamp((at - this.lastDirectHeadAt) / this.headLostGraceMs, 0, 1)
+    const held: BodyTrackingSnapshot = {
+      ...this.lastLockedHeadSnapshot,
+      confidence: this.lastLockedHeadSnapshot.confidence * (1 - progress * 0.55),
+      energy: 0,
+      locked: true,
+      lockState: 'holding',
+      target: 'head-estimate',
+      velocityX: 0,
+      velocityY: 0
+    }
+    this.lastPoseSnapshotAt = at
+    this.lastLockedHeadSnapshot = held
+    this.emit(held)
+  }
+
+  private emitRestrictedHeadMotion(snapshot: BodyTrackingSnapshot, at: number) {
+    const previous = this.lastLockedHeadSnapshot
+    if (!this.headLocked || !previous) {
+      this.emit({ ...snapshot, locked: false, lockState: 'searching' })
+      return
+    }
+
+    const distance = Math.hypot(snapshot.x - previous.x, snapshot.y - previous.y)
+    const maximumDistance = Math.max(0.16, previous.headRadiusX * 2.6)
+    if (distance > maximumDistance) {
+      this.emitHeldHead(at)
+      return
+    }
+
+    const x = previous.x * 0.72 + snapshot.x * 0.28
+    const y = previous.y * 0.72 + snapshot.y * 0.28
+    const restricted: BodyTrackingSnapshot = {
+      ...snapshot,
+      confidence: snapshot.confidence * 0.7,
+      headRadiusX: previous.headRadiusX,
+      headRadiusY: previous.headRadiusY,
+      locked: true,
+      lockState: 'holding',
+      target: 'head-estimate',
+      velocityX: x - previous.x,
+      velocityY: y - previous.y,
+      x,
+      y
+    }
+    this.lastLockedHeadSnapshot = restricted
+    this.emit(restricted)
+  }
+
+  private expireHeadLock(at: number) {
+    if (!this.headLocked || !this.lastDirectHeadAt || at - this.lastDirectHeadAt <= this.headLostGraceMs) return
+    this.headCandidate = null
+    this.headCandidateFrames = 0
+    this.setHeadLocked(false)
+    if (this.lastLockedHeadSnapshot) {
+      this.emit({
+        ...this.lastLockedHeadSnapshot,
+        confidence: 0,
+        energy: 0,
+        locked: false,
+        lockState: 'searching',
+        velocityX: 0,
+        velocityY: 0
+      })
+    }
+  }
+
+  private setHeadLocked(locked: boolean) {
+    if (this.headLocked === locked) return
+    this.headLocked = locked
+    this.options.onLockChange?.(locked)
+  }
+
+  private preparePoseInput(rgba: Uint8Array, width: number, height: number) {
+    const scale = Math.min(MODEL_INPUT_SIZE / width, MODEL_INPUT_SIZE / height)
+    const scaledWidth = Math.max(1, Math.round(width * scale))
+    const scaledHeight = Math.max(1, Math.round(height * scale))
+    const offsetX = Math.floor((MODEL_INPUT_SIZE - scaledWidth) / 2)
+    const offsetY = Math.floor((MODEL_INPUT_SIZE - scaledHeight) / 2)
+
+    if (
+      !this.poseSourceIndices
+      || this.poseFrameWidth !== width
+      || this.poseFrameHeight !== height
+    ) {
+      const indices = new Int32Array(MODEL_INPUT_PIXEL_COUNT)
+      indices.fill(-1)
+      for (let targetY = offsetY; targetY < offsetY + scaledHeight; targetY += 1) {
+        const sourceY = Math.min(
+          height - 1,
+          Math.max(0, Math.floor((targetY - offsetY + 0.5) * height / scaledHeight))
+        )
+        for (let targetX = offsetX; targetX < offsetX + scaledWidth; targetX += 1) {
+          const sourceX = Math.min(
+            width - 1,
+            Math.max(0, Math.floor((targetX - offsetX + 0.5) * width / scaledWidth))
+          )
+          indices[targetY * MODEL_INPUT_SIZE + targetX] = (sourceY * width + sourceX) * 4
+        }
+      }
+      this.poseSourceIndices = indices
+      this.poseFrameWidth = width
+      this.poseFrameHeight = height
+    }
+
+    this.poseInput.fill(0)
+    for (let targetIndex = 0; targetIndex < MODEL_INPUT_PIXEL_COUNT; targetIndex += 1) {
+      const sourceIndex = this.poseSourceIndices[targetIndex]
+      if (sourceIndex < 0) continue
+      const outputIndex = targetIndex * 3
+      this.poseInput[outputIndex] = rgba[sourceIndex] || 0
+      this.poseInput[outputIndex + 1] = rgba[sourceIndex + 1] || 0
+      this.poseInput[outputIndex + 2] = rgba[sourceIndex + 2] || 0
+    }
+
+    return { offsetX, offsetY, scaledHeight, scaledWidth }
   }
 
   private handleInferenceFailure(error: unknown) {
@@ -398,9 +608,6 @@ export class BodyPointTracker {
   }
 
   private trackMotion(rgba: Uint8Array, width: number, height: number, at: number) {
-    const headLockActive = this.options.anchor === 'head'
-    if (headLockActive && (!this.headLocked || !this.lastHeadPoint || at - this.lastHeadSeenAt > HEAD_LOCK_LOST_MS)) return null
-
     const gridWidth = Math.ceil(width / MOTION_SAMPLE_STEP)
     const gridHeight = Math.ceil(height / MOTION_SAMPLE_STEP)
     const current = new Uint8Array(gridWidth * gridHeight)
@@ -467,7 +674,6 @@ export class BodyPointTracker {
       if (cells < 3 || totalWeight <= 0) continue
       const x = weightedX / totalWeight / gridWidth
       const y = weightedY / totalWeight / gridHeight
-      if (headLockActive && this.lastHeadPoint && Math.hypot(x - this.lastHeadPoint.x, y - this.lastHeadPoint.y) > HEAD_MOTION_ROI_RADIUS) continue
       const distance = Math.hypot(x - previous.x, y - previous.y)
       const continuity = clamp(1.15 - distance, 0.38, 1.08)
       const score = totalWeight * continuity * Math.min(1.6, 0.72 + cells / 18)
@@ -483,14 +689,14 @@ export class BodyPointTracker {
       : 1
 
     return {
-      anchor: this.options.anchor || 'body',
       confidence: clamp(best.weight / 5200, 0, 1),
       energy: clamp(best.weight / 7200, 0, 1),
-      locked: !headLockActive || this.headLocked,
       frameHeight: height,
       frameWidth: width,
       headRadiusX: 0,
       headRadiusY: 0,
+      locked: this.anchorMode !== 'head',
+      lockState: this.anchorMode === 'head' ? 'searching' : 'locked',
       source: 'motion' as const,
       target: 'motion' as const,
       velocityX: (x - previous.x) / elapsedScale,
@@ -508,46 +714,5 @@ export class BodyPointTracker {
       this.options.onSourceChange?.(snapshot.source)
     }
     this.options.onSnapshot(snapshot)
-  }
-  private observeHead(head: PosePoint, at: number) {
-    const previousHead = this.lastHeadPoint
-    const candidateIsContinuous = Boolean(
-      previousHead
-      && at - this.lastHeadCandidateAt <= HEAD_LOCK_CANDIDATE_GAP_MS
-      && Math.hypot(head.x - previousHead.x, head.y - previousHead.y) <= HEAD_LOCK_MAX_JUMP
-    )
-
-    this.headCandidateFrames = candidateIsContinuous ? this.headCandidateFrames + 1 : 1
-    this.lastHeadCandidateAt = at
-    this.lastHeadSeenAt = at
-    this.lastHeadPoint = head
-
-    if (!this.headLocked && this.headCandidateFrames >= HEAD_LOCK_ACQUIRE_FRAMES) {
-      this.headLocked = true
-      this.options.onLockChange?.(true)
-      this.lastSnapshot = {
-        anchor: 'head',
-        confidence: head.score,
-        energy: 0,
-        frameHeight: 0,
-        frameWidth: 0,
-        headRadiusX: 0,
-        headRadiusY: 0,
-        locked: true,
-        source: 'pose',
-        target: 'head',
-        velocityX: 0,
-        velocityY: 0,
-        x: head.x,
-        y: head.y
-      }
-    }
-  }
-
-  private updateHeadLock(at: number) {
-    if (this.options.anchor !== 'head' || !this.headLocked || at - this.lastHeadSeenAt <= HEAD_LOCK_LOST_MS) return
-    this.headLocked = false
-    this.headCandidateFrames = 0
-    this.options.onLockChange?.(false)
   }
 }

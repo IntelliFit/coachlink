@@ -733,3 +733,6 @@
 - `2026-08-20`: “更新计划”是内容 revision，不是新训练阶段。已有 execution 时，客户端必须提交 `revisionOfInstanceId`，服务端按旧实例真实 completed/abandoned 记录决定下一训练日，继承订阅真实 D1，并把被替换版本标记为 `replaced_no_charge/no_charge`；不得相信客户端回推日期或手选进度。存在 `in_progress` execution 时禁止切换 revision。首次分配、计划激活和 AI 新建均不得把操作当天写成 D1。
 - `2026-08-20`: 同一日历起点上的计划 replacement revision 若通过 `start_execution_day > 1` 承接旧进度，旧 revision 必须归档为 `replaced_no_charge / no_charge`，不能再以 `count_service` 另扣一次订阅权益。所有 carryover 计算路径必须在查询中显式包含 `entitlement_consumption_policy`；不得依赖未被 select 的数据库标记。
 - `2026-08-20`: 教练订阅计划的 D1 定义为学员第一次实际开始训练的北京日期，不是教练分配或创建计划的日期。之后 Dn 以该 D1 为键点按计划日序映射；Web、小程序与后端严格推进必须优先使用 `coach_subscriptions.start_date`。首次 D1 execution 建立时，服务端必须用真实 `started_at` 的北京日期覆盖计划实例中预填的分配日。
+- `2026-08-21`: 微信训练分享海报不得依赖真机 Canvas 运行时解码 SVG。人体热图统一采用构建期生成的 PNG 灰色底图 + 分肌群透明高亮层，训练完成弹窗和导出海报复用同一套资源；所有 data image 仍须按 MIME 写入 `USER_DATA_PATH` 后加载。人体正反底图及所需高亮层属于必需资源，任一加载失败时不得静默导出空人体图。
+- `2026-08-21`: 体感小游戏的 MoveNet 模型代理 `/api/toolbox/pose-model` 是公开、固定版本、长缓存的静态资源，必须允许小程序首次下载；客户端仍可附带已有 Bearer token。引体/俯卧撑的头部锚点必须实际投影到相机可见区并给出可见锁定反馈，不能只计算后丢弃坐标。
+- `2026-08-21`: 引体/俯卧撑不得把单帧头部识别当成锁定。统一要求连续 3 个稳定直接头部点才锁定；直接头部丢失时立即暂停玩法并在原头部邻域短时保持，720ms 后解除锁定，稳定重获后补偿暂停时间继续。锁定前不能开始，动作触发只接受直接锁定状态；开发者工具通过不等于真机通过。

@@ -209,6 +209,67 @@
     background: rgba(17, 24, 39, 0.42);
   }
 
+  .head-lock-indicator {
+    position: absolute;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+    border: 4rpx solid rgba(255, 255, 255, 0.96);
+    border-radius: 9999rpx;
+    box-shadow: 0 0 0 8rpx rgba(207, 109, 78, 0.32);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .head-lock-indicator::before,
+  .head-lock-indicator::after {
+    content: '';
+    position: absolute;
+    background: #cf6d4e;
+    border-radius: 9999rpx;
+  }
+
+  .head-lock-indicator::before {
+    width: 24rpx;
+    height: 4rpx;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .head-lock-indicator::after {
+    width: 4rpx;
+    height: 24rpx;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .head-lock-indicator--estimated {
+    border-style: dashed;
+    opacity: 0.82;
+  }
+
+  .head-lock-label {
+    position: absolute;
+    left: 50%;
+    top: -48rpx;
+    min-width: 88rpx;
+    min-height: 40rpx;
+    padding: 0 16rpx;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border-radius: 9999rpx;
+    background: rgba(207, 109, 78, 0.94);
+    color: #ffffff;
+    font-size: 20rpx;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
   .arcade-item,
   .player-avatar {
     position: absolute;

@@ -8,6 +8,11 @@ export type CameraSize = {
   width: number
 }
 
+export type CameraHeadAnchor = CameraPoint & {
+  headRadiusX: number
+  headRadiusY: number
+}
+
 /**
  * 工具箱实时相机统一约定：只使用面向用户的前置摄像头，CameraFrame、
  * 检测坐标、页面叠层与合成回放都不再额外做水平翻转。
@@ -45,5 +50,39 @@ export function projectCameraPointToStage(
   return {
     x: Math.min(1, Math.max(0, x)),
     y: Math.min(1, Math.max(0, y))
+  }
+}
+
+export function projectHeadAnchorToStage(
+  anchor: CameraHeadAnchor,
+  frame: CameraSize,
+  stage: CameraSize
+) {
+  const center = projectCameraPointToStage(anchor, frame, stage)
+  const left = projectCameraPointToStage(
+    { x: anchor.x - anchor.headRadiusX, y: anchor.y },
+    frame,
+    stage
+  )
+  const right = projectCameraPointToStage(
+    { x: anchor.x + anchor.headRadiusX, y: anchor.y },
+    frame,
+    stage
+  )
+  const top = projectCameraPointToStage(
+    { x: anchor.x, y: anchor.y - anchor.headRadiusY },
+    frame,
+    stage
+  )
+  const bottom = projectCameraPointToStage(
+    { x: anchor.x, y: anchor.y + anchor.headRadiusY },
+    frame,
+    stage
+  )
+
+  return {
+    ...center,
+    radiusX: Math.max(0, Math.abs(right.x - left.x) / 2),
+    radiusY: Math.max(0, Math.abs(bottom.y - top.y) / 2)
   }
 }

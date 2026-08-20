@@ -1,3 +1,10 @@
+## 远端 `dev` 新提交与本地小程序修复整合 (`2026-08-21`)
+
+- Status: 已获取另一台电脑推送的 `origin/dev=ecbcae9d`，并将本地 `main` 快进到该提交；`origin/main` 仍停留在 `d9303c04`，因此本地 `main` 当前仅比远端主分支领先 1 个提交，尚未推送。
+- Conflict resolution: 远端与本地只在 `bodyPointTracker.ts`、`pullup-rush/index.tsx`、`pushup-dash/index.tsx` 三处重叠。本地的 `searching / locked / holding` 头部锁定状态机、720ms 失锁处理、暂停补偿和性能优化是远端简化实现的超集，故保留本地实现；远端其余动作库、AI 导航、教练概览、功率分析和动作图片修复均已纳入。
+- Verification: `git diff --check`、`npm run typecheck`、`npm run lint`、`npm test`（42 files / 203 tests）、`npx next build`（534 pages）及小程序构建（2,883 modules）通过。开发者工具可加载 `toolbox/pullup-rush/index`，日志为 0 errors；自动截图受原生 Camera 自动化超时限制，真机仍是最终验收边界。
+- Boundary: 原有本地未提交代码与 `tmp/` 均完整保留，未提交、未推送、未部署、未上传体验版。保留 `stash@{0}` 作为本次整合前恢复快照，待用户确认后再清理。
+
 ## APP 与微信小程序功能对齐审计 (`2026-08-01`)
 
 - Status: 已完成源码级深度审计，详细报告见 `docs/audits/mobile-wechat-parity-audit-2026-08-01.md`；本轮只新增/更新文档，没有修改业务代码，也没有覆盖任务开始前的 APP 训练缓存等未提交改动。
@@ -14,6 +21,7 @@
 - Gate results: 远端整合暴露了 `PlanEditorWorkbench` 主内容容器闭合错误，已修正；Next 16 本地 E2E 的 `127.0.0.1` 资源请求也按官方 `allowedDevOrigins` 方式修正。最终 `npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）、`npx next build`（534 pages）、小程序 release 构建（2854 modules）及 4 项 E2E（登录会话、订阅状态、完成训练、API/DB 幂等）均通过。
 - Production: Web/API `coachlink-main` 已 3/3 Ready，运行 `coachlink@sha256:79569118cef36d6d42c986c06c3f27f700547fe8459da94c8d1e540dc4d6cc6c`；功率 Worker 1/1 Ready，运行 `coachlink-power-worker@sha256:ac243f18746a953692e7dc1213c971565477f9e4874ed5b90efcbf5f7d62358c`；动作特效普通与优先 Worker 均 1/1 Ready，运行 `coachlink-motion-effects-worker@sha256:55bf1dabe40aaaacef5ec80c48e3d25f40468406ec7da16bb6e14e7fdae850f3`。公网 `https://coachlink.fit/api/healthy` 返回 HTTP 200。
 - WeChat: `apps/wechat/dist-release` 已经 DevTools CLI 成功上传体验版 `2026.08.20.0720`（9.4MB）。审核接口还需要 `WEAPP_APP_SECRET` 与带真实 `first_id/second_id` 的 `apps/wechat/release.weapp.json`；本机只有占位模板且无相关环境变量，未调用审核接口。
+- WeChat provenance check (2026-08-21): GitHub 推送事件确认 `dev/main` 于北京时间 06:47 推送 `cff422d6`、07:29 推送 Docker-only 的 `75415bcb`、07:38 推送文档-only 的 `d9303c04`，之后到下午体验版 `4.3.5` 上传时没有任何分支更新。故不存在待合并的小程序 Git 分支；若 `4.3.5` 是从当时最新 Git 工作区构建，它与 `0720` 的 `apps/wechat` 源码等价。该后台版本没有提交 SHA，不能单凭截图对其源码作绝对证明；没有来源证明时，审核应使用可追溯的 `0720`。
 - Next: 提供小程序应用密钥和真实审核类目配置后，执行 `npm run weapp:release:audit` 提交当前体验版审核；未执行正式发布。
 
 ## 更新计划全链路收口 (`2026-08-20`)
@@ -9259,3 +9267,14 @@
   - 第一版建议采用“外部内容 → 10题测试 → 个性化路径 → 每课最小行动 → 训练记录 → 结构化讨论 → 七天复测”的闭环；社区先挂在课程和知识节点下面，不先建设泛信息流广场。
 - Deliverable: `docs/work/roadmap/features/knowledge-base/内容驱动的学习与社区闭环-20260814.md`.
 - Next decision: 确认第一个课程系列与 MVP 1 范围后，再拆测试结果页、学习路径、课程讨论和行动按钮的 PRD / 数据库迁移 / 前端任务。
+
+## 微信训练分享图人体热图与引体/俯卧撑头部跟踪修复 (`2026-08-21`)
+
+- Status: 已基于重新获取的最新远端代码完成根因定位、历史修复审计、本地实现和代码门禁；当前结论是“代码候选完成、真机验收待做”，不得表述为线上已修好。未提交、未推送、未部署 Web/API，也未上传小程序版本。`origin/main`、`origin/dev`、本地 `main/dev` 均为 `d9303c04`，当前远端没有另一条更新开发分支。
+- History audit: 用户提供的两份旧对话记录已完整读取。旧海报会话只开始诊断，没有形成代码改动；旧小游戏会话曾声称实现连续 3 帧锁定、短时保持、720ms 解锁与丢失暂停，但这些状态语义不在当前 `main/dev`、另一份 `D:\projects\coachlink` 工作区或现有 stash 中，属于未保留下来的修改，不能当作已合并成果。
+- Share poster root cause and final approach: 原链路把动态 URL 编码 SVG 直接交给 Canvas 2D；开发者工具可以显示，但真机 Canvas 对 SVG 的支持存在机型差异，正反人体加载失败后旧代码又静默导出空图。最终实现不再依赖运行时 SVG 解码：构建期由 `generate-workout-poster-bodymaps.mjs` 生成正反 PNG 灰色底图和胸、背、肩、手臂、核心、腿、臀透明高亮层；训练完成弹窗与导出海报均叠加这些 PNG。URL/base64 data image 解析器仍按 MIME 落盘，人体图任一必需图层加载失败时中止导出，不再生成空人体图。
+- Game production root cause: `/api/toolbox/pose-model` 是公开固定 MoveNet 模型代理，却被全局 API 鉴权挡成生产 HTTP 401，首次真机只能退化为整幅画面运动质心；当前源码也没有旧会话所称的真正头部锁定状态机。页面此前只消费纵向速度，没有可验证的锁定/丢失语义。
+- Game final approach: 模型代理加入精确公共路径，客户端下载可附带现有 Bearer token；共享追踪器增加 `searching / locked / holding` 状态，连续 3 个稳定直接头部点后才锁定，只允许在上一头部邻域内短时重捕，直接头部丢失时立即冻结游戏，720ms 后解除锁定，稳定重获后补偿暂停时间再继续。两页锁定前禁止开始，显示 Camera aspect-fill 投影后的头部框和暂停/重锁提示；动作只在直接锁定状态触发。MoveNet 输入缓冲与采样索引复用，React HUD 限制约 96ms 更新以减少主线程压力。
+- Verification: PNG 底图/透明图层已由 Sharp 合成目视确认；`git diff --check`、根 `npm run typecheck`、针对本次小程序文件的 TypeScript 错误筛查通过；全量小程序独立 tsc 仍有大量既有历史错误，但本次文件没有新增错误。`npm run lint` 提示脚本通过；`npm test` 42 files / 203 tests 全通过；`npx next build` 编译并生成 534 页；`npm --workspace apps/wechat run build:weapp` 成功构建 2,883 modules。微信开发者工具可进入两款游戏，锁定前提示和禁用按钮存在，点击禁用按钮不离开页面，error/warning 均为 0。
+- Verification boundary: 原生 `<Camera>` 仍使自动化截图超时，开发者工具不能提供真实 CameraFrame、ONNX/NPU 性能或线上首次下载证据；训练执行页缺少可用登录态与 execution 参数，无法在自动化环境完成真实海报导出。最终闭环必须先部署 Web/API、上传体验版，再用至少一台 iOS 和一台 Android 从无模型缓存状态测试：模型下载、连续锁头、遮挡暂停/720ms 解锁/原位重捕、引体和俯卧撑延迟，以及生成并保存一张正反人体都存在且高亮正确的分享图。
+- Testing clarification: 电脑开发者工具只负责页面接线、节点、日志、按钮门禁和无相机降级冒烟；电脑摄像头若工具侧可用只能作辅助。任何“已修复”结论必须以体验版真机证据闭环。

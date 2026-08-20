@@ -15,7 +15,11 @@ import {
   vibrateForArcadeFeedback
 } from '../games/arcadeFeedback'
 import { BodyPointTracker } from '../games/bodyPointTracker'
-import { projectCameraPointToStage, USER_FACING_CAMERA } from '../cameraTracking'
+import {
+  projectCameraPointToStage,
+  projectHeadAnchorToStage,
+  USER_FACING_CAMERA
+} from '../cameraTracking'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -30,6 +34,15 @@ type GameStatus = 'idle' | 'playing' | 'ended'
 
 type MotionSnapshot = {
   energy: number
+  x: number
+  y: number
+}
+
+type HeadLockState = {
+  estimated: boolean
+  radiusX: number
+  radiusY: number
+  visible: boolean
   x: number
   y: number
 }
@@ -52,6 +65,7 @@ const WALL_SPEED = 0.012
 const WALL_SPAWN_MS = 1100
 const DASH_DURATION_MS = 720
 const DASH_COLLISION_WINDOW_MS = 820
+const TRACKING_UI_INTERVAL_MS = 96
 const MAX_LIVES = 3
 
 function clamp(value: number, min: number, max: number) {
@@ -86,8 +100,6 @@ export default function PushupDashPage() {
   const repStartedAtRef = useRef(0)
   const repDownYRef = useRef(0)
   const gameStatusRef = useRef<GameStatus>('idle')
-  const headLockedRef = useRef(false)
-  const headLockLostAtRef = useRef(0)
   const dashActiveRef = useRef(false)
   const dashUntilRef = useRef(0)
   const dashAvailableUntilRef = useRef(0)
@@ -97,6 +109,11 @@ export default function PushupDashPage() {
   const isRecordingRef = useRef(false)
   const feedbackIdRef = useRef(0)
   const cameraStageSizeRef = useRef({ width: 0, height: 0 })
+  const lastTrackingUiAtRef = useRef(0)
+  const headLockVisibleRef = useRef(false)
+  const trackingLockedRef = useRef(false)
+  const trackingActiveRef = useRef(false)
+  const trackingPausedAtRef = useRef(0)
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const scoreRef = useRef(0)
   const timeLeftMsRef = useRef(GAME_DURATION_MS)
@@ -105,7 +122,6 @@ export default function PushupDashPage() {
   const gameStartedAtRef = useRef(0)
 
   const [gameStatus, setGameStatus] = useState<GameStatus>('idle')
-  const [headLocked, setHeadLocked] = useState(false)
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [motionEnergy, setMotionEnergy] = useState(0)
@@ -122,6 +138,16 @@ export default function PushupDashPage() {
   const [repCount, setRepCount] = useState(0)
   const [phaseLabel, setPhaseLabel] = useState('等待下压')
   const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
+  const [trackingLocked, setTrackingLocked] = useState(false)
+  const [trackingActive, setTrackingActive] = useState(false)
+  const [headLock, setHeadLock] = useState<HeadLockState>({
+    estimated: false,
+    radiusX: 0.08,
+    radiusY: 0.1,
+    visible: false,
+    x: 0.5,
+    y: 0.28
+  })
 
   const sharePayload = useMemo(
     () =>
@@ -184,27 +210,42 @@ export default function PushupDashPage() {
   useEffect(() => {
     const context = Taro.createCameraContext()
     cameraContextRef.current = context
+    const updateTrackingActivity = (active: boolean) => {
+      if (trackingActiveRef.current === active) return
+      const now = Date.now()
+      if (!active && gameStatusRef.current === 'playing' && !trackingPausedAtRef.current) {
+        trackingPausedAtRef.current = now
+      } else if (active && trackingPausedAtRef.current) {
+        const pausedFor = now - trackingPausedAtRef.current
+        gameStartedAtRef.current += pausedFor
+        lastWallSpawnAtRef.current += pausedFor
+        if (repStartedAtRef.current) repStartedAtRef.current += pausedFor
+        if (dashUntilRef.current) dashUntilRef.current += pausedFor
+        if (dashAvailableUntilRef.current) dashAvailableUntilRef.current += pausedFor
+        trackingPausedAtRef.current = 0
+      }
+      trackingActiveRef.current = active
+      setTrackingActive(active)
+    }
     const tracker = new BodyPointTracker({
-      anchor: 'head',
+      anchorMode: 'head',
+      headLockConfirmFrames: 3,
+      headLostGraceMs: 720,
       onLockChange: (locked) => {
-        const now = Date.now()
-        if (!locked && gameStatusRef.current === 'playing' && !headLockLostAtRef.current) {
-          headLockLostAtRef.current = now
-        } else if (locked && headLockLostAtRef.current) {
-          const pausedFor = now - headLockLostAtRef.current
-          gameStartedAtRef.current += pausedFor
-          lastWallSpawnAtRef.current += pausedFor
-          dashUntilRef.current += pausedFor
-          dashAvailableUntilRef.current += pausedFor
-          headLockLostAtRef.current = 0
+        trackingLockedRef.current = locked
+        setTrackingLocked(locked)
+        if (!locked) {
+          updateTrackingActivity(false)
+          setHeadLock((previous) => ({ ...previous, visible: false }))
         }
-        headLockedRef.current = locked
-        setHeadLocked(locked)
       },
       onSnapshot: (snapshot) => {
+        const now = Date.now()
+        updateTrackingActivity(snapshot.locked && snapshot.lockState === 'locked')
+        const frameSize = { width: snapshot.frameWidth, height: snapshot.frameHeight }
         const projected = projectCameraPointToStage(
           snapshot,
-          { width: snapshot.frameWidth, height: snapshot.frameHeight },
+          frameSize,
           cameraStageSizeRef.current
         )
         motionRef.current = {
@@ -212,10 +253,33 @@ export default function PushupDashPage() {
           x: projected.x,
           y: projected.y
         }
-        setMotionEnergy(snapshot.energy)
 
-        if (!headLockedRef.current || gameStatusRef.current !== 'playing') return
-        const now = Date.now()
+        const headLocked = snapshot.locked
+        if (
+          now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
+          || headLocked !== headLockVisibleRef.current
+        ) {
+          const projectedHead = headLocked
+            ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
+            : null
+          lastTrackingUiAtRef.current = now
+          headLockVisibleRef.current = headLocked
+          setMotionEnergy(snapshot.energy)
+          if (projectedHead) {
+            setHeadLock({
+              estimated: snapshot.lockState === 'holding' || snapshot.target === 'head-estimate',
+              radiusX: projectedHead.radiusX,
+              radiusY: projectedHead.radiusY,
+              visible: true,
+              x: projectedHead.x,
+              y: projectedHead.y
+            })
+          } else {
+            setHeadLock((previous) => ({ ...previous, visible: false }))
+          }
+        }
+
+        if (gameStatusRef.current !== 'playing' || !snapshot.locked) return
         const directionThreshold = snapshot.source === 'pose' ? 0.008 : 0.016
         const energyThreshold = snapshot.source === 'pose' ? 0.04 : 0.1
         const travelThreshold = snapshot.source === 'pose' ? 0.026 : 0.04
@@ -345,10 +409,10 @@ export default function PushupDashPage() {
     if (gameStatus !== 'playing') return
 
     const timer = setInterval(() => {
-      if (!headLockedRef.current) return
-      const elapsed = Date.now() - gameStartedAtRef.current
-      const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
       const now = Date.now()
+      if (!trackingActiveRef.current) return
+      const elapsed = now - gameStartedAtRef.current
+      const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
       setTimeLeftMs(nextTimeLeft)
 
       const nextDashActive = now <= dashUntilRef.current
@@ -572,7 +636,7 @@ export default function PushupDashPage() {
     setPhaseLabel('等待下压')
     motionRef.current = { energy: 0, x: 0.5, y: 0.7 }
     setMotionEnergy(0)
-    headLockLostAtRef.current = 0
+    trackingPausedAtRef.current = 0
     lastWallSpawnAtRef.current = Date.now()
   }
 
@@ -581,12 +645,12 @@ export default function PushupDashPage() {
       Taro.showToast({ title: '当前设备暂不支持试玩', icon: 'none' })
       return
     }
-    if (replayProcessing) {
-      Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
+    if (!trackingLockedRef.current || !trackingActiveRef.current) {
+      Taro.showToast({ title: '请先让头部进入画面并等待锁定', icon: 'none' })
       return
     }
-    if (!headLockedRef.current) {
-      Taro.showToast({ title: '请先让头部保持在画面内', icon: 'none' })
+    if (replayProcessing) {
+      Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
       return
     }
     resetForNewGame()
@@ -698,6 +762,20 @@ export default function PushupDashPage() {
                   <Text className='stage-objective-text stage-objective-text--bad'>来不及顶开墙就会掉命</Text>
                 </View>
 
+                {headLock.visible ? (
+                  <View
+                    className={`head-lock-indicator ${headLock.estimated ? 'head-lock-indicator--estimated' : ''}`}
+                    style={{
+                      height: `${clamp(headLock.radiusY * 2, 0.12, 0.3) * 100}%`,
+                      left: `${headLock.x * 100}%`,
+                      top: `${headLock.y * 100}%`,
+                      width: `${clamp(headLock.radiusX * 2, 0.1, 0.24) * 100}%`
+                    }}
+                  >
+                    <Text className='head-lock-label'>已锁定</Text>
+                  </View>
+                ) : null}
+
                 <View className='pushup-ground' />
 
                 {walls.map((wall) => (
@@ -736,10 +814,17 @@ export default function PushupDashPage() {
                   </View>
                 ) : null}
 
-                {cameraReady && !cameraError && !headLocked ? (
+                {cameraReady && !cameraError && !trackingLocked ? (
                   <View className='stage-note'>
                     <Text className='stage-note-title'>正在锁定头部</Text>
-                    <Text className='stage-note-desc'>请侧身进入画面，让头部完整可见并短暂停留。</Text>
+                    <Text className='stage-note-desc'>请让头部保持在画面内，连续识别稳定后才能开始。</Text>
+                  </View>
+                ) : null}
+
+                {cameraReady && !cameraError && trackingLocked && !trackingActive ? (
+                  <View className='stage-note'>
+                    <Text className='stage-note-title'>头部暂时丢失，游戏已暂停</Text>
+                    <Text className='stage-note-desc'>回到原锁定区域后会自动继续；离开过久则重新锁定。</Text>
                   </View>
                 ) : null}
 
@@ -802,18 +887,18 @@ export default function PushupDashPage() {
 
               <View className='controls-grid'>
                 <View
-                  className={`btn-primary ${cameraError || replayProcessing || !headLocked ? 'disabled' : ''}`}
+                  className={`btn-primary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && headLocked) startGame(false)
+                    if (!cameraError && !replayProcessing && trackingActive) startGame(false)
                   }}
                 >
                   <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
                 </View>
 
                 <View
-                  className={`btn-secondary ${cameraError || replayProcessing || !headLocked ? 'disabled' : ''}`}
+                  className={`btn-secondary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && headLocked) startGame(true)
+                    if (!cameraError && !replayProcessing && trackingActive) startGame(true)
                   }}
                 >
                   <Text className='btn-secondary-text'>开始试玩并录回放</Text>
