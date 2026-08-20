@@ -1,3 +1,11 @@
+## `dev` / `main` 发布、小程序体验版与全后端滚动更新 (`2026-08-21`)
+
+- Git: 功能提交 `76f951bd feat(wechat): stabilize tracking and workout sharing` 已先推送 `dev`，再 fast-forward 合并并推送 `main`；GitHub 与 Gitee 的两个分支均指向该提交。
+- Gate: `npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）均通过；完整 E2E 第二次运行 4/4 通过。第一次完整 E2E 仅订阅标签用例因本机 Redis/DNS 和资料种子异步抖动超时，单测复跑与完整复跑均通过，未改测试文件。
+- WeChat: release 构建成功（2,870 modules），已由 DevTools 上传体验版 `2026.08.21.0522`（9.5MB，描述 `commit 76f951bd release via miniprogram-ci`）。未提交审核或正式发布。
+- Backend: Web/API 镜像已推送为 `coachlink:dev/latest/main/76f951b`，摘要 `sha256:af74883a2e6951633ac2821f1f369cb81bd9eeb1bf593f2c1513475c40627946`。功率和动作特效 Worker 自 `d9303c04` 以来未变更 Dockerfile、入口、依赖锁或运行代码（仅新增一个动作导入命令），因此未推送字节等价新镜像；已对 dev/main 全部 7 个 Deployment（含优先动作特效 Worker）受控滚动重启，均 Ready。主功率 Worker 内 `ffmpeg 5.1.9` 可用，公网 `/api/healthy` 返回 HTTP 200。
+- Boundary: `tmp/` 保持未跟踪、未提交；本轮不提交审核，审核仍需要应用密钥和真实类目配置。
+
 ## 远端 `dev` 新提交与本地小程序修复整合 (`2026-08-21`)
 
 - Status: 已获取另一台电脑推送的 `origin/dev=ecbcae9d`，并将本地 `main` 快进到该提交；`origin/main` 仍停留在 `d9303c04`，因此本地 `main` 当前仅比远端主分支领先 1 个提交，尚未推送。
