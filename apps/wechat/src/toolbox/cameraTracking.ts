@@ -13,11 +13,30 @@ export type CameraHeadAnchor = CameraPoint & {
   headRadiusY: number
 }
 
+export type ProjectedHeadAnchor = CameraPoint & {
+  radiusX: number
+  radiusY: number
+}
+
+export type HeadCompanionMetrics = {
+  hitboxHalfHeight: number
+  hitboxHalfWidth: number
+  visualHalfHeight: number
+  visualHalfWidth: number
+}
+
 type HeadCompanionOptions = {
   gap?: number
   halfHeight?: number
   halfWidth?: number
 }
+
+const WEAPP_DESIGN_WIDTH_RPX = 750
+const COMPANION_VISUAL_WIDTH_RPX = 64
+const COMPANION_VISUAL_HEIGHT_RPX = 48
+// 命中框收在小鸟身体内部，翅膀、描边和装饰喙不造成“看起来没碰到却掉命”。
+const COMPANION_HITBOX_WIDTH_RPX = 48
+const COMPANION_HITBOX_HEIGHT_RPX = 32
 
 /**
  * 工具箱实时相机统一约定：只使用面向用户的前置摄像头，CameraFrame、
@@ -98,20 +117,58 @@ export function projectHeadAnchorToStage(
  * 自动切到右边。角色中心始终与脸中心同高，既能跟随头部，也不会遮住表情。
  */
 export function placeCompanionBesideHead(
-  anchor: CameraHeadAnchor,
+  anchor: ProjectedHeadAnchor,
   options: HeadCompanionOptions = {}
 ) {
-  const gap = options.gap ?? 0.024
-  const halfWidth = options.halfWidth ?? 0.044
-  const halfHeight = options.halfHeight ?? 0.034
-  const minimumX = halfWidth + 0.016
+  const gap = options.gap ?? 0.012
+  const halfWidth = options.halfWidth ?? 0.04
+  const halfHeight = options.halfHeight ?? 0.024
+  const minimumX = halfWidth + 0.024
   const maximumX = 1 - minimumX
-  const leftX = anchor.x - anchor.headRadiusX - gap - halfWidth
-  const rightX = anchor.x + anchor.headRadiusX + gap + halfWidth
-  const x = leftX >= minimumX || rightX > maximumX ? leftX : rightX
+  // 头框本身在 UI 中最多展示 24% 宽。定位也必须使用同一上限，避免
+  // VisionKit 偶发返回过大的脸框时把小鸟推到屏幕最左边。
+  const faceRadiusX = Math.min(0.12, Math.max(0.05, anchor.radiusX))
+  const leftX = anchor.x - faceRadiusX - gap - halfWidth
+  const rightX = anchor.x + faceRadiusX + gap + halfWidth
+  const canUseLeft = leftX >= minimumX
+  const canUseRight = rightX <= maximumX
+  const x = canUseLeft ? leftX : canUseRight ? rightX : anchor.x <= 0.5 ? rightX : leftX
 
   return {
     x: Math.min(maximumX, Math.max(minimumX, x)),
-    y: Math.min(1 - halfHeight - 0.016, Math.max(halfHeight + 0.016, anchor.y))
+    y: Math.min(1 - halfHeight - 0.024, Math.max(halfHeight + 0.024, anchor.y))
   }
+}
+
+export function getHeadCompanionMetrics(
+  stage: CameraSize,
+  viewportWidth: number
+): HeadCompanionMetrics {
+  if (!stage.width || !stage.height || !viewportWidth) {
+    return {
+      hitboxHalfHeight: 0.018,
+      hitboxHalfWidth: 0.032,
+      visualHalfHeight: 0.024,
+      visualHalfWidth: 0.04
+    }
+  }
+
+  const pixelsPerRpx = viewportWidth / WEAPP_DESIGN_WIDTH_RPX
+  return {
+    hitboxHalfHeight: (COMPANION_HITBOX_HEIGHT_RPX * pixelsPerRpx) / 2 / stage.height,
+    hitboxHalfWidth: (COMPANION_HITBOX_WIDTH_RPX * pixelsPerRpx) / 2 / stage.width,
+    visualHalfHeight: (COMPANION_VISUAL_HEIGHT_RPX * pixelsPerRpx) / 2 / stage.height,
+    visualHalfWidth: (COMPANION_VISUAL_WIDTH_RPX * pixelsPerRpx) / 2 / stage.width
+  }
+}
+
+export function headCompanionHitsRect(
+  player: CameraPoint,
+  metrics: HeadCompanionMetrics,
+  rect: CameraPoint & CameraSize
+) {
+  return (
+    Math.abs(player.x - rect.x) <= metrics.hitboxHalfWidth + rect.width / 2
+    && Math.abs(player.y - rect.y) <= metrics.hitboxHalfHeight + rect.height / 2
+  )
 }

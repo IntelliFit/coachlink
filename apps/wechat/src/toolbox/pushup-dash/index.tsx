@@ -19,6 +19,8 @@ import {
   type BodyTrackingRuntimeState
 } from '../games/bodyPointTracker'
 import {
+  getHeadCompanionMetrics,
+  headCompanionHitsRect,
   placeCompanionBesideHead,
   projectHeadAnchorToStage,
   USER_FACING_CAMERA
@@ -54,12 +56,10 @@ type RecordedVideo = {
 
 type RepPhase = 'down' | 'idle' | 'up'
 
-const GAME_DURATION_MS = 30000
 const GAME_TICK_MS = 32
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
 const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
-const PLAYER_RADIUS = 0.04
 const WALL_SPEED = 0.012
 const WALL_SPAWN_MS = 1180
 const DASH_DURATION_MS = 720
@@ -71,7 +71,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function formatSeconds(ms: number) {
-  return Math.max(0, Math.ceil(ms / 1000))
+  return Math.max(0, Math.floor(ms / 1000))
 }
 
 function formatPercent(value: number) {
@@ -87,28 +87,6 @@ function buildWall(id: number): DashWall {
     width: 0.16,
     x: 1.08
   }
-}
-
-function circleHitsRect(
-  circleX: number,
-  circleY: number,
-  radius: number,
-  rectCenterX: number,
-  rectCenterY: number,
-  rectWidth: number,
-  rectHeight: number
-) {
-  const dx = Math.abs(circleX - rectCenterX)
-  const dy = Math.abs(circleY - rectCenterY)
-  const halfWidth = rectWidth / 2
-  const halfHeight = rectHeight / 2
-
-  if (dx > halfWidth + radius || dy > halfHeight + radius) return false
-  if (dx <= halfWidth || dy <= halfHeight) return true
-
-  const cornerDx = dx - halfWidth
-  const cornerDy = dy - halfHeight
-  return cornerDx * cornerDx + cornerDy * cornerDy <= radius * radius
 }
 
 export default function PushupDashPage() {
@@ -128,6 +106,7 @@ export default function PushupDashPage() {
   const isRecordingRef = useRef(false)
   const feedbackIdRef = useRef(0)
   const cameraStageSizeRef = useRef({ width: 0, height: 0 })
+  const companionMetricsRef = useRef(getHeadCompanionMetrics(cameraStageSizeRef.current, 0))
   const lastTrackingUiAtRef = useRef(0)
   const headLockVisibleRef = useRef(false)
   const trackingLockedRef = useRef(false)
@@ -135,7 +114,7 @@ export default function PushupDashPage() {
   const trackingPausedAtRef = useRef(0)
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const scoreRef = useRef(0)
-  const timeLeftMsRef = useRef(GAME_DURATION_MS)
+  const elapsedMsRef = useRef(0)
   const bestScoreRef = useRef(0)
   const livesRef = useRef(MAX_LIVES)
   const gameStartedAtRef = useRef(0)
@@ -149,7 +128,7 @@ export default function PushupDashPage() {
   const [playerPosition, setPlayerPosition] = useState({ x: 0.32, y: 0.52 })
   const [score, setScore] = useState(0)
   const [bestScore, setBestScore] = useState(0)
-  const [timeLeftMs, setTimeLeftMs] = useState(GAME_DURATION_MS)
+  const [elapsedMs, setElapsedMs] = useState(0)
   const [recording, setRecording] = useState(false)
   const [replayProcessing, setReplayProcessing] = useState(false)
   const [videoSaving, setVideoSaving] = useState(false)
@@ -197,8 +176,8 @@ export default function PushupDashPage() {
   }, [score])
 
   useEffect(() => {
-    timeLeftMsRef.current = timeLeftMs
-  }, [timeLeftMs])
+    elapsedMsRef.current = elapsedMs
+  }, [elapsedMs])
 
   useEffect(() => {
     bestScoreRef.current = bestScore
@@ -269,7 +248,11 @@ export default function PushupDashPage() {
           ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
           : null
         if (projectedHead && snapshot.lockState === 'locked') {
-          playerPositionRef.current = placeCompanionBesideHead(projectedHead)
+          const metrics = companionMetricsRef.current
+          playerPositionRef.current = placeCompanionBesideHead(projectedHead, {
+            halfHeight: metrics.visualHalfHeight,
+            halfWidth: metrics.visualHalfWidth
+          })
         }
         if (
           now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
@@ -393,7 +376,8 @@ export default function PushupDashPage() {
               },
               replayFooterLabel: '俯卧撑突围回放',
               score: scoreRef.current,
-              timeLeftMs: timeLeftMsRef.current,
+              timerMode: 'elapsed',
+              timeLeftMs: elapsedMsRef.current,
               visualKey: 'pushup'
             })
           }
@@ -440,101 +424,108 @@ export default function PushupDashPage() {
   useEffect(() => {
     if (gameStatus !== 'playing') return
 
+    void Taro.setKeepScreenOn({ keepScreenOn: true }).catch(() => undefined)
+    return () => {
+      void Taro.setKeepScreenOn({ keepScreenOn: false }).catch(() => undefined)
+    }
+  }, [gameStatus])
+
+  useEffect(() => {
+    if (gameStatus !== 'playing') return
+
     const timer = setInterval(() => {
       const now = Date.now()
       if (!trackingActiveRef.current) return
       const elapsed = now - gameStartedAtRef.current
-      const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
-      setTimeLeftMs(nextTimeLeft)
+      setElapsedMs(elapsed)
+      elapsedMsRef.current = elapsed
 
       const nextDashActive = now <= dashUntilRef.current
       setDashActive(nextDashActive)
       const currentPlayer = playerPositionRef.current
+      const metrics = companionMetricsRef.current
+      let nextWalls = wallsRef.current
+        .map((wall) => ({ ...wall, x: wall.x - WALL_SPEED }))
+        .filter((wall) => wall.x + wall.width / 2 > -0.16)
 
-      setWalls((prevWalls) => {
-        let nextWalls = prevWalls.map((wall) => ({
-          ...wall,
-          x: wall.x - WALL_SPEED
-        }))
-
-        if (now - lastWallSpawnAtRef.current >= WALL_SPAWN_MS) {
-          nextWalls = [...nextWalls, buildWall(nextWallIdRef.current++)]
-          lastWallSpawnAtRef.current = now
-        }
-
-        const remainingWalls: DashWall[] = []
-        for (const wall of nextWalls) {
-          const topHeight = wall.gapY
-          const bottomStart = wall.gapY + wall.gapHeight
-          const collided =
-            circleHitsRect(
-              currentPlayer.x,
-              currentPlayer.y,
-              PLAYER_RADIUS,
-              wall.x,
-              topHeight / 2,
-              wall.width,
-              topHeight
-            )
-            || circleHitsRect(
-              currentPlayer.x,
-              currentPlayer.y,
-              PLAYER_RADIUS,
-              wall.x,
-              bottomStart + (1 - bottomStart) / 2,
-              wall.width,
-              1 - bottomStart
-            )
-
-          if (collided) {
-            const nextLives = Math.max(0, livesRef.current - 1)
-            setFeedback({
-              id: ++feedbackIdRef.current,
-              text: '碰撞 -1 命',
-              tone: 'bad'
-            })
-            vibrateForArcadeFeedback('bad')
-            setLives(nextLives)
-            livesRef.current = nextLives
-            if (nextLives <= 0) {
-              setTimeout(() => {
-                endRound()
-              }, 0)
-            }
-            continue
-          }
-
-          if (!wall.passed && wall.x + wall.width / 2 < currentPlayer.x) {
-            wall.passed = true
-            setFeedback({
-              id: ++feedbackIdRef.current,
-              text: '+1 穿越',
-              tone: 'good'
-            })
-            vibrateForArcadeFeedback('good')
-            setScore((prevScore) => {
-              const nextScore = prevScore + 1
-              if (nextScore > bestScoreRef.current) {
-                bestScoreRef.current = nextScore
-                setBestScore(nextScore)
-              }
-              return nextScore
-            })
-          }
-
-          if (wall.x + wall.width / 2 > -0.16) {
-            remainingWalls.push(wall)
-          }
-        }
-
-        wallsRef.current = remainingWalls
-        return remainingWalls
-      })
-
-      if (nextTimeLeft <= 0) {
-        clearInterval(timer)
-        endRound()
+      if (now - lastWallSpawnAtRef.current >= WALL_SPAWN_MS) {
+        nextWalls = [...nextWalls, buildWall(nextWallIdRef.current++)]
+        lastWallSpawnAtRef.current = now
       }
+
+      let collidedWallId: number | null = null
+      let passedCount = 0
+      const outsideStage =
+        currentPlayer.y - metrics.hitboxHalfHeight <= 0
+        || currentPlayer.y + metrics.hitboxHalfHeight >= 1
+
+      for (const wall of nextWalls) {
+        const topHeight = wall.gapY
+        const bottomStart = wall.gapY + wall.gapHeight
+        if (
+          headCompanionHitsRect(currentPlayer, metrics, {
+            height: topHeight,
+            width: wall.width,
+            x: wall.x,
+            y: topHeight / 2
+          })
+          || headCompanionHitsRect(currentPlayer, metrics, {
+            height: 1 - bottomStart,
+            width: wall.width,
+            x: wall.x,
+            y: bottomStart + (1 - bottomStart) / 2
+          })
+        ) {
+          collidedWallId = wall.id
+          break
+        }
+
+        if (!wall.passed && wall.x + wall.width / 2 < currentPlayer.x) {
+          wall.passed = true
+          passedCount += 1
+        }
+      }
+
+      if (outsideStage || collidedWallId !== null) {
+        const nextLives = Math.max(0, livesRef.current - 1)
+        nextWalls = outsideStage
+          ? []
+          : nextWalls.filter((wall) => wall.id !== collidedWallId)
+        wallsRef.current = nextWalls
+        setWalls(nextWalls)
+        setFeedback({
+          id: ++feedbackIdRef.current,
+          text: outsideStage ? '小鸟触边 -1 命' : '小鸟撞管道 -1 命',
+          tone: 'bad'
+        })
+        vibrateForArcadeFeedback('bad')
+        setLives(nextLives)
+        livesRef.current = nextLives
+        if (nextLives <= 0) {
+          clearInterval(timer)
+          endRound()
+        }
+        return
+      }
+
+      if (passedCount > 0) {
+        const nextScore = scoreRef.current + passedCount
+        scoreRef.current = nextScore
+        setScore(nextScore)
+        if (nextScore > bestScoreRef.current) {
+          bestScoreRef.current = nextScore
+          setBestScore(nextScore)
+        }
+        setFeedback({
+          id: ++feedbackIdRef.current,
+          text: `+${passedCount} 穿越`,
+          tone: 'good'
+        })
+        vibrateForArcadeFeedback('good')
+      }
+
+      wallsRef.current = nextWalls
+      setWalls(nextWalls)
     }, GAME_TICK_MS)
 
     return () => clearInterval(timer)
@@ -667,8 +658,8 @@ export default function PushupDashPage() {
   const resetForNewGame = () => {
     setScore(0)
     scoreRef.current = 0
-    setTimeLeftMs(GAME_DURATION_MS)
-    timeLeftMsRef.current = GAME_DURATION_MS
+    setElapsedMs(0)
+    elapsedMsRef.current = 0
     setWalls([])
     wallsRef.current = []
     nextWallIdRef.current = 1
@@ -759,6 +750,7 @@ export default function PushupDashPage() {
               <View className='intro-tags'>
                 <Text className='intro-tag'>头部实时跟随</Text>
                 <Text className='intro-tag'>上下管道穿越</Text>
+                <Text className='intro-tag'>无限生存</Text>
                 <Text className='intro-tag'>支持回放</Text>
               </View>
             </View>
@@ -779,10 +771,15 @@ export default function PushupDashPage() {
                       Taro.createSelectorQuery()
                         .select('.camera-stage')
                         .boundingClientRect((rect: any) => {
-                          cameraStageSizeRef.current = {
+                          const stageSize = {
                             width: Number(rect?.width || 0),
                             height: Number(rect?.height || 0)
                           }
+                          cameraStageSizeRef.current = stageSize
+                          companionMetricsRef.current = getHeadCompanionMetrics(
+                            stageSize,
+                            Taro.getWindowInfo().windowWidth
+                          )
                         })
                         .exec()
                     })
@@ -923,8 +920,8 @@ export default function PushupDashPage() {
                   <Text className='stat-value'>{score}</Text>
                 </View>
                 <View className='stat-item'>
-                  <Text className='stat-label'>剩余秒数</Text>
-                  <Text className='stat-value'>{formatSeconds(timeLeftMs)}</Text>
+                  <Text className='stat-label'>坚持秒数</Text>
+                  <Text className='stat-value'>{formatSeconds(elapsedMs)}</Text>
                 </View>
                 <View className='stat-item'>
                   <Text className='stat-label'>历史最好</Text>

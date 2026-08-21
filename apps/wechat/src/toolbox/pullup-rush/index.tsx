@@ -19,6 +19,8 @@ import {
   type BodyTrackingRuntimeState
 } from '../games/bodyPointTracker'
 import {
+  getHeadCompanionMetrics,
+  headCompanionHitsRect,
   placeCompanionBesideHead,
   projectHeadAnchorToStage,
   USER_FACING_CAMERA
@@ -52,12 +54,10 @@ type PipePair = {
   x: number
 }
 
-const GAME_DURATION_MS = 30000
 const GAME_TICK_MS = 32
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
 const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
-const PLAYER_RADIUS = 0.04
 const PIPE_SPEED = 0.012
 const PIPE_SPAWN_MS = 1180
 const PULL_TRIGGER_COOLDOWN_MS = 260
@@ -69,7 +69,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function formatSeconds(ms: number) {
-  return Math.max(0, Math.ceil(ms / 1000))
+  return Math.max(0, Math.floor(ms / 1000))
 }
 
 function formatPercent(value: number) {
@@ -87,28 +87,6 @@ function buildPipePair(id: number): PipePair {
   }
 }
 
-function circleHitsRect(
-  circleX: number,
-  circleY: number,
-  radius: number,
-  rectCenterX: number,
-  rectCenterY: number,
-  rectWidth: number,
-  rectHeight: number
-) {
-  const dx = Math.abs(circleX - rectCenterX)
-  const dy = Math.abs(circleY - rectCenterY)
-  const halfWidth = rectWidth / 2
-  const halfHeight = rectHeight / 2
-
-  if (dx > halfWidth + radius || dy > halfHeight + radius) return false
-  if (dx <= halfWidth || dy <= halfHeight) return true
-
-  const cornerDx = dx - halfWidth
-  const cornerDy = dy - halfHeight
-  return cornerDx * cornerDx + cornerDy * cornerDy <= radius * radius
-}
-
 export default function PullupRushPage() {
   const { effectiveTheme } = useTheme()
   const cameraContextRef = useRef<any>(null)
@@ -123,6 +101,7 @@ export default function PullupRushPage() {
   const isRecordingRef = useRef(false)
   const feedbackIdRef = useRef(0)
   const cameraStageSizeRef = useRef({ width: 0, height: 0 })
+  const companionMetricsRef = useRef(getHeadCompanionMetrics(cameraStageSizeRef.current, 0))
   const lastTrackingUiAtRef = useRef(0)
   const headLockVisibleRef = useRef(false)
   const trackingLockedRef = useRef(false)
@@ -131,7 +110,7 @@ export default function PullupRushPage() {
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const gameStartedAtRef = useRef(0)
   const scoreRef = useRef(0)
-  const timeLeftMsRef = useRef(GAME_DURATION_MS)
+  const elapsedMsRef = useRef(0)
   const playerPositionRef = useRef({ x: 0.32, y: 0.52 })
   const bestScoreRef = useRef(0)
   const livesRef = useRef(MAX_LIVES)
@@ -143,7 +122,7 @@ export default function PullupRushPage() {
   const [playerPosition, setPlayerPosition] = useState({ x: 0.32, y: 0.52 })
   const [score, setScore] = useState(0)
   const [bestScore, setBestScore] = useState(0)
-  const [timeLeftMs, setTimeLeftMs] = useState(GAME_DURATION_MS)
+  const [elapsedMs, setElapsedMs] = useState(0)
   const [recording, setRecording] = useState(false)
   const [replayProcessing, setReplayProcessing] = useState(false)
   const [videoSaving, setVideoSaving] = useState(false)
@@ -186,8 +165,8 @@ export default function PullupRushPage() {
   }, [score])
 
   useEffect(() => {
-    timeLeftMsRef.current = timeLeftMs
-  }, [timeLeftMs])
+    elapsedMsRef.current = elapsedMs
+  }, [elapsedMs])
 
   useEffect(() => {
     pipesRef.current = pipes
@@ -247,7 +226,11 @@ export default function PullupRushPage() {
           ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
           : null
         if (projectedHead && snapshot.lockState === 'locked') {
-          playerPositionRef.current = placeCompanionBesideHead(projectedHead)
+          const metrics = companionMetricsRef.current
+          playerPositionRef.current = placeCompanionBesideHead(projectedHead, {
+            halfHeight: metrics.visualHalfHeight,
+            halfWidth: metrics.visualHalfWidth
+          })
         }
         if (
           now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
@@ -344,7 +327,8 @@ export default function PullupRushPage() {
               },
               replayFooterLabel: '引体冲刺回放',
               score: scoreRef.current,
-              timeLeftMs: timeLeftMsRef.current,
+              timerMode: 'elapsed',
+              timeLeftMs: elapsedMsRef.current,
               visualKey: 'pullup'
             })
           }
@@ -391,71 +375,86 @@ export default function PullupRushPage() {
   useEffect(() => {
     if (gameStatus !== 'playing') return
 
+    void Taro.setKeepScreenOn({ keepScreenOn: true }).catch(() => undefined)
+    return () => {
+      void Taro.setKeepScreenOn({ keepScreenOn: false }).catch(() => undefined)
+    }
+  }, [gameStatus])
+
+  useEffect(() => {
+    if (gameStatus !== 'playing') return
+
     const timer = setInterval(() => {
       const now = Date.now()
       if (!trackingActiveRef.current) return
       const elapsed = now - gameStartedAtRef.current
-      const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
-
       const currentPlayer = playerPositionRef.current
-      setTimeLeftMs(nextTimeLeft)
+      const metrics = companionMetricsRef.current
+      setElapsedMs(elapsed)
+      elapsedMsRef.current = elapsed
 
-      let crashed = currentPlayer.y <= 0.06 || currentPlayer.y >= 0.94
+      let nextPipes = pipesRef.current
+        .map((pipe) => ({ ...pipe, x: pipe.x - PIPE_SPEED }))
+        .filter((pipe) => pipe.x + pipe.width / 2 > -0.16)
 
-      setPipes((prevPipes) => {
-        let nextPipes = prevPipes.map((pipe) => ({
-          ...pipe,
-          x: pipe.x - PIPE_SPEED
-        }))
+      if (now - lastPipeSpawnAtRef.current >= PIPE_SPAWN_MS) {
+        nextPipes = [...nextPipes, buildPipePair(nextPipeIdRef.current++)]
+        lastPipeSpawnAtRef.current = now
+      }
 
-        if (now - lastPipeSpawnAtRef.current >= PIPE_SPAWN_MS) {
-          nextPipes = [...nextPipes, buildPipePair(nextPipeIdRef.current++)]
-          lastPipeSpawnAtRef.current = now
-        }
+      let passedCount = 0
+      const outsideStage =
+        currentPlayer.y - metrics.hitboxHalfHeight <= 0
+        || currentPlayer.y + metrics.hitboxHalfHeight >= 1
+      let crashed = outsideStage
 
-        nextPipes = nextPipes
-          .filter((pipe) => pipe.x + pipe.width / 2 > -0.16)
-          .map((pipe) => {
-            if (!pipe.passed && pipe.x + pipe.width / 2 < currentPlayer.x) {
-              pipe.passed = true
-              setFeedback({
-                id: ++feedbackIdRef.current,
-                text: '+1 穿越',
-                tone: 'good'
-              })
-              vibrateForArcadeFeedback('good')
-              setScore((prevScore) => {
-                const nextScore = prevScore + 1
-                if (nextScore > bestScoreRef.current) {
-                  bestScoreRef.current = nextScore
-                  setBestScore(nextScore)
-                }
-                return nextScore
-              })
-            }
-            return pipe
+      for (const pipe of nextPipes) {
+        const topHeight = pipe.gapY
+        const bottomStart = pipe.gapY + pipe.gapHeight
+        if (
+          headCompanionHitsRect(currentPlayer, metrics, {
+            height: topHeight,
+            width: pipe.width,
+            x: pipe.x,
+            y: topHeight / 2
           })
-
-        for (const pipe of nextPipes) {
-          const topHeight = pipe.gapY
-          const bottomStart = pipe.gapY + pipe.gapHeight
-          if (
-            circleHitsRect(currentPlayer.x, currentPlayer.y, PLAYER_RADIUS, pipe.x, topHeight / 2, pipe.width, topHeight)
-            || circleHitsRect(currentPlayer.x, currentPlayer.y, PLAYER_RADIUS, pipe.x, bottomStart + (1 - bottomStart) / 2, pipe.width, 1 - bottomStart)
-          ) {
-            crashed = true
-            break
-          }
+          || headCompanionHitsRect(currentPlayer, metrics, {
+            height: 1 - bottomStart,
+            width: pipe.width,
+            x: pipe.x,
+            y: bottomStart + (1 - bottomStart) / 2
+          })
+        ) {
+          crashed = true
+          break
         }
 
-        pipesRef.current = nextPipes
-        return nextPipes
-      })
+        if (!pipe.passed && pipe.x + pipe.width / 2 < currentPlayer.x) {
+          pipe.passed = true
+          passedCount += 1
+        }
+      }
+
+      if (passedCount > 0 && !crashed) {
+        const nextScore = scoreRef.current + passedCount
+        scoreRef.current = nextScore
+        setScore(nextScore)
+        if (nextScore > bestScoreRef.current) {
+          bestScoreRef.current = nextScore
+          setBestScore(nextScore)
+        }
+        setFeedback({
+          id: ++feedbackIdRef.current,
+          text: `+${passedCount} 穿越`,
+          tone: 'good'
+        })
+        vibrateForArcadeFeedback('good')
+      }
 
       if (crashed) {
         setFeedback({
           id: ++feedbackIdRef.current,
-          text: '碰撞 -1 命',
+          text: outsideStage ? '小鸟触边 -1 命' : '小鸟撞管道 -1 命',
           tone: 'bad'
         })
         vibrateForArcadeFeedback('bad')
@@ -470,11 +469,9 @@ export default function PullupRushPage() {
           endRound('ended')
           return
         }
-      }
-
-      if (nextTimeLeft <= 0) {
-        clearInterval(timer)
-        endRound('ended')
+      } else {
+        pipesRef.current = nextPipes
+        setPipes(nextPipes)
       }
     }, GAME_TICK_MS)
 
@@ -608,8 +605,8 @@ export default function PullupRushPage() {
   const resetForNewGame = () => {
     setScore(0)
     scoreRef.current = 0
-    setTimeLeftMs(GAME_DURATION_MS)
-    timeLeftMsRef.current = GAME_DURATION_MS
+    setElapsedMs(0)
+    elapsedMsRef.current = 0
     setPipes([])
     pipesRef.current = []
     nextPipeIdRef.current = 1
@@ -696,6 +693,7 @@ export default function PullupRushPage() {
               <View className='intro-tags'>
                 <Text className='intro-tag'>头部实时跟随</Text>
                 <Text className='intro-tag'>上拉动作计数</Text>
+                <Text className='intro-tag'>无限生存</Text>
                 <Text className='intro-tag'>支持回放</Text>
               </View>
             </View>
@@ -716,10 +714,15 @@ export default function PullupRushPage() {
                       Taro.createSelectorQuery()
                         .select('.camera-stage')
                         .boundingClientRect((rect: any) => {
-                          cameraStageSizeRef.current = {
+                          const stageSize = {
                             width: Number(rect?.width || 0),
                             height: Number(rect?.height || 0)
                           }
+                          cameraStageSizeRef.current = stageSize
+                          companionMetricsRef.current = getHeadCompanionMetrics(
+                            stageSize,
+                            Taro.getWindowInfo().windowWidth
+                          )
                         })
                         .exec()
                     })
@@ -862,8 +865,8 @@ export default function PullupRushPage() {
                   <Text className='stat-value'>{score}</Text>
                 </View>
                 <View className='stat-item'>
-                  <Text className='stat-label'>剩余秒数</Text>
-                  <Text className='stat-value'>{formatSeconds(timeLeftMs)}</Text>
+                  <Text className='stat-label'>坚持秒数</Text>
+                  <Text className='stat-value'>{formatSeconds(elapsedMs)}</Text>
                 </View>
                 <View className='stat-item'>
                   <Text className='stat-label'>历史最好</Text>

@@ -22,6 +22,7 @@ export type ArcadeReplayCapture = {
   }
   replayFooterLabel: string
   score: number
+  timerMode?: 'elapsed' | 'remaining'
   timeLeftMs: number
   visualKey: MotionArcadeVisualKey
 }
@@ -518,7 +519,8 @@ export class MotionArcadeReplayRecorder {
     drawRoundedRect(ctx, 16, height - 52, 132, 34, 17, palette.footerFill)
     drawRoundedRect(ctx, width - 132, height - 52, 116, 34, 17, palette.footerFill)
     ctx.fillStyle = '#ffffff'
-    ctx.fillText(`剩余 ${formatSeconds(capture.timeLeftMs)} 秒`, 28, height - 35)
+    const timerPrefix = capture.timerMode === 'elapsed' ? '已玩' : '剩余'
+    ctx.fillText(`${timerPrefix} ${formatSeconds(capture.timeLeftMs)} 秒`, 28, height - 35)
     ctx.fillText(capture.replayFooterLabel, width - 120, height - 35)
 
     this.blitCompositeCanvasToWebGL()
