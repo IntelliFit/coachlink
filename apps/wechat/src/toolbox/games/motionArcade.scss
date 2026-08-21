@@ -733,3 +733,37 @@
     background: rgba(75, 49, 36, 0.56);
   }
 }
+
+.motion-arcade-page {
+  .head-bird-wing {
+    position: absolute;
+    left: 8rpx;
+    top: 24rpx;
+    width: 32rpx;
+    height: 16rpx;
+    border-radius: 16rpx;
+    background: #cf6d4e;
+    transform: rotate(-12deg);
+  }
+
+  .head-bird-eye {
+    position: absolute;
+    right: 8rpx;
+    top: 8rpx;
+    width: 8rpx;
+    height: 8rpx;
+    border-radius: 9999rpx;
+    background: #172033;
+    box-shadow: 0 0 0 4rpx rgba(255, 255, 255, 0.92);
+  }
+
+  .head-bird-beak {
+    position: absolute;
+    right: -16rpx;
+    top: 16rpx;
+    width: 24rpx;
+    height: 16rpx;
+    border-radius: 0 16rpx 16rpx 0;
+    background: #cf6d4e;
+  }
+}

@@ -13,6 +13,12 @@ export type CameraHeadAnchor = CameraPoint & {
   headRadiusY: number
 }
 
+type HeadCompanionOptions = {
+  gap?: number
+  halfHeight?: number
+  halfWidth?: number
+}
+
 /**
  * 工具箱实时相机统一约定：只使用面向用户的前置摄像头，CameraFrame、
  * 检测坐标、页面叠层与合成回放都不再额外做水平翻转。
@@ -84,5 +90,28 @@ export function projectHeadAnchorToStage(
     ...center,
     radiusX: Math.max(0, Math.abs(right.x - left.x) / 2),
     radiusY: Math.max(0, Math.abs(bottom.y - top.y) / 2)
+  }
+}
+
+/**
+ * 把小游戏角色放在头框外侧，默认优先位于脸的左边；左侧空间不足时
+ * 自动切到右边。角色中心始终与脸中心同高，既能跟随头部，也不会遮住表情。
+ */
+export function placeCompanionBesideHead(
+  anchor: CameraHeadAnchor,
+  options: HeadCompanionOptions = {}
+) {
+  const gap = options.gap ?? 0.024
+  const halfWidth = options.halfWidth ?? 0.044
+  const halfHeight = options.halfHeight ?? 0.034
+  const minimumX = halfWidth + 0.016
+  const maximumX = 1 - minimumX
+  const leftX = anchor.x - anchor.headRadiusX - gap - halfWidth
+  const rightX = anchor.x + anchor.headRadiusX + gap + halfWidth
+  const x = leftX >= minimumX || rightX > maximumX ? leftX : rightX
+
+  return {
+    x: Math.min(maximumX, Math.max(minimumX, x)),
+    y: Math.min(1 - halfHeight - 0.016, Math.max(halfHeight + 0.016, anchor.y))
   }
 }

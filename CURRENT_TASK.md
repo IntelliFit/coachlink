@@ -1,8 +1,17 @@
+## 两款冲刺游戏角色不跟头与玩法重做 (`2026-08-22`)
+
+- Status: 用户真机确认体验版 `2026.08.21.1830` 的接豆派对已基本能随头移动，但引体冲刺、俯卧撑突围虽然显示“已锁定”，原砖块角色不跟随头部。已根据 55.98 秒真机录屏逐帧复核并完成本地修复；用户已授权提交并上传新的体验版，发布处理中。
+- Root cause: 引体角色横坐标固定为 `32%`，纵坐标由独立重力/跳跃状态驱动；俯卧撑角色固定为 `24% / 78%`，完整动作只短暂改变横坐标。两页虽然绘制了正确随脸移动的头框，却没有把同一头部坐标写入角色状态和碰撞计算，因此“已锁定”与“角色跟随”完全脱节。
+- Fix: 新增统一的 `placeCompanionBesideHead`，小鸟默认位于头框左侧并保持脸宽、角色半宽和间隙之和的稳定距离，左侧空间不足自动切右；两页显示、碰撞和合成回放全部读取该同一坐标。角色由 72×112/132×72rpx 砖块缩小为 64×48rpx 轻量 CSS 小鸟，不遮挡表情。俯卧撑单个底墙改为上下成对管道与随机通道，穿越得分、碰撞扣命；完整俯卧撑保留计数和冲刺视觉反馈。
+- Latency: 修复全局约 15fps 相机限流与 72ms 人脸限流叠加导致实际约 7.5fps 的二次节流：人脸间隔改为 60ms、两页 UI 与 CSS 跟随过渡改为 64ms，使角色可消费每个有效人脸帧，仍保持约 15fps 性能上限。
+- Verification: `git diff --check`、lint、typecheck、Vitest（42 files / 203 tests）、小程序 local 构建（2,883 modules）和 Next build（534 pages）通过。纯函数模拟确认头右移 0.1 时小鸟同步右移 0.1、头下移 0.2 时小鸟同步下移 0.2，脸靠左时小鸟自动切到右侧。微信 DevTools CLI 已打开本地 `dist`，error/warn 日志均为 0；原生 Camera 仍使 `relaunch/screenshot` 在 automator 连接后超时，无法提供可靠模拟器截图，真实跟头效果仍需新体验版真机验收。
+- Boundary: 功率分析上传/Worker 修复已独立提交并发布，体验版 `2026.08.22.0257` 尚未包含本次体感游戏源码；`tmp/` 等临时文件不会纳入发布。本次仅发布小程序前端，无需再次部署后端。
+
 ## 三款体感游戏真机锁头失败后的第二轮修复 (`2026-08-21`)
 
 - Status: 用户已确认体验版 `2026.08.21.0522` 真机验收失败：引体冲刺、俯卧撑突围无法锁定头部，接豆派对虽然可启动但角色会被非头部画面运动带动。旧版不得再视为已修复。本轮 VisionKit 修复与相机性能优化已合并并推送 `dev`（`d13493e3`），新体验版 `2026.08.21.1830` 已通过微信开发者工具 CLI 上传成功；`main` 保持 `8467ee77`，等待用户真机验收后再合并。
 - Confirmed root cause: `motionArcadePage.tsx` 把 `trackingAnchor` 以不存在的 `anchor` 参数传给 `BodyPointTracker`，所以接豆配置的 `head` 被静默忽略并默认走 `auto` 画面运动质心；页面又没有锁定门禁，故未锁头也能开局。引体/俯卧撑虽然传了 `anchorMode: head`，但首选仍是完整 MoveNet pose，模型不可用时没有真正的人脸检测，且失败只写 console。
-- Fix: 头部模式改为优先使用微信 VisionKit 静态视频帧人脸检测（小模型、连续视频源、约 72ms 节流），直接使用人脸框中心和尺寸作为头部锚点，只要求脸部出镜；VisionKit 不可用时才加载 MoveNet 兼容检测。两者均不可用时明确显示不可用，禁止再用全画面运动质心冒充头部。MoveNet 创建参数同步修正为微信实际字段 `precesionLevel`。
+- Fix: 头部模式改为优先使用微信 VisionKit 静态视频帧人脸检测（小模型、连续视频源、60ms 检测间隔并受全局约 15fps 上限约束），直接使用人脸框中心和尺寸作为头部锚点，只要求脸部出镜；VisionKit 不可用时才加载 MoveNet 兼容检测。两者均不可用时明确显示不可用，禁止再用全画面运动质心冒充头部。MoveNet 创建参数同步修正为微信实际字段 `precesionLevel`。
 - Game behavior: 三款游戏统一连续 3 帧稳定才锁定；只有 `locked` 直接帧才驱动角色/动作。接豆新增头部框、锁定门禁和失锁暂停，修复参数名；单帧丢失立即冻结计时/道具/角色，720ms 后解除锁定。页面显示 `initializing / face / pose / unavailable` 运行状态，设备失败不再静默。
 - Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）、`npx next build`（534 pages）、小程序 local 构建（2,883 modules）与 release 构建（2,870 modules）均通过；release 产物确认包含 `createVKSession`、`detectFace`、`precesionLevel`、接豆 `anchorMode:"head"`、锁定提示与头框，并只包含线上 API `https://coachlink.fit`。按 `weapp-devtools` 启动 CLI auto 成功，9420 首次未监听、后续恢复连接；模拟器仍不能证明真机 VisionKit 相机帧。
 - Photo/video evidence: 已从代码固定的同一 GitHub commit 下载 9,466,715 字节 MoveNet ONNX，在隔离环境对仓库三张真人素材（接豆站立侧移、仰头引体、低位俯卧撑）执行与小程序一致的 192×192 letterbox 和头部关键点计算，三张均识别到 5 个头部点，置信度分别 0.732 / 0.746 / 0.691；独立人脸框检测也三张全命中。合成短视频中头部移动 40/40 帧检出，横向坐标与图像位移相关系数 0.9998，第 3 帧满足锁定；仅移动下半身且头不动的 40/40 帧检出，头中心最大归一化漂移 0.0036（门禁 0.025）；纯灰无人图没有头部误识别。证据保存在 `screenshots/weapp/head-tracking-validation-2026-08-21/`。
@@ -9303,3 +9312,12 @@
 - Status: 已完成发布前性能审查与优化，已推送至 `dev`（`cb0fb639`）；未上传小程序体验版或正式版。
 - Performance: 动作游戏的相机输入由逐帧（常见 30fps）全量处理调整为最高约 15fps，姿态推理约 10fps；运动跟踪复用灰度、权重、访问和队列缓冲区，消除逐帧 TypedArray/邻居数组分配，降低低端机主线程与 GC 卡顿。
 - Verification: `npm --workspace apps/wechat run build:weapp` 成功（2883 modules）；微信开发者工具自动化打开 `/toolbox/pullup-rush/index`、`/toolbox/pushup-dash/index`，相机元素存在且 0 error/0 warn；`npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）及 `git diff --check` 通过。
+## 功率视频分析上传与 Worker 参数故障修复 (`2026-08-22`)
+
+- Status: 已完成提交、双远端推送、生产 Web/API 与 Power Worker 滚动更新，并上传微信体验版 `2026.08.22.0257`；等待账号 `计划执行者4215` 真机线上验收原画质与压缩画质。
+- Root causes: ① Android 微信在原画质场景通过 `Taro.uploadFile` 发出的 multipart 请求到服务端时没有文件字节；旧上传接口的失败记录链又错误调用 PostgREST query builder 的 `.catch()`，把原本可读的 400 覆盖成了通用 500。② 功率 Worker 仍传 `--language`、`--quality`，但 Python 分析器的参数声明和对应输出逻辑被后续改动覆盖，导致压缩上传成功后必然报 `unrecognized arguments`。
+- Fix: 小程序改为 4MB `application/octet-stream` 二进制分片上传；新增 `/api/toolbox/power-analysis/jobs/[id]/upload-chunk`，分片暂存 COS、服务端合并并逐字节校验后写入视频存储，支持当前最高 500MB 权益；旧 multipart 接口的失败记录改成显式 await/try-catch。Python 分析器恢复中英文字体覆盖、评级、时序数据以及 `--language/--quality` 参数，同时保留音轨和输出体积控制。
+- Verification: 精确复现用户 958.3KB/11秒压缩视频，在正式 Worker Docker 镜像环境分别以 `zh+compressed`、`en+original` 完整分析成功，均保留 AAC 音轨并输出 5 次动作、评级与约 267 个时序点；本地 API 对 9,779,155 字节有效 MP4 完成 3 分片上传、合并和存储大小校验；微信开发者工具内用真实 `wx.getFileSystemManager().readFile + wx.request(ArrayBuffer)` 再跑同一 3 分片链路并返回 `done`。小程序 local 构建（2,883 modules）、lint、typecheck、Next build（534 pages）、Vitest（42 files / 203 tests）全部通过；页面截图保存在 `screenshots/weapp/power-analysis-upload-fix-2026-08-22.png`，测试任务、对象、分片、模拟器登录态和含用户视频的临时目录均已清理。
+- Release: `dev` 修复提交为 `f406fe91`，GitHub/Gitee `dev` 已同步；为避免把未验收的其他 dev 功能带入生产，单独 cherry-pick 到 `main` 为 `3433dd58`，GitHub/Gitee `main` 已同步。生产 Web/API 镜像摘要为 `sha256:d3e6c3d409de7df7e5c9eb2c407e82a23c892626ada4e89745f33f5ddf6df68d`，Power Worker 摘要为 `sha256:8db14dcb3b061bbc57de09012ef4a32bb96a5873f15346f9634170cdec230a10`；Web 3/3、Worker 1/1 rollout 成功，公网健康接口 200，新分片路由未登录探针返回应用层 401，Worker 实际虚拟环境确认包含 `--language {zh,en}` 与 `--quality {compressed,original}`，FFmpeg/FFprobe 5.1.9 可用。
+- WeChat: 从干净的 `dev@f406fe91` 强制使用 `https://coachlink.fit` 构建 release（2,870 modules），产物确认包含 `upload-chunk` 且不含 localhost/127.0.0.1/dev 域名；微信开发者工具 CLI 上传体验版 `2026.08.22.0257` 成功（约 9.6MB，AppID `wx316e39eb71c0e834`）。未提审、未发布正式版。
+- Next: 由 `计划执行者4215` 在体验版分别用同一段短视频测试压缩画质和原画质；若仍失败，保留失败时间、画质选项和完整错误截图，便于按生产日志精确定位。

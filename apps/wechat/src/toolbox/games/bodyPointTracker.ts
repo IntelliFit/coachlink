@@ -74,7 +74,9 @@ const MOTION_THRESHOLD = 22
 const POSE_SCORE_THRESHOLD = 0.28
 const HEAD_LOCK_CONFIRM_FRAMES = 3
 const HEAD_LOST_GRACE_MS = 720
-const FACE_DETECT_INTERVAL_MS = 72
+// 全局相机帧已限制为约 15fps；这里略低于全局间隔，避免二次节流后
+// 人脸与角色只剩约 7.5fps 的跟随速度。
+const FACE_DETECT_INTERVAL_MS = 60
 const FACE_DETECT_TIMEOUT_MS = 320
 const FACE_SCORE_THRESHOLD = 0.62
 

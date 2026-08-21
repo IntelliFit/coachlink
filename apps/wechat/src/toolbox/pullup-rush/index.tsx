@@ -19,7 +19,7 @@ import {
   type BodyTrackingRuntimeState
 } from '../games/bodyPointTracker'
 import {
-  projectCameraPointToStage,
+  placeCompanionBesideHead,
   projectHeadAnchorToStage,
   USER_FACING_CAMERA
 } from '../cameraTracking'
@@ -32,12 +32,6 @@ type RecordedVideo = {
   kind?: 'camera' | 'composite'
   tempThumbPath?: string
   tempVideoPath: string
-}
-
-type MotionSnapshot = {
-  energy: number
-  x: number
-  y: number
 }
 
 type HeadLockState = {
@@ -63,14 +57,11 @@ const GAME_TICK_MS = 32
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
 const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
-const PLAYER_X = 0.32
-const PLAYER_RADIUS = 0.058
-const GRAVITY = 0.002
-const JUMP_VELOCITY = -0.034
+const PLAYER_RADIUS = 0.04
 const PIPE_SPEED = 0.012
 const PIPE_SPAWN_MS = 1180
 const PULL_TRIGGER_COOLDOWN_MS = 260
-const TRACKING_UI_INTERVAL_MS = 96
+const TRACKING_UI_INTERVAL_MS = 64
 const MAX_LIVES = 2
 
 function clamp(value: number, min: number, max: number) {
@@ -124,10 +115,8 @@ export default function PullupRushPage() {
   const replayRecorderRef = useRef<MotionArcadeReplayRecorder | null>(null)
   const frameListenerRef = useRef<any>(null)
   const lastReplayCaptureAtRef = useRef(0)
-  const motionRef = useRef<MotionSnapshot>({ energy: 0, x: 0.5, y: 0.7 })
   const gameStatusRef = useRef<GameStatus>('idle')
   const lastPullTriggerAtRef = useRef(0)
-  const pendingPullRef = useRef(false)
   const pipesRef = useRef<PipePair[]>([])
   const nextPipeIdRef = useRef(1)
   const lastPipeSpawnAtRef = useRef(0)
@@ -143,8 +132,7 @@ export default function PullupRushPage() {
   const gameStartedAtRef = useRef(0)
   const scoreRef = useRef(0)
   const timeLeftMsRef = useRef(GAME_DURATION_MS)
-  const playerYRef = useRef(0.52)
-  const playerVelocityRef = useRef(0)
+  const playerPositionRef = useRef({ x: 0.32, y: 0.52 })
   const bestScoreRef = useRef(0)
   const livesRef = useRef(MAX_LIVES)
 
@@ -152,7 +140,7 @@ export default function PullupRushPage() {
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [motionEnergy, setMotionEnergy] = useState(0)
-  const [playerY, setPlayerY] = useState(0.52)
+  const [playerPosition, setPlayerPosition] = useState({ x: 0.32, y: 0.52 })
   const [score, setScore] = useState(0)
   const [bestScore, setBestScore] = useState(0)
   const [timeLeftMs, setTimeLeftMs] = useState(GAME_DURATION_MS)
@@ -192,10 +180,6 @@ export default function PullupRushPage() {
   useEffect(() => {
     openCoachLinkShareMenu()
   }, [])
-
-  useEffect(() => {
-    playerYRef.current = playerY
-  }, [playerY])
 
   useEffect(() => {
     scoreRef.current = score
@@ -258,29 +242,24 @@ export default function PullupRushPage() {
         const now = Date.now()
         updateTrackingActivity(snapshot.locked && snapshot.lockState === 'locked')
         const frameSize = { width: snapshot.frameWidth, height: snapshot.frameHeight }
-        const projected = projectCameraPointToStage(
-          snapshot,
-          frameSize,
-          cameraStageSizeRef.current
-        )
-        motionRef.current = {
-          energy: snapshot.energy,
-          x: projected.x,
-          y: projected.y
-        }
-
         const headLocked = snapshot.locked
+        const projectedHead = headLocked
+          ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
+          : null
+        if (projectedHead && snapshot.lockState === 'locked') {
+          playerPositionRef.current = placeCompanionBesideHead(projectedHead)
+        }
         if (
           now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
           || headLocked !== headLockVisibleRef.current
         ) {
-          const projectedHead = headLocked
-            ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
-            : null
           lastTrackingUiAtRef.current = now
           headLockVisibleRef.current = headLocked
           setMotionEnergy(snapshot.energy)
           if (projectedHead) {
+            if (snapshot.lockState === 'locked') {
+              setPlayerPosition(playerPositionRef.current)
+            }
             setHeadLock({
               estimated: snapshot.lockState === 'holding' || snapshot.target === 'head-estimate',
               radiusX: projectedHead.radiusX,
@@ -303,7 +282,6 @@ export default function PullupRushPage() {
           && snapshot.velocityY <= upwardThreshold
           && now - lastPullTriggerAtRef.current >= PULL_TRIGGER_COOLDOWN_MS
         ) {
-          pendingPullRef.current = true
           lastPullTriggerAtRef.current = now
           setPullCount((prevCount) => prevCount + 1)
         }
@@ -361,8 +339,8 @@ export default function PullupRushPage() {
               frameWidth: width,
               items: replayItems,
               player: {
-                x: PLAYER_X,
-                y: playerYRef.current
+                x: playerPositionRef.current.x,
+                y: playerPositionRef.current.y
               },
               replayFooterLabel: '引体冲刺回放',
               score: scoreRef.current,
@@ -419,19 +397,10 @@ export default function PullupRushPage() {
       const elapsed = now - gameStartedAtRef.current
       const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
 
-      if (pendingPullRef.current) {
-        playerVelocityRef.current = JUMP_VELOCITY
-        pendingPullRef.current = false
-      } else {
-        playerVelocityRef.current += GRAVITY
-      }
-
-      const nextPlayerY = clamp(playerYRef.current + playerVelocityRef.current, 0.08, 0.92)
-      playerYRef.current = nextPlayerY
-      setPlayerY(nextPlayerY)
+      const currentPlayer = playerPositionRef.current
       setTimeLeftMs(nextTimeLeft)
 
-      let crashed = nextPlayerY <= 0.09 || nextPlayerY >= 0.91
+      let crashed = currentPlayer.y <= 0.06 || currentPlayer.y >= 0.94
 
       setPipes((prevPipes) => {
         let nextPipes = prevPipes.map((pipe) => ({
@@ -447,7 +416,7 @@ export default function PullupRushPage() {
         nextPipes = nextPipes
           .filter((pipe) => pipe.x + pipe.width / 2 > -0.16)
           .map((pipe) => {
-            if (!pipe.passed && pipe.x + pipe.width / 2 < PLAYER_X) {
+            if (!pipe.passed && pipe.x + pipe.width / 2 < currentPlayer.x) {
               pipe.passed = true
               setFeedback({
                 id: ++feedbackIdRef.current,
@@ -471,8 +440,8 @@ export default function PullupRushPage() {
           const topHeight = pipe.gapY
           const bottomStart = pipe.gapY + pipe.gapHeight
           if (
-            circleHitsRect(PLAYER_X, nextPlayerY, PLAYER_RADIUS, pipe.x, topHeight / 2, pipe.width, topHeight)
-            || circleHitsRect(PLAYER_X, nextPlayerY, PLAYER_RADIUS, pipe.x, bottomStart + (1 - bottomStart) / 2, pipe.width, 1 - bottomStart)
+            circleHitsRect(currentPlayer.x, currentPlayer.y, PLAYER_RADIUS, pipe.x, topHeight / 2, pipe.width, topHeight)
+            || circleHitsRect(currentPlayer.x, currentPlayer.y, PLAYER_RADIUS, pipe.x, bottomStart + (1 - bottomStart) / 2, pipe.width, 1 - bottomStart)
           ) {
             crashed = true
             break
@@ -493,9 +462,6 @@ export default function PullupRushPage() {
         const nextLives = Math.max(0, livesRef.current - 1)
         setLives(nextLives)
         livesRef.current = nextLives
-        playerVelocityRef.current = 0
-        playerYRef.current = 0.52
-        setPlayerY(0.52)
         setPipes([])
         pipesRef.current = []
         lastPipeSpawnAtRef.current = now
@@ -651,14 +617,9 @@ export default function PullupRushPage() {
     setFeedback(null)
     lastReplayCaptureAtRef.current = 0
     lastPullTriggerAtRef.current = 0
-    motionRef.current = { energy: 0, x: 0.5, y: 0.7 }
     setMotionEnergy(0)
-    playerYRef.current = 0.52
-    setPlayerY(0.52)
-    playerVelocityRef.current = 0
     setLives(MAX_LIVES)
     livesRef.current = MAX_LIVES
-    pendingPullRef.current = false
     lastPipeSpawnAtRef.current = Date.now()
     trackingPausedAtRef.current = 0
   }
@@ -731,10 +692,10 @@ export default function PullupRushPage() {
           <View className='page-content'>
             <View className='intro-card'>
               <Text className='intro-kicker'>PULLUP FLIGHT</Text>
-              <Text className='intro-title'>向上拉，穿过障碍</Text>
+              <Text className='intro-title'>头部带小鸟穿过障碍</Text>
               <View className='intro-tags'>
-                <Text className='intro-tag'>上拉触发上升</Text>
-                <Text className='intro-tag'>穿缝得分</Text>
+                <Text className='intro-tag'>头部实时跟随</Text>
+                <Text className='intro-tag'>上拉动作计数</Text>
                 <Text className='intro-tag'>支持回放</Text>
               </View>
             </View>
@@ -781,8 +742,8 @@ export default function PullupRushPage() {
                 </View>
 
                 <View className='stage-objective'>
-                  <Text className='stage-objective-text'>上拉一下就上冲一次</Text>
-                  <Text className='stage-objective-text stage-objective-text--bad'>撞柱子或上下边界会掉命</Text>
+                  <Text className='stage-objective-text'>上下移动头部，带小鸟穿过通道</Text>
+                  <Text className='stage-objective-text stage-objective-text--bad'>小鸟始终在脸旁，不遮挡表情</Text>
                 </View>
 
                 {headLock.visible ? (
@@ -827,15 +788,19 @@ export default function PullupRushPage() {
                   )
                 })}
 
-                <View
-                  className='player-avatar pullup-bird'
-                  style={{
-                    left: `${PLAYER_X * 100}%`,
-                    top: `${playerY * 100}%`
-                  }}
-                >
-                  <View className='player-core pullup-bird-core' />
-                </View>
+                {headLock.visible ? (
+                  <View
+                    className='player-avatar head-bird pullup-bird'
+                    style={{
+                      left: `${playerPosition.x * 100}%`,
+                      top: `${playerPosition.y * 100}%`
+                    }}
+                  >
+                    <View className='head-bird-wing' />
+                    <View className='head-bird-eye' />
+                    <View className='head-bird-beak' />
+                  </View>
+                ) : null}
 
                 {feedback ? (
                   <View key={feedback.id} className={`stage-feedback stage-feedback--${feedback.tone}`}>

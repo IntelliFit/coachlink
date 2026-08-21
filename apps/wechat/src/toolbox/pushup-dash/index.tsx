@@ -19,7 +19,7 @@ import {
   type BodyTrackingRuntimeState
 } from '../games/bodyPointTracker'
 import {
-  projectCameraPointToStage,
+  placeCompanionBesideHead,
   projectHeadAnchorToStage,
   USER_FACING_CAMERA
 } from '../cameraTracking'
@@ -27,19 +27,15 @@ import '../games/motionArcade.scss'
 import './index.scss'
 
 type DashWall = {
-  height: number
+  gapHeight: number
+  gapY: number
   id: number
+  passed: boolean
   width: number
   x: number
 }
 
 type GameStatus = 'idle' | 'playing' | 'ended'
-
-type MotionSnapshot = {
-  energy: number
-  x: number
-  y: number
-}
 
 type HeadLockState = {
   estimated: boolean
@@ -63,12 +59,11 @@ const GAME_TICK_MS = 32
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
 const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
-const PLAYER_X = 0.24
+const PLAYER_RADIUS = 0.04
 const WALL_SPEED = 0.012
-const WALL_SPAWN_MS = 1100
+const WALL_SPAWN_MS = 1180
 const DASH_DURATION_MS = 720
-const DASH_COLLISION_WINDOW_MS = 820
-const TRACKING_UI_INTERVAL_MS = 96
+const TRACKING_UI_INTERVAL_MS = 64
 const MAX_LIVES = 3
 
 function clamp(value: number, min: number, max: number) {
@@ -85,11 +80,35 @@ function formatPercent(value: number) {
 
 function buildWall(id: number): DashWall {
   return {
-    height: 0.22 + Math.random() * 0.08,
+    gapHeight: 0.3 + Math.random() * 0.06,
+    gapY: 0.22 + Math.random() * 0.32,
     id,
-    width: 0.12,
+    passed: false,
+    width: 0.16,
     x: 1.08
   }
+}
+
+function circleHitsRect(
+  circleX: number,
+  circleY: number,
+  radius: number,
+  rectCenterX: number,
+  rectCenterY: number,
+  rectWidth: number,
+  rectHeight: number
+) {
+  const dx = Math.abs(circleX - rectCenterX)
+  const dy = Math.abs(circleY - rectCenterY)
+  const halfWidth = rectWidth / 2
+  const halfHeight = rectHeight / 2
+
+  if (dx > halfWidth + radius || dy > halfHeight + radius) return false
+  if (dx <= halfWidth || dy <= halfHeight) return true
+
+  const cornerDx = dx - halfWidth
+  const cornerDy = dy - halfHeight
+  return cornerDx * cornerDx + cornerDy * cornerDy <= radius * radius
 }
 
 export default function PushupDashPage() {
@@ -98,14 +117,11 @@ export default function PushupDashPage() {
   const replayRecorderRef = useRef<MotionArcadeReplayRecorder | null>(null)
   const frameListenerRef = useRef<any>(null)
   const lastReplayCaptureAtRef = useRef(0)
-  const motionRef = useRef<MotionSnapshot>({ energy: 0, x: 0.5, y: 0.7 })
   const repPhaseRef = useRef<RepPhase>('idle')
   const repStartedAtRef = useRef(0)
   const repDownYRef = useRef(0)
   const gameStatusRef = useRef<GameStatus>('idle')
-  const dashActiveRef = useRef(false)
   const dashUntilRef = useRef(0)
-  const dashAvailableUntilRef = useRef(0)
   const wallsRef = useRef<DashWall[]>([])
   const nextWallIdRef = useRef(1)
   const lastWallSpawnAtRef = useRef(0)
@@ -123,12 +139,14 @@ export default function PushupDashPage() {
   const bestScoreRef = useRef(0)
   const livesRef = useRef(MAX_LIVES)
   const gameStartedAtRef = useRef(0)
+  const playerPositionRef = useRef({ x: 0.32, y: 0.52 })
 
   const [gameStatus, setGameStatus] = useState<GameStatus>('idle')
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [motionEnergy, setMotionEnergy] = useState(0)
   const [dashActive, setDashActive] = useState(false)
+  const [playerPosition, setPlayerPosition] = useState({ x: 0.32, y: 0.52 })
   const [score, setScore] = useState(0)
   const [bestScore, setBestScore] = useState(0)
   const [timeLeftMs, setTimeLeftMs] = useState(GAME_DURATION_MS)
@@ -194,14 +212,9 @@ export default function PushupDashPage() {
     gameStatusRef.current = gameStatus
   }, [gameStatus])
 
-  useEffect(() => {
-    dashActiveRef.current = dashActive
-  }, [dashActive])
-
   const beginDashFromRep = () => {
     const now = Date.now()
     dashUntilRef.current = now + DASH_DURATION_MS
-    dashAvailableUntilRef.current = now + DASH_COLLISION_WINDOW_MS
     setDashActive(true)
     setRepCount((prevCount) => prevCount + 1)
     setFeedback({
@@ -226,7 +239,6 @@ export default function PushupDashPage() {
         lastWallSpawnAtRef.current += pausedFor
         if (repStartedAtRef.current) repStartedAtRef.current += pausedFor
         if (dashUntilRef.current) dashUntilRef.current += pausedFor
-        if (dashAvailableUntilRef.current) dashAvailableUntilRef.current += pausedFor
         trackingPausedAtRef.current = 0
       }
       trackingActiveRef.current = active
@@ -252,29 +264,24 @@ export default function PushupDashPage() {
         const now = Date.now()
         updateTrackingActivity(snapshot.locked && snapshot.lockState === 'locked')
         const frameSize = { width: snapshot.frameWidth, height: snapshot.frameHeight }
-        const projected = projectCameraPointToStage(
-          snapshot,
-          frameSize,
-          cameraStageSizeRef.current
-        )
-        motionRef.current = {
-          energy: snapshot.energy,
-          x: projected.x,
-          y: projected.y
-        }
-
         const headLocked = snapshot.locked
+        const projectedHead = headLocked
+          ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
+          : null
+        if (projectedHead && snapshot.lockState === 'locked') {
+          playerPositionRef.current = placeCompanionBesideHead(projectedHead)
+        }
         if (
           now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
           || headLocked !== headLockVisibleRef.current
         ) {
-          const projectedHead = headLocked
-            ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
-            : null
           lastTrackingUiAtRef.current = now
           headLockVisibleRef.current = headLocked
           setMotionEnergy(snapshot.energy)
           if (projectedHead) {
+            if (snapshot.lockState === 'locked') {
+              setPlayerPosition(playerPositionRef.current)
+            }
             setHeadLock({
               estimated: snapshot.lockState === 'holding' || snapshot.target === 'head-estimate',
               radiusX: projectedHead.radiusX,
@@ -349,15 +356,31 @@ export default function PushupDashPage() {
           ) {
             lastReplayCaptureAtRef.current = now
             const rgba = new Uint8Array(data)
-            const replayItems: ArcadeReplayItem[] = wallsRef.current.map((wall) => ({
-              height: wall.height,
-              shape: 'rect',
-              size: wall.height,
-              type: 'bad',
-              width: wall.width,
-              x: wall.x,
-              y: 1 - wall.height / 2
-            }))
+            const replayItems: ArcadeReplayItem[] = wallsRef.current.flatMap((wall) => {
+              const topHeight = wall.gapY
+              const bottomStart = wall.gapY + wall.gapHeight
+              const bottomHeight = Math.max(0, 1 - bottomStart)
+              return [
+                {
+                  height: topHeight,
+                  shape: 'rect',
+                  size: topHeight,
+                  type: 'bad',
+                  width: wall.width,
+                  x: wall.x,
+                  y: topHeight / 2
+                },
+                {
+                  height: bottomHeight,
+                  shape: 'rect',
+                  size: bottomHeight,
+                  type: 'bad',
+                  width: wall.width,
+                  x: wall.x,
+                  y: bottomStart + bottomHeight / 2
+                }
+              ]
+            })
 
             replayRecorderRef.current?.captureFrame({
               frameBuffer: new Uint8ClampedArray(rgba),
@@ -365,8 +388,8 @@ export default function PushupDashPage() {
               frameWidth: width,
               items: replayItems,
               player: {
-                x: dashActiveRef.current ? PLAYER_X + 0.08 : PLAYER_X,
-                y: 0.78
+                x: playerPositionRef.current.x,
+                y: playerPositionRef.current.y
               },
               replayFooterLabel: '俯卧撑突围回放',
               score: scoreRef.current,
@@ -426,6 +449,7 @@ export default function PushupDashPage() {
 
       const nextDashActive = now <= dashUntilRef.current
       setDashActive(nextDashActive)
+      const currentPlayer = playerPositionRef.current
 
       setWalls((prevWalls) => {
         let nextWalls = prevWalls.map((wall) => ({
@@ -440,34 +464,33 @@ export default function PushupDashPage() {
 
         const remainingWalls: DashWall[] = []
         for (const wall of nextWalls) {
-          const collisionPoint = nextDashActive ? PLAYER_X + 0.12 : PLAYER_X + 0.04
-          const hitWindowStart = wall.x - wall.width / 2
-          if (hitWindowStart <= collisionPoint && wall.x + wall.width / 2 >= PLAYER_X - 0.02) {
-            if (now <= dashAvailableUntilRef.current) {
-              setFeedback({
-                id: ++feedbackIdRef.current,
-                text: '+1 顶开障碍',
-                tone: 'good'
-              })
-              vibrateForArcadeFeedback('good')
-              setScore((prevScore) => {
-                const nextScore = prevScore + 1
-                if (nextScore > bestScoreRef.current) {
-                  bestScoreRef.current = nextScore
-                  setBestScore(nextScore)
-                }
-                return nextScore
-              })
-              dashAvailableUntilRef.current = 0
-              dashUntilRef.current = now
-              setDashActive(false)
-              continue
-            }
+          const topHeight = wall.gapY
+          const bottomStart = wall.gapY + wall.gapHeight
+          const collided =
+            circleHitsRect(
+              currentPlayer.x,
+              currentPlayer.y,
+              PLAYER_RADIUS,
+              wall.x,
+              topHeight / 2,
+              wall.width,
+              topHeight
+            )
+            || circleHitsRect(
+              currentPlayer.x,
+              currentPlayer.y,
+              PLAYER_RADIUS,
+              wall.x,
+              bottomStart + (1 - bottomStart) / 2,
+              wall.width,
+              1 - bottomStart
+            )
 
+          if (collided) {
             const nextLives = Math.max(0, livesRef.current - 1)
             setFeedback({
               id: ++feedbackIdRef.current,
-              text: '撞墙 -1 命',
+              text: '碰撞 -1 命',
               tone: 'bad'
             })
             vibrateForArcadeFeedback('bad')
@@ -479,6 +502,24 @@ export default function PushupDashPage() {
               }, 0)
             }
             continue
+          }
+
+          if (!wall.passed && wall.x + wall.width / 2 < currentPlayer.x) {
+            wall.passed = true
+            setFeedback({
+              id: ++feedbackIdRef.current,
+              text: '+1 穿越',
+              tone: 'good'
+            })
+            vibrateForArcadeFeedback('good')
+            setScore((prevScore) => {
+              const nextScore = prevScore + 1
+              if (nextScore > bestScoreRef.current) {
+                bestScoreRef.current = nextScore
+                setBestScore(nextScore)
+              }
+              return nextScore
+            })
           }
 
           if (wall.x + wall.width / 2 > -0.16) {
@@ -637,13 +678,10 @@ export default function PushupDashPage() {
     setLives(MAX_LIVES)
     livesRef.current = MAX_LIVES
     dashUntilRef.current = 0
-    dashAvailableUntilRef.current = 0
     setDashActive(false)
-    dashActiveRef.current = false
     repPhaseRef.current = 'idle'
     repDownYRef.current = 0
     setPhaseLabel('等待下压')
-    motionRef.current = { energy: 0, x: 0.5, y: 0.7 }
     setMotionEnergy(0)
     trackingPausedAtRef.current = 0
     lastWallSpawnAtRef.current = Date.now()
@@ -717,10 +755,10 @@ export default function PushupDashPage() {
           <View className='page-content'>
             <View className='intro-card'>
               <Text className='intro-kicker'>PUSHUP DRIVE</Text>
-              <Text className='intro-title'>完成俯卧撑，撞开障碍</Text>
+              <Text className='intro-title'>俯卧起伏，带小鸟穿过障碍</Text>
               <View className='intro-tags'>
-                <Text className='intro-tag'>下压 + 撑起</Text>
-                <Text className='intro-tag'>完整一次才推进</Text>
+                <Text className='intro-tag'>头部实时跟随</Text>
+                <Text className='intro-tag'>上下管道穿越</Text>
                 <Text className='intro-tag'>支持回放</Text>
               </View>
             </View>
@@ -767,8 +805,8 @@ export default function PushupDashPage() {
                 </View>
 
                 <View className='stage-objective'>
-                  <Text className='stage-objective-text'>先下压，再撑起，才会冲一次</Text>
-                  <Text className='stage-objective-text stage-objective-text--bad'>来不及顶开墙就会掉命</Text>
+                  <Text className='stage-objective-text'>上下移动头部，带小鸟穿过通道</Text>
+                  <Text className='stage-objective-text stage-objective-text--bad'>完整俯卧撑会点亮冲刺反馈</Text>
                 </View>
 
                 {headLock.visible ? (
@@ -785,30 +823,47 @@ export default function PushupDashPage() {
                   </View>
                 ) : null}
 
-                <View className='pushup-ground' />
+                {walls.map((wall) => {
+                  const topHeight = wall.gapY
+                  const bottomTop = wall.gapY + wall.gapHeight
+                  const bottomHeight = 1 - bottomTop
+                  return (
+                    <View key={wall.id}>
+                      <View
+                        className='pushup-wall'
+                        style={{
+                          height: `${topHeight * 100}%`,
+                          left: `${wall.x * 100}%`,
+                          width: `${wall.width * 100}%`,
+                          top: '0%'
+                        }}
+                      />
+                      <View
+                        className='pushup-wall pushup-wall--bottom'
+                        style={{
+                          height: `${bottomHeight * 100}%`,
+                          left: `${wall.x * 100}%`,
+                          width: `${wall.width * 100}%`,
+                          top: `${bottomTop * 100}%`
+                        }}
+                      />
+                    </View>
+                  )
+                })}
 
-                {walls.map((wall) => (
+                {headLock.visible ? (
                   <View
-                    key={wall.id}
-                    className='pushup-wall'
+                    className={`player-avatar head-bird pushup-runner ${dashActive ? 'head-bird--boost' : ''}`}
                     style={{
-                      height: `${wall.height * 100}%`,
-                      left: `${wall.x * 100}%`,
-                      width: `${wall.width * 100}%`,
-                      top: `${(1 - wall.height) * 100}%`
+                      left: `${playerPosition.x * 100}%`,
+                      top: `${playerPosition.y * 100}%`
                     }}
-                  />
-                ))}
-
-                <View
-                  className={`player-avatar pushup-runner ${dashActive ? 'pushup-runner--dash' : ''}`}
-                  style={{
-                    left: `${(dashActive ? PLAYER_X + 0.08 : PLAYER_X) * 100}%`,
-                    top: '78%'
-                  }}
-                >
-                  <View className='player-core pushup-runner-core' />
-                </View>
+                  >
+                    <View className='head-bird-wing' />
+                    <View className='head-bird-eye' />
+                    <View className='head-bird-beak' />
+                  </View>
+                ) : null}
 
                 {feedback ? (
                   <View key={feedback.id} className={`stage-feedback stage-feedback--${feedback.tone}`}>
@@ -864,7 +919,7 @@ export default function PushupDashPage() {
               <Text className='section-kicker'>实时状态</Text>
               <View className='stats-grid'>
                 <View className='stat-item'>
-                  <Text className='stat-label'>顶开墙数</Text>
+                  <Text className='stat-label'>穿越通道</Text>
                   <Text className='stat-value'>{score}</Text>
                 </View>
                 <View className='stat-item'>

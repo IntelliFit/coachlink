@@ -3,28 +3,27 @@
     position: absolute;
     border-radius: 24rpx;
     transform: translateX(-50%);
-    background: linear-gradient(180deg, rgba(243, 185, 72, 0.92) 0%, rgba(47, 128, 237, 0.94) 100%);
-    box-shadow: 0 16rpx 32rpx rgba(47, 128, 237, 0.18);
+    background: rgba(107, 79, 63, 0.84);
+    border: 4rpx solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 16rpx 32rpx rgba(75, 49, 36, 0.18);
+    box-sizing: border-box;
     z-index: 2;
   }
 
   .pullup-pipe--bottom {
-    background: linear-gradient(180deg, rgba(47, 128, 237, 0.94) 0%, rgba(243, 185, 72, 0.92) 100%);
+    background: rgba(143, 95, 76, 0.84);
   }
 
   .pullup-bird {
-    width: 72rpx;
-    height: 112rpx;
+    width: 64rpx;
+    height: 48rpx;
     border-radius: 24rpx;
-    background: #2f80ed;
-    border: 6rpx solid rgba(255, 255, 255, 0.96);
-    box-shadow: 0 16rpx 28rpx rgba(47, 128, 237, 0.28);
+    background: #f3b948;
+    border: 4rpx solid rgba(255, 255, 255, 0.96);
+    box-shadow: 0 8rpx 16rpx rgba(75, 49, 36, 0.24);
+    box-sizing: border-box;
+    transition: left 64ms linear, top 64ms linear;
     z-index: 3;
-  }
-
-  .pullup-bird-core {
-    inset: 22rpx 16rpx;
-    border-radius: 16rpx;
   }
 
   .pullup-gap-line {
