@@ -153,6 +153,7 @@ const SELECTED_VIDEO_ID = 'power-analysis-selected-video'
 const LAST_DOWNLOADABLE_JOB_STORAGE_KEY = 'power-analysis-last-downloadable-job-v1'
 const VIDEO_TRANSFER_TIMEOUT_MS = 15 * 60 * 1000
 const WECHAT_CHOOSE_VIDEO_MAX_DURATION_SECONDS = 60
+const POWER_ANALYSIS_CHUNK_SIZE_BYTES = 4 * 1024 * 1024
 const DEFAULT_ENTITLEMENTS: PowerAnalysisEntitlements = {
   tier: 'free',
   canUseOriginalQuality: false,
@@ -236,69 +237,111 @@ async function callPowerApi<T>(options: {
   return res.data
 }
 
-function uploadPowerAnalysisVideo(params: {
+function createPowerUploadId() {
+  return `power_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`
+}
+
+function normalizeFileReadData(data: unknown): ArrayBuffer | null {
+  if (data instanceof ArrayBuffer) return data
+  if (ArrayBuffer.isView(data)) {
+    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
+  }
+  return null
+}
+
+function readPowerAnalysisVideoChunk(filePath: string, position: number, length: number) {
+  return new Promise<ArrayBuffer>((resolve, reject) => {
+    const fileSystem = Taro.getFileSystemManager() as any
+    fileSystem.readFile({
+      filePath,
+      position,
+      length,
+      success: (result: any) => {
+        const data = normalizeFileReadData(result?.data)
+        if (data && data.byteLength > 0) {
+          resolve(data)
+          return
+        }
+        reject(new Error('读取视频分片失败'))
+      },
+      fail: (error: any) => reject(new Error(error?.errMsg || '读取视频分片失败'))
+    })
+  })
+}
+
+function parsePowerUploadResponse(data: unknown) {
+  if (typeof data !== 'string') return data as any
+  try {
+    return JSON.parse(data || '{}')
+  } catch {
+    return null
+  }
+}
+
+async function uploadPowerAnalysisChunk(url: string, chunk: ArrayBuffer, token: string) {
+  const response: any = await Taro.request({
+    url,
+    method: 'POST',
+    data: chunk,
+    header: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/octet-stream'
+    },
+    timeout: 120000
+  } as any)
+  const payload = parsePowerUploadResponse(response.data)
+  if (response.statusCode < 200 || response.statusCode >= 300 || !payload?.success) {
+    throw new Error(payload?.message || `视频分片上传失败（${response.statusCode}）`)
+  }
+}
+
+async function uploadPowerAnalysisVideo(params: {
   jobId: string
   filePath: string
   contentType: string
+  fileSize: number
   onProgress: (progress: number) => void
 }) {
-  return new Promise<void>((resolve, reject) => {
-    const token = String(Taro.getStorageSync('token') || '').trim()
-    if (!token) {
-      reject(new Error('请先登录后再使用视频分析工具'))
-      return
-    }
+  const token = String(Taro.getStorageSync('token') || '').trim()
+  if (!token) throw new Error('请先登录后再使用视频分析工具')
+  if (!Number.isInteger(params.fileSize) || params.fileSize <= 0) {
+    throw new Error('无法读取视频大小，请重新选择')
+  }
 
-    const uploadTask = Taro.uploadFile({
-      url: `${API_BASE_URL}/api/toolbox/power-analysis/jobs/${params.jobId}/upload`,
-      filePath: params.filePath,
-      name: 'file',
-      timeout: VIDEO_TRANSFER_TIMEOUT_MS,
-      formData: {
-        contentType: params.contentType
-      },
-      header: {
-        Authorization: `Bearer ${token}`
-      },
-      success: (uploadRes: any) => {
-        let data: any = uploadRes.data
-        if (typeof uploadRes.data === 'string') {
-          try {
-            data = JSON.parse(uploadRes.data || '{}')
-          } catch {
-            data = null
-          }
-        }
+  const uploadId = createPowerUploadId()
+  const totalChunks = Math.ceil(params.fileSize / POWER_ANALYSIS_CHUNK_SIZE_BYTES)
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+    const position = chunkIndex * POWER_ANALYSIS_CHUNK_SIZE_BYTES
+    const length = Math.min(POWER_ANALYSIS_CHUNK_SIZE_BYTES, params.fileSize - position)
+    const chunk = await readPowerAnalysisVideoChunk(params.filePath, position, length)
+    const query = [
+      ['action', 'chunk'],
+      ['uploadId', uploadId],
+      ['chunkIndex', String(chunkIndex)],
+      ['totalChunks', String(totalChunks)],
+      ['totalSize', String(params.fileSize)]
+    ]
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join('&')
+    await uploadPowerAnalysisChunk(
+      `${API_BASE_URL}/api/toolbox/power-analysis/jobs/${params.jobId}/upload-chunk?${query}`,
+      chunk,
+      token
+    )
+    params.onProgress(Math.max(1, Math.min(95, Math.round(((chunkIndex + 1) / totalChunks) * 95))))
+  }
 
-        if (uploadRes.statusCode >= 200 && uploadRes.statusCode < 300 && data?.success) {
-          params.onProgress(100)
-          resolve()
-          return
-        }
-
-        if (uploadRes.statusCode === 413) {
-          reject(new Error(data?.message || '视频超过服务器上传限制，请压缩后重试'))
-          return
-        }
-
-        reject(new Error(data?.message || `上传失败（${uploadRes.statusCode}）`))
-      },
-      fail: (error: any) => {
-        reject(new Error(error?.errMsg || error?.message || '上传失败'))
-      }
-    }) as any
-
-    if (uploadTask?.progress) {
-      uploadTask.progress((res: any) => {
-        params.onProgress(Math.max(1, Math.min(99, Number(res?.progress || 0))))
-      })
-    }
-    if (uploadTask?.onProgressUpdate) {
-      uploadTask.onProgressUpdate((res: any) => {
-        params.onProgress(Math.max(1, Math.min(99, Number(res?.progress || 0))))
-      })
+  await callPowerApi<PowerAnalysisJobDto>({
+    url: `/api/toolbox/power-analysis/jobs/${params.jobId}/upload-chunk?action=complete`,
+    method: 'POST',
+    data: {
+      uploadId,
+      totalSize: params.fileSize,
+      totalChunks,
+      contentType: params.contentType
     }
   })
+  params.onProgress(100)
 }
 
 function isAuthErrorMessage(message?: string | null) {
@@ -639,6 +682,7 @@ export default function WechatPowerAnalysisPage() {
         jobId: created.job.id,
         filePath: nextVideo.tempFilePath,
         contentType: nextVideo.contentType,
+        fileSize: nextVideo.size,
         onProgress: setUploadProgress
       })
 

@@ -246,21 +246,27 @@ export async function POST(
     const status = error instanceof UploadRequestError ? error.status : 500;
     const message = error instanceof Error ? error.message : "上传失败";
     console.error("[power-analysis/upload] streaming upload failed:", error);
-    await db
-      .from("tool_power_analysis_jobs")
-      .update({
-        metadata: {
-          ...currentMetadata,
-          upload_failed_at: new Date().toISOString(),
-          upload_failure_stage: "multipart_receive_or_storage_write",
-          upload_failure_message: message.slice(0, 500),
-        },
-        error_message: message.slice(0, 1000),
-      })
-      .eq("id", id)
-      .eq("user_id", session.user.id)
-      .eq("status", "awaiting_upload")
-      .catch(() => null);
+    try {
+      const { error: failureUpdateError } = await db
+        .from("tool_power_analysis_jobs")
+        .update({
+          metadata: {
+            ...currentMetadata,
+            upload_failed_at: new Date().toISOString(),
+            upload_failure_stage: "multipart_receive_or_storage_write",
+            upload_failure_message: message.slice(0, 500),
+          },
+          error_message: message.slice(0, 1000),
+        })
+        .eq("id", id)
+        .eq("user_id", session.user.id)
+        .eq("status", "awaiting_upload");
+      if (failureUpdateError) {
+        console.warn("[power-analysis/upload] failure metadata update failed:", failureUpdateError.message);
+      }
+    } catch (failureUpdateError) {
+      console.warn("[power-analysis/upload] failure metadata update failed:", failureUpdateError);
+    }
     return NextResponse.json<ApiData<null>>(
       { success: false, message, data: null },
       { status },
