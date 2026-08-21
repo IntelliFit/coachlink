@@ -9,6 +9,8 @@ export type BodyTrackingTarget = 'body' | 'head' | 'head-estimate' | 'motion'
 
 export type BodyTrackingLockState = 'holding' | 'locked' | 'searching'
 
+export type BodyTrackingRuntimeState = 'face' | 'initializing' | 'motion' | 'pose' | 'unavailable'
+
 export type BodyTrackingSnapshot = {
   confidence: number
   energy: number
@@ -37,6 +39,7 @@ type TrackerOptions = {
   headLockConfirmFrames?: number
   headLostGraceMs?: number
   onLockChange?: (locked: boolean) => void
+  onRuntimeStateChange?: (state: BodyTrackingRuntimeState, detail: string) => void
   onSnapshot: (snapshot: BodyTrackingSnapshot) => void
   onSourceChange?: (source: BodyTrackingSource) => void
   poseIntervalMs?: number
@@ -65,6 +68,9 @@ const MOTION_THRESHOLD = 22
 const POSE_SCORE_THRESHOLD = 0.28
 const HEAD_LOCK_CONFIRM_FRAMES = 3
 const HEAD_LOST_GRACE_MS = 720
+const FACE_DETECT_INTERVAL_MS = 72
+const FACE_DETECT_TIMEOUT_MS = 320
+const FACE_SCORE_THRESHOLD = 0.62
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value))
@@ -169,6 +175,17 @@ function buildHeadAnchor(points: PosePoint[], frameAspect: number): HeadAnchor |
 export class BodyPointTracker {
   private anchorMode: 'auto' | 'head'
   private destroyed = false
+  private faceActiveDetectionId = 0
+  private faceDetectionBusy = false
+  private faceDetectionFailures = 0
+  private faceDetectionTimer: ReturnType<typeof setTimeout> | null = null
+  private faceFrameHeight = 0
+  private faceFrameWidth = 0
+  private faceHandledDetectionId = 0
+  private facePreparing = false
+  private faceReady = false
+  private faceSession: any = null
+  private faceUnavailable = false
   private headCandidate: HeadAnchor | null = null
   private headCandidateFrames = 0
   private headLockConfirmFrames: number
@@ -177,6 +194,7 @@ export class BodyPointTracker {
   private inferenceRunning = false
   private inferenceFailures = 0
   private lastDirectHeadAt = 0
+  private lastFaceAt = 0
   private lastLockedHeadSnapshot: BodyTrackingSnapshot | null = null
   private lastMotionAt = 0
   private lastPoseAt = 0
@@ -203,9 +221,13 @@ export class BodyPointTracker {
   private poseFrameWidth = 0
   private poseInput = new Int32Array(MODEL_INPUT_PIXEL_COUNT * 3)
   private poseIntervalMs: number
+  private posePreparing = false
   private poseSession: any = null
   private poseSourceIndices: Int32Array | null = null
+  private poseUnavailable = false
   private previousGray: Uint8Array | null = null
+  private runtimeDetail = ''
+  private runtimeState: BodyTrackingRuntimeState | null = null
   private source: BodyTrackingSource = 'motion'
 
   constructor(options: TrackerOptions) {
@@ -214,7 +236,12 @@ export class BodyPointTracker {
     this.headLockConfirmFrames = Math.max(2, Math.round(options.headLockConfirmFrames || HEAD_LOCK_CONFIRM_FRAMES))
     this.headLostGraceMs = clamp(Number(options.headLostGraceMs || HEAD_LOST_GRACE_MS), 480, 1500)
     this.poseIntervalMs = clamp(Number(options.poseIntervalMs || POSE_INTERVAL_MS), 40, 120)
-    void this.preparePoseSession()
+    this.setRuntimeState('initializing', this.anchorMode === 'head' ? '正在启动微信端侧人脸识别' : '正在启动人体关键点识别')
+    if (this.anchorMode === 'head') {
+      this.prepareFaceSession()
+    } else {
+      void this.preparePoseSession()
+    }
   }
 
   processFrame(frame: CameraFrame, at = Date.now()) {
@@ -223,6 +250,26 @@ export class BodyPointTracker {
     this.expireHeadLock(at)
 
     const rgba = new Uint8Array(frame.data)
+    if (this.anchorMode === 'head') {
+      if (this.faceReady) {
+        this.runFace(frame, at)
+        return
+      }
+
+      if (this.facePreparing) return
+      if (this.poseSession) {
+        if (!this.inferenceRunning && at - this.lastPoseAt >= this.poseIntervalMs) {
+          this.lastPoseAt = at
+          this.runPose(rgba, frame.width, frame.height, at)
+        }
+        return
+      }
+
+      if (!this.posePreparing && !this.poseUnavailable && this.faceUnavailable) void this.preparePoseSession()
+      this.emitHeldHead(at)
+      return
+    }
+
     if (this.poseSession) {
       if (!this.inferenceRunning && at - this.lastPoseAt >= this.poseIntervalMs) {
         this.lastPoseAt = at
@@ -235,16 +282,21 @@ export class BodyPointTracker {
     const snapshot = this.trackMotion(rgba, frame.width, frame.height, at)
     this.lastMotionAt = at
     if (!snapshot) return
-    if (this.anchorMode === 'head') {
-      this.emitRestrictedHeadMotion(snapshot, at)
-      return
-    }
     this.emit(snapshot)
   }
 
   destroy() {
     this.destroyed = true
     this.previousGray = null
+    this.clearFaceDetectionTimer()
+    try {
+      this.faceSession?.stop?.()
+      this.faceSession?.destroy?.()
+    } catch {
+      // Ignore runtimes without explicit VisionKit cleanup methods.
+    }
+    this.faceSession = null
+    this.faceReady = false
     try {
       this.poseSession?.destroy?.()
     } catch {
@@ -253,9 +305,214 @@ export class BodyPointTracker {
     this.poseSession = null
   }
 
-  private async preparePoseSession() {
+  private prepareFaceSession() {
+    if (this.destroyed || this.facePreparing || this.faceReady || this.faceUnavailable) return
+    this.facePreparing = true
+
     try {
-      if (typeof wx === 'undefined' || typeof wx.createInferenceSession !== 'function') return
+      const runtime = Taro as any
+      if (typeof runtime.createVKSession !== 'function') {
+        this.disableFace('当前微信版本不支持端侧人脸识别')
+        return
+      }
+
+      const session = runtime.createVKSession({
+        track: { face: { mode: 2 } }
+      })
+      this.faceSession = session
+
+      const handleAnchors = (value: any) => this.handleFaceAnchors(value)
+      session.on('addAnchors', handleAnchors)
+      session.on('updateAnchors', handleAnchors)
+      session.on('removeAnchors', () => {
+        setTimeout(() => this.handleFaceAnchors([]), 0)
+      })
+      session.start((status: number | null) => {
+        if (this.destroyed) {
+          try {
+            session.stop?.()
+            session.destroy?.()
+          } catch {
+            // Ignore cleanup errors after the page has already closed.
+          }
+          return
+        }
+
+        this.facePreparing = false
+        if (status && Number(status) !== 0) {
+          this.disableFace(`微信人脸识别启动失败（${status}）`)
+          return
+        }
+
+        this.faceReady = true
+        this.faceDetectionFailures = 0
+        this.setRuntimeState('face', '微信端侧人脸识别已启动，只需让脸进入画面')
+      })
+    } catch (error: any) {
+      this.disableFace(error?.message || '微信端侧人脸识别初始化失败')
+    }
+  }
+
+  private runFace(frame: CameraFrame, at: number) {
+    if (
+      !this.faceReady
+      || !this.faceSession
+      || this.faceDetectionBusy
+      || at - this.lastFaceAt < FACE_DETECT_INTERVAL_MS
+    ) {
+      return
+    }
+
+    this.lastFaceAt = at
+    this.faceDetectionBusy = true
+    this.faceFrameWidth = frame.width
+    this.faceFrameHeight = frame.height
+    const detectionId = ++this.faceActiveDetectionId
+
+    try {
+      this.faceSession.detectFace({
+        frameBuffer: frame.data,
+        height: frame.height,
+        modelModel: 0,
+        scoreThreshold: FACE_SCORE_THRESHOLD,
+        sourceType: 0,
+        width: frame.width
+      })
+      this.clearFaceDetectionTimer()
+      this.faceDetectionTimer = setTimeout(() => {
+        if (this.destroyed || detectionId !== this.faceActiveDetectionId) return
+        this.faceDetectionBusy = false
+        this.faceHandledDetectionId = detectionId
+        this.handleHeadPoseAnchor(null, this.faceFrameWidth, this.faceFrameHeight, Date.now())
+      }, FACE_DETECT_TIMEOUT_MS)
+    } catch (error: any) {
+      this.faceDetectionBusy = false
+      this.faceDetectionFailures += 1
+      this.handleHeadPoseAnchor(null, frame.width, frame.height, Date.now())
+      if (this.faceDetectionFailures >= 3) {
+        this.disableFace(error?.message || '微信人脸识别连续调用失败')
+      }
+    }
+  }
+
+  private handleFaceAnchors(value: any) {
+    if (this.destroyed || !this.faceReady) return
+    const detectionId = this.faceActiveDetectionId
+    if (!detectionId || this.faceHandledDetectionId === detectionId) return
+
+    this.faceHandledDetectionId = detectionId
+    this.faceDetectionBusy = false
+    this.faceDetectionFailures = 0
+    this.clearFaceDetectionTimer()
+
+    const anchors = Array.isArray(value)
+      ? value
+      : Array.isArray(value?.anchors)
+        ? value.anchors
+        : Array.isArray(value?.detail)
+          ? value.detail
+          : Array.isArray(value?.detail?.anchors)
+            ? value.detail.anchors
+            : []
+
+    const faces = anchors
+      .map((anchor: any) => {
+        const originX = Number(anchor?.origin?.x)
+        const originY = Number(anchor?.origin?.y)
+        const sizeWidth = Number(anchor?.size?.width)
+        const sizeHeight = Number(anchor?.size?.height)
+        const rawConfidence = Number(anchor?.confidence)
+        if (
+          !Number.isFinite(originX)
+          || !Number.isFinite(originY)
+          || !Number.isFinite(sizeWidth)
+          || !Number.isFinite(sizeHeight)
+          || sizeWidth <= 0
+          || sizeHeight <= 0
+        ) {
+          return null
+        }
+        const confidence = Number.isFinite(rawConfidence) ? clamp(rawConfidence, 0, 1) : 1
+        return {
+          anchor: {
+            headRadiusX: clamp(sizeWidth * 0.5, 0.045, 0.22),
+            headRadiusY: clamp(sizeHeight * 0.5, 0.055, 0.25),
+            score: confidence,
+            target: 'head' as const,
+            x: clamp(originX + sizeWidth * 0.5, 0.02, 0.98),
+            y: clamp(originY + sizeHeight * 0.5, 0.02, 0.98)
+          },
+          rank: confidence * 2 + sizeWidth * sizeHeight
+        }
+      })
+      .filter((item): item is { anchor: HeadAnchor; rank: number } => Boolean(item))
+      .sort((a, b) => b.rank - a.rank)
+
+    this.handleHeadPoseAnchor(
+      faces[0]?.anchor || null,
+      this.faceFrameWidth,
+      this.faceFrameHeight,
+      Date.now()
+    )
+  }
+
+  private disableFace(detail: string) {
+    if (this.faceUnavailable) return
+    this.faceUnavailable = true
+    this.facePreparing = false
+    this.faceReady = false
+    this.faceDetectionBusy = false
+    this.clearFaceDetectionTimer()
+    try {
+      this.faceSession?.stop?.()
+      this.faceSession?.destroy?.()
+    } catch {
+      // Ignore cleanup errors and continue to the compatible pose detector.
+    }
+    this.faceSession = null
+    this.setRuntimeState('initializing', `${detail}，正在加载兼容头部识别`)
+    void this.preparePoseSession()
+  }
+
+  private clearFaceDetectionTimer() {
+    if (!this.faceDetectionTimer) return
+    clearTimeout(this.faceDetectionTimer)
+    this.faceDetectionTimer = null
+  }
+
+  private setRuntimeState(state: BodyTrackingRuntimeState, detail: string) {
+    if (this.runtimeState === state && this.runtimeDetail === detail) return
+    this.runtimeState = state
+    this.runtimeDetail = detail
+    this.options.onRuntimeStateChange?.(state, detail)
+  }
+
+  private markPoseUnavailable(detail: string) {
+    this.posePreparing = false
+    this.poseUnavailable = true
+    try {
+      this.poseSession?.destroy?.()
+    } catch {
+      // Ignore cleanup errors and report the detector state to the page.
+    }
+    this.poseSession = null
+    this.previousGray = null
+    if (this.anchorMode === 'head') {
+      this.setRuntimeState('unavailable', `${detail}。请更新微信后重试`)
+    } else {
+      this.setRuntimeState('motion', `${detail}，已使用画面动作跟踪`)
+    }
+    console.warn('人体关键点识别不可用:', detail)
+  }
+
+  private async preparePoseSession() {
+    if (this.destroyed || this.posePreparing || this.poseSession || this.poseUnavailable) return
+    this.posePreparing = true
+    try {
+      if (typeof wx === 'undefined' || typeof wx.createInferenceSession !== 'function') {
+        this.markPoseUnavailable('当前微信版本不支持兼容头部识别')
+        return
+      }
 
       const fileSystem = Taro.getFileSystemManager()
       const modelPath = `${wx.env.USER_DATA_PATH}/${MODEL_FILE_NAME}`
@@ -265,7 +522,10 @@ export class BodyPointTracker {
           url: `${API_BASE_URL.replace(/\/+$/, '')}/api/toolbox/pose-model`,
           header: token ? { Authorization: `Bearer ${token}` } : {}
         })
-        if (response.statusCode !== 200 || !response.tempFilePath) return
+        if (response.statusCode !== 200 || !response.tempFilePath) {
+          this.markPoseUnavailable(`兼容头部模型下载失败（HTTP ${response.statusCode || 0}）`)
+          return
+        }
         await copyFile(fileSystem, response.tempFilePath, modelPath)
       }
 
@@ -273,7 +533,7 @@ export class BodyPointTracker {
       const session = wx.createInferenceSession({
         allowNPU: true,
         model: modelPath,
-        precisionLevel: 2
+        precesionLevel: 2
       })
       await waitForSession(session)
       if (this.destroyed) {
@@ -281,9 +541,12 @@ export class BodyPointTracker {
         return
       }
       this.poseSession = session
+      this.posePreparing = false
+      this.poseUnavailable = false
       this.previousGray = null
+      this.setRuntimeState('pose', this.anchorMode === 'head' ? '已启用兼容头部识别' : '人体关键点识别已启动')
     } catch (error) {
-      console.warn('人体关键点模型不可用，已使用快速动作跟踪:', error)
+      this.markPoseUnavailable(error instanceof Error ? error.message : '人体关键点模型初始化失败')
     }
   }
 
@@ -594,14 +857,7 @@ export class BodyPointTracker {
     this.inferenceRunning = false
     this.inferenceFailures += 1
     if (this.inferenceFailures >= 3) {
-      console.warn('人体关键点推理连续失败，已切换快速动作跟踪:', error)
-      try {
-        this.poseSession?.destroy?.()
-      } catch {
-        // Ignore cleanup errors and keep the fallback tracker available.
-      }
-      this.poseSession = null
-      this.previousGray = null
+      this.markPoseUnavailable(error instanceof Error ? error.message : '人体关键点连续推理失败')
       return
     }
     console.warn('人体关键点单帧推理失败，继续使用最近点位:', error)

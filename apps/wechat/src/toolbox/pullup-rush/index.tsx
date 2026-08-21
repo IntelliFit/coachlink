@@ -14,7 +14,10 @@ import {
   type ArcadeFeedback,
   vibrateForArcadeFeedback
 } from '../games/arcadeFeedback'
-import { BodyPointTracker } from '../games/bodyPointTracker'
+import {
+  BodyPointTracker,
+  type BodyTrackingRuntimeState
+} from '../games/bodyPointTracker'
 import {
   projectCameraPointToStage,
   projectHeadAnchorToStage,
@@ -163,6 +166,8 @@ export default function PullupRushPage() {
   const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
   const [trackingLocked, setTrackingLocked] = useState(false)
   const [trackingActive, setTrackingActive] = useState(false)
+  const [trackingRuntimeState, setTrackingRuntimeState] = useState<BodyTrackingRuntimeState>('initializing')
+  const [trackingRuntimeDetail, setTrackingRuntimeDetail] = useState('正在启动头部识别')
   const [headLock, setHeadLock] = useState<HeadLockState>({
     estimated: false,
     radiusX: 0.08,
@@ -244,6 +249,10 @@ export default function PullupRushPage() {
           updateTrackingActivity(false)
           setHeadLock((previous) => ({ ...previous, visible: false }))
         }
+      },
+      onRuntimeStateChange: (state, detail) => {
+        setTrackingRuntimeState(state)
+        setTrackingRuntimeDetail(detail)
       },
       onSnapshot: (snapshot) => {
         const now = Date.now()
@@ -843,10 +852,23 @@ export default function PullupRushPage() {
                   </View>
                 ) : null}
 
-                {cameraReady && !cameraError && !trackingLocked ? (
+                {cameraReady && !cameraError && trackingRuntimeState === 'unavailable' ? (
+                  <View className='stage-error'>
+                    <Text className='stage-note-title'>当前设备无法启动头部识别</Text>
+                    <Text className='stage-note-desc'>{trackingRuntimeDetail}</Text>
+                  </View>
+                ) : null}
+
+                {cameraReady && !cameraError && trackingRuntimeState !== 'unavailable' && !trackingLocked ? (
                   <View className='stage-note'>
-                    <Text className='stage-note-title'>请让头部完整进入画面</Text>
-                    <Text className='stage-note-desc'>保持稳定，锁定后即可开始；游戏中丢失会自动暂停。</Text>
+                    <Text className='stage-note-title'>
+                      {trackingRuntimeState === 'initializing' ? '正在启动头部识别' : '请让脸完整进入画面'}
+                    </Text>
+                    <Text className='stage-note-desc'>
+                      {trackingRuntimeState === 'initializing'
+                        ? trackingRuntimeDetail
+                        : '只需脸部出镜，无需全身出镜；绿色框跟随头部后即可开始。'}
+                    </Text>
                   </View>
                 ) : null}
 

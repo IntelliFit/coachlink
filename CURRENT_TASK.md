@@ -1,3 +1,14 @@
+## 三款体感游戏真机锁头失败后的第二轮修复 (`2026-08-21`)
+
+- Status: 用户已确认体验版 `2026.08.21.0522` 真机验收失败：引体冲刺、俯卧撑突围无法锁定头部，接豆派对虽然可启动但角色会被非头部画面运动带动。旧版不得再视为已修复。本轮已完成新的实现、local/release 构建与代码门禁，正在按 `dev` 提交、上传新体验版、真机复测的顺序发布。
+- Confirmed root cause: `motionArcadePage.tsx` 把 `trackingAnchor` 以不存在的 `anchor` 参数传给 `BodyPointTracker`，所以接豆配置的 `head` 被静默忽略并默认走 `auto` 画面运动质心；页面又没有锁定门禁，故未锁头也能开局。引体/俯卧撑虽然传了 `anchorMode: head`，但首选仍是完整 MoveNet pose，模型不可用时没有真正的人脸检测，且失败只写 console。
+- Fix: 头部模式改为优先使用微信 VisionKit 静态视频帧人脸检测（小模型、连续视频源、约 72ms 节流），直接使用人脸框中心和尺寸作为头部锚点，只要求脸部出镜；VisionKit 不可用时才加载 MoveNet 兼容检测。两者均不可用时明确显示不可用，禁止再用全画面运动质心冒充头部。MoveNet 创建参数同步修正为微信实际字段 `precesionLevel`。
+- Game behavior: 三款游戏统一连续 3 帧稳定才锁定；只有 `locked` 直接帧才驱动角色/动作。接豆新增头部框、锁定门禁和失锁暂停，修复参数名；单帧丢失立即冻结计时/道具/角色，720ms 后解除锁定。页面显示 `initializing / face / pose / unavailable` 运行状态，设备失败不再静默。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）、`npx next build`（534 pages）、小程序 local 构建（2,883 modules）与 release 构建（2,870 modules）均通过；release 产物确认包含 `createVKSession`、`detectFace`、`precesionLevel`、接豆 `anchorMode:"head"`、锁定提示与头框，并只包含线上 API `https://coachlink.fit`。按 `weapp-devtools` 启动 CLI auto 成功，9420 首次未监听、后续恢复连接；模拟器仍不能证明真机 VisionKit 相机帧。
+- Photo/video evidence: 已从代码固定的同一 GitHub commit 下载 9,466,715 字节 MoveNet ONNX，在隔离环境对仓库三张真人素材（接豆站立侧移、仰头引体、低位俯卧撑）执行与小程序一致的 192×192 letterbox 和头部关键点计算，三张均识别到 5 个头部点，置信度分别 0.732 / 0.746 / 0.691；独立人脸框检测也三张全命中。合成短视频中头部移动 40/40 帧检出，横向坐标与图像位移相关系数 0.9998，第 3 帧满足锁定；仅移动下半身且头不动的 40/40 帧检出，头中心最大归一化漂移 0.0036（门禁 0.025）；纯灰无人图没有头部误识别。证据保存在 `screenshots/weapp/head-tracking-validation-2026-08-21/`。
+- Runtime boundary: DevTools 9420 后续恢复监听，错误/警告日志均为 0，但 `where/relaunch/evaluate` 仍在连接后等待响应超时，因此未能在模拟器中直接调用 VisionKit 静态人脸接口。电脑实体 USB 摄像头可打开但录得 60 帧近全黑（平均亮度约 0.003），无法作为真人视频证据；原始黑色视频和临时 ONNX/venv 已清理，保留的只有脱敏的项目素材检测结果。生产 `/api/toolbox/pose-model` 本轮完整 GET 曾在约 59 秒返回 504，直接 GitHub 固定源下载正常；这意味着旧微信兼容 MoveNet 首次下载仍有线上稳定性风险，但现代微信的 VisionKit 主路径不依赖该下载。
+- Next: 将当前 `apps/wechat/dist-release` 上传新的体验版后，先只验证绿色头框：头静止时框稳定，头向左右/上下移动时框同向跟随，身体/手臂单独移动时框和接豆角色不漂移；再验证三款游戏开局和遮挡暂停。如仍异常，录制 10–15 秒屏幕视频，必须同时拍到相机画面、绿色头框和角色，便于判断坐标方向、检测丢帧或机型能力。
+
 ## `dev` / `main` 发布、小程序体验版与全后端滚动更新 (`2026-08-21`)
 
 - Git: 功能提交 `76f951bd feat(wechat): stabilize tracking and workout sharing` 已先推送 `dev`，再 fast-forward 合并并推送 `main`；GitHub 与 Gitee 的两个分支均指向该提交。
