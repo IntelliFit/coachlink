@@ -9289,6 +9289,6 @@
 
 ## 动作游戏发布前性能审查 (`2026-08-21`)
 
-- Status: 已完成发布前性能审查与优化，待提交改动将推送至 `dev`；未上传小程序体验版或正式版。
+- Status: 已完成发布前性能审查与优化，已推送至 `dev`（`cb0fb639`）；未上传小程序体验版或正式版。
 - Performance: 动作游戏的相机输入由逐帧（常见 30fps）全量处理调整为最高约 15fps，姿态推理约 10fps；运动跟踪复用灰度、权重、访问和队列缓冲区，消除逐帧 TypedArray/邻居数组分配，降低低端机主线程与 GC 卡顿。
 - Verification: `npm --workspace apps/wechat run build:weapp` 成功（2883 modules）；微信开发者工具自动化打开 `/toolbox/pullup-rush/index`、`/toolbox/pushup-dash/index`，相机元素存在且 0 error/0 warn；`npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）及 `git diff --check` 通过。
