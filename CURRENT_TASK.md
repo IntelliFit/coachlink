@@ -9286,3 +9286,9 @@
 - Verification: PNG 底图/透明图层已由 Sharp 合成目视确认；`git diff --check`、根 `npm run typecheck`、针对本次小程序文件的 TypeScript 错误筛查通过；全量小程序独立 tsc 仍有大量既有历史错误，但本次文件没有新增错误。`npm run lint` 提示脚本通过；`npm test` 42 files / 203 tests 全通过；`npx next build` 编译并生成 534 页；`npm --workspace apps/wechat run build:weapp` 成功构建 2,883 modules。微信开发者工具可进入两款游戏，锁定前提示和禁用按钮存在，点击禁用按钮不离开页面，error/warning 均为 0。
 - Verification boundary: 原生 `<Camera>` 仍使自动化截图超时，开发者工具不能提供真实 CameraFrame、ONNX/NPU 性能或线上首次下载证据；训练执行页缺少可用登录态与 execution 参数，无法在自动化环境完成真实海报导出。最终闭环必须先部署 Web/API、上传体验版，再用至少一台 iOS 和一台 Android 从无模型缓存状态测试：模型下载、连续锁头、遮挡暂停/720ms 解锁/原位重捕、引体和俯卧撑延迟，以及生成并保存一张正反人体都存在且高亮正确的分享图。
 - Testing clarification: 电脑开发者工具只负责页面接线、节点、日志、按钮门禁和无相机降级冒烟；电脑摄像头若工具侧可用只能作辅助。任何“已修复”结论必须以体验版真机证据闭环。
+
+## 动作游戏发布前性能审查 (`2026-08-21`)
+
+- Status: 已完成发布前性能审查与优化，待提交改动将推送至 `dev`；未上传小程序体验版或正式版。
+- Performance: 动作游戏的相机输入由逐帧（常见 30fps）全量处理调整为最高约 15fps，姿态推理约 10fps；运动跟踪复用灰度、权重、访问和队列缓冲区，消除逐帧 TypedArray/邻居数组分配，降低低端机主线程与 GC 卡顿。
+- Verification: `npm --workspace apps/wechat run build:weapp` 成功（2883 modules）；微信开发者工具自动化打开 `/toolbox/pullup-rush/index`、`/toolbox/pushup-dash/index`，相机元素存在且 0 error/0 warn；`npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）及 `git diff --check` 通过。

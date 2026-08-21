@@ -58,8 +58,14 @@ const MODEL_FILE_NAME = 'coachlink-movenet-lightning-v4.onnx'
 const MODEL_FILE_SIZE = 9_466_715
 const MODEL_INPUT_SIZE = 192
 const MODEL_INPUT_PIXEL_COUNT = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE
-const POSE_INTERVAL_MS = 48
-const MOTION_INTERVAL_MS = 42
+// Camera callbacks normally arrive at about 30fps. The pose model and the
+// JavaScript fallback do not need every frame for the arcade controls, while
+// attempting to inspect each one can monopolise the mini-program JS thread.
+// These rates keep input responsive while leaving time for rendering and game
+// state updates on lower-end devices.
+const FRAME_PROCESS_INTERVAL_MS = 66
+const POSE_INTERVAL_MS = 96
+const MOTION_INTERVAL_MS = 66
 const MOTION_SAMPLE_STEP = 8
 const MOTION_THRESHOLD = 22
 const POSE_SCORE_THRESHOLD = 0.28
@@ -177,6 +183,7 @@ export class BodyPointTracker {
   private inferenceRunning = false
   private inferenceFailures = 0
   private lastDirectHeadAt = 0
+  private lastFrameAt = 0
   private lastLockedHeadSnapshot: BodyTrackingSnapshot | null = null
   private lastMotionAt = 0
   private lastPoseAt = 0
@@ -205,6 +212,10 @@ export class BodyPointTracker {
   private poseIntervalMs: number
   private poseSession: any = null
   private poseSourceIndices: Int32Array | null = null
+  private motionQueue: Int32Array | null = null
+  private motionScratchGray: Uint8Array | null = null
+  private motionVisited: Uint8Array | null = null
+  private motionWeights: Uint8Array | null = null
   private previousGray: Uint8Array | null = null
   private source: BodyTrackingSource = 'motion'
 
@@ -221,6 +232,8 @@ export class BodyPointTracker {
     if (this.destroyed || !frame.width || !frame.height || !(frame.data instanceof ArrayBuffer)) return
 
     this.expireHeadLock(at)
+    if (at - this.lastFrameAt < FRAME_PROCESS_INTERVAL_MS) return
+    this.lastFrameAt = at
 
     const rgba = new Uint8Array(frame.data)
     if (this.poseSession) {
@@ -245,6 +258,10 @@ export class BodyPointTracker {
   destroy() {
     this.destroyed = true
     this.previousGray = null
+    this.motionScratchGray = null
+    this.motionWeights = null
+    this.motionVisited = null
+    this.motionQueue = null
     try {
       this.poseSession?.destroy?.()
     } catch {
@@ -610,8 +627,25 @@ export class BodyPointTracker {
   private trackMotion(rgba: Uint8Array, width: number, height: number, at: number) {
     const gridWidth = Math.ceil(width / MOTION_SAMPLE_STEP)
     const gridHeight = Math.ceil(height / MOTION_SAMPLE_STEP)
-    const current = new Uint8Array(gridWidth * gridHeight)
-    const weights = new Uint8Array(gridWidth * gridHeight)
+    const gridSize = gridWidth * gridHeight
+    const current = this.motionScratchGray?.length === gridSize
+      ? this.motionScratchGray
+      : new Uint8Array(gridSize)
+    const weights = this.motionWeights?.length === gridSize
+      ? this.motionWeights
+      : new Uint8Array(gridSize)
+    const visited = this.motionVisited?.length === gridSize
+      ? this.motionVisited
+      : new Uint8Array(gridSize)
+    const queue = this.motionQueue?.length === gridSize
+      ? this.motionQueue
+      : new Int32Array(gridSize)
+    const previousGray = this.previousGray?.length === gridSize ? this.previousGray : null
+    weights.fill(0)
+    visited.fill(0)
+    this.motionWeights = weights
+    this.motionVisited = visited
+    this.motionQueue = queue
     let activeCells = 0
     let sampleIndex = 0
 
@@ -620,8 +654,8 @@ export class BodyPointTracker {
         const pixelIndex = (y * width + x) * 4
         const gray = ((rgba[pixelIndex] || 0) * 3 + (rgba[pixelIndex + 1] || 0) * 4 + (rgba[pixelIndex + 2] || 0)) >> 3
         current[sampleIndex] = gray
-        if (this.previousGray) {
-          const difference = Math.abs(gray - this.previousGray[sampleIndex])
+        if (previousGray) {
+          const difference = Math.abs(gray - previousGray[sampleIndex])
           if (difference >= MOTION_THRESHOLD) {
             weights[sampleIndex] = difference
             activeCells += 1
@@ -631,12 +665,9 @@ export class BodyPointTracker {
       }
     }
 
-    const previousGray = this.previousGray
     this.previousGray = current
+    this.motionScratchGray = previousGray
     if (!previousGray || activeCells < 3 || activeCells > weights.length * 0.42) return null
-
-    const visited = new Uint8Array(weights.length)
-    const queue = new Int32Array(weights.length)
     const previous = this.lastSnapshot
     let best: { score: number; weight: number; x: number; y: number } | null = null
 
@@ -661,13 +692,33 @@ export class BodyPointTracker {
         weightedY += (cellY + 0.5) * weight
         cells += 1
 
-        const neighbors = [index - 1, index + 1, index - gridWidth, index + gridWidth]
-        for (const neighbor of neighbors) {
-          if (neighbor < 0 || neighbor >= weights.length || visited[neighbor] || !weights[neighbor]) continue
-          const neighborX = neighbor % gridWidth
-          if (Math.abs(neighborX - cellX) > 1) continue
-          visited[neighbor] = 1
-          queue[tail++] = neighbor
+        if (cellX > 0) {
+          const neighbor = index - 1
+          if (!visited[neighbor] && weights[neighbor]) {
+            visited[neighbor] = 1
+            queue[tail++] = neighbor
+          }
+        }
+        if (cellX + 1 < gridWidth) {
+          const neighbor = index + 1
+          if (!visited[neighbor] && weights[neighbor]) {
+            visited[neighbor] = 1
+            queue[tail++] = neighbor
+          }
+        }
+        if (cellY > 0) {
+          const neighbor = index - gridWidth
+          if (!visited[neighbor] && weights[neighbor]) {
+            visited[neighbor] = 1
+            queue[tail++] = neighbor
+          }
+        }
+        if (cellY + 1 < gridHeight) {
+          const neighbor = index + gridWidth
+          if (!visited[neighbor] && weights[neighbor]) {
+            visited[neighbor] = 1
+            queue[tail++] = neighbor
+          }
         }
       }
 
