@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import { getAuthUser } from '@/lib/auth';
-import supabase from '@/lib/supabaseClient';
+import { MOTION_GAME_CONFIG, type MotionGameKey } from '@/lib/motionGameLeaderboard';
+import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 
 import type { ApiData } from '@/types/api';
 import type { ListEntriesDto, ListEntriesResponseDto, LeaderboardEntryWithProfile } from './entity';
@@ -25,6 +26,84 @@ export async function POST(req: Request) {
     const page = body.page || 1;
     const limit = body.limit || 10;
     const offset = (page - 1) * limit;
+
+    const motionGameEntry = Object.entries(MOTION_GAME_CONFIG).find(
+        ([, config]) => config.templateId === body.template_id,
+    ) as [MotionGameKey, (typeof MOTION_GAME_CONFIG)[MotionGameKey]] | undefined;
+
+    if (motionGameEntry) {
+        const [gameKey, config] = motionGameEntry;
+        const actionLabel = gameKey === 'pullup-rush' ? '引体次数' : '俯卧撑次数';
+        const db = serviceRoleSupabase as any;
+        const { data: bestScores, error: bestScoresError, count: bestScoresCount } = await db
+            .from('motion_game_best_scores')
+            .select('user_id, score, elapsed_ms, action_count, lock_ratio, run_id, achieved_at', { count: 'exact' })
+            .eq('game_key', gameKey)
+            .order('score', { ascending: false })
+            .order('elapsed_ms', { ascending: false })
+            .order('action_count', { ascending: false })
+            .order('achieved_at', { ascending: true })
+            .order('user_id', { ascending: true })
+            .range(offset, offset + limit - 1);
+
+        if (bestScoresError) {
+            console.error('获取体感游戏排行榜失败:', bestScoresError);
+            return NextResponse.json<ApiData<ListEntriesResponseDto>>({
+                success: false,
+                message: bestScoresError.message,
+                data: null,
+            }, { status: 500 });
+        }
+
+        const motionUserIds = Array.from(new Set((bestScores || []).map((item: any) => item.user_id)));
+        const motionProfiles = new Map<string, { name: string; avatar: string }>();
+        if (motionUserIds.length > 0) {
+            const { data: profiles } = await db
+                .from('user_profiles')
+                .select('user_id, nickname, avatar_url, full_name')
+                .in('user_id', motionUserIds);
+            for (const profile of profiles || []) {
+                motionProfiles.set(profile.user_id, {
+                    name: profile.nickname || profile.full_name || '匿名用户',
+                    avatar: profile.avatar_url || '',
+                });
+            }
+        }
+
+        const motionEntries = (bestScores || []).map((item: any) => ({
+            id: item.run_id,
+            template_id: config.templateId,
+            user_id: item.user_id,
+            score: item.score,
+            status: 'approved',
+            form_data: [
+                { type: 'number', name: '穿越通道', required: true, userInput: item.score },
+                { type: 'number', name: '坚持秒数', required: true, userInput: Math.floor(item.elapsed_ms / 1000) },
+                { type: 'number', name: actionLabel, required: true, userInput: item.action_count },
+            ],
+            evidence_url: null,
+            extra_data: {
+                game_key: gameKey,
+                elapsed_ms: item.elapsed_ms,
+                action_count: item.action_count,
+                lock_ratio: item.lock_ratio,
+                verified: true,
+            },
+            created_at: item.achieved_at,
+            userProfile: motionProfiles.get(item.user_id) || { name: '匿名用户', avatar: '' },
+        }));
+
+        return NextResponse.json<ApiData<ListEntriesResponseDto>>({
+            success: true,
+            message: '获取体感游戏排行榜成功',
+            data: {
+                entries: motionEntries,
+                total: bestScoresCount || 0,
+                page,
+                limit,
+            },
+        });
+    }
 
     // 构建查询
     let query = supabase
