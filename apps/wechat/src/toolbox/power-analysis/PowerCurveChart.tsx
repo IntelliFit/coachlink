@@ -14,6 +14,7 @@ export interface PowerCurvePoint {
 interface Props {
   points: PowerCurvePoint[]
   metric: PowerCurveMetric
+  comparePoints?: PowerCurvePoint[]
 }
 
 const CONFIG: Record<PowerCurveMetric, { label: string; unit: string; color: string }> = {
@@ -22,7 +23,7 @@ const CONFIG: Record<PowerCurveMetric, { label: string; unit: string; color: str
   powerW: { label: '功率', unit: 'W', color: '#D97706' }
 }
 
-export default function PowerCurveChart({ points, metric }: Props) {
+export default function PowerCurveChart({ points, metric, comparePoints }: Props) {
   const canvasId = `power-curve-${metric}`
   const windowWidth = (() => {
     try {
@@ -38,7 +39,12 @@ export default function PowerCurveChart({ points, metric }: Props) {
     () => points.map((point) => Number(point[metric] || 0)).filter(Number.isFinite),
     [metric, points]
   )
+  const compareValues = useMemo(
+    () => (comparePoints || []).map((point) => Number(point[metric] || 0)).filter(Number.isFinite),
+    [comparePoints, metric]
+  )
   const peak = values.length > 0 ? Math.max(...values, 0) : 0
+  const comparePeak = compareValues.length > 0 ? Math.max(...compareValues, 0) : 0
 
   useEffect(() => {
     const context = Taro.createCanvasContext(canvasId)
@@ -48,8 +54,10 @@ export default function PowerCurveChart({ points, metric }: Props) {
     const bottom = 34
     const plotWidth = width - left - right
     const plotHeight = height - top - bottom
-    const maxValue = peak > 0 ? peak * 1.08 : 1
+    const maxValue = Math.max(peak, comparePeak, 1) * 1.08
     const maxTime = Math.max(Number(points[points.length - 1]?.timeS || 0), 1)
+    const compareMaxTime = Math.max(Number(comparePoints?.[comparePoints.length - 1]?.timeS || 0), 1)
+    const isComparison = Boolean(comparePoints && comparePoints.length > 1)
 
     context.setFillStyle('#FFFFFF')
     context.fillRect(0, 0, width, height)
@@ -68,24 +76,36 @@ export default function PowerCurveChart({ points, metric }: Props) {
       context.fillText(value >= 100 ? value.toFixed(0) : value.toFixed(2), 2, y + 4)
     }
 
-    context.setStrokeStyle(config.color)
-    context.setLineWidth(2)
-    context.beginPath()
-    points.forEach((point, index) => {
-      const x = left + (Number(point.timeS || 0) / maxTime) * plotWidth
-      const value = Math.max(0, Number(point[metric] || 0))
-      const y = top + plotHeight - (value / maxValue) * plotHeight
-      if (index === 0) context.moveTo(x, y)
-      else context.lineTo(x, y)
-    })
-    context.stroke()
+    const drawCurve = (
+      curvePoints: PowerCurvePoint[],
+      curveMaxTime: number,
+      color: string,
+      lineWidth: number
+    ) => {
+      context.setStrokeStyle(color)
+      context.setLineWidth(lineWidth)
+      context.beginPath()
+      curvePoints.forEach((point, index) => {
+        const x = left + (Number(point.timeS || 0) / curveMaxTime) * plotWidth
+        const value = Math.max(0, Number(point[metric] || 0))
+        const y = top + plotHeight - (value / maxValue) * plotHeight
+        if (index === 0) context.moveTo(x, y)
+        else context.lineTo(x, y)
+      })
+      context.stroke()
+    }
+
+    if (isComparison && comparePoints) {
+      drawCurve(comparePoints, compareMaxTime, '#9CA3AF', 1.5)
+    }
+    drawCurve(points, maxTime, config.color, 2.5)
 
     context.setFillStyle('#6B7280')
     context.setFontSize(11)
-    context.fillText('0s', left, height - 10)
-    context.fillText(`${maxTime.toFixed(1)}s`, width - right - 34, height - 10)
+    context.fillText(isComparison ? '0%' : '0s', left, height - 10)
+    context.fillText(isComparison ? '100%' : `${maxTime.toFixed(1)}s`, width - right - 34, height - 10)
     context.draw()
-  }, [canvasId, config.color, height, metric, peak, points, width])
+  }, [canvasId, comparePeak, comparePoints, config.color, height, metric, peak, points, width])
 
   return (
     <View className='power-curve-canvas-wrap'>
@@ -95,7 +115,23 @@ export default function PowerCurveChart({ points, metric }: Props) {
         className='power-curve-canvas'
         style={{ width: `${width}px`, height: `${height}px` }}
       />
-      <Text className='power-curve-peak'>峰值 {peak >= 100 ? peak.toFixed(0) : peak.toFixed(2)} {config.unit}</Text>
+      {comparePoints && comparePoints.length > 1 && (
+        <View className='power-curve-legend'>
+          <View className='power-curve-legend-item'>
+            <View className='power-curve-legend-line before' />
+            <Text>前测</Text>
+          </View>
+          <View className='power-curve-legend-item'>
+            <View className='power-curve-legend-line after' style={{ background: config.color }} />
+            <Text>后测</Text>
+          </View>
+        </View>
+      )}
+      <Text className='power-curve-peak'>
+        {comparePoints && comparePoints.length > 1
+          ? `前测峰值 ${comparePeak >= 100 ? comparePeak.toFixed(0) : comparePeak.toFixed(2)} ${config.unit} · 后测峰值 ${peak >= 100 ? peak.toFixed(0) : peak.toFixed(2)} ${config.unit}`
+          : `峰值 ${peak >= 100 ? peak.toFixed(0) : peak.toFixed(2)} ${config.unit}`}
+      </Text>
     </View>
   )
 }

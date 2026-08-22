@@ -11,10 +11,7 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import { useTheme } from '@/hooks/useTheme'
-import PowerCurveChart, {
-  type PowerCurveMetric,
-  type PowerCurvePoint
-} from './PowerCurveChart'
+import PowerCurveChart, { type PowerCurvePoint } from './PowerCurveChart'
 import './index.scss'
 
 type PowerAnalysisMode = 'pullup' | 'muscleup' | 'dip' | 'pushup' | 'squat'
@@ -154,6 +151,11 @@ const LAST_DOWNLOADABLE_JOB_STORAGE_KEY = 'power-analysis-last-downloadable-job-
 const VIDEO_TRANSFER_TIMEOUT_MS = 15 * 60 * 1000
 const WECHAT_CHOOSE_VIDEO_MAX_DURATION_SECONDS = 60
 const POWER_ANALYSIS_CHUNK_SIZE_BYTES = 4 * 1024 * 1024
+const POWER_ANALYSIS_CHUNK_RETRY_COUNT = 3
+const POWER_ANALYSIS_UPLOAD_RETRY_COUNT = 2
+const POWER_ANALYSIS_FILE_STABILITY_CHECKS = 4
+const POWER_ANALYSIS_FILE_STABILITY_INTERVAL_MS = 160
+const POWER_ANALYSIS_COMPARISON_STORAGE_KEY = 'power-analysis-comparison-baseline-v1'
 const DEFAULT_ENTITLEMENTS: PowerAnalysisEntitlements = {
   tier: 'free',
   canUseOriginalQuality: false,
@@ -162,12 +164,6 @@ const DEFAULT_ENTITLEMENTS: PowerAnalysisEntitlements = {
   maxDurationSeconds: 30,
   dailyLimit: 5
 }
-const CURVE_OPTIONS: Array<{ value: PowerCurveMetric; label: string }> = [
-  { value: 'displacementM', label: '位移' },
-  { value: 'velocityMps', label: '速度' },
-  { value: 'powerW', label: '功率' }
-]
-
 function formatMetric(value: number | undefined, digits = 1) {
   const n = Number(value || 0)
   if (!Number.isFinite(n)) return '0'
@@ -184,6 +180,78 @@ function formatDuration(seconds?: number) {
   const n = Number(seconds || 0)
   if (!Number.isFinite(n) || n <= 0) return ''
   return `${Math.round(n)} 秒`
+}
+
+interface PowerComparisonRow {
+  key: string
+  label: string
+  before: number
+  after: number
+  unit: string
+  digits: number
+  higherIsBetter: boolean
+}
+
+function buildPowerComparisonRows(before: PowerAnalysisMetrics, after: PowerAnalysisMetrics): PowerComparisonRow[] {
+  return [
+    {
+      key: 'bestPowerW',
+      label: '最高功率',
+      before: Number(before.summary.bestPowerW || 0),
+      after: Number(after.summary.bestPowerW || 0),
+      unit: 'W',
+      digits: 0,
+      higherIsBetter: true
+    },
+    {
+      key: 'avgPowerW',
+      label: '平均功率',
+      before: Number(before.summary.avgPowerW || 0),
+      after: Number(after.summary.avgPowerW || 0),
+      unit: 'W',
+      digits: 0,
+      higherIsBetter: true
+    },
+    {
+      key: 'bestVelocityMps',
+      label: '最快速度',
+      before: Number(before.summary.bestVelocityMps || 0),
+      after: Number(after.summary.bestVelocityMps || 0),
+      unit: 'm/s',
+      digits: 2,
+      higherIsBetter: true
+    },
+    {
+      key: 'avgAscentTimeS',
+      label: '平均上升时间',
+      before: Number(before.summary.avgAscentTimeS || 0),
+      after: Number(after.summary.avgAscentTimeS || 0),
+      unit: 's',
+      digits: 2,
+      higherIsBetter: false
+    }
+  ]
+}
+
+function getPowerComparisonVerdict(rows: PowerComparisonRow[], comparable: boolean) {
+  if (!comparable) return '动作类型不同，仅展示数值，不判断优劣'
+  let score = 0
+  for (const row of rows) {
+    const tolerance = Math.max(Math.abs(row.before) * 0.01, row.digits === 0 ? 1 : 0.01)
+    const delta = row.after - row.before
+    if (Math.abs(delta) <= tolerance) continue
+    const improved = row.higherIsBetter ? delta > 0 : delta < 0
+    score += improved ? 1 : -1
+  }
+  if (score >= 2) return '后测综合表现更好'
+  if (score <= -2) return '前测综合表现更好'
+  return '两次表现接近，各有优势'
+}
+
+function formatComparisonDelta(row: PowerComparisonRow) {
+  const delta = row.after - row.before
+  const sign = delta > 0 ? '+' : ''
+  return `${sign}${delta.toFixed(row.digits)} ${row.unit}`
 }
 
 function inferVideoName(filePath: string) {
@@ -241,6 +309,47 @@ function createPowerUploadId() {
   return `power_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`
 }
 
+function waitForPowerUpload(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function getPowerAnalysisFileSize(filePath: string) {
+  return new Promise<number>((resolve, reject) => {
+    Taro.getFileInfo({
+      filePath,
+      success: (result: any) => {
+        const size = Number(result?.size || 0)
+        if (Number.isInteger(size) && size > 0) {
+          resolve(size)
+          return
+        }
+        reject(new Error('无法读取视频实际大小'))
+      },
+      fail: (error: any) => reject(new Error(error?.errMsg || '无法读取视频实际大小'))
+    })
+  })
+}
+
+async function getStablePowerAnalysisFileSize(filePath: string, reportedSize = 0) {
+  let previousSize = 0
+  let stableReads = 0
+
+  for (let attempt = 0; attempt < POWER_ANALYSIS_FILE_STABILITY_CHECKS; attempt += 1) {
+    const currentSize = await getPowerAnalysisFileSize(filePath)
+    if (currentSize === previousSize) stableReads += 1
+    else stableReads = 1
+    previousSize = currentSize
+    if (stableReads >= 2) return currentSize
+    if (attempt < POWER_ANALYSIS_FILE_STABILITY_CHECKS - 1) {
+      await waitForPowerUpload(POWER_ANALYSIS_FILE_STABILITY_INTERVAL_MS)
+    }
+  }
+
+  if (Number.isInteger(previousSize) && previousSize > 0) return previousSize
+  if (Number.isInteger(reportedSize) && reportedSize > 0) return reportedSize
+  throw new Error('视频临时文件尚未准备完成，请重新选择')
+}
+
 function normalizeFileReadData(data: unknown): ArrayBuffer | null {
   if (data instanceof ArrayBuffer) return data
   if (ArrayBuffer.isView(data)) {
@@ -249,24 +358,41 @@ function normalizeFileReadData(data: unknown): ArrayBuffer | null {
   return null
 }
 
-function readPowerAnalysisVideoChunk(filePath: string, position: number, length: number) {
-  return new Promise<ArrayBuffer>((resolve, reject) => {
-    const fileSystem = Taro.getFileSystemManager() as any
-    fileSystem.readFile({
-      filePath,
-      position,
-      length,
-      success: (result: any) => {
-        const data = normalizeFileReadData(result?.data)
-        if (data && data.byteLength > 0) {
-          resolve(data)
-          return
-        }
-        reject(new Error('读取视频分片失败'))
-      },
-      fail: (error: any) => reject(new Error(error?.errMsg || '读取视频分片失败'))
-    })
-  })
+async function readPowerAnalysisVideoChunk(filePath: string, position: number, length: number) {
+  let lastSize = 0
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt < POWER_ANALYSIS_CHUNK_RETRY_COUNT; attempt += 1) {
+    try {
+      const chunk = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const fileSystem = Taro.getFileSystemManager() as any
+        fileSystem.readFile({
+          filePath,
+          position,
+          length,
+          success: (result: any) => {
+            const data = normalizeFileReadData(result?.data)
+            if (data && data.byteLength > 0) {
+              resolve(data)
+              return
+            }
+            reject(new Error('读取视频分片失败'))
+          },
+          fail: (error: any) => reject(new Error(error?.errMsg || '读取视频分片失败'))
+        })
+      })
+      lastSize = chunk.byteLength
+      if (lastSize === length) return chunk
+      lastError = new Error(`视频分片读取不完整（应为 ${length}，实际 ${lastSize}）`)
+    } catch (error: any) {
+      lastError = error instanceof Error ? error : new Error('读取视频分片失败')
+    }
+    if (attempt < POWER_ANALYSIS_CHUNK_RETRY_COUNT - 1) {
+      await waitForPowerUpload(POWER_ANALYSIS_FILE_STABILITY_INTERVAL_MS * (attempt + 1))
+    }
+  }
+
+  throw lastError || new Error(`视频分片读取不完整（应为 ${length}，实际 ${lastSize}）`)
 }
 
 function parsePowerUploadResponse(data: unknown) {
@@ -279,20 +405,38 @@ function parsePowerUploadResponse(data: unknown) {
 }
 
 async function uploadPowerAnalysisChunk(url: string, chunk: ArrayBuffer, token: string) {
-  const response: any = await Taro.request({
-    url,
-    method: 'POST',
-    data: chunk,
-    header: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/octet-stream'
-    },
-    timeout: 120000
-  } as any)
-  const payload = parsePowerUploadResponse(response.data)
-  if (response.statusCode < 200 || response.statusCode >= 300 || !payload?.success) {
-    throw new Error(payload?.message || `视频分片上传失败（${response.statusCode}）`)
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt < POWER_ANALYSIS_CHUNK_RETRY_COUNT; attempt += 1) {
+    try {
+      const response: any = await Taro.request({
+        url,
+        method: 'POST',
+        data: chunk,
+        header: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/octet-stream'
+        },
+        timeout: 120000
+      } as any)
+      const payload = parsePowerUploadResponse(response.data)
+      if (response.statusCode < 200 || response.statusCode >= 300 || !payload?.success) {
+        const error = new Error(payload?.message || `视频分片上传失败（${response.statusCode}）`)
+        if ([401, 403, 409, 413].includes(Number(response.statusCode))) throw error
+        lastError = error
+      } else {
+        const receivedSize = Number(payload?.data?.receivedSize ?? -1)
+        if (receivedSize === chunk.byteLength) return
+        lastError = new Error(`服务端收到的分片不完整（应为 ${chunk.byteLength}，实际 ${receivedSize}）`)
+      }
+    } catch (error: any) {
+      lastError = error instanceof Error ? error : new Error('视频分片上传失败')
+      if (/用户未登录|会员|状态已变化|过大/.test(lastError.message)) throw lastError
+    }
+    if (attempt < POWER_ANALYSIS_CHUNK_RETRY_COUNT - 1) {
+      await waitForPowerUpload(300 * (attempt + 1))
+    }
   }
+  throw lastError || new Error('视频分片上传失败')
 }
 
 async function uploadPowerAnalysisVideo(params: {
@@ -301,47 +445,70 @@ async function uploadPowerAnalysisVideo(params: {
   contentType: string
   fileSize: number
   onProgress: (progress: number) => void
-}) {
+}): Promise<number> {
   const token = String(Taro.getStorageSync('token') || '').trim()
   if (!token) throw new Error('请先登录后再使用视频分析工具')
-  if (!Number.isInteger(params.fileSize) || params.fileSize <= 0) {
-    throw new Error('无法读取视频大小，请重新选择')
-  }
+  let lastError: Error | null = null
 
-  const uploadId = createPowerUploadId()
-  const totalChunks = Math.ceil(params.fileSize / POWER_ANALYSIS_CHUNK_SIZE_BYTES)
-  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
-    const position = chunkIndex * POWER_ANALYSIS_CHUNK_SIZE_BYTES
-    const length = Math.min(POWER_ANALYSIS_CHUNK_SIZE_BYTES, params.fileSize - position)
-    const chunk = await readPowerAnalysisVideoChunk(params.filePath, position, length)
-    const query = [
-      ['action', 'chunk'],
-      ['uploadId', uploadId],
-      ['chunkIndex', String(chunkIndex)],
-      ['totalChunks', String(totalChunks)],
-      ['totalSize', String(params.fileSize)]
-    ]
-      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-      .join('&')
-    await uploadPowerAnalysisChunk(
-      `${API_BASE_URL}/api/toolbox/power-analysis/jobs/${params.jobId}/upload-chunk?${query}`,
-      chunk,
-      token
-    )
-    params.onProgress(Math.max(1, Math.min(95, Math.round(((chunkIndex + 1) / totalChunks) * 95))))
-  }
-
-  await callPowerApi<PowerAnalysisJobDto>({
-    url: `/api/toolbox/power-analysis/jobs/${params.jobId}/upload-chunk?action=complete`,
-    method: 'POST',
-    data: {
-      uploadId,
-      totalSize: params.fileSize,
-      totalChunks,
-      contentType: params.contentType
+  for (let uploadAttempt = 0; uploadAttempt < POWER_ANALYSIS_UPLOAD_RETRY_COUNT; uploadAttempt += 1) {
+    const fileSize = await getStablePowerAnalysisFileSize(params.filePath, params.fileSize)
+    if (!Number.isInteger(fileSize) || fileSize <= 0) {
+      throw new Error('无法读取视频大小，请重新选择')
     }
-  })
-  params.onProgress(100)
+
+    const uploadId = createPowerUploadId()
+    const totalChunks = Math.ceil(fileSize / POWER_ANALYSIS_CHUNK_SIZE_BYTES)
+    try {
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+        const position = chunkIndex * POWER_ANALYSIS_CHUNK_SIZE_BYTES
+        const length = Math.min(POWER_ANALYSIS_CHUNK_SIZE_BYTES, fileSize - position)
+        const chunk = await readPowerAnalysisVideoChunk(params.filePath, position, length)
+        const query = [
+          ['action', 'chunk'],
+          ['uploadId', uploadId],
+          ['chunkIndex', String(chunkIndex)],
+          ['chunkSize', String(chunk.byteLength)],
+          ['totalChunks', String(totalChunks)],
+          ['totalSize', String(fileSize)]
+        ]
+          .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+          .join('&')
+        await uploadPowerAnalysisChunk(
+          `${API_BASE_URL}/api/toolbox/power-analysis/jobs/${params.jobId}/upload-chunk?${query}`,
+          chunk,
+          token
+        )
+        params.onProgress(Math.max(1, Math.min(95, Math.round(((chunkIndex + 1) / totalChunks) * 95))))
+      }
+
+      const finalSize = await getStablePowerAnalysisFileSize(params.filePath, fileSize)
+      if (finalSize !== fileSize) {
+        throw new Error(`视频临时文件大小发生变化（${fileSize} → ${finalSize}），正在重新上传`)
+      }
+
+      await callPowerApi<PowerAnalysisJobDto>({
+        url: `/api/toolbox/power-analysis/jobs/${params.jobId}/upload-chunk?action=complete`,
+        method: 'POST',
+        data: {
+          uploadId,
+          totalSize: fileSize,
+          totalChunks,
+          contentType: params.contentType
+        }
+      })
+      params.onProgress(100)
+      return fileSize
+    } catch (error: any) {
+      lastError = error instanceof Error ? error : new Error('视频上传失败')
+      if (/用户未登录|会员|状态已变化|过大|次数/.test(lastError.message)) throw lastError
+      if (uploadAttempt < POWER_ANALYSIS_UPLOAD_RETRY_COUNT - 1) {
+        params.onProgress(1)
+        await waitForPowerUpload(500)
+      }
+    }
+  }
+
+  throw lastError || new Error('视频上传失败')
 }
 
 function isAuthErrorMessage(message?: string | null) {
@@ -383,6 +550,7 @@ export default function WechatPowerAnalysisPage() {
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const llmRequestedRef = useRef<string | null>(null)
   const restoredDownloadUserRef = useRef<string | null>(null)
+  const restoredComparisonUserRef = useRef<string | null>(null)
   const jobRef = useRef<PowerAnalysisJobDto | null>(null)
 
   const [mode, setMode] = useState<PowerAnalysisMode>('pullup')
@@ -392,11 +560,11 @@ export default function WechatPowerAnalysisPage() {
   const [quality, setQuality] = useState<PowerAnalysisQuality>('compressed')
   const [languagePreference, setLanguagePreference] = useState<OverlayLanguagePreference>('auto')
   const [entitlements, setEntitlements] = useState<PowerAnalysisEntitlements>(DEFAULT_ENTITLEMENTS)
-  const [curveMetric, setCurveMetric] = useState<PowerCurveMetric>('displacementM')
   const [video, setVideo] = useState<SelectedVideo | null>(null)
   const [phase, setPhase] = useState<UploadPhase>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [job, setJob] = useState<PowerAnalysisJobDto | null>(null)
+  const [comparisonBaselineJob, setComparisonBaselineJob] = useState<PowerAnalysisJobDto | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [savingVideo, setSavingVideo] = useState(false)
   const [downloadRetryAvailable, setDownloadRetryAvailable] = useState(false)
@@ -416,6 +584,16 @@ export default function WechatPowerAnalysisPage() {
   )
 
   const metrics = job?.metrics || null
+  const comparisonBaselineMetrics = comparisonBaselineJob?.metrics || null
+  const comparisonRows = useMemo(
+    () => comparisonBaselineMetrics && metrics && comparisonBaselineJob?.id !== job?.id
+      ? buildPowerComparisonRows(comparisonBaselineMetrics, metrics)
+      : [],
+    [comparisonBaselineJob?.id, comparisonBaselineMetrics, job?.id, metrics]
+  )
+  const comparisonVerdict = comparisonRows.length > 0
+    ? getPowerComparisonVerdict(comparisonRows, comparisonBaselineJob?.mode === job?.mode)
+    : ''
   const overlayLanguage = languagePreference === 'auto'
     ? detectSystemOverlayLanguage()
     : languagePreference
@@ -473,6 +651,8 @@ export default function WechatPowerAnalysisPage() {
       setEntitlements(DEFAULT_ENTITLEMENTS)
       setQuality('compressed')
       restoredDownloadUserRef.current = null
+      restoredComparisonUserRef.current = null
+      setComparisonBaselineJob(null)
       return
     }
 
@@ -484,6 +664,31 @@ export default function WechatPowerAnalysisPage() {
         if (!next.availableQualities.includes(quality)) setQuality('compressed')
       })
       .catch(() => setEntitlements(DEFAULT_ENTITLEMENTS))
+
+    if (restoredComparisonUserRef.current !== session.userId) {
+      restoredComparisonUserRef.current = session.userId
+      let comparisonStored: { v?: number; userId?: string; jobId?: string } | null = null
+      try {
+        comparisonStored = Taro.getStorageSync(POWER_ANALYSIS_COMPARISON_STORAGE_KEY) as typeof comparisonStored
+      } catch (error) {
+        console.warn('[power-analysis] failed to read comparison baseline', error)
+      }
+      if (
+        comparisonStored?.v === 1 &&
+        String(comparisonStored.userId || '') === session.userId &&
+        String(comparisonStored.jobId || '').trim()
+      ) {
+        void callPowerApi<PowerAnalysisJobDto>({
+          url: `/api/toolbox/power-analysis/jobs/${comparisonStored.jobId}`
+        })
+          .then((restored) => {
+            if (restored.status === 'done' && restored.metrics) setComparisonBaselineJob(restored)
+          })
+          .catch(() => Taro.removeStorageSync(POWER_ANALYSIS_COMPARISON_STORAGE_KEY))
+      } else {
+        setComparisonBaselineJob(null)
+      }
+    }
 
     if (restoredDownloadUserRef.current === session.userId) return
     restoredDownloadUserRef.current = session.userId
@@ -627,12 +832,24 @@ export default function WechatPowerAnalysisPage() {
       return
     }
 
+    let verifiedSize = 0
+    try {
+      verifiedSize = await getStablePowerAnalysisFileSize(nextVideo.tempFilePath, nextVideo.size)
+    } catch (error: any) {
+      Taro.showToast({
+        title: error?.message || '视频文件尚未准备完成，请重新选择',
+        icon: 'none',
+        duration: 3000
+      })
+      return
+    }
+    const preparedVideo = { ...nextVideo, size: verifiedSize }
     const maxSizeBytes = entitlements.maxVideoSizeMb * 1024 * 1024
-    if (!Number.isFinite(nextVideo.size) || nextVideo.size <= 0) {
+    if (!Number.isFinite(preparedVideo.size) || preparedVideo.size <= 0) {
       Taro.showToast({ title: '无法读取视频大小，请重新选择', icon: 'none' })
       return
     }
-    if (nextVideo.size > maxSizeBytes) {
+    if (preparedVideo.size > maxSizeBytes) {
       Taro.showToast({
         title: `当前等级最多支持 ${entitlements.maxVideoSizeMb}MB`,
         icon: 'none',
@@ -640,7 +857,7 @@ export default function WechatPowerAnalysisPage() {
       })
       return
     }
-    if (Number(nextVideo.duration || 0) > entitlements.maxDurationSeconds) {
+    if (Number(preparedVideo.duration || 0) > entitlements.maxDurationSeconds) {
       Taro.showToast({
         title: `当前等级最多支持 ${entitlements.maxDurationSeconds} 秒`,
         icon: 'none',
@@ -651,7 +868,7 @@ export default function WechatPowerAnalysisPage() {
 
     stopPolling()
     const previousDownloadableJob = job?.status === 'done' && job.canDownload ? job : null
-    setVideo(nextVideo)
+    setVideo(preparedVideo)
     setJob(null)
     setUploadProgress(0)
     llmRequestedRef.current = null
@@ -666,10 +883,10 @@ export default function WechatPowerAnalysisPage() {
           heightCm: heightValue,
           weightKg: weightValue,
           externalLoadKg: externalLoadValue,
-          originalFilename: nextVideo.name,
-          contentType: nextVideo.contentType,
-          fileSizeBytes: nextVideo.size,
-          durationSeconds: nextVideo.duration,
+          originalFilename: preparedVideo.name,
+          contentType: preparedVideo.contentType,
+          fileSizeBytes: preparedVideo.size,
+          durationSeconds: preparedVideo.duration,
           quality,
           overlayLanguage
         }
@@ -678,13 +895,14 @@ export default function WechatPowerAnalysisPage() {
 
       setPhase('uploading')
       setUploadProgress(1)
-      await uploadPowerAnalysisVideo({
+      const uploadedSize = await uploadPowerAnalysisVideo({
         jobId: created.job.id,
-        filePath: nextVideo.tempFilePath,
-        contentType: nextVideo.contentType,
-        fileSize: nextVideo.size,
+        filePath: preparedVideo.tempFilePath,
+        contentType: preparedVideo.contentType,
+        fileSize: preparedVideo.size,
         onProgress: setUploadProgress
       })
+      setVideo((current) => current ? { ...current, size: uploadedSize } : current)
 
       setPhase('uploaded')
       Taro.showToast({ title: '视频已上传', icon: 'success' })
@@ -835,6 +1053,40 @@ export default function WechatPowerAnalysisPage() {
     setDownloadRetryAvailable(false)
   }
 
+  const handleCompareNext = () => {
+    if (!job?.id || job.status !== 'done' || !job.metrics) {
+      Taro.showToast({ title: '请先完成一次分析', icon: 'none' })
+      return
+    }
+    const userId = authService.getAuthSession({ normalize: true }).userId
+    if (!userId) {
+      promptLogin('登录后才可以保存前测结果并进行对比。')
+      return
+    }
+    setComparisonBaselineJob(job)
+    try {
+      Taro.setStorageSync(POWER_ANALYSIS_COMPARISON_STORAGE_KEY, {
+        v: 1,
+        userId,
+        jobId: job.id
+      })
+    } catch (error) {
+      console.warn('[power-analysis] failed to persist comparison baseline', error)
+    }
+    handleReset()
+    Taro.showToast({ title: '前测已保存，请选择后测视频', icon: 'success', duration: 2500 })
+  }
+
+  const handleClearComparison = () => {
+    setComparisonBaselineJob(null)
+    try {
+      Taro.removeStorageSync(POWER_ANALYSIS_COMPARISON_STORAGE_KEY)
+    } catch (error) {
+      console.warn('[power-analysis] failed to clear comparison baseline', error)
+    }
+    Taro.showToast({ title: '已清除前测', icon: 'none' })
+  }
+
   const handleSaveVideo = async () => {
     if (!job?.id || !job.canDownload) return
     setSavingVideo(true)
@@ -929,6 +1181,17 @@ export default function WechatPowerAnalysisPage() {
 
           <View className='form-card'>
             <Text className='section-title'>测试设置</Text>
+            {comparisonBaselineJob?.metrics && (
+              <View className='comparison-baseline-banner'>
+                <View>
+                  <Text className='comparison-baseline-kicker'>前测已保存</Text>
+                  <Text className='comparison-baseline-text'>完成下一段同动作视频后自动生成对比</Text>
+                </View>
+                <View className='comparison-clear-btn' onClick={handleClearComparison}>
+                  <Text>清除</Text>
+                </View>
+              </View>
+            )}
             <View className='mode-grid'>
               {MODE_OPTIONS.map((item) => (
                 <View
@@ -1087,8 +1350,15 @@ export default function WechatPowerAnalysisPage() {
                 <Text className='result-kicker'>{selectedMode.label}</Text>
                 <Text className='section-title'>分析结果</Text>
               </View>
-              <View className={`save-video-btn ${job?.canDownload && !savingVideo ? '' : 'disabled'}`} onClick={handleSaveVideo}>
-                <Text>{savingVideo ? '保存中' : downloadRetryAvailable ? '重新下载' : '保存视频'}</Text>
+              <View className='result-actions'>
+                {job?.status === 'done' && job.metrics && (
+                  <View className='compare-next-btn' onClick={handleCompareNext}>
+                    <Text>对比下一次</Text>
+                  </View>
+                )}
+                <View className={`save-video-btn ${job?.canDownload && !savingVideo ? '' : 'disabled'}`} onClick={handleSaveVideo}>
+                  <Text>{savingVideo ? '保存中' : downloadRetryAvailable ? '重新下载' : '保存视频'}</Text>
+                </View>
               </View>
             </View>
 
@@ -1155,21 +1425,25 @@ export default function WechatPowerAnalysisPage() {
                 {metrics.timeSeries && metrics.timeSeries.length > 1 && (
                   <View className='power-curve-section'>
                     <View className='power-curve-header'>
-                      <Text className='power-curve-title'>动作数据曲线</Text>
-                      <Text className='power-curve-note'>来自姿态轨迹，不依赖大模型</Text>
+                      <Text className='power-curve-title'>整段行程曲线</Text>
+                      <Text className='power-curve-note'>覆盖完整视频时间轴</Text>
                     </View>
-                    <View className='power-curve-tabs'>
-                      {CURVE_OPTIONS.map((item) => (
-                        <View
-                          key={item.value}
-                          className={`power-curve-tab ${curveMetric === item.value ? 'active' : ''}`}
-                          onClick={() => setCurveMetric(item.value)}
-                        >
-                          <Text>{item.label}</Text>
-                        </View>
-                      ))}
+                    <View className='power-curve-block'>
+                      <Text className='power-curve-subtitle'>速度曲线</Text>
+                      <PowerCurveChart
+                        points={metrics.timeSeries}
+                        metric='velocityMps'
+                        comparePoints={comparisonRows.length > 0 ? comparisonBaselineMetrics?.timeSeries : undefined}
+                      />
                     </View>
-                    <PowerCurveChart points={metrics.timeSeries} metric={curveMetric} />
+                    <View className='power-curve-block'>
+                      <Text className='power-curve-subtitle'>功率曲线</Text>
+                      <PowerCurveChart
+                        points={metrics.timeSeries}
+                        metric='powerW'
+                        comparePoints={comparisonRows.length > 0 ? comparisonBaselineMetrics?.timeSeries : undefined}
+                      />
+                    </View>
                   </View>
                 )}
 
@@ -1191,6 +1465,46 @@ export default function WechatPowerAnalysisPage() {
               </View>
             )}
           </View>
+
+          {comparisonRows.length > 0 && comparisonBaselineMetrics && metrics && (
+            <View className='comparison-card'>
+              <View className='comparison-header'>
+                <View>
+                  <Text className='result-kicker'>前测 vs 后测</Text>
+                  <Text className='section-title'>训练表现对比</Text>
+                </View>
+                <View className='comparison-clear-btn' onClick={handleClearComparison}>
+                  <Text>结束对比</Text>
+                </View>
+              </View>
+              <Text className={`comparison-verdict ${comparisonVerdict.includes('后测') ? 'improved' : ''}`}>
+                {comparisonVerdict}
+              </Text>
+              <View className='comparison-table'>
+                <View className='comparison-row comparison-row-head'>
+                  <Text>指标</Text>
+                  <Text>前测</Text>
+                  <Text>后测</Text>
+                  <Text>变化</Text>
+                </View>
+                {comparisonRows.map((row) => {
+                  const delta = row.after - row.before
+                  const improved = Math.abs(delta) > 0 && (row.higherIsBetter ? delta > 0 : delta < 0)
+                  return (
+                    <View key={row.key} className='comparison-row'>
+                      <Text>{row.label}</Text>
+                      <Text>{row.before.toFixed(row.digits)} {row.unit}</Text>
+                      <Text>{row.after.toFixed(row.digits)} {row.unit}</Text>
+                      <Text className={improved ? 'comparison-delta-improved' : 'comparison-delta'}>
+                        {formatComparisonDelta(row)}
+                      </Text>
+                    </View>
+                  )
+                })}
+              </View>
+              <Text className='comparison-footnote'>曲线中的灰线是前测，彩色线是后测；视频时长不同时按各自完整进度对齐。</Text>
+            </View>
+          )}
 
           <View className='summary-card'>
             <View className='summary-header'>
