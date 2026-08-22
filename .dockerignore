@@ -43,6 +43,7 @@ ui-prototypes-phone
 # 脚本与临时文件
 temp_dir
 tmp
+.codex-tmp
 *.log
 .env*
 !.env.example
