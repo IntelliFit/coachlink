@@ -25,6 +25,17 @@ import {
   projectHeadAnchorToStage,
   USER_FACING_CAMERA
 } from '../cameraTracking'
+import MotionGameResultPanel from '../games/MotionGameResultPanel'
+import {
+  MOTION_GAME_TEMPLATE_IDS,
+  motionGameLeaderboardService,
+  type MotionGameRankingResult
+} from '@/services/motionGameLeaderboardService'
+import {
+  applyCloudMotionGameResult,
+  markMotionGameRunLocalOnly,
+  persistMotionGameRunLocally
+} from '@/utils/motionGameLeaderboardCache'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -109,8 +120,14 @@ export default function PullupRushPage() {
   const trackingPausedAtRef = useRef(0)
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const gameStartedAtRef = useRef(0)
+  const gameWallStartedAtRef = useRef(0)
+  const gameSessionIdRef = useRef<string | null>(null)
+  const gameRoundRef = useRef(0)
+  const roundSyncStartedRef = useRef(false)
+  const gameStartingRef = useRef(false)
   const scoreRef = useRef(0)
   const elapsedMsRef = useRef(0)
+  const pullCountRef = useRef(0)
   const playerPositionRef = useRef({ x: 0.32, y: 0.52 })
   const bestScoreRef = useRef(0)
   const livesRef = useRef(MAX_LIVES)
@@ -130,6 +147,8 @@ export default function PullupRushPage() {
   const [pipes, setPipes] = useState<PipePair[]>([])
   const [lives, setLives] = useState(MAX_LIVES)
   const [pullCount, setPullCount] = useState(0)
+  const [rankingResult, setRankingResult] = useState<MotionGameRankingResult | null>(null)
+  const [rankingSyncState, setRankingSyncState] = useState<'idle' | 'syncing' | 'synced' | 'local-only'>('idle')
   const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
   const [trackingLocked, setTrackingLocked] = useState(false)
   const [trackingActive, setTrackingActive] = useState(false)
@@ -266,7 +285,11 @@ export default function PullupRushPage() {
           && now - lastPullTriggerAtRef.current >= PULL_TRIGGER_COOLDOWN_MS
         ) {
           lastPullTriggerAtRef.current = now
-          setPullCount((prevCount) => prevCount + 1)
+          setPullCount((prevCount) => {
+            const nextCount = prevCount + 1
+            pullCountRef.current = nextCount
+            return nextCount
+          })
         }
       }
     })
@@ -364,9 +387,70 @@ export default function PullupRushPage() {
     }
   }, [])
 
+  const syncFinishedRound = async () => {
+    if (roundSyncStartedRef.current) return
+    roundSyncStartedRef.current = true
+
+    const roundId = gameRoundRef.current
+    const sessionId = gameSessionIdRef.current
+    const score = scoreRef.current
+    const elapsedMs = elapsedMsRef.current
+    const actionCount = pullCountRef.current
+    const wallElapsedMs = Math.max(1, Date.now() - gameWallStartedAtRef.current)
+    const lockRatio = Math.min(1, Math.max(0, elapsedMs / wallElapsedMs))
+    let userId = ''
+    try {
+      userId = String(Taro.getStorageSync('user')?.id || '')
+    } catch {
+      // The result still remains visible even if local storage is unavailable.
+    }
+
+    const localRunId = userId
+      ? persistMotionGameRunLocally(userId, {
+          sessionId,
+          gameKey: 'pullup-rush',
+          score,
+          elapsedMs,
+          actionCount,
+          lockRatio,
+          finishedAt: Date.now()
+        })
+      : ''
+
+    if (!sessionId) {
+      if (roundId === gameRoundRef.current) setRankingSyncState('local-only')
+      return
+    }
+
+    if (roundId === gameRoundRef.current) setRankingSyncState('syncing')
+    const result = await motionGameLeaderboardService.finishSession({
+      sessionId,
+      gameKey: 'pullup-rush',
+      score,
+      elapsedMs,
+      actionCount,
+      lockRatio
+    })
+
+    if (result) {
+      if (userId && localRunId) applyCloudMotionGameResult(userId, localRunId, result)
+      if (roundId === gameRoundRef.current) {
+        setRankingResult(result)
+        setRankingSyncState('synced')
+        setBestScore(result.bestScore)
+        bestScoreRef.current = result.bestScore
+      }
+      return
+    }
+
+    if (userId && localRunId) markMotionGameRunLocalOnly(userId, localRunId)
+    if (roundId === gameRoundRef.current) setRankingSyncState('local-only')
+  }
+
   const endRound = (nextStatus: GameStatus) => {
     gameStatusRef.current = nextStatus
     setGameStatus(nextStatus)
+    if (nextStatus === 'ended') void syncFinishedRound()
     if (isRecordingRef.current) {
       void stopRecording()
     }
@@ -611,6 +695,10 @@ export default function PullupRushPage() {
     pipesRef.current = []
     nextPipeIdRef.current = 1
     setPullCount(0)
+    pullCountRef.current = 0
+    setRankingResult(null)
+    setRankingSyncState('idle')
+    roundSyncStartedRef.current = false
     setFeedback(null)
     lastReplayCaptureAtRef.current = 0
     lastPullTriggerAtRef.current = 0
@@ -621,7 +709,7 @@ export default function PullupRushPage() {
     trackingPausedAtRef.current = 0
   }
 
-  const startGame = (withRecording: boolean) => {
+  const startGame = async (withRecording: boolean) => {
     if (cameraError) {
       Taro.showToast({ title: '当前设备暂不支持试玩', icon: 'none' })
       return
@@ -634,13 +722,32 @@ export default function PullupRushPage() {
       Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
       return
     }
+    if (gameStartingRef.current) return
+    gameStartingRef.current = true
+    gameRoundRef.current += 1
     resetForNewGame()
     setRecordedVideo(null)
-    setGameStatus('playing')
-    gameStatusRef.current = 'playing'
-    gameStartedAtRef.current = Date.now()
-    if (withRecording) {
-      void beginRecording()
+    gameSessionIdRef.current = null
+    try {
+      const session = await motionGameLeaderboardService.startSession('pullup-rush')
+      gameSessionIdRef.current = session?.sessionId || null
+      if (session) {
+        setBestScore(session.bestScore)
+        bestScoreRef.current = session.bestScore
+      }
+      if (!session) {
+        Taro.showToast({ title: '可继续试玩，本局暂不计入在线榜', icon: 'none' })
+      }
+      const startedAt = Date.now()
+      gameWallStartedAtRef.current = startedAt
+      gameStartedAtRef.current = startedAt
+      setGameStatus('playing')
+      gameStatusRef.current = 'playing'
+      if (withRecording) {
+        void beginRecording()
+      }
+    } finally {
+      gameStartingRef.current = false
     }
   }
 
@@ -896,6 +1003,23 @@ export default function PullupRushPage() {
               </View>
             </View>
 
+            {gameStatus === 'ended' ? (
+              <MotionGameResultPanel
+                actionCount={pullCount}
+                actionLabel='引体次数'
+                elapsedMs={elapsedMs}
+                ranking={rankingResult}
+                score={score}
+                syncState={rankingSyncState}
+                onReplay={() => { void startGame(false) }}
+                onViewRanking={() => {
+                  Taro.navigateTo({
+                    url: `/discovery/ranking/detail?id=${rankingResult?.templateId || MOTION_GAME_TEMPLATE_IDS['pullup-rush']}`
+                  })
+                }}
+              />
+            ) : null}
+
             <View className='controls-card'>
               <Text className='section-kicker'>控制台</Text>
 
@@ -903,7 +1027,7 @@ export default function PullupRushPage() {
                 <View
                   className={`btn-primary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) startGame(false)
+                    if (!cameraError && !replayProcessing && trackingActive) void startGame(false)
                   }}
                 >
                   <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
@@ -912,7 +1036,7 @@ export default function PullupRushPage() {
                 <View
                   className={`btn-secondary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) startGame(true)
+                    if (!cameraError && !replayProcessing && trackingActive) void startGame(true)
                   }}
                 >
                   <Text className='btn-secondary-text'>开始试玩并录回放</Text>

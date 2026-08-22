@@ -25,6 +25,17 @@ import {
   projectHeadAnchorToStage,
   USER_FACING_CAMERA
 } from '../cameraTracking'
+import MotionGameResultPanel from '../games/MotionGameResultPanel'
+import {
+  MOTION_GAME_TEMPLATE_IDS,
+  motionGameLeaderboardService,
+  type MotionGameRankingResult
+} from '@/services/motionGameLeaderboardService'
+import {
+  applyCloudMotionGameResult,
+  markMotionGameRunLocalOnly,
+  persistMotionGameRunLocally
+} from '@/utils/motionGameLeaderboardCache'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -115,9 +126,15 @@ export default function PushupDashPage() {
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const scoreRef = useRef(0)
   const elapsedMsRef = useRef(0)
+  const repCountRef = useRef(0)
   const bestScoreRef = useRef(0)
   const livesRef = useRef(MAX_LIVES)
   const gameStartedAtRef = useRef(0)
+  const gameWallStartedAtRef = useRef(0)
+  const gameSessionIdRef = useRef<string | null>(null)
+  const gameRoundRef = useRef(0)
+  const roundSyncStartedRef = useRef(false)
+  const gameStartingRef = useRef(false)
   const playerPositionRef = useRef({ x: 0.32, y: 0.52 })
 
   const [gameStatus, setGameStatus] = useState<GameStatus>('idle')
@@ -136,6 +153,8 @@ export default function PushupDashPage() {
   const [walls, setWalls] = useState<DashWall[]>([])
   const [lives, setLives] = useState(MAX_LIVES)
   const [repCount, setRepCount] = useState(0)
+  const [rankingResult, setRankingResult] = useState<MotionGameRankingResult | null>(null)
+  const [rankingSyncState, setRankingSyncState] = useState<'idle' | 'syncing' | 'synced' | 'local-only'>('idle')
   const [phaseLabel, setPhaseLabel] = useState('等待下压')
   const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
   const [trackingLocked, setTrackingLocked] = useState(false)
@@ -195,7 +214,11 @@ export default function PushupDashPage() {
     const now = Date.now()
     dashUntilRef.current = now + DASH_DURATION_MS
     setDashActive(true)
-    setRepCount((prevCount) => prevCount + 1)
+    setRepCount((prevCount) => {
+      const nextCount = prevCount + 1
+      repCountRef.current = nextCount
+      return nextCount
+    })
     setFeedback({
       id: ++feedbackIdRef.current,
       text: '完整动作，推进！',
@@ -413,9 +436,70 @@ export default function PushupDashPage() {
     }
   }, [])
 
+  const syncFinishedRound = async () => {
+    if (roundSyncStartedRef.current) return
+    roundSyncStartedRef.current = true
+
+    const roundId = gameRoundRef.current
+    const sessionId = gameSessionIdRef.current
+    const score = scoreRef.current
+    const elapsedMs = elapsedMsRef.current
+    const actionCount = repCountRef.current
+    const wallElapsedMs = Math.max(1, Date.now() - gameWallStartedAtRef.current)
+    const lockRatio = Math.min(1, Math.max(0, elapsedMs / wallElapsedMs))
+    let userId = ''
+    try {
+      userId = String(Taro.getStorageSync('user')?.id || '')
+    } catch {
+      // The result still remains visible even if local storage is unavailable.
+    }
+
+    const localRunId = userId
+      ? persistMotionGameRunLocally(userId, {
+          sessionId,
+          gameKey: 'pushup-dash',
+          score,
+          elapsedMs,
+          actionCount,
+          lockRatio,
+          finishedAt: Date.now()
+        })
+      : ''
+
+    if (!sessionId) {
+      if (roundId === gameRoundRef.current) setRankingSyncState('local-only')
+      return
+    }
+
+    if (roundId === gameRoundRef.current) setRankingSyncState('syncing')
+    const result = await motionGameLeaderboardService.finishSession({
+      sessionId,
+      gameKey: 'pushup-dash',
+      score,
+      elapsedMs,
+      actionCount,
+      lockRatio
+    })
+
+    if (result) {
+      if (userId && localRunId) applyCloudMotionGameResult(userId, localRunId, result)
+      if (roundId === gameRoundRef.current) {
+        setRankingResult(result)
+        setRankingSyncState('synced')
+        setBestScore(result.bestScore)
+        bestScoreRef.current = result.bestScore
+      }
+      return
+    }
+
+    if (userId && localRunId) markMotionGameRunLocalOnly(userId, localRunId)
+    if (roundId === gameRoundRef.current) setRankingSyncState('local-only')
+  }
+
   const endRound = () => {
     gameStatusRef.current = 'ended'
     setGameStatus('ended')
+    void syncFinishedRound()
     if (isRecordingRef.current) {
       void stopRecording()
     }
@@ -664,6 +748,10 @@ export default function PushupDashPage() {
     wallsRef.current = []
     nextWallIdRef.current = 1
     setRepCount(0)
+    repCountRef.current = 0
+    setRankingResult(null)
+    setRankingSyncState('idle')
+    roundSyncStartedRef.current = false
     setFeedback(null)
     lastReplayCaptureAtRef.current = 0
     setLives(MAX_LIVES)
@@ -678,7 +766,7 @@ export default function PushupDashPage() {
     lastWallSpawnAtRef.current = Date.now()
   }
 
-  const startGame = (withRecording: boolean) => {
+  const startGame = async (withRecording: boolean) => {
     if (cameraError) {
       Taro.showToast({ title: '当前设备暂不支持试玩', icon: 'none' })
       return
@@ -691,13 +779,32 @@ export default function PushupDashPage() {
       Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
       return
     }
+    if (gameStartingRef.current) return
+    gameStartingRef.current = true
+    gameRoundRef.current += 1
     resetForNewGame()
     setRecordedVideo(null)
-    setGameStatus('playing')
-    gameStatusRef.current = 'playing'
-    gameStartedAtRef.current = Date.now()
-    if (withRecording) {
-      void beginRecording()
+    gameSessionIdRef.current = null
+    try {
+      const session = await motionGameLeaderboardService.startSession('pushup-dash')
+      gameSessionIdRef.current = session?.sessionId || null
+      if (session) {
+        setBestScore(session.bestScore)
+        bestScoreRef.current = session.bestScore
+      }
+      if (!session) {
+        Taro.showToast({ title: '可继续试玩，本局暂不计入在线榜', icon: 'none' })
+      }
+      const startedAt = Date.now()
+      gameWallStartedAtRef.current = startedAt
+      gameStartedAtRef.current = startedAt
+      setGameStatus('playing')
+      gameStatusRef.current = 'playing'
+      if (withRecording) {
+        void beginRecording()
+      }
+    } finally {
+      gameStartingRef.current = false
     }
   }
 
@@ -956,6 +1063,23 @@ export default function PushupDashPage() {
               </View>
             </View>
 
+            {gameStatus === 'ended' ? (
+              <MotionGameResultPanel
+                actionCount={repCount}
+                actionLabel='俯卧撑次数'
+                elapsedMs={elapsedMs}
+                ranking={rankingResult}
+                score={score}
+                syncState={rankingSyncState}
+                onReplay={() => { void startGame(false) }}
+                onViewRanking={() => {
+                  Taro.navigateTo({
+                    url: `/discovery/ranking/detail?id=${rankingResult?.templateId || MOTION_GAME_TEMPLATE_IDS['pushup-dash']}`
+                  })
+                }}
+              />
+            ) : null}
+
             <View className='controls-card'>
               <Text className='section-kicker'>控制台</Text>
 
@@ -963,7 +1087,7 @@ export default function PushupDashPage() {
                 <View
                   className={`btn-primary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) startGame(false)
+                    if (!cameraError && !replayProcessing && trackingActive) void startGame(false)
                   }}
                 >
                   <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
@@ -972,7 +1096,7 @@ export default function PushupDashPage() {
                 <View
                   className={`btn-secondary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) startGame(true)
+                    if (!cameraError && !replayProcessing && trackingActive) void startGame(true)
                   }}
                 >
                   <Text className='btn-secondary-text'>开始试玩并录回放</Text>
