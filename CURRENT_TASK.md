@@ -1,3 +1,52 @@
+## 两款无限体感游戏自动排行榜与局后名次 (`2026-08-22`)
+
+- Status: 已完成代码、数据库、生产 Web/API 和小程序体验版发布。`dev` 为 `adc12ae3`（后端 `ef1b0e96` + 小程序 `adc12ae3`），GitHub/Gitee 已同步；仅后端提交已挑到生产 `main=a39397e8`，避免把开发分支其他功能带入后端。
+- Product: 引体冲刺、俯卧撑突围默认无限生存，生命耗尽后展示穿越数、坚持秒数、动作次数、个人最佳、CoachLink 玩家榜名次/参赛人数/超过比例，并提供“再来一局 / 查看排行榜”。现有排行榜专区新增两个无限榜，详情页改为“开始挑战”，禁止手工填报游戏分数。
+- Integrity: 每局由服务器签发会话，结束时校验所属用户、服务器墙钟、最长 6 小时、锁定比例和基于 1180ms 管道生成速度的宽松得分上限；只保留每位玩家每款游戏的一条个人最佳，同分依次比较坚持时间、动作次数和达成时间。结束先写账号隔离的 60 天本机缓存，再异步同步云端，失败明确标为未计入在线榜。
+- Database: 生产已精确执行并登记唯一迁移 `20260822060000_motion_game_leaderboards.sql`；新增两张 RLS 表、原子结算函数、两个固定排行榜模板，未运行全量历史迁移。隔离 PostgreSQL 用 3 名玩家验证了同分排序、人数/超过比例、个人最佳镜像和重复结算幂等；线上回读模板/表成功，发布时真实成绩仍为 0。
+- Backend release: 生产镜像摘要 `sha256:36b42149123ec4f355002aa09dec49e4ecfeb5d7ffbbf33aae64164f113fba08`，Keel 已自动滚动 `coachlink-main` 3/3，公网健康检查 200，新会话入口未登录返回应用 JSON 401。
+- WeChat release: 从干净 `dev@adc12ae3` 构建 release（2,873 modules），扫描确认只含 `https://coachlink.fit`、不含 localhost/127.0.0.1，并包含会话、局后排名和现有榜单入口；体验版 `2026.08.22.1529` 已由微信开发者工具上传成功，约 9.6MB。未提交审核、未发布正式版。
+- Verification: lint、typecheck、Vitest 42 files / 203 tests、Next 536 页构建、Web Docker 构建、小程序 local/release 构建和隔离数据库回归通过。`weapp-devtools` 可启动引体/俯卧撑两页且均 0 error/0 warning；排行榜自动化因工具无登录态且当前 `mrc` 不支持 Mock，原生 Camera/真实结算仍需体验版真机完成最终验收。
+
+## 功率分析原画偶发分片合并失败、完整曲线与双视频对比 (`2026-08-22`)
+
+- Status: 已完成本地修复和真实素材回归；用户已于 2026-08-22 明确授权将当前全部正式修改一起提交并继续部署 Web/API、上传小程序体验版，发布进行中；`.codex-tmp/` 与 `tmp/` 仍作为临时产物排除。
+- Production evidence: 账号 `计划执行者4215`（`aa0edb1d-b757-49ba-b29f-22c05965e5dd`）在北京时间 04:59 的原画任务 `e70fd2da-ae1d-4bda-b5e9-ce817e7ef7b2` 和 05:16 的 `71d1dbfa-0740-4916-9878-ecc8d25fd45c` 均在 `upload-chunk` 合并阶段报“视频分片合并大小不一致”；05:04 的原画任务 `f199c4c4-abde-4922-9d6e-464cde7e274c` 又完整成功并生成 267 个时序点，证明故障是偶发上传完整性问题，不是原画分析器必然失败。旧服务只记录最终不一致，未记录逐片实收字节，因此不能从旧日志反推出究竟哪一片少了多少字节。
+- Upload fix: 小程序不再信任 `chooseVideo.size`，改用 `getFileInfo` 连续读取到稳定的真实文件大小；每次 `readFile(position,length)` 必须返回准确字节数，否则重读。每片上传携带期望大小，服务端按固定 4MB 分片契约核对声明值和实收值并回传 `receivedSize`，客户端不一致即重传；整轮上传可换新 `uploadId` 再试。服务端在完整合并后以真实总大小回写任务，保留初始上报值和是否纠正，并把分片序号、预期/实收大小写入结构化错误详情。
+- Curves/comparison: 结果页固定展示覆盖完整视频时间轴的速度曲线和功率曲线；“对比下一次”把本次完成任务保存为同用户前测，第二段视频完成后自动叠加灰色前测/彩色后测曲线，并比较最高功率、平均功率、最快速度、平均上升时间。两段时长不同时以各自完整进度 0–100% 对齐，避免只截相同秒数。
+- Real regression: 从 `D:\我的健身素材` 选取 6 段真实 H.264/AAC 竖屏视频，大小 4,196,119 / 8,089,132 / 10,181,227 / 17,271,171 / 28,087,519 / 45,830,026 字节，覆盖 2 / 2 / 3 / 5 / 7 / 11 个分片，全部经本地正式构建 API 上传、合并、对象存储字节核验成功。额外故意把首片截短 13 字节，服务端准确报预期 4,194,304、实收 4,194,291，重传后成功；另故意把初始文件大小少报 137 字节，最终按真实 8,089,132 字节纠正并成功。测试账号、任务、存储对象和 COS 临时分片均已清理。
+- Worker/UI verification: 从当前源码重建 Power Worker Docker 镜像，用真实的 `负重10kg高位引体.mp4` 与 `90kg正手锁定.mp4` 以 `original + zh` 完整分析，分别输出 126/357 个时序点、1/2 次动作、1080×1920 H.264 + AAC 成品；抽帧确认中文、骨架、实时速度/功率正常。根生产构建 534 页、小程序 local 2,886 modules、typecheck、lint 门禁和 Vitest 42 files / 203 tests 均通过。微信 DevTools 自动化用上述真实 metrics 恢复前后测，确认 2 个曲线块、曲线 Canvas、5 行对比表、结论“后测综合表现更好”，0 error/0 warning；DevTools 的 `App.captureScreenshot` 在包含 2D Canvas 的该长页面持续超时，故没有伪造截图，元素树和接口返回作为本地 UI 证据。
+- Next: 先提交当前 7 个正式修改文件并同步 `dev/main`，随后从可追溯提交构建、推送 Web/API 生产镜像并验证 `coachlink-main`，最后构建并上传新的小程序体验版；不纳入 `.codex-tmp/`、`tmp/` 临时产物。
+
+## 体感冲刺游戏小鸟贴脸、碰撞与无限模式纠正 (`2026-08-22`)
+
+- Status: 用户真机确认体验版 `2026.08.22.0336` 仍失败：两页小鸟落在画面最左边；俯卧撑突围出现肉眼未撞障碍却扣命；游戏固定 30 秒结束且未保持屏幕常亮。已完成根因修正并提交 `adbd6355`，GitHub/Gitee `dev` 已同步；新体验版 `2026.08.22.0528` 已上传，等待真机复验。
+- Root cause: `projectHeadAnchorToStage` 输出投影字段 `radiusX/radiusY`，但 `placeCompanionBesideHead` 错误读取原始字段 `headRadiusX/headRadiusY`，舞台尺寸就绪后横坐标变成 `NaN%`，组件退回容器左边。碰撞则使用归一化半径 `0.04` 的圆，与 64×48rpx 可见小鸟不一致，纵向判定明显偏大；两页另有硬编码 `GAME_DURATION_MS = 30000`。
+- Fix: 小鸟定位改为读取投影后的 `radiusX`，脸框半径按 UI 同一 24% 最大宽度限制，默认让小鸟右缘与脸框左缘仅隔 `0.012`，左侧空间不足才换右。根据实时舞台和设备宽度把 64×48rpx 可见尺寸换算成归一化尺寸；碰撞只使用身体内部 48×32rpx 矩形，显示、碰撞、回放共用同一中心坐标，反馈明确区分“小鸟撞管道/小鸟触边”。小鸟装饰喙收进 64×48rpx 容器。
+- Infinite mode: 删除 30 秒自动结束条件，默认无限生存，统计项改为向上累计“坚持秒数”；只在生命耗尽时结束。游玩期间调用 `Taro.setKeepScreenOn(true)`，结束或离页时恢复；合成回放计时同步显示“已玩 N 秒”。
+- Verification: 截图尺寸模拟中，脸中心 `x=0.57` 时小鸟中心为 `x=0.3920`，小鸟右缘与脸框左缘间距 `0.0120`；脸靠左时自动换至右侧。小鸟位于上下管道间隙时判定安全，身体触及管道时判定碰撞。`git diff --check`、小程序 local（2,883 modules）/release（2,870 modules）构建、根 lint/typecheck、Vitest（42 files / 203 tests）及 Next build（534 pages）通过。小程序独立 tsc 仍有大量历史/Taro 类型错误，本次文件仅命中旧 `flatMap`/config target 问题，无新增类型错误。
+- DevTools: 通过 `weapp-devtools` 自动化分别重启进入引体冲刺和俯卧撑突围，两页 error/warn 均为 0；原生 Camera 仍导致自动化 screenshot 超时，模拟器无法完成真实人脸帧与常亮行为验收。体验版 `2026.08.22.0528` 使用生产 API `https://coachlink.fit`，产物确认包含投影半径、矩形命中框、无限生存、累计秒数与 `setKeepScreenOn`，不含 30 秒结束和本地/开发 API。未提审、未发布正式版，本轮无后端改动。
+
+## 两款冲刺游戏角色不跟头与玩法重做 (`2026-08-22`)
+
+- Status: 用户真机确认体验版 `2026.08.21.1830` 的接豆派对已基本能随头移动，但引体冲刺、俯卧撑突围虽然显示“已锁定”，原砖块角色不跟随头部。修复已提交为 `2f2065d3` 并推送 GitHub/Gitee `dev`；包含本修复及此前功率分析修复的完整体验版 `2026.08.22.0336` 已上传成功，等待真机验收。
+- Root cause: 引体角色横坐标固定为 `32%`，纵坐标由独立重力/跳跃状态驱动；俯卧撑角色固定为 `24% / 78%`，完整动作只短暂改变横坐标。两页虽然绘制了正确随脸移动的头框，却没有把同一头部坐标写入角色状态和碰撞计算，因此“已锁定”与“角色跟随”完全脱节。
+- Fix: 新增统一的 `placeCompanionBesideHead`，小鸟默认位于头框左侧并保持脸宽、角色半宽和间隙之和的稳定距离，左侧空间不足自动切右；两页显示、碰撞和合成回放全部读取该同一坐标。角色由 72×112/132×72rpx 砖块缩小为 64×48rpx 轻量 CSS 小鸟，不遮挡表情。俯卧撑单个底墙改为上下成对管道与随机通道，穿越得分、碰撞扣命；完整俯卧撑保留计数和冲刺视觉反馈。
+- Latency: 修复全局约 15fps 相机限流与 72ms 人脸限流叠加导致实际约 7.5fps 的二次节流：人脸间隔改为 60ms、两页 UI 与 CSS 跟随过渡改为 64ms，使角色可消费每个有效人脸帧，仍保持约 15fps 性能上限。
+- Verification: `git diff --check`、lint、typecheck、Vitest（42 files / 203 tests）、小程序 local 构建（2,883 modules）和 Next build（534 pages）通过。纯函数模拟确认头右移 0.1 时小鸟同步右移 0.1、头下移 0.2 时小鸟同步下移 0.2，脸靠左时小鸟自动切到右侧。微信 DevTools CLI 已打开本地 `dist`，error/warn 日志均为 0；原生 Camera 仍使 `relaunch/screenshot` 在 automator 连接后超时，无法提供可靠模拟器截图，真实跟头效果仍需新体验版真机验收。
+- Release: 旧体验版 `2026.08.22.0257` 只包含功率分析修复；新体验版 `2026.08.22.0336` 从 `dev@2f2065d3` 使用生产 API `https://coachlink.fit` 构建，已同时包含功率分析分片上传/Worker 客户端适配和两款体感游戏修复（约 9.6MB，AppID `wx316e39eb71c0e834`）。未提审、未发布正式版，本次纯小程序前端更新无需再次部署后端；`tmp/` 等临时证据未纳入提交。
+
+## 三款体感游戏真机锁头失败后的第二轮修复 (`2026-08-21`)
+
+- Status: 用户已确认体验版 `2026.08.21.0522` 真机验收失败：引体冲刺、俯卧撑突围无法锁定头部，接豆派对虽然可启动但角色会被非头部画面运动带动。旧版不得再视为已修复。本轮 VisionKit 修复与相机性能优化已合并并推送 `dev`（`d13493e3`），新体验版 `2026.08.21.1830` 已通过微信开发者工具 CLI 上传成功；`main` 保持 `8467ee77`，等待用户真机验收后再合并。
+- Confirmed root cause: `motionArcadePage.tsx` 把 `trackingAnchor` 以不存在的 `anchor` 参数传给 `BodyPointTracker`，所以接豆配置的 `head` 被静默忽略并默认走 `auto` 画面运动质心；页面又没有锁定门禁，故未锁头也能开局。引体/俯卧撑虽然传了 `anchorMode: head`，但首选仍是完整 MoveNet pose，模型不可用时没有真正的人脸检测，且失败只写 console。
+- Fix: 头部模式改为优先使用微信 VisionKit 静态视频帧人脸检测（小模型、连续视频源、60ms 检测间隔并受全局约 15fps 上限约束），直接使用人脸框中心和尺寸作为头部锚点，只要求脸部出镜；VisionKit 不可用时才加载 MoveNet 兼容检测。两者均不可用时明确显示不可用，禁止再用全画面运动质心冒充头部。MoveNet 创建参数同步修正为微信实际字段 `precesionLevel`。
+- Game behavior: 三款游戏统一连续 3 帧稳定才锁定；只有 `locked` 直接帧才驱动角色/动作。接豆新增头部框、锁定门禁和失锁暂停，修复参数名；单帧丢失立即冻结计时/道具/角色，720ms 后解除锁定。页面显示 `initializing / face / pose / unavailable` 运行状态，设备失败不再静默。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）、`npx next build`（534 pages）、小程序 local 构建（2,883 modules）与 release 构建（2,870 modules）均通过；release 产物确认包含 `createVKSession`、`detectFace`、`precesionLevel`、接豆 `anchorMode:"head"`、锁定提示与头框，并只包含线上 API `https://coachlink.fit`。按 `weapp-devtools` 启动 CLI auto 成功，9420 首次未监听、后续恢复连接；模拟器仍不能证明真机 VisionKit 相机帧。
+- Photo/video evidence: 已从代码固定的同一 GitHub commit 下载 9,466,715 字节 MoveNet ONNX，在隔离环境对仓库三张真人素材（接豆站立侧移、仰头引体、低位俯卧撑）执行与小程序一致的 192×192 letterbox 和头部关键点计算，三张均识别到 5 个头部点，置信度分别 0.732 / 0.746 / 0.691；独立人脸框检测也三张全命中。合成短视频中头部移动 40/40 帧检出，横向坐标与图像位移相关系数 0.9998，第 3 帧满足锁定；仅移动下半身且头不动的 40/40 帧检出，头中心最大归一化漂移 0.0036（门禁 0.025）；纯灰无人图没有头部误识别。证据保存在 `screenshots/weapp/head-tracking-validation-2026-08-21/`。
+- Runtime boundary: DevTools 9420 后续恢复监听，错误/警告日志均为 0，但 `where/relaunch/evaluate` 仍在连接后等待响应超时，因此未能在模拟器中直接调用 VisionKit 静态人脸接口。电脑实体 USB 摄像头可打开但录得 60 帧近全黑（平均亮度约 0.003），无法作为真人视频证据；原始黑色视频和临时 ONNX/venv 已清理，保留的只有脱敏的项目素材检测结果。生产 `/api/toolbox/pose-model` 本轮完整 GET 曾在约 59 秒返回 504，直接 GitHub 固定源下载正常；这意味着旧微信兼容 MoveNet 首次下载仍有线上稳定性风险，但现代微信的 VisionKit 主路径不依赖该下载。
+- Next: 在体验版 `2026.08.21.1830` 上先只验证绿色头框：头静止时框稳定，头向左右/上下移动时框同向跟随，身体/手臂单独移动时框和接豆角色不漂移；再验证三款游戏开局和遮挡暂停。真机通过后再将 `dev` 合并到 `main`。如仍异常，录制 10–15 秒屏幕视频，必须同时拍到相机画面、绿色头框和角色，便于判断坐标方向、检测丢帧或机型能力。
+
 ## `dev` / `main` 发布、小程序体验版与全后端滚动更新 (`2026-08-21`)
 
 - Git: 功能提交 `76f951bd feat(wechat): stabilize tracking and workout sharing` 已先推送 `dev`，再 fast-forward 合并并推送 `main`；GitHub 与 Gitee 的两个分支均指向该提交。
@@ -9286,3 +9335,26 @@
 - Verification: PNG 底图/透明图层已由 Sharp 合成目视确认；`git diff --check`、根 `npm run typecheck`、针对本次小程序文件的 TypeScript 错误筛查通过；全量小程序独立 tsc 仍有大量既有历史错误，但本次文件没有新增错误。`npm run lint` 提示脚本通过；`npm test` 42 files / 203 tests 全通过；`npx next build` 编译并生成 534 页；`npm --workspace apps/wechat run build:weapp` 成功构建 2,883 modules。微信开发者工具可进入两款游戏，锁定前提示和禁用按钮存在，点击禁用按钮不离开页面，error/warning 均为 0。
 - Verification boundary: 原生 `<Camera>` 仍使自动化截图超时，开发者工具不能提供真实 CameraFrame、ONNX/NPU 性能或线上首次下载证据；训练执行页缺少可用登录态与 execution 参数，无法在自动化环境完成真实海报导出。最终闭环必须先部署 Web/API、上传体验版，再用至少一台 iOS 和一台 Android 从无模型缓存状态测试：模型下载、连续锁头、遮挡暂停/720ms 解锁/原位重捕、引体和俯卧撑延迟，以及生成并保存一张正反人体都存在且高亮正确的分享图。
 - Testing clarification: 电脑开发者工具只负责页面接线、节点、日志、按钮门禁和无相机降级冒烟；电脑摄像头若工具侧可用只能作辅助。任何“已修复”结论必须以体验版真机证据闭环。
+
+## 动作游戏发布前性能审查 (`2026-08-21`)
+
+- Status: 已完成发布前性能审查与优化，已推送至 `dev`（`cb0fb639`）；未上传小程序体验版或正式版。
+- Performance: 动作游戏的相机输入由逐帧（常见 30fps）全量处理调整为最高约 15fps，姿态推理约 10fps；运动跟踪复用灰度、权重、访问和队列缓冲区，消除逐帧 TypedArray/邻居数组分配，降低低端机主线程与 GC 卡顿。
+- Verification: `npm --workspace apps/wechat run build:weapp` 成功（2883 modules）；微信开发者工具自动化打开 `/toolbox/pullup-rush/index`、`/toolbox/pushup-dash/index`，相机元素存在且 0 error/0 warn；`npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）及 `git diff --check` 通过。
+## 功率视频分析上传与 Worker 参数故障修复 (`2026-08-22`)
+
+- Status: 已完成提交、双远端推送、生产 Web/API 与 Power Worker 滚动更新，并上传微信体验版 `2026.08.22.0257`；等待账号 `计划执行者4215` 真机线上验收原画质与压缩画质。
+- Root causes: ① Android 微信在原画质场景通过 `Taro.uploadFile` 发出的 multipart 请求到服务端时没有文件字节；旧上传接口的失败记录链又错误调用 PostgREST query builder 的 `.catch()`，把原本可读的 400 覆盖成了通用 500。② 功率 Worker 仍传 `--language`、`--quality`，但 Python 分析器的参数声明和对应输出逻辑被后续改动覆盖，导致压缩上传成功后必然报 `unrecognized arguments`。
+- Fix: 小程序改为 4MB `application/octet-stream` 二进制分片上传；新增 `/api/toolbox/power-analysis/jobs/[id]/upload-chunk`，分片暂存 COS、服务端合并并逐字节校验后写入视频存储，支持当前最高 500MB 权益；旧 multipart 接口的失败记录改成显式 await/try-catch。Python 分析器恢复中英文字体覆盖、评级、时序数据以及 `--language/--quality` 参数，同时保留音轨和输出体积控制。
+- Verification: 精确复现用户 958.3KB/11秒压缩视频，在正式 Worker Docker 镜像环境分别以 `zh+compressed`、`en+original` 完整分析成功，均保留 AAC 音轨并输出 5 次动作、评级与约 267 个时序点；本地 API 对 9,779,155 字节有效 MP4 完成 3 分片上传、合并和存储大小校验；微信开发者工具内用真实 `wx.getFileSystemManager().readFile + wx.request(ArrayBuffer)` 再跑同一 3 分片链路并返回 `done`。小程序 local 构建（2,883 modules）、lint、typecheck、Next build（534 pages）、Vitest（42 files / 203 tests）全部通过；页面截图保存在 `screenshots/weapp/power-analysis-upload-fix-2026-08-22.png`，测试任务、对象、分片、模拟器登录态和含用户视频的临时目录均已清理。
+- Release: `dev` 修复提交为 `f406fe91`，GitHub/Gitee `dev` 已同步；为避免把未验收的其他 dev 功能带入生产，单独 cherry-pick 到 `main` 为 `3433dd58`，GitHub/Gitee `main` 已同步。生产 Web/API 镜像摘要为 `sha256:d3e6c3d409de7df7e5c9eb2c407e82a23c892626ada4e89745f33f5ddf6df68d`，Power Worker 摘要为 `sha256:8db14dcb3b061bbc57de09012ef4a32bb96a5873f15346f9634170cdec230a10`；Web 3/3、Worker 1/1 rollout 成功，公网健康接口 200，新分片路由未登录探针返回应用层 401，Worker 实际虚拟环境确认包含 `--language {zh,en}` 与 `--quality {compressed,original}`，FFmpeg/FFprobe 5.1.9 可用。
+- WeChat: 从干净的 `dev@f406fe91` 强制使用 `https://coachlink.fit` 构建 release（2,870 modules），产物确认包含 `upload-chunk` 且不含 localhost/127.0.0.1/dev 域名；微信开发者工具 CLI 上传体验版 `2026.08.22.0257` 成功（约 9.6MB，AppID `wx316e39eb71c0e834`）。未提审、未发布正式版。
+- Next: 由 `计划执行者4215` 在体验版分别用同一段短视频测试压缩画质和原画质；若仍失败，保留失败时间、画质选项和完整错误截图，便于按生产日志精确定位。
+## 融资/申请材料最新运营数据口径 (`2026-08-22`)
+
+- Status: 已使用 `.env.development` 对应的 Supabase 生产数据做只读聚合，并对照 `docs/work/bp-backend-data-2026-07-05.md` 的历史口径；未读取或输出任何用户隐私明细。
+- Users/customers: 注册用户 3,628；近 30 天新增 459、近 90 天新增 1,662。累计 151 条教练-学员付费服务关系，覆盖 133 名学员和 3 名收款教练；当前 active 103 条，覆盖 95 名活跃付费学员。
+- Activity caveat: `last_login_at` 的滚动 30 天登录口径为 432、滚动 24 小时为 11；2026-07-05 历史快照的滚动 30 天登录口径曾达 772。`user_behavior_events` 埋点覆盖不完整，不能把这些数字不加说明地表述为严格 MAU/DAU；对外应写“30 天/24 小时登录用户口径”。
+- Revenue: 清洗掉低于 1 元测试单后，累计教练相关平台成功订单 30 笔、平台实收 GMV 约 ¥5,640；最近完整月份中 2026-07 最好，为 7 笔、6 名付款用户、约 ¥1,634。订阅记录首期/套餐金额约 ¥20,158，按价格和周数粗估合同服务额约 ¥52,506，但早期大量个人收款缺完整平台流水，只能作为内部估算。`platform_revenue` 平台抽成收入台账累计约 ¥782.60；结算闭环记录 18 条、结算 GMV ¥2,934、教练分成 ¥2,347.20、平台费 ¥586.80。
+- Validation/milestones: 计划执行累计 1,322 条，其中 completed 1,222 条、完成训练组 13,365 组，92 名学员有执行记录；街健计算累计 5,062 次/312 用户，功率分析累计 686 次/125 用户。支付宝/微信支付、汇付分账、教练钱包和训练交付闭环均已跑通，但仅 3 名教练产生订阅关系，商业化仍属早期验证阶段。
+- Recommended external framing: 主叙事使用“3,600+ 注册用户、133 名付费学员、95 名活跃付费学员、1,222 次完成训练、5,000+ 次街健计算”；活跃写明登录口径，营收将平台实收 GMV、平台净收入和估算合同服务额分开。

@@ -14,12 +14,28 @@ import {
   type ArcadeFeedback,
   vibrateForArcadeFeedback
 } from '../games/arcadeFeedback'
-import { BodyPointTracker } from '../games/bodyPointTracker'
 import {
-  projectCameraPointToStage,
+  BodyPointTracker,
+  type BodyTrackingRuntimeState
+} from '../games/bodyPointTracker'
+import {
+  getHeadCompanionMetrics,
+  headCompanionHitsRect,
+  placeCompanionBesideHead,
   projectHeadAnchorToStage,
   USER_FACING_CAMERA
 } from '../cameraTracking'
+import MotionGameResultPanel from '../games/MotionGameResultPanel'
+import {
+  MOTION_GAME_TEMPLATE_IDS,
+  motionGameLeaderboardService,
+  type MotionGameRankingResult
+} from '@/services/motionGameLeaderboardService'
+import {
+  applyCloudMotionGameResult,
+  markMotionGameRunLocalOnly,
+  persistMotionGameRunLocally
+} from '@/utils/motionGameLeaderboardCache'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -29,12 +45,6 @@ type RecordedVideo = {
   kind?: 'camera' | 'composite'
   tempThumbPath?: string
   tempVideoPath: string
-}
-
-type MotionSnapshot = {
-  energy: number
-  x: number
-  y: number
 }
 
 type HeadLockState = {
@@ -55,19 +65,14 @@ type PipePair = {
   x: number
 }
 
-const GAME_DURATION_MS = 30000
 const GAME_TICK_MS = 32
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
 const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
-const PLAYER_X = 0.32
-const PLAYER_RADIUS = 0.058
-const GRAVITY = 0.002
-const JUMP_VELOCITY = -0.034
 const PIPE_SPEED = 0.012
 const PIPE_SPAWN_MS = 1180
 const PULL_TRIGGER_COOLDOWN_MS = 260
-const TRACKING_UI_INTERVAL_MS = 96
+const TRACKING_UI_INTERVAL_MS = 64
 const MAX_LIVES = 2
 
 function clamp(value: number, min: number, max: number) {
@@ -75,7 +80,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function formatSeconds(ms: number) {
-  return Math.max(0, Math.ceil(ms / 1000))
+  return Math.max(0, Math.floor(ms / 1000))
 }
 
 function formatPercent(value: number) {
@@ -93,44 +98,21 @@ function buildPipePair(id: number): PipePair {
   }
 }
 
-function circleHitsRect(
-  circleX: number,
-  circleY: number,
-  radius: number,
-  rectCenterX: number,
-  rectCenterY: number,
-  rectWidth: number,
-  rectHeight: number
-) {
-  const dx = Math.abs(circleX - rectCenterX)
-  const dy = Math.abs(circleY - rectCenterY)
-  const halfWidth = rectWidth / 2
-  const halfHeight = rectHeight / 2
-
-  if (dx > halfWidth + radius || dy > halfHeight + radius) return false
-  if (dx <= halfWidth || dy <= halfHeight) return true
-
-  const cornerDx = dx - halfWidth
-  const cornerDy = dy - halfHeight
-  return cornerDx * cornerDx + cornerDy * cornerDy <= radius * radius
-}
-
 export default function PullupRushPage() {
   const { effectiveTheme } = useTheme()
   const cameraContextRef = useRef<any>(null)
   const replayRecorderRef = useRef<MotionArcadeReplayRecorder | null>(null)
   const frameListenerRef = useRef<any>(null)
   const lastReplayCaptureAtRef = useRef(0)
-  const motionRef = useRef<MotionSnapshot>({ energy: 0, x: 0.5, y: 0.7 })
   const gameStatusRef = useRef<GameStatus>('idle')
   const lastPullTriggerAtRef = useRef(0)
-  const pendingPullRef = useRef(false)
   const pipesRef = useRef<PipePair[]>([])
   const nextPipeIdRef = useRef(1)
   const lastPipeSpawnAtRef = useRef(0)
   const isRecordingRef = useRef(false)
   const feedbackIdRef = useRef(0)
   const cameraStageSizeRef = useRef({ width: 0, height: 0 })
+  const companionMetricsRef = useRef(getHeadCompanionMetrics(cameraStageSizeRef.current, 0))
   const lastTrackingUiAtRef = useRef(0)
   const headLockVisibleRef = useRef(false)
   const trackingLockedRef = useRef(false)
@@ -138,10 +120,15 @@ export default function PullupRushPage() {
   const trackingPausedAtRef = useRef(0)
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const gameStartedAtRef = useRef(0)
+  const gameWallStartedAtRef = useRef(0)
+  const gameSessionIdRef = useRef<string | null>(null)
+  const gameRoundRef = useRef(0)
+  const roundSyncStartedRef = useRef(false)
+  const gameStartingRef = useRef(false)
   const scoreRef = useRef(0)
-  const timeLeftMsRef = useRef(GAME_DURATION_MS)
-  const playerYRef = useRef(0.52)
-  const playerVelocityRef = useRef(0)
+  const elapsedMsRef = useRef(0)
+  const pullCountRef = useRef(0)
+  const playerPositionRef = useRef({ x: 0.32, y: 0.52 })
   const bestScoreRef = useRef(0)
   const livesRef = useRef(MAX_LIVES)
 
@@ -149,10 +136,10 @@ export default function PullupRushPage() {
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [motionEnergy, setMotionEnergy] = useState(0)
-  const [playerY, setPlayerY] = useState(0.52)
+  const [playerPosition, setPlayerPosition] = useState({ x: 0.32, y: 0.52 })
   const [score, setScore] = useState(0)
   const [bestScore, setBestScore] = useState(0)
-  const [timeLeftMs, setTimeLeftMs] = useState(GAME_DURATION_MS)
+  const [elapsedMs, setElapsedMs] = useState(0)
   const [recording, setRecording] = useState(false)
   const [replayProcessing, setReplayProcessing] = useState(false)
   const [videoSaving, setVideoSaving] = useState(false)
@@ -160,9 +147,13 @@ export default function PullupRushPage() {
   const [pipes, setPipes] = useState<PipePair[]>([])
   const [lives, setLives] = useState(MAX_LIVES)
   const [pullCount, setPullCount] = useState(0)
+  const [rankingResult, setRankingResult] = useState<MotionGameRankingResult | null>(null)
+  const [rankingSyncState, setRankingSyncState] = useState<'idle' | 'syncing' | 'synced' | 'local-only'>('idle')
   const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
   const [trackingLocked, setTrackingLocked] = useState(false)
   const [trackingActive, setTrackingActive] = useState(false)
+  const [trackingRuntimeState, setTrackingRuntimeState] = useState<BodyTrackingRuntimeState>('initializing')
+  const [trackingRuntimeDetail, setTrackingRuntimeDetail] = useState('正在启动头部识别')
   const [headLock, setHeadLock] = useState<HeadLockState>({
     estimated: false,
     radiusX: 0.08,
@@ -189,16 +180,12 @@ export default function PullupRushPage() {
   }, [])
 
   useEffect(() => {
-    playerYRef.current = playerY
-  }, [playerY])
-
-  useEffect(() => {
     scoreRef.current = score
   }, [score])
 
   useEffect(() => {
-    timeLeftMsRef.current = timeLeftMs
-  }, [timeLeftMs])
+    elapsedMsRef.current = elapsedMs
+  }, [elapsedMs])
 
   useEffect(() => {
     pipesRef.current = pipes
@@ -245,33 +232,36 @@ export default function PullupRushPage() {
           setHeadLock((previous) => ({ ...previous, visible: false }))
         }
       },
+      onRuntimeStateChange: (state, detail) => {
+        setTrackingRuntimeState(state)
+        setTrackingRuntimeDetail(detail)
+      },
       onSnapshot: (snapshot) => {
         const now = Date.now()
         updateTrackingActivity(snapshot.locked && snapshot.lockState === 'locked')
         const frameSize = { width: snapshot.frameWidth, height: snapshot.frameHeight }
-        const projected = projectCameraPointToStage(
-          snapshot,
-          frameSize,
-          cameraStageSizeRef.current
-        )
-        motionRef.current = {
-          energy: snapshot.energy,
-          x: projected.x,
-          y: projected.y
-        }
-
         const headLocked = snapshot.locked
+        const projectedHead = headLocked
+          ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
+          : null
+        if (projectedHead && snapshot.lockState === 'locked') {
+          const metrics = companionMetricsRef.current
+          playerPositionRef.current = placeCompanionBesideHead(projectedHead, {
+            halfHeight: metrics.visualHalfHeight,
+            halfWidth: metrics.visualHalfWidth
+          })
+        }
         if (
           now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
           || headLocked !== headLockVisibleRef.current
         ) {
-          const projectedHead = headLocked
-            ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
-            : null
           lastTrackingUiAtRef.current = now
           headLockVisibleRef.current = headLocked
           setMotionEnergy(snapshot.energy)
           if (projectedHead) {
+            if (snapshot.lockState === 'locked') {
+              setPlayerPosition(playerPositionRef.current)
+            }
             setHeadLock({
               estimated: snapshot.lockState === 'holding' || snapshot.target === 'head-estimate',
               radiusX: projectedHead.radiusX,
@@ -294,9 +284,12 @@ export default function PullupRushPage() {
           && snapshot.velocityY <= upwardThreshold
           && now - lastPullTriggerAtRef.current >= PULL_TRIGGER_COOLDOWN_MS
         ) {
-          pendingPullRef.current = true
           lastPullTriggerAtRef.current = now
-          setPullCount((prevCount) => prevCount + 1)
+          setPullCount((prevCount) => {
+            const nextCount = prevCount + 1
+            pullCountRef.current = nextCount
+            return nextCount
+          })
         }
       }
     })
@@ -352,12 +345,13 @@ export default function PullupRushPage() {
               frameWidth: width,
               items: replayItems,
               player: {
-                x: PLAYER_X,
-                y: playerYRef.current
+                x: playerPositionRef.current.x,
+                y: playerPositionRef.current.y
               },
               replayFooterLabel: '引体冲刺回放',
               score: scoreRef.current,
-              timeLeftMs: timeLeftMsRef.current,
+              timerMode: 'elapsed',
+              timeLeftMs: elapsedMsRef.current,
               visualKey: 'pullup'
             })
           }
@@ -393,9 +387,70 @@ export default function PullupRushPage() {
     }
   }, [])
 
+  const syncFinishedRound = async () => {
+    if (roundSyncStartedRef.current) return
+    roundSyncStartedRef.current = true
+
+    const roundId = gameRoundRef.current
+    const sessionId = gameSessionIdRef.current
+    const score = scoreRef.current
+    const elapsedMs = elapsedMsRef.current
+    const actionCount = pullCountRef.current
+    const wallElapsedMs = Math.max(1, Date.now() - gameWallStartedAtRef.current)
+    const lockRatio = Math.min(1, Math.max(0, elapsedMs / wallElapsedMs))
+    let userId = ''
+    try {
+      userId = String(Taro.getStorageSync('user')?.id || '')
+    } catch {
+      // The result still remains visible even if local storage is unavailable.
+    }
+
+    const localRunId = userId
+      ? persistMotionGameRunLocally(userId, {
+          sessionId,
+          gameKey: 'pullup-rush',
+          score,
+          elapsedMs,
+          actionCount,
+          lockRatio,
+          finishedAt: Date.now()
+        })
+      : ''
+
+    if (!sessionId) {
+      if (roundId === gameRoundRef.current) setRankingSyncState('local-only')
+      return
+    }
+
+    if (roundId === gameRoundRef.current) setRankingSyncState('syncing')
+    const result = await motionGameLeaderboardService.finishSession({
+      sessionId,
+      gameKey: 'pullup-rush',
+      score,
+      elapsedMs,
+      actionCount,
+      lockRatio
+    })
+
+    if (result) {
+      if (userId && localRunId) applyCloudMotionGameResult(userId, localRunId, result)
+      if (roundId === gameRoundRef.current) {
+        setRankingResult(result)
+        setRankingSyncState('synced')
+        setBestScore(result.bestScore)
+        bestScoreRef.current = result.bestScore
+      }
+      return
+    }
+
+    if (userId && localRunId) markMotionGameRunLocalOnly(userId, localRunId)
+    if (roundId === gameRoundRef.current) setRankingSyncState('local-only')
+  }
+
   const endRound = (nextStatus: GameStatus) => {
     gameStatusRef.current = nextStatus
     setGameStatus(nextStatus)
+    if (nextStatus === 'ended') void syncFinishedRound()
     if (isRecordingRef.current) {
       void stopRecording()
     }
@@ -404,89 +459,92 @@ export default function PullupRushPage() {
   useEffect(() => {
     if (gameStatus !== 'playing') return
 
+    void Taro.setKeepScreenOn({ keepScreenOn: true }).catch(() => undefined)
+    return () => {
+      void Taro.setKeepScreenOn({ keepScreenOn: false }).catch(() => undefined)
+    }
+  }, [gameStatus])
+
+  useEffect(() => {
+    if (gameStatus !== 'playing') return
+
     const timer = setInterval(() => {
       const now = Date.now()
       if (!trackingActiveRef.current) return
       const elapsed = now - gameStartedAtRef.current
-      const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
+      const currentPlayer = playerPositionRef.current
+      const metrics = companionMetricsRef.current
+      setElapsedMs(elapsed)
+      elapsedMsRef.current = elapsed
 
-      if (pendingPullRef.current) {
-        playerVelocityRef.current = JUMP_VELOCITY
-        pendingPullRef.current = false
-      } else {
-        playerVelocityRef.current += GRAVITY
+      let nextPipes = pipesRef.current
+        .map((pipe) => ({ ...pipe, x: pipe.x - PIPE_SPEED }))
+        .filter((pipe) => pipe.x + pipe.width / 2 > -0.16)
+
+      if (now - lastPipeSpawnAtRef.current >= PIPE_SPAWN_MS) {
+        nextPipes = [...nextPipes, buildPipePair(nextPipeIdRef.current++)]
+        lastPipeSpawnAtRef.current = now
       }
 
-      const nextPlayerY = clamp(playerYRef.current + playerVelocityRef.current, 0.08, 0.92)
-      playerYRef.current = nextPlayerY
-      setPlayerY(nextPlayerY)
-      setTimeLeftMs(nextTimeLeft)
+      let passedCount = 0
+      const outsideStage =
+        currentPlayer.y - metrics.hitboxHalfHeight <= 0
+        || currentPlayer.y + metrics.hitboxHalfHeight >= 1
+      let crashed = outsideStage
 
-      let crashed = nextPlayerY <= 0.09 || nextPlayerY >= 0.91
-
-      setPipes((prevPipes) => {
-        let nextPipes = prevPipes.map((pipe) => ({
-          ...pipe,
-          x: pipe.x - PIPE_SPEED
-        }))
-
-        if (now - lastPipeSpawnAtRef.current >= PIPE_SPAWN_MS) {
-          nextPipes = [...nextPipes, buildPipePair(nextPipeIdRef.current++)]
-          lastPipeSpawnAtRef.current = now
-        }
-
-        nextPipes = nextPipes
-          .filter((pipe) => pipe.x + pipe.width / 2 > -0.16)
-          .map((pipe) => {
-            if (!pipe.passed && pipe.x + pipe.width / 2 < PLAYER_X) {
-              pipe.passed = true
-              setFeedback({
-                id: ++feedbackIdRef.current,
-                text: '+1 穿越',
-                tone: 'good'
-              })
-              vibrateForArcadeFeedback('good')
-              setScore((prevScore) => {
-                const nextScore = prevScore + 1
-                if (nextScore > bestScoreRef.current) {
-                  bestScoreRef.current = nextScore
-                  setBestScore(nextScore)
-                }
-                return nextScore
-              })
-            }
-            return pipe
+      for (const pipe of nextPipes) {
+        const topHeight = pipe.gapY
+        const bottomStart = pipe.gapY + pipe.gapHeight
+        if (
+          headCompanionHitsRect(currentPlayer, metrics, {
+            height: topHeight,
+            width: pipe.width,
+            x: pipe.x,
+            y: topHeight / 2
           })
-
-        for (const pipe of nextPipes) {
-          const topHeight = pipe.gapY
-          const bottomStart = pipe.gapY + pipe.gapHeight
-          if (
-            circleHitsRect(PLAYER_X, nextPlayerY, PLAYER_RADIUS, pipe.x, topHeight / 2, pipe.width, topHeight)
-            || circleHitsRect(PLAYER_X, nextPlayerY, PLAYER_RADIUS, pipe.x, bottomStart + (1 - bottomStart) / 2, pipe.width, 1 - bottomStart)
-          ) {
-            crashed = true
-            break
-          }
+          || headCompanionHitsRect(currentPlayer, metrics, {
+            height: 1 - bottomStart,
+            width: pipe.width,
+            x: pipe.x,
+            y: bottomStart + (1 - bottomStart) / 2
+          })
+        ) {
+          crashed = true
+          break
         }
 
-        pipesRef.current = nextPipes
-        return nextPipes
-      })
+        if (!pipe.passed && pipe.x + pipe.width / 2 < currentPlayer.x) {
+          pipe.passed = true
+          passedCount += 1
+        }
+      }
+
+      if (passedCount > 0 && !crashed) {
+        const nextScore = scoreRef.current + passedCount
+        scoreRef.current = nextScore
+        setScore(nextScore)
+        if (nextScore > bestScoreRef.current) {
+          bestScoreRef.current = nextScore
+          setBestScore(nextScore)
+        }
+        setFeedback({
+          id: ++feedbackIdRef.current,
+          text: `+${passedCount} 穿越`,
+          tone: 'good'
+        })
+        vibrateForArcadeFeedback('good')
+      }
 
       if (crashed) {
         setFeedback({
           id: ++feedbackIdRef.current,
-          text: '碰撞 -1 命',
+          text: outsideStage ? '小鸟触边 -1 命' : '小鸟撞管道 -1 命',
           tone: 'bad'
         })
         vibrateForArcadeFeedback('bad')
         const nextLives = Math.max(0, livesRef.current - 1)
         setLives(nextLives)
         livesRef.current = nextLives
-        playerVelocityRef.current = 0
-        playerYRef.current = 0.52
-        setPlayerY(0.52)
         setPipes([])
         pipesRef.current = []
         lastPipeSpawnAtRef.current = now
@@ -495,11 +553,9 @@ export default function PullupRushPage() {
           endRound('ended')
           return
         }
-      }
-
-      if (nextTimeLeft <= 0) {
-        clearInterval(timer)
-        endRound('ended')
+      } else {
+        pipesRef.current = nextPipes
+        setPipes(nextPipes)
       }
     }, GAME_TICK_MS)
 
@@ -633,28 +689,27 @@ export default function PullupRushPage() {
   const resetForNewGame = () => {
     setScore(0)
     scoreRef.current = 0
-    setTimeLeftMs(GAME_DURATION_MS)
-    timeLeftMsRef.current = GAME_DURATION_MS
+    setElapsedMs(0)
+    elapsedMsRef.current = 0
     setPipes([])
     pipesRef.current = []
     nextPipeIdRef.current = 1
     setPullCount(0)
+    pullCountRef.current = 0
+    setRankingResult(null)
+    setRankingSyncState('idle')
+    roundSyncStartedRef.current = false
     setFeedback(null)
     lastReplayCaptureAtRef.current = 0
     lastPullTriggerAtRef.current = 0
-    motionRef.current = { energy: 0, x: 0.5, y: 0.7 }
     setMotionEnergy(0)
-    playerYRef.current = 0.52
-    setPlayerY(0.52)
-    playerVelocityRef.current = 0
     setLives(MAX_LIVES)
     livesRef.current = MAX_LIVES
-    pendingPullRef.current = false
     lastPipeSpawnAtRef.current = Date.now()
     trackingPausedAtRef.current = 0
   }
 
-  const startGame = (withRecording: boolean) => {
+  const startGame = async (withRecording: boolean) => {
     if (cameraError) {
       Taro.showToast({ title: '当前设备暂不支持试玩', icon: 'none' })
       return
@@ -667,13 +722,32 @@ export default function PullupRushPage() {
       Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
       return
     }
+    if (gameStartingRef.current) return
+    gameStartingRef.current = true
+    gameRoundRef.current += 1
     resetForNewGame()
     setRecordedVideo(null)
-    setGameStatus('playing')
-    gameStatusRef.current = 'playing'
-    gameStartedAtRef.current = Date.now()
-    if (withRecording) {
-      void beginRecording()
+    gameSessionIdRef.current = null
+    try {
+      const session = await motionGameLeaderboardService.startSession('pullup-rush')
+      gameSessionIdRef.current = session?.sessionId || null
+      if (session) {
+        setBestScore(session.bestScore)
+        bestScoreRef.current = session.bestScore
+      }
+      if (!session) {
+        Taro.showToast({ title: '可继续试玩，本局暂不计入在线榜', icon: 'none' })
+      }
+      const startedAt = Date.now()
+      gameWallStartedAtRef.current = startedAt
+      gameStartedAtRef.current = startedAt
+      setGameStatus('playing')
+      gameStatusRef.current = 'playing'
+      if (withRecording) {
+        void beginRecording()
+      }
+    } finally {
+      gameStartingRef.current = false
     }
   }
 
@@ -722,10 +796,11 @@ export default function PullupRushPage() {
           <View className='page-content'>
             <View className='intro-card'>
               <Text className='intro-kicker'>PULLUP FLIGHT</Text>
-              <Text className='intro-title'>向上拉，穿过障碍</Text>
+              <Text className='intro-title'>头部带小鸟穿过障碍</Text>
               <View className='intro-tags'>
-                <Text className='intro-tag'>上拉触发上升</Text>
-                <Text className='intro-tag'>穿缝得分</Text>
+                <Text className='intro-tag'>头部实时跟随</Text>
+                <Text className='intro-tag'>上拉动作计数</Text>
+                <Text className='intro-tag'>无限生存</Text>
                 <Text className='intro-tag'>支持回放</Text>
               </View>
             </View>
@@ -746,10 +821,15 @@ export default function PullupRushPage() {
                       Taro.createSelectorQuery()
                         .select('.camera-stage')
                         .boundingClientRect((rect: any) => {
-                          cameraStageSizeRef.current = {
+                          const stageSize = {
                             width: Number(rect?.width || 0),
                             height: Number(rect?.height || 0)
                           }
+                          cameraStageSizeRef.current = stageSize
+                          companionMetricsRef.current = getHeadCompanionMetrics(
+                            stageSize,
+                            Taro.getWindowInfo().windowWidth
+                          )
                         })
                         .exec()
                     })
@@ -772,8 +852,8 @@ export default function PullupRushPage() {
                 </View>
 
                 <View className='stage-objective'>
-                  <Text className='stage-objective-text'>上拉一下就上冲一次</Text>
-                  <Text className='stage-objective-text stage-objective-text--bad'>撞柱子或上下边界会掉命</Text>
+                  <Text className='stage-objective-text'>上下移动头部，带小鸟穿过通道</Text>
+                  <Text className='stage-objective-text stage-objective-text--bad'>小鸟始终在脸旁，不遮挡表情</Text>
                 </View>
 
                 {headLock.visible ? (
@@ -818,15 +898,19 @@ export default function PullupRushPage() {
                   )
                 })}
 
-                <View
-                  className='player-avatar pullup-bird'
-                  style={{
-                    left: `${PLAYER_X * 100}%`,
-                    top: `${playerY * 100}%`
-                  }}
-                >
-                  <View className='player-core pullup-bird-core' />
-                </View>
+                {headLock.visible ? (
+                  <View
+                    className='player-avatar head-bird pullup-bird'
+                    style={{
+                      left: `${playerPosition.x * 100}%`,
+                      top: `${playerPosition.y * 100}%`
+                    }}
+                  >
+                    <View className='head-bird-wing' />
+                    <View className='head-bird-eye' />
+                    <View className='head-bird-beak' />
+                  </View>
+                ) : null}
 
                 {feedback ? (
                   <View key={feedback.id} className={`stage-feedback stage-feedback--${feedback.tone}`}>
@@ -843,10 +927,23 @@ export default function PullupRushPage() {
                   </View>
                 ) : null}
 
-                {cameraReady && !cameraError && !trackingLocked ? (
+                {cameraReady && !cameraError && trackingRuntimeState === 'unavailable' ? (
+                  <View className='stage-error'>
+                    <Text className='stage-note-title'>当前设备无法启动头部识别</Text>
+                    <Text className='stage-note-desc'>{trackingRuntimeDetail}</Text>
+                  </View>
+                ) : null}
+
+                {cameraReady && !cameraError && trackingRuntimeState !== 'unavailable' && !trackingLocked ? (
                   <View className='stage-note'>
-                    <Text className='stage-note-title'>请让头部完整进入画面</Text>
-                    <Text className='stage-note-desc'>保持稳定，锁定后即可开始；游戏中丢失会自动暂停。</Text>
+                    <Text className='stage-note-title'>
+                      {trackingRuntimeState === 'initializing' ? '正在启动头部识别' : '请让脸完整进入画面'}
+                    </Text>
+                    <Text className='stage-note-desc'>
+                      {trackingRuntimeState === 'initializing'
+                        ? trackingRuntimeDetail
+                        : '只需脸部出镜，无需全身出镜；绿色框跟随头部后即可开始。'}
+                    </Text>
                   </View>
                 ) : null}
 
@@ -875,8 +972,8 @@ export default function PullupRushPage() {
                   <Text className='stat-value'>{score}</Text>
                 </View>
                 <View className='stat-item'>
-                  <Text className='stat-label'>剩余秒数</Text>
-                  <Text className='stat-value'>{formatSeconds(timeLeftMs)}</Text>
+                  <Text className='stat-label'>坚持秒数</Text>
+                  <Text className='stat-value'>{formatSeconds(elapsedMs)}</Text>
                 </View>
                 <View className='stat-item'>
                   <Text className='stat-label'>历史最好</Text>
@@ -906,6 +1003,23 @@ export default function PullupRushPage() {
               </View>
             </View>
 
+            {gameStatus === 'ended' ? (
+              <MotionGameResultPanel
+                actionCount={pullCount}
+                actionLabel='引体次数'
+                elapsedMs={elapsedMs}
+                ranking={rankingResult}
+                score={score}
+                syncState={rankingSyncState}
+                onReplay={() => { void startGame(false) }}
+                onViewRanking={() => {
+                  Taro.navigateTo({
+                    url: `/discovery/ranking/detail?id=${rankingResult?.templateId || MOTION_GAME_TEMPLATE_IDS['pullup-rush']}`
+                  })
+                }}
+              />
+            ) : null}
+
             <View className='controls-card'>
               <Text className='section-kicker'>控制台</Text>
 
@@ -913,7 +1027,7 @@ export default function PullupRushPage() {
                 <View
                   className={`btn-primary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) startGame(false)
+                    if (!cameraError && !replayProcessing && trackingActive) void startGame(false)
                   }}
                 >
                   <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
@@ -922,7 +1036,7 @@ export default function PullupRushPage() {
                 <View
                   className={`btn-secondary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) startGame(true)
+                    if (!cameraError && !replayProcessing && trackingActive) void startGame(true)
                   }}
                 >
                   <Text className='btn-secondary-text'>开始试玩并录回放</Text>

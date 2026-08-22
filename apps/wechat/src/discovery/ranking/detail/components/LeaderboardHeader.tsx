@@ -11,6 +11,8 @@ interface LeaderboardHeaderProps {
   recordCount?: number
   ownerName?: string
   needReview?: boolean
+  actionLabel?: string
+  automatic?: boolean
   onJoinClick: () => void
 }
 
@@ -22,6 +24,8 @@ export default function LeaderboardHeader({
   recordCount = 0,
   ownerName = '教链',
   needReview = true,
+  actionLabel = '提交记录',
+  automatic = false,
   onJoinClick
 }: LeaderboardHeaderProps) {
   const formatTimeRange = () => {
@@ -56,12 +60,14 @@ export default function LeaderboardHeader({
         </View>
         {!needReview && (
           <View className="meta-item" style={{ marginTop: 8 }}>
-            <Text style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>无审核比赛</Text>
+            <Text style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>
+              {automatic ? '游戏自动记录成绩' : '无审核比赛'}
+            </Text>
           </View>
         )}
         <View className="submit-btn-wrap">
           <View className="submit-btn" onClick={onJoinClick}>
-            <Text>提交记录</Text>
+            <Text>{actionLabel}</Text>
             <Icon component={ArrowUpRight} size={18} color="currentColor" />
           </View>
         </View>

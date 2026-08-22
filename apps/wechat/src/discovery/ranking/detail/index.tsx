@@ -102,6 +102,12 @@ function RankingDetail() {
     Taro.navigateBack()
   }
 
+  const motionGamePath = leaderboard?.type === 'motion_game_pullup'
+    ? '/toolbox/pullup-rush/index'
+    : leaderboard?.type === 'motion_game_pushup'
+      ? '/toolbox/pushup-dash/index'
+      : ''
+
   if (loading && !leaderboard) {
     return (
       <View className={`ranking-detail-page theme-${effectiveTheme}`}>
@@ -136,13 +142,21 @@ function RankingDetail() {
     <View className={`ranking-detail-page theme-${effectiveTheme}`}>
       <LeaderboardHeader
         title={leaderboard.title}
-        description="月度排行榜挑战赛"
+        description={leaderboard.description || 'CoachLink 实时排行榜挑战赛'}
         startAt={leaderboard.start_at}
         endAt={leaderboard.end_at}
         recordCount={total}
         ownerName={leaderboard.initiator || '教链'}
         needReview={leaderboard.needReview}
-        onJoinClick={() => setShowDialog(true)}
+        actionLabel={motionGamePath ? '开始挑战' : '提交记录'}
+        automatic={Boolean(motionGamePath)}
+        onJoinClick={() => {
+          if (motionGamePath) {
+            Taro.navigateTo({ url: motionGamePath })
+          } else {
+            setShowDialog(true)
+          }
+        }}
       />
 
       <ActivityInfo description={leaderboard.description} rules={leaderboard.rules || []} />
@@ -155,18 +169,20 @@ function RankingDetail() {
 
       <ActivityNotice notice={leaderboard.remarks} />
 
-      <SubmissionDialog
-        visible={showDialog}
-        onHide={() => setShowDialog(false)}
-        onSuccess={() => {
-          setShowDialog(false)
-          loadData()
-        }}
-        templateId={templateId}
-        formSchema={leaderboard.form_schema || []}
-        rankByField={leaderboard.rank_by_field}
-        needReview={leaderboard.needReview}
-      />
+      {!motionGamePath ? (
+        <SubmissionDialog
+          visible={showDialog}
+          onHide={() => setShowDialog(false)}
+          onSuccess={() => {
+            setShowDialog(false)
+            loadData()
+          }}
+          templateId={templateId}
+          formSchema={leaderboard.form_schema || []}
+          rankByField={leaderboard.rank_by_field}
+          needReview={leaderboard.needReview}
+        />
+      ) : null}
     </View>
   )
 }

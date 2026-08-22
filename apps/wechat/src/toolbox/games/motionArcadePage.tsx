@@ -15,8 +15,15 @@ import {
 } from './arcadeFeedback'
 import { MotionArcadeReplayRecorder, type ArcadeReplayItem } from './arcadeReplayRecorder'
 import type { MotionArcadeGameConfig } from './gameConfigs'
-import { BodyPointTracker } from './bodyPointTracker'
-import { projectCameraPointToStage, USER_FACING_CAMERA } from '../cameraTracking'
+import {
+  BodyPointTracker,
+  type BodyTrackingRuntimeState
+} from './bodyPointTracker'
+import {
+  projectCameraPointToStage,
+  projectHeadAnchorToStage,
+  USER_FACING_CAMERA
+} from '../cameraTracking'
 
 type GameStatus = 'idle' | 'playing' | 'ended'
 
@@ -42,12 +49,22 @@ type MotionSnapshot = {
   y: number
 }
 
+type HeadLockState = {
+  estimated: boolean
+  radiusX: number
+  radiusY: number
+  visible: boolean
+  x: number
+  y: number
+}
+
 const GAME_DURATION_MS = 30000
 const GAME_TICK_MS = 32
 const PLAYER_SIZE = 0.09
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
 const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
+const TRACKING_UI_INTERVAL_MS = 96
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -126,6 +143,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     const lastReplayCaptureAtRef = useRef(0)
     const bestScoreRef = useRef(0)
     const itemsRef = useRef<MotionItem[]>([])
+    const gameStatusRef = useRef<GameStatus>('idle')
     const gameStartedAtRef = useRef(0)
     const nextItemIdRef = useRef(1)
     const isRecordingRef = useRef(false)
@@ -136,6 +154,11 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
     const scoreRef = useRef(0)
     const timeLeftMsRef = useRef(GAME_DURATION_MS)
+    const headLockVisibleRef = useRef(false)
+    const lastTrackingUiAtRef = useRef(0)
+    const trackingActiveRef = useRef(config.trackingAnchor !== 'head')
+    const trackingLockedRef = useRef(config.trackingAnchor !== 'head')
+    const trackingPausedAtRef = useRef(0)
 
     const [gameStatus, setGameStatus] = useState<GameStatus>('idle')
     const [cameraError, setCameraError] = useState('')
@@ -146,6 +169,17 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     const [playerPosition, setPlayerPosition] = useState({ x: 0.5, y: 0.78 })
     const [motionEnergy, setMotionEnergy] = useState(0)
     const [trackingLocked, setTrackingLocked] = useState(config.trackingAnchor !== 'head')
+    const [trackingActive, setTrackingActive] = useState(config.trackingAnchor !== 'head')
+    const [trackingRuntimeState, setTrackingRuntimeState] = useState<BodyTrackingRuntimeState>('initializing')
+    const [trackingRuntimeDetail, setTrackingRuntimeDetail] = useState('正在启动头部识别')
+    const [headLock, setHeadLock] = useState<HeadLockState>({
+      estimated: false,
+      radiusX: 0.08,
+      radiusY: 0.1,
+      visible: false,
+      x: 0.5,
+      y: 0.28
+    })
     const [items, setItems] = useState<MotionItem[]>([])
     const [recording, setRecording] = useState(false)
     const [replayProcessing, setReplayProcessing] = useState(false)
@@ -190,17 +224,88 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     }, [timeLeftMs])
 
     useEffect(() => {
+      gameStatusRef.current = gameStatus
+    }, [gameStatus])
+
+    useEffect(() => {
       const context = Taro.createCameraContext()
       cameraContextRef.current = context
+      let stopped = false
+      const updateTrackingActivity = (active: boolean) => {
+        if (trackingActiveRef.current === active) return
+        const now = Date.now()
+        if (!active && gameStatusRef.current === 'playing' && !trackingPausedAtRef.current) {
+          trackingPausedAtRef.current = now
+        } else if (active && trackingPausedAtRef.current) {
+          gameStartedAtRef.current += now - trackingPausedAtRef.current
+          trackingPausedAtRef.current = 0
+        }
+        trackingActiveRef.current = active
+        setTrackingActive(active)
+      }
       const tracker = new BodyPointTracker({
-        anchor: config.trackingAnchor,
-        onLockChange: setTrackingLocked,
+        anchorMode: config.trackingAnchor === 'head' ? 'head' : 'auto',
+        onLockChange: (locked) => {
+          trackingLockedRef.current = locked
+          setTrackingLocked(locked)
+          if (!locked) {
+            updateTrackingActivity(false)
+            setHeadLock((previous) => ({ ...previous, visible: false }))
+          }
+        },
+        onRuntimeStateChange: (state, detail) => {
+          if (stopped) return
+          setTrackingRuntimeState(state)
+          setTrackingRuntimeDetail(detail)
+        },
         onSnapshot: (snapshot) => {
+          if (stopped) return
+          const now = Date.now()
           const projected = projectCameraPointToStage(
             snapshot,
             { width: snapshot.frameWidth, height: snapshot.frameHeight },
             cameraStageSizeRef.current
           )
+
+          if (config.trackingAnchor === 'head') {
+            const active = snapshot.locked && snapshot.lockState === 'locked'
+            updateTrackingActivity(active)
+            if (active) {
+              motionRef.current = {
+                energy: snapshot.energy,
+                x: projected.x,
+                y: projected.y
+              }
+            }
+
+            const headLocked = snapshot.locked
+            if (
+              now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
+              || headLocked !== headLockVisibleRef.current
+            ) {
+              const frameSize = { width: snapshot.frameWidth, height: snapshot.frameHeight }
+              const projectedHead = headLocked
+                ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
+                : null
+              lastTrackingUiAtRef.current = now
+              headLockVisibleRef.current = headLocked
+              setMotionEnergy(active ? snapshot.energy : 0)
+              if (projectedHead) {
+                setHeadLock({
+                  estimated: snapshot.lockState === 'holding' || snapshot.target === 'head-estimate',
+                  radiusX: projectedHead.radiusX,
+                  radiusY: projectedHead.radiusY,
+                  visible: true,
+                  x: projectedHead.x,
+                  y: projectedHead.y
+                })
+              } else {
+                setHeadLock((previous) => ({ ...previous, visible: false }))
+              }
+            }
+            return
+          }
+
           motionRef.current = {
             energy: snapshot.energy,
             x: projected.x,
@@ -209,8 +314,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
           setMotionEnergy(snapshot.energy)
         }
       })
-
-      let stopped = false
 
       const startFrameStream = () => {
         try {
@@ -285,7 +388,9 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
       if (gameStatus !== 'playing') return
 
       const timer = setInterval(() => {
-        const elapsed = Date.now() - gameStartedAtRef.current
+        const now = Date.now()
+        if (config.trackingAnchor === 'head' && !trackingActiveRef.current) return
+        const elapsed = now - gameStartedAtRef.current
         const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
         const motion = motionRef.current
         const targetX = clamp(motion.x, 0.08, 0.92)
@@ -357,6 +462,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
         if (nextTimeLeft <= 0) {
           clearInterval(timer)
           setGameStatus('ended')
+          gameStatusRef.current = 'ended'
           setItems([])
           itemsRef.current = []
           if (isRecordingRef.current) {
@@ -519,6 +625,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
       nextItemIdRef.current = 1
       motionRef.current = { energy: 0, x: 0.5, y: 0.72 }
       setMotionEnergy(0)
+      trackingPausedAtRef.current = 0
       const resetPlayer = { x: 0.5, y: 0.78 }
       playerPositionRef.current = resetPlayer
       setPlayerPosition(resetPlayer)
@@ -529,6 +636,13 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
         Taro.showToast({ title: '当前设备暂不支持试玩', icon: 'none' })
         return
       }
+      if (
+        config.trackingAnchor === 'head'
+        && (!trackingLockedRef.current || !trackingActiveRef.current)
+      ) {
+        Taro.showToast({ title: '请先让脸进入画面并等待锁定', icon: 'none' })
+        return
+      }
       if (replayProcessing) {
         Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
         return
@@ -536,6 +650,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
       resetForNewGame()
       setRecordedVideo(null)
       setGameStatus('playing')
+      gameStatusRef.current = 'playing'
       gameStartedAtRef.current = Date.now()
       if (withRecording) {
         void beginRecording()
@@ -653,6 +768,20 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                     </Text>
                   </View>
 
+                  {config.trackingAnchor === 'head' && headLock.visible ? (
+                    <View
+                      className={`head-lock-indicator ${headLock.estimated ? 'head-lock-indicator--estimated' : ''}`}
+                      style={{
+                        height: `${clamp(headLock.radiusY * 2, 0.12, 0.3) * 100}%`,
+                        left: `${headLock.x * 100}%`,
+                        top: `${headLock.y * 100}%`,
+                        width: `${clamp(headLock.radiusX * 2, 0.1, 0.24) * 100}%`
+                      }}
+                    >
+                      <Text className='head-lock-label'>已锁定</Text>
+                    </View>
+                  ) : null}
+
                   {items.map((item) => (
                     <View
                       key={item.id}
@@ -690,6 +819,44 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                       <Text className='stage-note-desc'>请允许使用相机。</Text>
                     </View>
                   ) : null}
+
+                  {cameraReady
+                    && !cameraError
+                    && config.trackingAnchor === 'head'
+                    && trackingRuntimeState === 'unavailable' ? (
+                      <View className='stage-error'>
+                        <Text className='stage-note-title'>当前设备无法启动头部识别</Text>
+                        <Text className='stage-note-desc'>{trackingRuntimeDetail}</Text>
+                      </View>
+                    ) : null}
+
+                  {cameraReady
+                    && !cameraError
+                    && config.trackingAnchor === 'head'
+                    && trackingRuntimeState !== 'unavailable'
+                    && !trackingLocked ? (
+                      <View className='stage-note'>
+                        <Text className='stage-note-title'>
+                          {trackingRuntimeState === 'initializing' ? '正在启动头部识别' : '请让脸完整进入画面'}
+                        </Text>
+                        <Text className='stage-note-desc'>
+                          {trackingRuntimeState === 'initializing'
+                            ? trackingRuntimeDetail
+                            : '只需脸部出镜，无需全身出镜；稳定识别后绿色框会跟随头部。'}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                  {cameraReady
+                    && !cameraError
+                    && config.trackingAnchor === 'head'
+                    && trackingLocked
+                    && !trackingActive ? (
+                      <View className='stage-note'>
+                        <Text className='stage-note-title'>头部暂时丢失，游戏已暂停</Text>
+                        <Text className='stage-note-desc'>回到原锁定区域后会自动继续；离开过久则重新锁定。</Text>
+                      </View>
+                    ) : null}
 
                   {cameraError ? (
                     <View className='stage-error'>
@@ -738,9 +905,13 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
 
                 <View className='controls-grid'>
                   <View
-                    className={`btn-primary ${cameraError || replayProcessing ? 'disabled' : ''}`}
+                    className={`btn-primary ${cameraError || replayProcessing || (config.trackingAnchor === 'head' && !trackingActive) ? 'disabled' : ''}`}
                     onClick={() => {
-                      if (!cameraError && !replayProcessing) startGame(false)
+                      if (
+                        !cameraError
+                        && !replayProcessing
+                        && (config.trackingAnchor !== 'head' || trackingActive)
+                      ) startGame(false)
                     }}
                   >
                     <Text className='btn-primary-text'>
@@ -749,9 +920,13 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                   </View>
 
                   <View
-                    className={`btn-secondary ${cameraError || replayProcessing ? 'disabled' : ''}`}
+                    className={`btn-secondary ${cameraError || replayProcessing || (config.trackingAnchor === 'head' && !trackingActive) ? 'disabled' : ''}`}
                     onClick={() => {
-                      if (!cameraError && !replayProcessing) startGame(true)
+                      if (
+                        !cameraError
+                        && !replayProcessing
+                        && (config.trackingAnchor !== 'head' || trackingActive)
+                      ) startGame(true)
                     }}
                   >
                     <Text className='btn-secondary-text'>开始试玩并录回放</Text>

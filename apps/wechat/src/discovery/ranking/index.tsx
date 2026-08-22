@@ -62,6 +62,9 @@ function RankingIndex() {
 
   function getIcon(type: string | null) {
     switch (type) {
+      case 'motion_game_pullup':
+      case 'motion_game_pushup':
+        return Zap
       case 'time':
         return Target
       case 'weight':

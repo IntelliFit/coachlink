@@ -14,29 +14,41 @@ import {
   type ArcadeFeedback,
   vibrateForArcadeFeedback
 } from '../games/arcadeFeedback'
-import { BodyPointTracker } from '../games/bodyPointTracker'
 import {
-  projectCameraPointToStage,
+  BodyPointTracker,
+  type BodyTrackingRuntimeState
+} from '../games/bodyPointTracker'
+import {
+  getHeadCompanionMetrics,
+  headCompanionHitsRect,
+  placeCompanionBesideHead,
   projectHeadAnchorToStage,
   USER_FACING_CAMERA
 } from '../cameraTracking'
+import MotionGameResultPanel from '../games/MotionGameResultPanel'
+import {
+  MOTION_GAME_TEMPLATE_IDS,
+  motionGameLeaderboardService,
+  type MotionGameRankingResult
+} from '@/services/motionGameLeaderboardService'
+import {
+  applyCloudMotionGameResult,
+  markMotionGameRunLocalOnly,
+  persistMotionGameRunLocally
+} from '@/utils/motionGameLeaderboardCache'
 import '../games/motionArcade.scss'
 import './index.scss'
 
 type DashWall = {
-  height: number
+  gapHeight: number
+  gapY: number
   id: number
+  passed: boolean
   width: number
   x: number
 }
 
 type GameStatus = 'idle' | 'playing' | 'ended'
-
-type MotionSnapshot = {
-  energy: number
-  x: number
-  y: number
-}
 
 type HeadLockState = {
   estimated: boolean
@@ -55,17 +67,14 @@ type RecordedVideo = {
 
 type RepPhase = 'down' | 'idle' | 'up'
 
-const GAME_DURATION_MS = 30000
 const GAME_TICK_MS = 32
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
 const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
-const PLAYER_X = 0.24
 const WALL_SPEED = 0.012
-const WALL_SPAWN_MS = 1100
+const WALL_SPAWN_MS = 1180
 const DASH_DURATION_MS = 720
-const DASH_COLLISION_WINDOW_MS = 820
-const TRACKING_UI_INTERVAL_MS = 96
+const TRACKING_UI_INTERVAL_MS = 64
 const MAX_LIVES = 3
 
 function clamp(value: number, min: number, max: number) {
@@ -73,7 +82,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function formatSeconds(ms: number) {
-  return Math.max(0, Math.ceil(ms / 1000))
+  return Math.max(0, Math.floor(ms / 1000))
 }
 
 function formatPercent(value: number) {
@@ -82,9 +91,11 @@ function formatPercent(value: number) {
 
 function buildWall(id: number): DashWall {
   return {
-    height: 0.22 + Math.random() * 0.08,
+    gapHeight: 0.3 + Math.random() * 0.06,
+    gapY: 0.22 + Math.random() * 0.32,
     id,
-    width: 0.12,
+    passed: false,
+    width: 0.16,
     x: 1.08
   }
 }
@@ -95,20 +106,18 @@ export default function PushupDashPage() {
   const replayRecorderRef = useRef<MotionArcadeReplayRecorder | null>(null)
   const frameListenerRef = useRef<any>(null)
   const lastReplayCaptureAtRef = useRef(0)
-  const motionRef = useRef<MotionSnapshot>({ energy: 0, x: 0.5, y: 0.7 })
   const repPhaseRef = useRef<RepPhase>('idle')
   const repStartedAtRef = useRef(0)
   const repDownYRef = useRef(0)
   const gameStatusRef = useRef<GameStatus>('idle')
-  const dashActiveRef = useRef(false)
   const dashUntilRef = useRef(0)
-  const dashAvailableUntilRef = useRef(0)
   const wallsRef = useRef<DashWall[]>([])
   const nextWallIdRef = useRef(1)
   const lastWallSpawnAtRef = useRef(0)
   const isRecordingRef = useRef(false)
   const feedbackIdRef = useRef(0)
   const cameraStageSizeRef = useRef({ width: 0, height: 0 })
+  const companionMetricsRef = useRef(getHeadCompanionMetrics(cameraStageSizeRef.current, 0))
   const lastTrackingUiAtRef = useRef(0)
   const headLockVisibleRef = useRef(false)
   const trackingLockedRef = useRef(false)
@@ -116,19 +125,27 @@ export default function PushupDashPage() {
   const trackingPausedAtRef = useRef(0)
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const scoreRef = useRef(0)
-  const timeLeftMsRef = useRef(GAME_DURATION_MS)
+  const elapsedMsRef = useRef(0)
+  const repCountRef = useRef(0)
   const bestScoreRef = useRef(0)
   const livesRef = useRef(MAX_LIVES)
   const gameStartedAtRef = useRef(0)
+  const gameWallStartedAtRef = useRef(0)
+  const gameSessionIdRef = useRef<string | null>(null)
+  const gameRoundRef = useRef(0)
+  const roundSyncStartedRef = useRef(false)
+  const gameStartingRef = useRef(false)
+  const playerPositionRef = useRef({ x: 0.32, y: 0.52 })
 
   const [gameStatus, setGameStatus] = useState<GameStatus>('idle')
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [motionEnergy, setMotionEnergy] = useState(0)
   const [dashActive, setDashActive] = useState(false)
+  const [playerPosition, setPlayerPosition] = useState({ x: 0.32, y: 0.52 })
   const [score, setScore] = useState(0)
   const [bestScore, setBestScore] = useState(0)
-  const [timeLeftMs, setTimeLeftMs] = useState(GAME_DURATION_MS)
+  const [elapsedMs, setElapsedMs] = useState(0)
   const [recording, setRecording] = useState(false)
   const [replayProcessing, setReplayProcessing] = useState(false)
   const [videoSaving, setVideoSaving] = useState(false)
@@ -136,10 +153,14 @@ export default function PushupDashPage() {
   const [walls, setWalls] = useState<DashWall[]>([])
   const [lives, setLives] = useState(MAX_LIVES)
   const [repCount, setRepCount] = useState(0)
+  const [rankingResult, setRankingResult] = useState<MotionGameRankingResult | null>(null)
+  const [rankingSyncState, setRankingSyncState] = useState<'idle' | 'syncing' | 'synced' | 'local-only'>('idle')
   const [phaseLabel, setPhaseLabel] = useState('等待下压')
   const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
   const [trackingLocked, setTrackingLocked] = useState(false)
   const [trackingActive, setTrackingActive] = useState(false)
+  const [trackingRuntimeState, setTrackingRuntimeState] = useState<BodyTrackingRuntimeState>('initializing')
+  const [trackingRuntimeDetail, setTrackingRuntimeDetail] = useState('正在启动头部识别')
   const [headLock, setHeadLock] = useState<HeadLockState>({
     estimated: false,
     radiusX: 0.08,
@@ -174,8 +195,8 @@ export default function PushupDashPage() {
   }, [score])
 
   useEffect(() => {
-    timeLeftMsRef.current = timeLeftMs
-  }, [timeLeftMs])
+    elapsedMsRef.current = elapsedMs
+  }, [elapsedMs])
 
   useEffect(() => {
     bestScoreRef.current = bestScore
@@ -189,16 +210,15 @@ export default function PushupDashPage() {
     gameStatusRef.current = gameStatus
   }, [gameStatus])
 
-  useEffect(() => {
-    dashActiveRef.current = dashActive
-  }, [dashActive])
-
   const beginDashFromRep = () => {
     const now = Date.now()
     dashUntilRef.current = now + DASH_DURATION_MS
-    dashAvailableUntilRef.current = now + DASH_COLLISION_WINDOW_MS
     setDashActive(true)
-    setRepCount((prevCount) => prevCount + 1)
+    setRepCount((prevCount) => {
+      const nextCount = prevCount + 1
+      repCountRef.current = nextCount
+      return nextCount
+    })
     setFeedback({
       id: ++feedbackIdRef.current,
       text: '完整动作，推进！',
@@ -221,7 +241,6 @@ export default function PushupDashPage() {
         lastWallSpawnAtRef.current += pausedFor
         if (repStartedAtRef.current) repStartedAtRef.current += pausedFor
         if (dashUntilRef.current) dashUntilRef.current += pausedFor
-        if (dashAvailableUntilRef.current) dashAvailableUntilRef.current += pausedFor
         trackingPausedAtRef.current = 0
       }
       trackingActiveRef.current = active
@@ -239,33 +258,36 @@ export default function PushupDashPage() {
           setHeadLock((previous) => ({ ...previous, visible: false }))
         }
       },
+      onRuntimeStateChange: (state, detail) => {
+        setTrackingRuntimeState(state)
+        setTrackingRuntimeDetail(detail)
+      },
       onSnapshot: (snapshot) => {
         const now = Date.now()
         updateTrackingActivity(snapshot.locked && snapshot.lockState === 'locked')
         const frameSize = { width: snapshot.frameWidth, height: snapshot.frameHeight }
-        const projected = projectCameraPointToStage(
-          snapshot,
-          frameSize,
-          cameraStageSizeRef.current
-        )
-        motionRef.current = {
-          energy: snapshot.energy,
-          x: projected.x,
-          y: projected.y
-        }
-
         const headLocked = snapshot.locked
+        const projectedHead = headLocked
+          ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
+          : null
+        if (projectedHead && snapshot.lockState === 'locked') {
+          const metrics = companionMetricsRef.current
+          playerPositionRef.current = placeCompanionBesideHead(projectedHead, {
+            halfHeight: metrics.visualHalfHeight,
+            halfWidth: metrics.visualHalfWidth
+          })
+        }
         if (
           now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
           || headLocked !== headLockVisibleRef.current
         ) {
-          const projectedHead = headLocked
-            ? projectHeadAnchorToStage(snapshot, frameSize, cameraStageSizeRef.current)
-            : null
           lastTrackingUiAtRef.current = now
           headLockVisibleRef.current = headLocked
           setMotionEnergy(snapshot.energy)
           if (projectedHead) {
+            if (snapshot.lockState === 'locked') {
+              setPlayerPosition(playerPositionRef.current)
+            }
             setHeadLock({
               estimated: snapshot.lockState === 'holding' || snapshot.target === 'head-estimate',
               radiusX: projectedHead.radiusX,
@@ -340,15 +362,31 @@ export default function PushupDashPage() {
           ) {
             lastReplayCaptureAtRef.current = now
             const rgba = new Uint8Array(data)
-            const replayItems: ArcadeReplayItem[] = wallsRef.current.map((wall) => ({
-              height: wall.height,
-              shape: 'rect',
-              size: wall.height,
-              type: 'bad',
-              width: wall.width,
-              x: wall.x,
-              y: 1 - wall.height / 2
-            }))
+            const replayItems: ArcadeReplayItem[] = wallsRef.current.flatMap((wall) => {
+              const topHeight = wall.gapY
+              const bottomStart = wall.gapY + wall.gapHeight
+              const bottomHeight = Math.max(0, 1 - bottomStart)
+              return [
+                {
+                  height: topHeight,
+                  shape: 'rect',
+                  size: topHeight,
+                  type: 'bad',
+                  width: wall.width,
+                  x: wall.x,
+                  y: topHeight / 2
+                },
+                {
+                  height: bottomHeight,
+                  shape: 'rect',
+                  size: bottomHeight,
+                  type: 'bad',
+                  width: wall.width,
+                  x: wall.x,
+                  y: bottomStart + bottomHeight / 2
+                }
+              ]
+            })
 
             replayRecorderRef.current?.captureFrame({
               frameBuffer: new Uint8ClampedArray(rgba),
@@ -356,12 +394,13 @@ export default function PushupDashPage() {
               frameWidth: width,
               items: replayItems,
               player: {
-                x: dashActiveRef.current ? PLAYER_X + 0.08 : PLAYER_X,
-                y: 0.78
+                x: playerPositionRef.current.x,
+                y: playerPositionRef.current.y
               },
               replayFooterLabel: '俯卧撑突围回放',
               score: scoreRef.current,
-              timeLeftMs: timeLeftMsRef.current,
+              timerMode: 'elapsed',
+              timeLeftMs: elapsedMsRef.current,
               visualKey: 'pushup'
             })
           }
@@ -397,9 +436,70 @@ export default function PushupDashPage() {
     }
   }, [])
 
+  const syncFinishedRound = async () => {
+    if (roundSyncStartedRef.current) return
+    roundSyncStartedRef.current = true
+
+    const roundId = gameRoundRef.current
+    const sessionId = gameSessionIdRef.current
+    const score = scoreRef.current
+    const elapsedMs = elapsedMsRef.current
+    const actionCount = repCountRef.current
+    const wallElapsedMs = Math.max(1, Date.now() - gameWallStartedAtRef.current)
+    const lockRatio = Math.min(1, Math.max(0, elapsedMs / wallElapsedMs))
+    let userId = ''
+    try {
+      userId = String(Taro.getStorageSync('user')?.id || '')
+    } catch {
+      // The result still remains visible even if local storage is unavailable.
+    }
+
+    const localRunId = userId
+      ? persistMotionGameRunLocally(userId, {
+          sessionId,
+          gameKey: 'pushup-dash',
+          score,
+          elapsedMs,
+          actionCount,
+          lockRatio,
+          finishedAt: Date.now()
+        })
+      : ''
+
+    if (!sessionId) {
+      if (roundId === gameRoundRef.current) setRankingSyncState('local-only')
+      return
+    }
+
+    if (roundId === gameRoundRef.current) setRankingSyncState('syncing')
+    const result = await motionGameLeaderboardService.finishSession({
+      sessionId,
+      gameKey: 'pushup-dash',
+      score,
+      elapsedMs,
+      actionCount,
+      lockRatio
+    })
+
+    if (result) {
+      if (userId && localRunId) applyCloudMotionGameResult(userId, localRunId, result)
+      if (roundId === gameRoundRef.current) {
+        setRankingResult(result)
+        setRankingSyncState('synced')
+        setBestScore(result.bestScore)
+        bestScoreRef.current = result.bestScore
+      }
+      return
+    }
+
+    if (userId && localRunId) markMotionGameRunLocalOnly(userId, localRunId)
+    if (roundId === gameRoundRef.current) setRankingSyncState('local-only')
+  }
+
   const endRound = () => {
     gameStatusRef.current = 'ended'
     setGameStatus('ended')
+    void syncFinishedRound()
     if (isRecordingRef.current) {
       void stopRecording()
     }
@@ -408,83 +508,108 @@ export default function PushupDashPage() {
   useEffect(() => {
     if (gameStatus !== 'playing') return
 
+    void Taro.setKeepScreenOn({ keepScreenOn: true }).catch(() => undefined)
+    return () => {
+      void Taro.setKeepScreenOn({ keepScreenOn: false }).catch(() => undefined)
+    }
+  }, [gameStatus])
+
+  useEffect(() => {
+    if (gameStatus !== 'playing') return
+
     const timer = setInterval(() => {
       const now = Date.now()
       if (!trackingActiveRef.current) return
       const elapsed = now - gameStartedAtRef.current
-      const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
-      setTimeLeftMs(nextTimeLeft)
+      setElapsedMs(elapsed)
+      elapsedMsRef.current = elapsed
 
       const nextDashActive = now <= dashUntilRef.current
       setDashActive(nextDashActive)
+      const currentPlayer = playerPositionRef.current
+      const metrics = companionMetricsRef.current
+      let nextWalls = wallsRef.current
+        .map((wall) => ({ ...wall, x: wall.x - WALL_SPEED }))
+        .filter((wall) => wall.x + wall.width / 2 > -0.16)
 
-      setWalls((prevWalls) => {
-        let nextWalls = prevWalls.map((wall) => ({
-          ...wall,
-          x: wall.x - WALL_SPEED
-        }))
-
-        if (now - lastWallSpawnAtRef.current >= WALL_SPAWN_MS) {
-          nextWalls = [...nextWalls, buildWall(nextWallIdRef.current++)]
-          lastWallSpawnAtRef.current = now
-        }
-
-        const remainingWalls: DashWall[] = []
-        for (const wall of nextWalls) {
-          const collisionPoint = nextDashActive ? PLAYER_X + 0.12 : PLAYER_X + 0.04
-          const hitWindowStart = wall.x - wall.width / 2
-          if (hitWindowStart <= collisionPoint && wall.x + wall.width / 2 >= PLAYER_X - 0.02) {
-            if (now <= dashAvailableUntilRef.current) {
-              setFeedback({
-                id: ++feedbackIdRef.current,
-                text: '+1 顶开障碍',
-                tone: 'good'
-              })
-              vibrateForArcadeFeedback('good')
-              setScore((prevScore) => {
-                const nextScore = prevScore + 1
-                if (nextScore > bestScoreRef.current) {
-                  bestScoreRef.current = nextScore
-                  setBestScore(nextScore)
-                }
-                return nextScore
-              })
-              dashAvailableUntilRef.current = 0
-              dashUntilRef.current = now
-              setDashActive(false)
-              continue
-            }
-
-            const nextLives = Math.max(0, livesRef.current - 1)
-            setFeedback({
-              id: ++feedbackIdRef.current,
-              text: '撞墙 -1 命',
-              tone: 'bad'
-            })
-            vibrateForArcadeFeedback('bad')
-            setLives(nextLives)
-            livesRef.current = nextLives
-            if (nextLives <= 0) {
-              setTimeout(() => {
-                endRound()
-              }, 0)
-            }
-            continue
-          }
-
-          if (wall.x + wall.width / 2 > -0.16) {
-            remainingWalls.push(wall)
-          }
-        }
-
-        wallsRef.current = remainingWalls
-        return remainingWalls
-      })
-
-      if (nextTimeLeft <= 0) {
-        clearInterval(timer)
-        endRound()
+      if (now - lastWallSpawnAtRef.current >= WALL_SPAWN_MS) {
+        nextWalls = [...nextWalls, buildWall(nextWallIdRef.current++)]
+        lastWallSpawnAtRef.current = now
       }
+
+      let collidedWallId: number | null = null
+      let passedCount = 0
+      const outsideStage =
+        currentPlayer.y - metrics.hitboxHalfHeight <= 0
+        || currentPlayer.y + metrics.hitboxHalfHeight >= 1
+
+      for (const wall of nextWalls) {
+        const topHeight = wall.gapY
+        const bottomStart = wall.gapY + wall.gapHeight
+        if (
+          headCompanionHitsRect(currentPlayer, metrics, {
+            height: topHeight,
+            width: wall.width,
+            x: wall.x,
+            y: topHeight / 2
+          })
+          || headCompanionHitsRect(currentPlayer, metrics, {
+            height: 1 - bottomStart,
+            width: wall.width,
+            x: wall.x,
+            y: bottomStart + (1 - bottomStart) / 2
+          })
+        ) {
+          collidedWallId = wall.id
+          break
+        }
+
+        if (!wall.passed && wall.x + wall.width / 2 < currentPlayer.x) {
+          wall.passed = true
+          passedCount += 1
+        }
+      }
+
+      if (outsideStage || collidedWallId !== null) {
+        const nextLives = Math.max(0, livesRef.current - 1)
+        nextWalls = outsideStage
+          ? []
+          : nextWalls.filter((wall) => wall.id !== collidedWallId)
+        wallsRef.current = nextWalls
+        setWalls(nextWalls)
+        setFeedback({
+          id: ++feedbackIdRef.current,
+          text: outsideStage ? '小鸟触边 -1 命' : '小鸟撞管道 -1 命',
+          tone: 'bad'
+        })
+        vibrateForArcadeFeedback('bad')
+        setLives(nextLives)
+        livesRef.current = nextLives
+        if (nextLives <= 0) {
+          clearInterval(timer)
+          endRound()
+        }
+        return
+      }
+
+      if (passedCount > 0) {
+        const nextScore = scoreRef.current + passedCount
+        scoreRef.current = nextScore
+        setScore(nextScore)
+        if (nextScore > bestScoreRef.current) {
+          bestScoreRef.current = nextScore
+          setBestScore(nextScore)
+        }
+        setFeedback({
+          id: ++feedbackIdRef.current,
+          text: `+${passedCount} 穿越`,
+          tone: 'good'
+        })
+        vibrateForArcadeFeedback('good')
+      }
+
+      wallsRef.current = nextWalls
+      setWalls(nextWalls)
     }, GAME_TICK_MS)
 
     return () => clearInterval(timer)
@@ -617,30 +742,31 @@ export default function PushupDashPage() {
   const resetForNewGame = () => {
     setScore(0)
     scoreRef.current = 0
-    setTimeLeftMs(GAME_DURATION_MS)
-    timeLeftMsRef.current = GAME_DURATION_MS
+    setElapsedMs(0)
+    elapsedMsRef.current = 0
     setWalls([])
     wallsRef.current = []
     nextWallIdRef.current = 1
     setRepCount(0)
+    repCountRef.current = 0
+    setRankingResult(null)
+    setRankingSyncState('idle')
+    roundSyncStartedRef.current = false
     setFeedback(null)
     lastReplayCaptureAtRef.current = 0
     setLives(MAX_LIVES)
     livesRef.current = MAX_LIVES
     dashUntilRef.current = 0
-    dashAvailableUntilRef.current = 0
     setDashActive(false)
-    dashActiveRef.current = false
     repPhaseRef.current = 'idle'
     repDownYRef.current = 0
     setPhaseLabel('等待下压')
-    motionRef.current = { energy: 0, x: 0.5, y: 0.7 }
     setMotionEnergy(0)
     trackingPausedAtRef.current = 0
     lastWallSpawnAtRef.current = Date.now()
   }
 
-  const startGame = (withRecording: boolean) => {
+  const startGame = async (withRecording: boolean) => {
     if (cameraError) {
       Taro.showToast({ title: '当前设备暂不支持试玩', icon: 'none' })
       return
@@ -653,13 +779,32 @@ export default function PushupDashPage() {
       Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
       return
     }
+    if (gameStartingRef.current) return
+    gameStartingRef.current = true
+    gameRoundRef.current += 1
     resetForNewGame()
     setRecordedVideo(null)
-    setGameStatus('playing')
-    gameStatusRef.current = 'playing'
-    gameStartedAtRef.current = Date.now()
-    if (withRecording) {
-      void beginRecording()
+    gameSessionIdRef.current = null
+    try {
+      const session = await motionGameLeaderboardService.startSession('pushup-dash')
+      gameSessionIdRef.current = session?.sessionId || null
+      if (session) {
+        setBestScore(session.bestScore)
+        bestScoreRef.current = session.bestScore
+      }
+      if (!session) {
+        Taro.showToast({ title: '可继续试玩，本局暂不计入在线榜', icon: 'none' })
+      }
+      const startedAt = Date.now()
+      gameWallStartedAtRef.current = startedAt
+      gameStartedAtRef.current = startedAt
+      setGameStatus('playing')
+      gameStatusRef.current = 'playing'
+      if (withRecording) {
+        void beginRecording()
+      }
+    } finally {
+      gameStartingRef.current = false
     }
   }
 
@@ -708,10 +853,11 @@ export default function PushupDashPage() {
           <View className='page-content'>
             <View className='intro-card'>
               <Text className='intro-kicker'>PUSHUP DRIVE</Text>
-              <Text className='intro-title'>完成俯卧撑，撞开障碍</Text>
+              <Text className='intro-title'>俯卧起伏，带小鸟穿过障碍</Text>
               <View className='intro-tags'>
-                <Text className='intro-tag'>下压 + 撑起</Text>
-                <Text className='intro-tag'>完整一次才推进</Text>
+                <Text className='intro-tag'>头部实时跟随</Text>
+                <Text className='intro-tag'>上下管道穿越</Text>
+                <Text className='intro-tag'>无限生存</Text>
                 <Text className='intro-tag'>支持回放</Text>
               </View>
             </View>
@@ -732,10 +878,15 @@ export default function PushupDashPage() {
                       Taro.createSelectorQuery()
                         .select('.camera-stage')
                         .boundingClientRect((rect: any) => {
-                          cameraStageSizeRef.current = {
+                          const stageSize = {
                             width: Number(rect?.width || 0),
                             height: Number(rect?.height || 0)
                           }
+                          cameraStageSizeRef.current = stageSize
+                          companionMetricsRef.current = getHeadCompanionMetrics(
+                            stageSize,
+                            Taro.getWindowInfo().windowWidth
+                          )
                         })
                         .exec()
                     })
@@ -758,8 +909,8 @@ export default function PushupDashPage() {
                 </View>
 
                 <View className='stage-objective'>
-                  <Text className='stage-objective-text'>先下压，再撑起，才会冲一次</Text>
-                  <Text className='stage-objective-text stage-objective-text--bad'>来不及顶开墙就会掉命</Text>
+                  <Text className='stage-objective-text'>上下移动头部，带小鸟穿过通道</Text>
+                  <Text className='stage-objective-text stage-objective-text--bad'>完整俯卧撑会点亮冲刺反馈</Text>
                 </View>
 
                 {headLock.visible ? (
@@ -776,30 +927,47 @@ export default function PushupDashPage() {
                   </View>
                 ) : null}
 
-                <View className='pushup-ground' />
+                {walls.map((wall) => {
+                  const topHeight = wall.gapY
+                  const bottomTop = wall.gapY + wall.gapHeight
+                  const bottomHeight = 1 - bottomTop
+                  return (
+                    <View key={wall.id}>
+                      <View
+                        className='pushup-wall'
+                        style={{
+                          height: `${topHeight * 100}%`,
+                          left: `${wall.x * 100}%`,
+                          width: `${wall.width * 100}%`,
+                          top: '0%'
+                        }}
+                      />
+                      <View
+                        className='pushup-wall pushup-wall--bottom'
+                        style={{
+                          height: `${bottomHeight * 100}%`,
+                          left: `${wall.x * 100}%`,
+                          width: `${wall.width * 100}%`,
+                          top: `${bottomTop * 100}%`
+                        }}
+                      />
+                    </View>
+                  )
+                })}
 
-                {walls.map((wall) => (
+                {headLock.visible ? (
                   <View
-                    key={wall.id}
-                    className='pushup-wall'
+                    className={`player-avatar head-bird pushup-runner ${dashActive ? 'head-bird--boost' : ''}`}
                     style={{
-                      height: `${wall.height * 100}%`,
-                      left: `${wall.x * 100}%`,
-                      width: `${wall.width * 100}%`,
-                      top: `${(1 - wall.height) * 100}%`
+                      left: `${playerPosition.x * 100}%`,
+                      top: `${playerPosition.y * 100}%`
                     }}
-                  />
-                ))}
-
-                <View
-                  className={`player-avatar pushup-runner ${dashActive ? 'pushup-runner--dash' : ''}`}
-                  style={{
-                    left: `${(dashActive ? PLAYER_X + 0.08 : PLAYER_X) * 100}%`,
-                    top: '78%'
-                  }}
-                >
-                  <View className='player-core pushup-runner-core' />
-                </View>
+                  >
+                    <View className='head-bird-wing' />
+                    <View className='head-bird-eye' />
+                    <View className='head-bird-beak' />
+                  </View>
+                ) : null}
 
                 {feedback ? (
                   <View key={feedback.id} className={`stage-feedback stage-feedback--${feedback.tone}`}>
@@ -814,10 +982,23 @@ export default function PushupDashPage() {
                   </View>
                 ) : null}
 
-                {cameraReady && !cameraError && !trackingLocked ? (
+                {cameraReady && !cameraError && trackingRuntimeState === 'unavailable' ? (
+                  <View className='stage-error'>
+                    <Text className='stage-note-title'>当前设备无法启动头部识别</Text>
+                    <Text className='stage-note-desc'>{trackingRuntimeDetail}</Text>
+                  </View>
+                ) : null}
+
+                {cameraReady && !cameraError && trackingRuntimeState !== 'unavailable' && !trackingLocked ? (
                   <View className='stage-note'>
-                    <Text className='stage-note-title'>正在锁定头部</Text>
-                    <Text className='stage-note-desc'>请让头部保持在画面内，连续识别稳定后才能开始。</Text>
+                    <Text className='stage-note-title'>
+                      {trackingRuntimeState === 'initializing' ? '正在启动头部识别' : '请让脸完整进入画面'}
+                    </Text>
+                    <Text className='stage-note-desc'>
+                      {trackingRuntimeState === 'initializing'
+                        ? trackingRuntimeDetail
+                        : '只需脸部出镜，无需全身出镜；绿色框跟随头部后即可开始。'}
+                    </Text>
                   </View>
                 ) : null}
 
@@ -842,12 +1023,12 @@ export default function PushupDashPage() {
               <Text className='section-kicker'>实时状态</Text>
               <View className='stats-grid'>
                 <View className='stat-item'>
-                  <Text className='stat-label'>顶开墙数</Text>
+                  <Text className='stat-label'>穿越通道</Text>
                   <Text className='stat-value'>{score}</Text>
                 </View>
                 <View className='stat-item'>
-                  <Text className='stat-label'>剩余秒数</Text>
-                  <Text className='stat-value'>{formatSeconds(timeLeftMs)}</Text>
+                  <Text className='stat-label'>坚持秒数</Text>
+                  <Text className='stat-value'>{formatSeconds(elapsedMs)}</Text>
                 </View>
                 <View className='stat-item'>
                   <Text className='stat-label'>历史最好</Text>
@@ -882,6 +1063,23 @@ export default function PushupDashPage() {
               </View>
             </View>
 
+            {gameStatus === 'ended' ? (
+              <MotionGameResultPanel
+                actionCount={repCount}
+                actionLabel='俯卧撑次数'
+                elapsedMs={elapsedMs}
+                ranking={rankingResult}
+                score={score}
+                syncState={rankingSyncState}
+                onReplay={() => { void startGame(false) }}
+                onViewRanking={() => {
+                  Taro.navigateTo({
+                    url: `/discovery/ranking/detail?id=${rankingResult?.templateId || MOTION_GAME_TEMPLATE_IDS['pushup-dash']}`
+                  })
+                }}
+              />
+            ) : null}
+
             <View className='controls-card'>
               <Text className='section-kicker'>控制台</Text>
 
@@ -889,7 +1087,7 @@ export default function PushupDashPage() {
                 <View
                   className={`btn-primary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) startGame(false)
+                    if (!cameraError && !replayProcessing && trackingActive) void startGame(false)
                   }}
                 >
                   <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
@@ -898,7 +1096,7 @@ export default function PushupDashPage() {
                 <View
                   className={`btn-secondary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) startGame(true)
+                    if (!cameraError && !replayProcessing && trackingActive) void startGame(true)
                   }}
                 >
                   <Text className='btn-secondary-text'>开始试玩并录回放</Text>

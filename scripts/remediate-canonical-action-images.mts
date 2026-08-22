@@ -9,10 +9,12 @@ type Mapping = {
   local_path?: string;
   source_url?: string;
   source_name?: string;
+  clear?: boolean;
 };
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(?:([A-Za-z]:))/, "$1")), "..");
 const execute = process.argv.includes("--execute");
+const overwrite = process.argv.includes("--overwrite");
 const mappingArg = process.argv.find((value) => value.startsWith("--mapping="))?.slice(10);
 const reportArg = process.argv.find((value) => value.startsWith("--report="))?.slice(9);
 if (!mappingArg) throw new Error("缺少 --mapping=<json>");
@@ -33,7 +35,8 @@ async function main() {
   const mappings = JSON.parse(readFileSync(mappingPath, "utf8")) as Mapping[];
   const ids = new Set<string>();
   for (const item of mappings) {
-    if (!item.target_id || !item.target_name || Boolean(item.local_path) === Boolean(item.source_url)) {
+    const sourceCount = Number(Boolean(item.local_path)) + Number(Boolean(item.source_url)) + Number(Boolean(item.clear));
+    if (!item.target_id || !item.target_name || sourceCount !== 1) {
       throw new Error(`无效映射：${JSON.stringify(item)}`);
     }
     if (ids.has(item.target_id)) throw new Error(`重复 target_id：${item.target_id}`);
@@ -57,11 +60,11 @@ async function main() {
     const current: any = byId.get(item.target_id);
     if (!current) throw new Error(`目标不存在：${item.target_id}`);
     if (current.name !== item.target_name) throw new Error(`目标名称不一致：${item.target_id} 数据库=${current.name} 映射=${item.target_name}`);
-    if (!(current.reference_image_url || "").includes("/fallback-reference-card.png")) {
+    if (!overwrite && !(current.reference_image_url || "").includes("/fallback-reference-card.png")) {
       results.push({ ...item, status: "skipped_not_fallback", previous_url: current.reference_image_url });
       continue;
     }
-    let nextUrl = item.source_url || null;
+    let nextUrl = item.clear ? null : item.source_url || null;
     if (item.local_path && execute) {
       const file = path.resolve(ROOT, item.local_path);
       const ext = path.extname(file).toLowerCase() || ".png";
@@ -71,8 +74,15 @@ async function main() {
       nextUrl = uploaded.url;
     }
     if (execute) {
-      const { error: updateError } = await db.from("canonical_actions").update({ reference_image_url: nextUrl }).eq("id", item.target_id).eq("reference_image_url", current.reference_image_url);
+      let updateQuery = db.from("canonical_actions").update({ reference_image_url: nextUrl }).eq("id", item.target_id);
+      updateQuery = current.reference_image_url === null
+        ? updateQuery.is("reference_image_url", null)
+        : updateQuery.eq("reference_image_url", current.reference_image_url);
+      const { data: updatedRows, error: updateError } = await updateQuery.select("id");
       if (updateError) throw updateError;
+      if ((updatedRows || []).length !== 1) {
+        throw new Error(`更新行数异常：${item.target_id} expected=1 actual=${(updatedRows || []).length}`);
+      }
     }
     results.push({ ...item, status: execute ? "updated" : "dry_run", previous_url: current.reference_image_url, next_url: nextUrl });
   }
