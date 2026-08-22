@@ -38,6 +38,14 @@ export async function POST(req: Request) {
         .eq("id", body.template_id)
         .maybeSingle();
 
+    if (template?.type?.startsWith('motion_game_')) {
+        return NextResponse.json({
+            success: false,
+            message: '体感游戏成绩只能由游戏自动同步',
+            data: null,
+        }, { status: 400 });
+    }
+
     if (template && !body.score) {
         const targetItem = (body.form_data as LeaderboardFormInput[]).find(
             (item) => item.name === template.rank_by_field,
