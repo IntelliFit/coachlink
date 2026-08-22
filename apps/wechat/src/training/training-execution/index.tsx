@@ -2760,7 +2760,6 @@ function TrainingExecution() {
                                         />
                                       </View>
                                       <Button
-                                        type="primary"
                                         className="record-complete-btn"
                                         onClick={() => handleCompleteSet(actionIdx, setIdx)}
                                         loading={completing}
@@ -2959,7 +2958,7 @@ function TrainingExecution() {
                                 </View>
                               </View>
                             )}
-                            <Button type="primary" className="complete-btn" onClick={() => handleCompleteItem(actionIdx)} loading={completing}>
+                            <Button className="complete-btn" onClick={() => handleCompleteItem(actionIdx)} loading={completing}>
                               完成打卡
                             </Button>
                           </View>
@@ -3092,7 +3091,6 @@ function TrainingExecution() {
               <Text className="finish-hint">仍有 {lightweightProgress.pending} 个轻任务待完成</Text>
             )}
             <Button
-              type="primary"
               className={`finish-btn ${!canFinishWholeDay && !isImpromptuMode ? 'warning' : ''}`}
               onClick={
                 !canFinishWholeDay && !isImpromptuMode
@@ -3115,7 +3113,6 @@ function TrainingExecution() {
           <View className="footer-section review-share-section">
             <Text className="finish-hint">本次训练已完成，可生成图片发送给好友或群聊。</Text>
             <Button
-              type="primary"
               className="finish-btn"
               loading={workoutPosterGenerating}
               onClick={handleGenerateWorkoutPoster}
@@ -3292,7 +3289,6 @@ function TrainingExecution() {
               </Button>
               <Button
                 size="mini"
-                type="primary"
                 className="feedback-submit-btn"
                 loading={feedbackSubmitting}
                 disabled={!feedbackContent.trim()}

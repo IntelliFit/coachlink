@@ -222,8 +222,8 @@ const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
 
           <View className="form-actions">
             <Button
-              type="primary"
               size="large"
+              className="profile-save-btn"
               block
               loading={loading}
               onClick={handleSave}
@@ -352,8 +352,8 @@ const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
 
           <View className="form-actions">
             <Button
-              type="primary"
               size="large"
+              className="profile-save-btn"
               block
               loading={loading}
               onClick={handleSave}

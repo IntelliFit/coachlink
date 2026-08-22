@@ -497,8 +497,7 @@ export default function CoachQuestionnairePage() {
           返回
         </Button>
         <Button
-          className='footer-btn'
-          type='primary'
+          className='footer-btn footer-submit-btn'
           loading={submitting || loading}
           disabled={answers.length === 0}
           onClick={handleSubmit}

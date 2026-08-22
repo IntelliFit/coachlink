@@ -183,7 +183,6 @@ export default function ResetPasswordForm({ onBackToLogin, onSuccess }: ResetPas
         <View className="form-actions">
           <Button
             className="submit-button"
-            type="primary"
             size="large"
             block
             loading={loading}
