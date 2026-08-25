@@ -1974,6 +1974,19 @@ function TrainingExecution() {
     void handleAddExtraExercises(selectedActions)
   }
 
+  const handleOpenActionLibrary = () => {
+    if (addingExtraAction) return
+    void Taro.navigateTo({
+      url: '/me/action-lib/index?tab=public&mode=plan-select&itemType=STRENGTH',
+      success: ({ eventChannel }) => {
+        eventChannel.on('selectPlanAction', (selectedAction: PickerAction) => {
+          if (!selectedAction?.id || !selectedAction?.name) return
+          void handleAddExtraExercises([selectedAction])
+        })
+      }
+    })
+  }
+
   const actionExecutions = execution?.action_executions || []
   const currentAction = actionExecutions[expandedAction]
   const currentSet = currentAction?.sets?.[currentSetIndex]
@@ -2978,10 +2991,7 @@ function TrainingExecution() {
             <Button
               size="mini"
               className="add-action-btn"
-              onClick={async () => {
-                setShowActionPicker(true)
-                await loadActionPicker()
-              }}
+              onClick={handleOpenActionLibrary}
               disabled={addingExtraAction}
             >
               {addingExtraAction ? '添加中...' : '+ 添加动作'}

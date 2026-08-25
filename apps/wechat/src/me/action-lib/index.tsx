@@ -450,7 +450,7 @@ export default function ActionLibPage() {
       }
 
       const eventChannel = (Taro.getCurrentInstance().page as any)?.getOpenerEventChannel?.()
-      if (!eventChannel) throw new Error('无法返回计划编辑页，请重新进入动作库')
+      if (!eventChannel) throw new Error('无法返回上一页，请重新进入动作库')
 
       eventChannel.emit('selectPlanAction', {
         id: selectedAction.id,

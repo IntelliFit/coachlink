@@ -1,3 +1,11 @@
+## 训练执行页添加动作直接进入统一动作库 (`2026-08-25`)
+
+- Status: 已完成代码与本地小程序验证，未提交、未推送、未上传体验版或正式版。
+- Change: `training/training-execution` 的“+ 添加动作”不再打开页面内只筛力量动作的旧弹窗，改为直接进入 `me/action-lib` 的选择模式；动作库可在“力量动作库 / 有氧动作库”间切换，选中公共动作后加入我的动作库、返回训练页并立即追加到当前 execution。
+- Verification: `npm run build:weapp` 通过（Taro 4.1.11，2,886 modules）；微信开发者工具本地 `dist` 已展示动作库选择页并完成“有氧动作库”点击切换，error/warn 均为 0。截图位于 `screenshots/weapp/training-action-library-2026-08-25/`。
+- Scope: 只修改 `apps/wechat/src/training/training-execution/index.tsx` 与 `apps/wechat/src/me/action-lib/index.tsx`；未运行根项目的 broad lint/typecheck/test/build，符合小范围小程序改动偏好。
+
+
 ## 两款无限体感游戏自动排行榜与局后名次 (`2026-08-22`)
 
 - Status: 已完成代码、数据库、生产 Web/API 和小程序体验版发布。`dev` 为 `adc12ae3`（后端 `ef1b0e96` + 小程序 `adc12ae3`），GitHub/Gitee 已同步；仅后端提交已挑到生产 `main=a39397e8`，避免把开发分支其他功能带入后端。
