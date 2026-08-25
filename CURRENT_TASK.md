@@ -1,6 +1,6 @@
 ## 训练执行页添加动作直接进入统一动作库 (`2026-08-25`)
 
-- Status: 已完成代码与本地小程序验证，未提交、未推送、未上传体验版或正式版。
+- Status: 已完成代码、本地小程序验证并创建 GitHub PR `#45`（目标 `dev`，功能提交 `ec14256d`）；未上传体验版、未提审、未发布正式版。
 - Change: `training/training-execution` 的“+ 添加动作”不再打开页面内只筛力量动作的旧弹窗，改为直接进入 `me/action-lib` 的选择模式；动作库可在“力量动作库 / 有氧动作库”间切换，选中公共动作后加入我的动作库、返回训练页并立即追加到当前 execution。
 - Verification: `npm run build:weapp` 通过（Taro 4.1.11，2,886 modules）；微信开发者工具本地 `dist` 已展示动作库选择页并完成“有氧动作库”点击切换，error/warn 均为 0。截图位于 `screenshots/weapp/training-action-library-2026-08-25/`。
 - Scope: 只修改 `apps/wechat/src/training/training-execution/index.tsx` 与 `apps/wechat/src/me/action-lib/index.tsx`；未运行根项目的 broad lint/typecheck/test/build，符合小范围小程序改动偏好。
