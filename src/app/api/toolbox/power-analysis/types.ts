@@ -88,6 +88,22 @@ export interface PowerAnalysisJobDto {
   quality?: PowerAnalysisQuality;
   overlayLanguage?: PowerAnalysisOverlayLanguage;
   queueInfo?: PowerAnalysisQueueInfoDto | null;
+  ranking?: PowerAnalysisRankingDto | null;
+}
+
+export interface PowerAnalysisRankingMetricDto {
+  rank: number;
+  participantTotal: number;
+  percentile: number;
+  bestValue: number;
+  isPersonalBest: boolean;
+}
+
+export interface PowerAnalysisRankingDto {
+  scope: "coachlink_nationwide_participants";
+  scopeLabel: string;
+  power: PowerAnalysisRankingMetricDto;
+  speed: PowerAnalysisRankingMetricDto;
 }
 
 export interface PowerAnalysisQueueInfoDto {

@@ -1,3 +1,39 @@
+## AI 修改器“改为周一周三周五训练”排期误改修复 (`2026-08-25`)
+
+- Status: 本地代码修复完成；用户明确授权后已直接修复学员线上计划并独立回读通过。代码仍未提交、推送或部署。
+- Production evidence: 教练枭马葛的学员“引体练习生”active 实例 `e452b7bf-b1a4-48f8-a137-e692fb2122aa` 共 8 周/56 天，修复前真实训练日每周为 D1/D4/D6，不是先前 AI 回复声称的五训练日。生产修复按原顺序将 D4 整堂移到 D3、D6 整堂移到 D5，最终每周为 D1/D3/D5，实例 `updated_at=2026-08-25T12:10:33.022266+00:00`。
+- Root cause: 确定性排期识别只支持同时写出源日与目标日的“搬移”句式，漏掉“改为”，也不支持“改为周一周三周五训练，其他不用变”这种只给目标日的自然表达；请求因此回退到 LLM 自由改写，可能把“休息日”生成成动作、追加 0 组 0 次动作或只清空原训练日。
+- Fix: `src/lib/batchOperationDeterministic.ts` 新增目标训练日排期解析；对只给目标日的指令，从每周真实训练日按顺序推导源日，只有源/目标训练日数量一致时才完整搬移，否则终止并追问，禁止猜测删除或复制训练内容；同时补齐“改为/安排为/设置为/设为”等排期动词识别。
+- Production safety: 写入前发现新 D4 `in_progress` execution `d06c6495-f9cb-42fc-bf21-ff9af80a51db`；复核为 0 完成组、9 个待完成组均无实际值/备注，且视频、反馈、个人纪录均为 0，已按 `updated_at` 乐观锁安全删除。D1 completed execution `c1356259-7366-4c18-8151-4d61b642836f` 的 12/12 组完整保留。
+- Verification: 用线上实例回放原指令后，24 堂训练的动作顺序、组次、重量/RM、间歇与备注 JSON 完全等价。独立数据库回读确认 8 周全部只在 D1/D3/D5 训练，D4/D6 均为空休息日，线上仅保留 D1 completed execution。现有 `batchOperationDeterministic` 3 个 Vitest 用例通过，`git diff --check` 仅有既有 CRLF 提示。
+- Next: 学员或教练若页面仍停留在旧 AI 草稿/D4 训练页，需要退出弹窗或训练页后刷新计划；本地规则代码如需让后续线上 AI 修改也稳定生效，仍需另行提交并部署 Web/API。
+
+## 小程序训练执行页显示教练动作备注 (`2026-08-25`)
+
+- Status: 本地修复与微信开发者工具验收完成；未提交、未推送、未上传体验版。
+- Root cause: 今日训练首页会从计划动作的 `actionSet.params.note` 生成备注摘要，但训练执行页只渲染学员完成某组后填写的 `set.notes`，没有读取已加载的计划实例备注，所以首页可见、进入动作后消失。
+- Fix: 训练执行页按 `dayIndex + source_action_index/actionIndex` 回查计划动作，兼容 `training_days/trainingDays`、`actionSets/action_sets` 及旧 `actionSet.note`，在展开动作的组列表上方展示完整“教练备注”；已有 execution 无需重建，长文本保留换行并自动折行。
+- Verification: lint 提示项目未配置 ESLint；`npm run typecheck`、Vitest 42 files / 203 tests、Next 537 页生产构建、小程序 local 2,886 modules 均通过。微信开发者工具使用本地缓存协议注入隔离快照，确认 `.coach-plan-note` / `.coach-plan-note-text` 存在，长备注完整多行显示，截图为 `screenshots/weapp/training-execution-coach-note-2026-08-25.png`，error/warn 均为 0；验收快照随后已清理。
+
+## 误开训练撤销与空休息日防护 (`2026-08-25`)
+
+- Status: 学员“引体练习生”的线上误开记录已安全撤销；取消按钮与服务端保护已在本地实现并通过代码门禁，尚未提交、推送、部署 Web/API 或上传小程序版本。
+- Production repair: 只读定位到唯一 active 计划 `e452b7bf-b1a4-48f8-a137-e692fb2122aa`。删除了 D4 空 execution `169d4cdf-5b60-437c-9923-39acb9f48cc5`（9 组、完成 0、无实际数据/备注/视频/反馈/PR）和同一误操作链路产生的 D3 纯休息日空 execution `10c7a5ff-ede2-4bfe-b27b-85e71849236c`（0 动作/0 组）。回读确认仅保留 D1 `c1356259-7366-4c18-8151-4d61b642836f` 的 12/12 completed 记录。
+- Product/code: 新增 `/api/execution/cancel`，仅允许学员本人或所属教练撤销仍为 `in_progress` 且无任何完成内容、实际值、备注、视频、反馈或 PR 的记录，并用 `updated_at` 乐观锁防止并发误删。训练执行页在 0 组完成时显示纯色次按钮“取消本次训练”，二次确认后同时清理执行页快照、今日训练首页缓存与计时缓存，再返回首页。`execution/start` 同时拒绝为无任务纯休息日创建 execution。
+- Verification: lint 提示脚本、根 typecheck、Vitest 42 files / 203 tests、Next 537 页生产构建、小程序 local 2,886 modules 构建均通过；编译产物包含取消文案、缓存清理和 `/api/execution/cancel`。微信 DevTools 已成功加载本地 `apps/wechat/dist`，最新日志未见 runtime ERROR；但 DevTools 2.02.2607171 已不支持 MRC 1.0 依赖的 `--auto-port`，CLI HTTP 端口与自动化 WebSocket 协议不兼容，无法取得可靠自动点击/截图，最终页面截图留待兼容工具或用户手工验证。
+- Handoff: 学员当前手机若仍停在旧 D4 页面，需先退出训练页、回到“今日训练”并下拉刷新以清除手机内旧快照。若要让按钮对用户可用，需另行获得授权后提交代码、部署 Web/API 并上传小程序体验版/正式版。
+
+## 功率曲线真机空白修复与全国功率挑战 (`2026-08-23`)
+
+- Status: 本地实现与验证完成，尚未提交、推送、执行远程迁移、部署后端或上传体验版；等待用户另行授权发布。
+- Curve root cause: 线上任务的 `timeSeries` 数据真实存在，截图中的“峰值”也来自同一时序；空白来自微信原生 Canvas 在异步结果挂载后静默未落像素。第一轮改用 2D Canvas 节点等待后，真实 586 点任务截图仍为空，证明不能以节点存在/无报错代替像素验收。
+- Curve fix: `PowerCurveChart` 已彻底移除 Canvas，改用普通小程序 View 折线段；对完整时序按桶保留局部极小/极大值后降采样到约 120 点，避免丢峰又控制节点数。真实任务 `deee0645-9fcb-4aa0-9053-c42ec443f044` 的 586 个点生成两图共 206 段，开发者工具截图已看见速度蓝线、功率橙线、纵轴刻度和 0–19.5 秒完整时间轴；曲线峰值改名“瞬时峰值”，避免与逐次最高功率混淆。
+- Challenge product: 新增“全国功率挑战 · 最大功率榜”和“全国功率挑战 · 最快速度榜”。完成的视频分析自动同步两个独立个人最好成绩；结果页显示名次、参赛人数、领先比例和个人最好，并可跳转固定榜单。排行榜专区显示两张挑战榜，详情页只能“上传视频挑战”，不能手填成绩。
+- Scope/integrity: “全国榜”固定解释为 `CoachLink 全国参赛用户`，不是全国人口抽样或实验室测量。仅 `done` 且属于当前用户的分析任务可入榜；功率与速度各自独立更新，同分按较早达成时间和 user ID 稳定排序。页面明确提示绝对功率会受体重、负重和动作类型影响，属于大众挑战榜。
+- Database: 新迁移 `20260823040000_power_analysis_challenge_leaderboards.sql` 创建两个固定模板、`power_analysis_best_scores`、RLS/索引和幂等 RPC `record_power_analysis_best`，并从历史完成任务回填真实个人最好。隔离 PostgreSQL 用 4 名用户验证 camel/snake 指标兼容、历史回填、两榜独立排名、单指标异常隔离、新 PB 升榜和重复同步幂等；一次性数据库已删除。
+- Verification: `npm run typecheck`、lint（项目仅提示未配置 ESLint）、Vitest 42 files / 203 tests、Next 536 页生产构建、小程序 local 2,886 modules 均通过。微信开发者工具实际渲染截图为 `screenshots/weapp/power-curves-visible-fix-2026-08-23.png` 和 `screenshots/weapp/power-challenge-ranking-card-2026-08-23.png`；点击“查看功率榜”已跳到固定模板 `b7bc1548-08ed-4f52-90cc-f5b22a785103`。
+- Next: 获得发布授权后，先提交代码，再精确执行单一迁移，部署 Web/API，构建 production API 小程序并上传体验版；线上真机复验曲线像素、两榜人数/名次和两个榜单入口。
+
 ## 两款无限体感游戏自动排行榜与局后名次 (`2026-08-22`)
 
 - Status: 已完成代码、数据库、生产 Web/API 和小程序体验版发布。`dev` 为 `adc12ae3`（后端 `ef1b0e96` + 小程序 `adc12ae3`），GitHub/Gitee 已同步；仅后端提交已挑到生产 `main=a39397e8`，避免把开发分支其他功能带入后端。
@@ -9359,3 +9395,19 @@
 - Revenue: 清洗掉低于 1 元测试单后，累计教练相关平台成功订单 30 笔、平台实收 GMV 约 ¥5,640；最近完整月份中 2026-07 最好，为 7 笔、6 名付款用户、约 ¥1,634。订阅记录首期/套餐金额约 ¥20,158，按价格和周数粗估合同服务额约 ¥52,506，但早期大量个人收款缺完整平台流水，只能作为内部估算。`platform_revenue` 平台抽成收入台账累计约 ¥782.60；结算闭环记录 18 条、结算 GMV ¥2,934、教练分成 ¥2,347.20、平台费 ¥586.80。
 - Validation/milestones: 计划执行累计 1,322 条，其中 completed 1,222 条、完成训练组 13,365 组，92 名学员有执行记录；街健计算累计 5,062 次/312 用户，功率分析累计 686 次/125 用户。支付宝/微信支付、汇付分账、教练钱包和训练交付闭环均已跑通，但仅 3 名教练产生订阅关系，商业化仍属早期验证阶段。
 - Recommended external framing: 主叙事使用“3,600+ 注册用户、133 名付费学员、95 名活跃付费学员、1,222 次完成训练、5,000+ 次街健计算”；活跃写明登录口径，营收将平台实收 GMV、平台净收入和估算合同服务额分开。
+## 飞书 AI 自动修改待处理需求集中处理 (`2026-08-25`)
+
+- Status: 2 条需求的本地实现、代码门禁与可执行的 DevTools 验证已完成；飞书业务状态已从 `开发中` 更新为 `验收中`，`AI执行状态=已完成`，执行日志与验证结果已回写。未提交、未推送、未部署 Web/API、未上传小程序版本。
+- Records: `recvt14YLswv3p`（完善小程序对话中的训练视频引用展示）与 `recvt3uEEFpjMg`（功率分析器字体悬浮并排查同类问题）。
+- Video reference: 生产只读确认现有执行视频、视频集和最近引用消息的缩略图均为空，而视频 CDN HEAD 200、Range GET 206；旧小程序的纯黑占位是“黑屏”观感主因。现改为品牌色视频占位并处理缩略图加载失败，展示北京时间日期、计划日、组数、重量、次数和点击提示；点击优先 `Taro.previewMedia`，失败回退共享播放器；`/api/chat/list-student-videos` 同时兼容 Web Session 与小程序 Bearer JWT。
+- Floating text: 功率页 3 个原生数字输入原先位于固定 `height:100vh` 的纵向 `ScrollView` 内，真机滚动时原生文字层可能与 WebView 坐标分叉。现改自然页面 `View + min-height:100vh` 并直接使用 Taro 原生 `Input`。全小程序约 29 个静态候选已分类审计；弹窗内受限滚动、聊天 composer、固定底栏与未复现的复杂表单未泛改。
+- Verification: `git diff --check`、lint 提示脚本、typecheck、Vitest 42 files / 203 tests、Next 537 页生产构建、小程序 local 2,886 modules 均通过。DevTools 固定 `apps/wechat + 9420` 成功打开功率页，`.height-input` 存在且自动输入 `178` 成功，error/warn 均为 0；但 `mrc screenshot` 持续超时，跨页 `relaunch` 会 page destroyed/无响应，因此未取得功率滚动截图和真实会话截图，最终视觉与播放需用户手工验收。
+- Evidence limitation: 需求的 3 个飞书附件用 bot/user 下载均返回 HTTP 403，已登录 Chrome 可见该表但自动读取页面也超时；未伪造附件或 DevTools 截图。
+- Rule: 今后从该需求表认领 AI 自动修改事项，必须先把业务 `状态` 从 `待处理` 更新为 `开发中` 或 `处理中`，成功后才能开始实现。
+- Handoff: 人工验收通过后，可将两条业务状态从 `验收中` 更新为 `已完成`。若要让用户实际使用，仍需另行授权后提交/推送、部署含 chat API 的 Web 后端，并构建上传小程序体验版或正式版。
+## 2026-08-30 全分支主线同步、双环境部署与小程序体验版
+
+- Status: 进行中。用户已明确授权拉取最新代码、把发布候选与活跃分支同步到 `main` / `dev`、部署两套 Web/API，并上传微信小程序体验版。
+- Baseline: `main`、`dev`、`origin/main`、`origin/dev` 初始均为 `cd970125`；工作区已有 8 月 23–25 日完成但未发布的训练撤销、教练备注、功率挑战与 AI 排期修复等候选改动。
+- Branch policy: 合并当前工作区候选和仍未进入主线的近期活跃功能分支；历史备份、恢复快照、已被后续实现取代的旧分支，以及与主线相差上千提交的陈旧实验分支不反向灌入主线。
+- Release gates: 合并后执行 `npm run lint`、`npm run typecheck`、`npm test`、`npx next build` 与小程序 release 构建；Git 推送后分别构建并推送 `dev` / `main` Web/API 镜像，等待线上滚动并检查健康接口，最后上传体验版（不提审、不发布正式版）。

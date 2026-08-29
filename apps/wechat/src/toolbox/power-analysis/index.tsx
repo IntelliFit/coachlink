@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ScrollView, Text, View, Video } from '@tarojs/components'
-import { StableInput as Input } from '@/components/StableInput'
+import { Input, Text, View, Video } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
 import { authService } from '@/services/authService'
@@ -90,6 +89,22 @@ interface PowerAnalysisJobDto {
     processingAhead: number
     totalQueued: number
   } | null
+  ranking?: PowerAnalysisRankingDto | null
+}
+
+interface PowerAnalysisRankingMetricDto {
+  rank: number
+  participantTotal: number
+  percentile: number
+  bestValue: number
+  isPersonalBest: boolean
+}
+
+interface PowerAnalysisRankingDto {
+  scope: 'coachlink_nationwide_participants'
+  scopeLabel: string
+  power: PowerAnalysisRankingMetricDto
+  speed: PowerAnalysisRankingMetricDto
 }
 
 interface CreatePowerAnalysisUploadUrlResponseDto {
@@ -156,6 +171,10 @@ const POWER_ANALYSIS_UPLOAD_RETRY_COUNT = 2
 const POWER_ANALYSIS_FILE_STABILITY_CHECKS = 4
 const POWER_ANALYSIS_FILE_STABILITY_INTERVAL_MS = 160
 const POWER_ANALYSIS_COMPARISON_STORAGE_KEY = 'power-analysis-comparison-baseline-v1'
+const POWER_CHALLENGE_TEMPLATE_IDS = {
+  power: 'b7bc1548-08ed-4f52-90cc-f5b22a785103',
+  speed: 'b7bc1548-08ed-4f52-90cc-f5b22a785104'
+} as const
 const DEFAULT_ENTITLEMENTS: PowerAnalysisEntitlements = {
   tier: 'free',
   canUseOriginalQuality: false,
@@ -1171,8 +1190,7 @@ export default function WechatPowerAnalysisPage() {
 
   return (
     <View className={`power-analysis-page theme-${effectiveTheme}`}>
-      <ScrollView scrollY className='analysis-scroll'>
-        <View className='page-content'>
+      <View className='page-content'>
           <View className='intro-card'>
             <Text className='intro-kicker'>多动作功率测试</Text>
             <Text className='intro-title'>上传视频，估算功率、马力与最大速度</Text>
@@ -1422,6 +1440,61 @@ export default function WechatPowerAnalysisPage() {
                   </View>
                 )}
 
+                {job?.ranking && (job.ranking.power.rank > 0 || job.ranking.speed.rank > 0) && (
+                  <View className='power-challenge-card'>
+                    <View className='power-challenge-header'>
+                      <View>
+                        <Text className='power-challenge-kicker'>全国功率挑战</Text>
+                        <Text className='power-challenge-title'>你的真实视频成绩排名</Text>
+                      </View>
+                      <Text className='power-challenge-scope'>{job.ranking.scopeLabel}</Text>
+                    </View>
+                    <View className='power-challenge-grid'>
+                      {job.ranking.power.rank > 0 && (
+                        <View className='power-challenge-metric'>
+                          <Text className='power-challenge-label'>最大功率榜</Text>
+                          <Text className='power-challenge-rank'>第 {job.ranking.power.rank} 名</Text>
+                          <Text className='power-challenge-value'>个人最好 {formatMetric(job.ranking.power.bestValue, 0)} W</Text>
+                          <Text className='power-challenge-percentile'>
+                            共 {job.ranking.power.participantTotal} 人 · 领先 {job.ranking.power.percentile}% 参赛者
+                          </Text>
+                        </View>
+                      )}
+                      {job.ranking.speed.rank > 0 && (
+                        <View className='power-challenge-metric'>
+                          <Text className='power-challenge-label'>最快速度榜</Text>
+                          <Text className='power-challenge-rank'>第 {job.ranking.speed.rank} 名</Text>
+                          <Text className='power-challenge-value'>个人最好 {formatMetric(job.ranking.speed.bestValue, 2)} m/s</Text>
+                          <Text className='power-challenge-percentile'>
+                            共 {job.ranking.speed.participantTotal} 人 · 领先 {job.ranking.speed.percentile}% 参赛者
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text className='power-challenge-note'>
+                      全国榜仅指 CoachLink 全国参赛用户；绝对功率会受体重、负重和动作类型影响。
+                    </Text>
+                    <View className='power-challenge-actions'>
+                      <View
+                        className='power-challenge-primary-btn'
+                        onClick={() => Taro.navigateTo({
+                          url: `/discovery/ranking/detail?id=${POWER_CHALLENGE_TEMPLATE_IDS.power}`
+                        })}
+                      >
+                        <Text>查看功率榜</Text>
+                      </View>
+                      <View
+                        className='power-challenge-secondary-btn'
+                        onClick={() => Taro.navigateTo({
+                          url: `/discovery/ranking/detail?id=${POWER_CHALLENGE_TEMPLATE_IDS.speed}`
+                        })}
+                      >
+                        <Text>查看速度榜</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
                 {metrics.timeSeries && metrics.timeSeries.length > 1 && (
                   <View className='power-curve-section'>
                     <View className='power-curve-header'>
@@ -1522,8 +1595,7 @@ export default function WechatPowerAnalysisPage() {
                   : '分析完成后，这里会给出训练建议。')}
             </Text>
           </View>
-        </View>
-      </ScrollView>
+      </View>
     </View>
   )
 }

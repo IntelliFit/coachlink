@@ -1,5 +1,8 @@
 import Taro from '@tarojs/taro'
-import { patchExecutionInTodayTrainingPageCache } from '@/utils/todayTrainingPageCache'
+import {
+  patchExecutionInTodayTrainingPageCache,
+  removeExecutionFromTodayTrainingPageCache
+} from '@/utils/todayTrainingPageCache'
 
 const SNAPSHOT_KEY = 'training_execution_snapshots_v1'
 /** 与今日训练首页缓存一致：仅保留最近 60 天内的快照条目 */
@@ -148,4 +151,23 @@ export function syncTrainingExecutionToStorage(params: {
   if (!isImpromptuMode && instanceId) {
     patchExecutionInTodayTrainingPageCache(userId, instanceId, dayIndex, execution)
   }
+}
+
+/** 取消计划训练后同时清理执行页快照与今日训练首页缓存。 */
+export function removeTrainingExecutionFromStorage(params: {
+  userId: string
+  scopeKey: string
+  instanceId: string
+  dayIndex: number
+}) {
+  const { userId, scopeKey, instanceId, dayIndex } = params
+  if (!userId || !scopeKey || !instanceId) return
+
+  const store = readStore(userId)
+  if (store?.entries?.[scopeKey]) {
+    const nextEntries = { ...store.entries }
+    delete nextEntries[scopeKey]
+    writeStore(userId, nextEntries)
+  }
+  removeExecutionFromTodayTrainingPageCache(userId, instanceId, dayIndex)
 }

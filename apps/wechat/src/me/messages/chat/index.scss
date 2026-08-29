@@ -226,8 +226,8 @@
   .video-ref-card {
     display: flex;
     gap: 16rpx;
-    align-items: center;
-    padding: 8rpx;
+    align-items: flex-start;
+    padding: 16rpx;
     border-radius: 16rpx;
     background: rgba(255, 255, 255, 0.16);
   }
@@ -241,19 +241,34 @@
     height: 96rpx;
     border-radius: 16rpx;
     flex-shrink: 0;
-    background: #111827;
   }
 
-  .video-ref-cover--empty {
+  .video-cover-placeholder {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
+    background: #f7e8e2;
+    border: 1rpx solid #edc5b8;
   }
 
-  .video-ref-play {
-    color: #fff;
-    font-size: 32rpx;
-    line-height: 40rpx;
+  .video-cover-placeholder-icon,
+  .video-cover-placeholder-label {
+    display: block;
+    color: #cf6d4e;
+  }
+
+  .video-cover-placeholder-icon {
+    font-size: 28rpx;
+    line-height: 32rpx;
+  }
+
+  .video-cover-placeholder-label {
+    margin-top: 8rpx;
+    font-size: 20rpx;
+    line-height: 24rpx;
+    font-weight: 700;
   }
 
   .video-ref-info {
@@ -268,13 +283,29 @@
     font-weight: 700;
   }
 
+  .video-ref-date,
   .video-ref-meta,
+  .video-ref-open,
   .video-ref-pr {
     display: block;
-    margin-top: 4rpx;
+    margin-top: 8rpx;
     font-size: 22rpx;
     line-height: 32rpx;
     opacity: 0.82;
+  }
+
+  .video-ref-date,
+  .video-ref-meta {
+    white-space: normal;
+  }
+
+  .video-ref-open {
+    font-weight: 700;
+  }
+
+  .message-bubble.other .video-ref-open {
+    color: #cf6d4e;
+    opacity: 1;
   }
 
   .file-message-card {
@@ -567,14 +598,6 @@
     height: 80rpx;
     border-radius: 16rpx;
     flex-shrink: 0;
-    background: #111827;
-  }
-
-  .video-picker-cover--empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
   }
 
   .video-picker-info {
@@ -583,6 +606,7 @@
   }
 
   .video-picker-name,
+  .video-picker-date,
   .video-picker-meta {
     display: block;
   }
@@ -594,11 +618,13 @@
     font-weight: 700;
   }
 
+  .video-picker-date,
   .video-picker-meta {
-    margin-top: 4rpx;
+    margin-top: 8rpx;
     font-size: 22rpx;
     line-height: 32rpx;
     color: #6b7280;
+    white-space: normal;
   }
 
   .video-picker-check {

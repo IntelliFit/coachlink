@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import { getAuthUser } from '@/lib/auth';
-import supabase from '@/lib/supabaseClient';
+import { findPowerAnalysisChallengeByType } from '@/lib/powerAnalysisLeaderboard';
+import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
@@ -46,7 +47,36 @@ export async function POST(req: Request) {
 
     // 为每个排行榜获取未审核条目的数量
     const leaderboardsWithCount = await Promise.all(
-        data.map(async (item) => {
+        (data || []).map(async (item) => {
+            const powerAnalysisChallenge = findPowerAnalysisChallengeByType(item.type);
+            if (powerAnalysisChallenge) {
+                const [, config] = powerAnalysisChallenge;
+                const db = serviceRoleSupabase as any;
+                const { count: participantCount, error: participantError } = await db
+                    .from('power_analysis_best_scores')
+                    .select('user_id', { count: 'exact', head: true })
+                    .not(config.scoreColumn, 'is', null);
+
+                if (participantError) {
+                    console.error(`获取功率排行榜 ${item.id} 的参与人数失败:`, participantError);
+                }
+
+                return {
+                    id: item.id,
+                    title: item.title,
+                    description: item.description,
+                    start_at: item.start_at,
+                    end_at: item.end_at,
+                    rank_by_field: item.rank_by_field,
+                    sort_order: item.sort_order,
+                    type: item.type,
+                    remarks: item.remarks,
+                    created_at: item.created_at,
+                    creator_id: item.creator_id,
+                    statusCount: participantCount || 0,
+                };
+            }
+
             // 查询此排行榜模板的未审核条目数量
             const { count, error: unreviewedError } = await supabase
                 .from('leaderboard_entries')

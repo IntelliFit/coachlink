@@ -5,6 +5,7 @@ import type {
   PowerAnalysisQueueInfoDto,
   PowerAnalysisMetrics,
   PowerAnalysisMode,
+  PowerAnalysisRankingDto,
 } from "./types";
 
 export const POWER_ANALYSIS_BUCKET = "videos" as const;
@@ -216,7 +217,51 @@ export async function getPowerAnalysisQueueInfo(row: any): Promise<PowerAnalysis
 export async function mapPowerAnalysisJobWithQueueInfo(row: any): Promise<PowerAnalysisJobDto> {
   const dto = mapPowerAnalysisJob(row);
   dto.queueInfo = await getPowerAnalysisQueueInfo(row);
+  if (dto.status === "done" && dto.metrics && row?.user_id) {
+    dto.ranking = await syncPowerAnalysisRanking(row.id, row.user_id);
+  }
   return dto;
+}
+
+export async function syncPowerAnalysisRanking(
+  jobId: string,
+  userId: string,
+): Promise<PowerAnalysisRankingDto | null> {
+  const { data, error } = await db.rpc("record_power_analysis_best", {
+    p_job_id: jobId,
+    p_user_id: userId,
+  });
+
+  if (error) {
+    console.warn("[power-analysis] ranking sync failed:", {
+      jobId,
+      code: error.code,
+      message: error.message,
+    });
+    return null;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+
+  return {
+    scope: "coachlink_nationwide_participants",
+    scopeLabel: "CoachLink 全国参赛用户",
+    power: {
+      rank: Number(row.power_rank || 0),
+      participantTotal: Number(row.power_participant_total || 0),
+      percentile: Number(row.power_percentile || 0),
+      bestValue: Number(row.best_power_w || 0),
+      isPersonalBest: Boolean(row.is_power_personal_best),
+    },
+    speed: {
+      rank: Number(row.speed_rank || 0),
+      participantTotal: Number(row.speed_participant_total || 0),
+      percentile: Number(row.speed_percentile || 0),
+      bestValue: Number(row.best_velocity_mps || 0),
+      isPersonalBest: Boolean(row.is_speed_personal_best),
+    },
+  };
 }
 
 function normalizeObject(value: unknown) {

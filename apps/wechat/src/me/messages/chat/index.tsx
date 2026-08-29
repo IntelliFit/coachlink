@@ -11,6 +11,7 @@ import {
 } from '@/services/chatService'
 import { getChatMessagesCache, mergeServerLatestPage, setChatMessagesCache } from '@/utils/chatMessageCache'
 import { API_BASE_URL } from '@/utils/request'
+import { resolveWeappMediaUrl } from '@/utils/mediaUrl'
 import './index.scss'
 import { Image as ImageIcon } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -45,6 +46,70 @@ function normalizeVideoReference(video: VideoItem): VideoReferenceItem {
     dayIndex: video.dayIndex ?? null,
     studentInfo: video.studentInfo
   }
+}
+
+function hasVideoMetric(value: number | null | undefined): value is number {
+  return value !== null && value !== undefined && Number.isFinite(Number(value))
+}
+
+function isTrainingVideoReference(video: Pick<VideoReferenceItem, 'videoId' | 'sourceType' | 'dayIndex' | 'weight' | 'reps'>) {
+  if (video.sourceType === 'execution_set' || video.sourceType === 'training_video') return true
+  if (video.sourceType === 'video_collection' || String(video.videoId || '').startsWith('vc:')) return false
+  return Number(video.dayIndex || 0) > 0 || hasVideoMetric(video.weight) || hasVideoMetric(video.reps)
+}
+
+function formatBeijingTrainingDate(value?: string | null) {
+  const timestamp = Date.parse(String(value || ''))
+  if (!Number.isFinite(timestamp)) return '--'
+  const date = new Date(timestamp + 8 * 60 * 60 * 1000)
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return `${year}年${month}月${day}日`
+}
+
+function buildVideoTrainingStats(video: VideoReferenceItem) {
+  if (!isTrainingVideoReference(video)) return '个人视频'
+  const setNumber = Number(video.setNumber) > 0 ? Math.floor(Number(video.setNumber)) : 1
+  const weight = hasVideoMetric(video.weight) ? `${Number(video.weight)}kg` : '--kg'
+  const reps = hasVideoMetric(video.reps) ? `${Number(video.reps)}次` : '--次'
+  return `第 ${setNumber} 组 · 训练重量 ${weight} · ${reps}`
+}
+
+function buildVideoDateLabel(video: VideoReferenceItem) {
+  const prefix = isTrainingVideoReference(video) ? '训练日期' : '上传日期'
+  const dayIndex = Number(video.dayIndex)
+  const planDay = Number.isFinite(dayIndex) && dayIndex > 0 ? ` · 计划第 ${Math.floor(dayIndex)} 天` : ''
+  return `${prefix} ${formatBeijingTrainingDate(video.createdAt)}${planDay}`
+}
+
+function VideoReferenceCover({
+  thumbnailUrl,
+  className
+}: {
+  thumbnailUrl?: string | null
+  className: string
+}) {
+  const [thumbnailFailed, setThumbnailFailed] = useState(false)
+  const resolvedThumbnailUrl = resolveWeappMediaUrl(thumbnailUrl)
+
+  if (resolvedThumbnailUrl && !thumbnailFailed) {
+    return (
+      <Image
+        className={className}
+        src={resolvedThumbnailUrl}
+        mode="aspectFill"
+        onError={() => setThumbnailFailed(true)}
+      />
+    )
+  }
+
+  return (
+    <View className={`${className} video-cover-placeholder`}>
+      <Text className="video-cover-placeholder-icon">▶</Text>
+      <Text className="video-cover-placeholder-label">视频</Text>
+    </View>
+  )
 }
 
 function ChatPage() {
@@ -568,11 +633,26 @@ function ChatPage() {
     return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const openVideo = (videoUrl: string) => {
-    if (!videoUrl) return
-    Taro.navigateTo({
-      url: `/common/common/video-player?url=${encodeURIComponent(videoUrl)}`
-    })
+  const openVideo = async (videoUrl: string, title = '训练视频') => {
+    const resolvedUrl = resolveWeappMediaUrl(videoUrl)
+    if (!resolvedUrl) {
+      Taro.showToast({ title: '视频地址无效', icon: 'none' })
+      return
+    }
+
+    try {
+      await Taro.previewMedia({
+        sources: [{ url: resolvedUrl, type: 'video' }],
+        current: 0
+      })
+    } catch (error) {
+      console.warn('[chat] native video preview failed, falling back to video player', error)
+      Taro.navigateTo({
+        url: `/common/common/video-player?url=${encodeURIComponent(resolvedUrl)}&title=${encodeURIComponent(title || '训练视频')}`
+      }).catch(() => {
+        Taro.showToast({ title: '暂时无法打开视频', icon: 'none' })
+      })
+    }
   }
 
   const renderReplyQuote = (msg: MessageItem) => {
@@ -615,21 +695,15 @@ function ChatPage() {
             className="video-ref-card"
             onClick={(e) => {
               e.stopPropagation()
-              openVideo(video.videoUrl)
+              void openVideo(video.videoUrl, video.actionName)
             }}
           >
-            {video.thumbnailUrl ? (
-              <Image className="video-ref-cover" src={video.thumbnailUrl} mode="aspectFill" />
-            ) : (
-              <View className="video-ref-cover video-ref-cover--empty">
-                <Text className="video-ref-play">▶</Text>
-              </View>
-            )}
+            <VideoReferenceCover thumbnailUrl={video.thumbnailUrl} className="video-ref-cover" />
             <View className="video-ref-info">
               <Text className="video-ref-title" numberOfLines={1}>{video.actionName || '训练视频'}</Text>
-              <Text className="video-ref-meta" numberOfLines={1}>
-                {video.weight || video.reps ? `${video.weight ?? '--'}kg x ${video.reps ?? '--'}` : '个人视频'}
-              </Text>
+              <Text className="video-ref-date">{buildVideoDateLabel(video)}</Text>
+              <Text className="video-ref-meta">{buildVideoTrainingStats(video)}</Text>
+              <Text className="video-ref-open">点击查看视频</Text>
               {video.isProgress && <Text className="video-ref-pr">PR</Text>}
             </View>
           </View>
@@ -654,7 +728,7 @@ function ChatPage() {
     }
     if (msg.messageType === 'video' && msg.mediaUrl) {
       return (
-        <View className="file-message-card" onClick={() => openVideo(msg.mediaUrl || '')}>
+        <View className="file-message-card" onClick={() => void openVideo(msg.mediaUrl || '', '视频消息')}>
           <Text className="file-message-title">视频消息</Text>
           <Text className="file-message-subtitle" numberOfLines={1}>点击播放</Text>
         </View>
@@ -819,18 +893,11 @@ function ChatPage() {
                     className={`video-picker-item ${selected ? 'selected' : ''}`}
                     onClick={() => toggleVideoSelected(video.id)}
                   >
-                    {video.thumbnailUrl ? (
-                      <Image className="video-picker-cover" src={video.thumbnailUrl} mode="aspectFill" />
-                    ) : (
-                      <View className="video-picker-cover video-picker-cover--empty">
-                        <Text>▶</Text>
-                      </View>
-                    )}
+                    <VideoReferenceCover thumbnailUrl={video.thumbnailUrl} className="video-picker-cover" />
                     <View className="video-picker-info">
                       <Text className="video-picker-name" numberOfLines={1}>{video.actionName || '训练视频'}</Text>
-                      <Text className="video-picker-meta" numberOfLines={1}>
-                        {video.weight || video.reps ? `${video.weight ?? '--'}kg x ${video.reps ?? '--'}` : '个人视频'}
-                      </Text>
+                      <Text className="video-picker-date">{buildVideoDateLabel(normalizeVideoReference(video))}</Text>
+                      <Text className="video-picker-meta">{buildVideoTrainingStats(normalizeVideoReference(video))}</Text>
                     </View>
                     <Text className="video-picker-check">{selected ? '已选' : '选择'}</Text>
                   </View>

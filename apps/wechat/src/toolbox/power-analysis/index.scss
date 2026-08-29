@@ -2,11 +2,8 @@
   min-height: 100vh;
   background: linear-gradient(180deg, #ededed 0%, #f8f8f8 100%);
 
-  .analysis-scroll {
-    height: 100vh;
-  }
-
   .page-content {
+    min-height: 100vh;
     padding: 24rpx;
     padding-bottom: 40rpx;
     box-sizing: border-box;
@@ -674,6 +671,148 @@
     color: #8f432d;
   }
 
+  .power-challenge-card {
+    margin-top: 16rpx;
+    padding: 24rpx;
+    border-radius: 16rpx;
+    border: 1px solid #f0c6b9;
+    background: #fdf2ec;
+  }
+
+  .power-challenge-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16rpx;
+  }
+
+  .power-challenge-kicker,
+  .power-challenge-title,
+  .power-challenge-scope,
+  .power-challenge-label,
+  .power-challenge-rank,
+  .power-challenge-value,
+  .power-challenge-percentile,
+  .power-challenge-note {
+    display: block;
+  }
+
+  .power-challenge-kicker {
+    font-size: 22rpx;
+    font-weight: 800;
+    color: #8f432d;
+  }
+
+  .power-challenge-title {
+    margin-top: 8rpx;
+    font-size: 28rpx;
+    font-weight: 900;
+    color: #111827;
+    line-height: 1.4;
+  }
+
+  .power-challenge-scope {
+    max-width: 192rpx;
+    font-size: 20rpx;
+    line-height: 1.4;
+    color: #6b7280;
+    text-align: right;
+  }
+
+  .power-challenge-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16rpx;
+    margin-top: 24rpx;
+  }
+
+  .power-challenge-metric {
+    min-height: 168rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    border: 1px solid #f0c6b9;
+    background: #ffffff;
+    box-sizing: border-box;
+  }
+
+  .power-challenge-label {
+    font-size: 22rpx;
+    font-weight: 800;
+    color: #6b7280;
+  }
+
+  .power-challenge-rank {
+    margin-top: 8rpx;
+    font-size: 32rpx;
+    font-weight: 900;
+    color: #cf6d4e;
+    line-height: 1.3;
+  }
+
+  .power-challenge-value {
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .power-challenge-percentile {
+    margin-top: 8rpx;
+    font-size: 20rpx;
+    line-height: 1.5;
+    color: #6b7280;
+  }
+
+  .power-challenge-note {
+    margin-top: 16rpx;
+    font-size: 20rpx;
+    line-height: 1.6;
+    color: #6b7280;
+  }
+
+  .power-challenge-actions {
+    display: flex;
+    gap: 16rpx;
+    margin-top: 16rpx;
+  }
+
+  .power-challenge-primary-btn,
+  .power-challenge-secondary-btn {
+    flex: 1;
+    height: 64rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+
+    Text {
+      font-size: 22rpx;
+      font-weight: 800;
+    }
+
+    &:active {
+      opacity: 0.88;
+    }
+  }
+
+  .power-challenge-primary-btn {
+    background: #cf6d4e;
+
+    Text {
+      color: #ffffff;
+    }
+  }
+
+  .power-challenge-secondary-btn {
+    border: 1px solid #cf6d4e;
+    background: #ffffff;
+
+    Text {
+      color: #cf6d4e;
+    }
+  }
+
   .power-curve-section {
     margin-top: 16rpx;
     padding: 16rpx;
@@ -701,9 +840,46 @@
     color: #111827;
   }
 
-  .power-curve-canvas {
+  .power-curve-view-chart {
+    position: relative;
     display: block;
     max-width: 100%;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .power-curve-grid-line {
+    position: absolute;
+    height: 0;
+    border-top: 1px solid #e5e7eb;
+    box-sizing: border-box;
+  }
+
+  .power-curve-view-segment {
+    position: absolute;
+    height: 0;
+    border-top-style: solid;
+    transform-origin: left center;
+    z-index: 2;
+  }
+
+  .power-curve-axis-label {
+    position: absolute;
+    display: block;
+    font-size: 18rpx;
+    line-height: 1;
+    color: #6b7280;
+    z-index: 3;
+  }
+
+  .power-curve-axis-label-y {
+    left: 0;
+    text-align: right;
+  }
+
+  .power-curve-axis-label-x-end {
+    text-align: right;
   }
 
   .power-curve-peak {

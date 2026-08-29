@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import { getAuthUser } from '@/lib/auth';
 import { MOTION_GAME_CONFIG, type MotionGameKey } from '@/lib/motionGameLeaderboard';
+import { findPowerAnalysisChallengeByTemplateId } from '@/lib/powerAnalysisLeaderboard';
 import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 
 import type { ApiData } from '@/types/api';
@@ -26,6 +27,97 @@ export async function POST(req: Request) {
     const page = body.page || 1;
     const limit = body.limit || 10;
     const offset = (page - 1) * limit;
+
+    const powerAnalysisChallenge = findPowerAnalysisChallengeByTemplateId(body.template_id);
+    if (powerAnalysisChallenge) {
+        const [challengeKey, config] = powerAnalysisChallenge;
+        const db = serviceRoleSupabase as any;
+        const { data: bestScores, error: bestScoresError, count: bestScoresCount } = await db
+            .from('power_analysis_best_scores')
+            .select(
+                'user_id, best_power_w, best_power_mode, best_power_job_id, best_power_achieved_at, best_velocity_mps, best_velocity_mode, best_velocity_job_id, best_velocity_achieved_at',
+                { count: 'exact' },
+            )
+            .not(config.scoreColumn, 'is', null)
+            .order(config.scoreColumn, { ascending: false })
+            .order(config.achievedAtColumn, { ascending: true })
+            .order('user_id', { ascending: true })
+            .range(offset, offset + limit - 1);
+
+        if (bestScoresError) {
+            console.error('获取功率挑战排行榜失败:', bestScoresError);
+            return NextResponse.json<ApiData<ListEntriesResponseDto>>({
+                success: false,
+                message: bestScoresError.message,
+                data: null,
+            }, { status: 500 });
+        }
+
+        const userIds = Array.from(new Set((bestScores || []).map((item: any) => item.user_id)));
+        const profilesMap = new Map<string, { name: string; avatar: string }>();
+        if (userIds.length > 0) {
+            const { data: profiles } = await db
+                .from('user_profiles')
+                .select('user_id, nickname, avatar_url, full_name')
+                .in('user_id', userIds);
+            for (const profile of profiles || []) {
+                profilesMap.set(profile.user_id, {
+                    name: profile.nickname || profile.full_name || '匿名用户',
+                    avatar: profile.avatar_url || '',
+                });
+            }
+        }
+
+        const modeLabels: Record<string, string> = {
+            pullup: '引体向上',
+            muscleup: '双力臂',
+            dip: '双杠臂屈伸',
+            pushup: '俯卧撑',
+            squat: '深蹲起身',
+        };
+        const powerEntries = (bestScores || []).map((item: any) => {
+            const score = Number(Number(item[config.scoreColumn] || 0).toFixed(config.digits));
+            const otherValue = challengeKey === 'power'
+                ? Number(Number(item.best_velocity_mps || 0).toFixed(2))
+                : Number(Number(item.best_power_w || 0).toFixed(0));
+            const otherFieldName = challengeKey === 'power' ? '最快速度（m/s）' : '最高功率（W）';
+            const mode = String(item[config.modeColumn] || '');
+            const jobId = item[config.jobIdColumn] || null;
+
+            return {
+                id: jobId || `${challengeKey}-${item.user_id}`,
+                template_id: config.templateId,
+                user_id: item.user_id,
+                score,
+                status: 'approved',
+                form_data: [
+                    { type: 'number', name: config.rankByField, required: true, userInput: score },
+                    { type: 'number', name: otherFieldName, required: true, userInput: otherValue },
+                    { type: 'text', name: '动作', required: true, userInput: modeLabels[mode] || mode || '未知' },
+                ],
+                evidence_url: null,
+                extra_data: {
+                    challenge_key: challengeKey,
+                    source_job_id: jobId,
+                    verified: true,
+                    scope: 'coachlink_nationwide_participants',
+                },
+                created_at: item[config.achievedAtColumn],
+                userProfile: profilesMap.get(item.user_id) || { name: '匿名用户', avatar: '' },
+            };
+        });
+
+        return NextResponse.json<ApiData<ListEntriesResponseDto>>({
+            success: true,
+            message: '获取功率挑战排行榜成功',
+            data: {
+                entries: powerEntries,
+                total: bestScoresCount || 0,
+                page,
+                limit,
+            },
+        });
+    }
 
     const motionGameEntry = Object.entries(MOTION_GAME_CONFIG).find(
         ([, config]) => config.templateId === body.template_id,

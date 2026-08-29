@@ -107,6 +107,10 @@ function RankingDetail() {
     : leaderboard?.type === 'motion_game_pushup'
       ? '/toolbox/pushup-dash/index'
       : ''
+  const powerAnalysisPath = leaderboard?.type === 'power_analysis_power' || leaderboard?.type === 'power_analysis_speed'
+    ? '/toolbox/power-analysis/index'
+    : ''
+  const automaticChallengePath = motionGamePath || powerAnalysisPath
 
   if (loading && !leaderboard) {
     return (
@@ -148,11 +152,11 @@ function RankingDetail() {
         recordCount={total}
         ownerName={leaderboard.initiator || '教链'}
         needReview={leaderboard.needReview}
-        actionLabel={motionGamePath ? '开始挑战' : '提交记录'}
-        automatic={Boolean(motionGamePath)}
+        actionLabel={powerAnalysisPath ? '上传视频挑战' : motionGamePath ? '开始挑战' : '提交记录'}
+        automatic={Boolean(automaticChallengePath)}
         onJoinClick={() => {
-          if (motionGamePath) {
-            Taro.navigateTo({ url: motionGamePath })
+          if (automaticChallengePath) {
+            Taro.navigateTo({ url: automaticChallengePath })
           } else {
             setShowDialog(true)
           }
@@ -169,7 +173,7 @@ function RankingDetail() {
 
       <ActivityNotice notice={leaderboard.remarks} />
 
-      {!motionGamePath ? (
+      {!automaticChallengePath ? (
         <SubmissionDialog
           visible={showDialog}
           onHide={() => setShowDialog(false)}

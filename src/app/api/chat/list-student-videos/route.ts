@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import type {
     ListStudentVideosDto,
@@ -38,7 +39,10 @@ function pickSetValue(setExecution: any, ...keys: string[]) {
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json<ApiData<ListStudentVideosResponseDto>>({
             success: false,
             message: "用户未登录",
@@ -54,7 +58,7 @@ export async function POST(req: Request) {
         pageSize = 20,
     } = await req.json() as ListStudentVideosDto;
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
 
     let targetStudentIds: string[] = [];
     if (studentId) {

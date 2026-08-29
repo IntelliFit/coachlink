@@ -61,7 +61,7 @@ export default function LeaderboardHeader({
         {!needReview && (
           <View className="meta-item" style={{ marginTop: 8 }}>
             <Text style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>
-              {automatic ? '游戏自动记录成绩' : '无审核比赛'}
+              {automatic ? '成绩由系统自动验证并记录' : '无审核比赛'}
             </Text>
           </View>
         )}

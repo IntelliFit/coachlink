@@ -1,7 +1,7 @@
 # PROJECT_STATE
 
 - Project: `coachlink`
-- Workspace: `D:\projects\coachlink`
+- Workspace: `D:\files\coachlink`
 - Ownership: dedicated coding agent for `coachlink`
 - Surface: web app
 - UI verification tool: `web-devtools`

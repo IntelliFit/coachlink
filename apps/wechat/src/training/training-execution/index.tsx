@@ -12,6 +12,7 @@ import { formatKgValueForGym } from '@/utils/weightQuantize'
 import { buildPlannedSetPreviews } from '@/utils/planSetPrescriptions'
 import {
   readTrainingExecutionSnapshot,
+  removeTrainingExecutionFromStorage,
   syncTrainingExecutionToStorage,
   trainingExecutionSnapshotKey
 } from '@/utils/trainingExecutionCache'
@@ -130,6 +131,8 @@ interface ActionExecution {
   action_id: string
   action_name: string
   action_order: number
+  source_action_index?: number
+  plan_note?: string
   source?: string // 'student_extra' = 学员自行添加
   sets: SetData[]
   total_sets: number
@@ -181,6 +184,41 @@ function formatRestSummary(seconds?: number | null): string {
   const r = s % 60
   if (r === 0) return `间歇 ${m}分钟`
   return `间歇 ${m}分${r}秒`
+}
+
+function getPlanActionNote(
+  planInstance: any,
+  targetDayIndex: number,
+  action: ActionExecution,
+  actionIndex: number
+): string {
+  const embeddedNote = String(action?.plan_note || '').trim()
+  if (embeddedNote) return embeddedNote
+
+  const trainingDays = Array.isArray(planInstance?.training_days)
+    ? planInstance.training_days
+    : Array.isArray(planInstance?.trainingDays)
+      ? planInstance.trainingDays
+      : []
+  const targetDay = trainingDays.find((day: any) => (
+    Number(day?.dayIndex ?? day?.day_index) === Number(targetDayIndex)
+  ))
+  const actionSets = Array.isArray(targetDay?.actionSets)
+    ? targetDay.actionSets
+    : Array.isArray(targetDay?.action_sets)
+      ? targetDay.action_sets
+      : []
+  const sourceActionIndex = Number(action?.source_action_index)
+  const preferredIndex = Number.isInteger(sourceActionIndex) && sourceActionIndex >= 0
+    ? sourceActionIndex
+    : actionIndex
+  const indexedActionSet = actionSets[preferredIndex]
+  const actionId = String(action?.action_id || '').trim()
+  const matchedActionSet = indexedActionSet || actionSets.find((item: any) => (
+    actionId && String(item?.action_id || item?.actionId || '').trim() === actionId
+  ))
+
+  return String(matchedActionSet?.params?.note || matchedActionSet?.note || '').trim()
 }
 
 function formatTimerValue(totalSeconds: number): string {
@@ -344,6 +382,7 @@ function TrainingExecution() {
   const [openSetMoreKey, setOpenSetMoreKey] = React.useState<string | null>(null)
   const [editingSetKey, setEditingSetKey] = React.useState<string | null>(null)
   const [completing, setCompleting] = React.useState(false)
+  const [cancelling, setCancelling] = React.useState(false)
   const [restTimer, setRestTimer] = React.useState(0)
   const [isResting, setIsResting] = React.useState(false)
   const [restTimerMinimized, setRestTimerMinimized] = React.useState(false)
@@ -2131,6 +2170,55 @@ function TrainingExecution() {
   const pendingSetsCount = Math.max(0, totalSets - completedSets)
   const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
   const shouldShowQuickFinishButton = !isImpromptuMode && canFinishWholeDay && pendingSetsCount > 0
+  const canCancelTraining =
+    !isImpromptuMode &&
+    !isReadOnly &&
+    isPersistedInProgressExecution &&
+    completedSets === 0
+
+  const handleCancelTraining = () => {
+    if (!canCancelTraining || !execution?.id || !instanceId || !userId || cancelling) return
+
+    Taro.showModal({
+      title: '取消本次训练？',
+      content: `第${dayIndex}天的本次记录将作废，并恢复为未开始状态。此操作无法撤销。`,
+      confirmText: '确认取消',
+      cancelText: '继续训练',
+      confirmColor: '#CF6D4E',
+      success: async (res) => {
+        if (!res.confirm) return
+        try {
+          setCancelling(true)
+          const cancelled = await executionService.cancelExecution(execution.id)
+          if (!cancelled) return
+
+          removeTrainingExecutionFromStorage({
+            userId,
+            scopeKey: executionSnapshotScopeKey,
+            instanceId,
+            dayIndex
+          })
+          clearPersistedRestTimer()
+          if (trainingTimerStorageKey) {
+            try {
+              Taro.removeStorageSync(trainingTimerStorageKey)
+            } catch {
+              // Best effort only.
+            }
+          }
+          setIsResting(false)
+          setRestTimer(0)
+          setRestTimerMinimized(false)
+          setElapsedTrainingSeconds(0)
+          Taro.showToast({ title: '训练已取消', icon: 'success' })
+          setTimeout(() => Taro.navigateBack(), 500)
+        } finally {
+          setCancelling(false)
+        }
+      }
+    })
+  }
+
   const completedActions = actionExecutions.reduce((sum: number, a: ActionExecution) => {
     return sum + ((a.completed_sets || 0) >= (a.total_sets || 0) ? 1 : 0)
   }, 0)
@@ -2533,6 +2621,7 @@ function TrainingExecution() {
                 : actionMeta.cue
               const hasActionDetail = !!(actionDetail?.detail || actionDetail?.url || actionDetail?.positions?.length || actionDetail?.attrs?.length)
               const hasActionDemo = !!actionDetail?.url
+              const planActionNote = getPlanActionNote(planInstance, dayIndex, action, actionIdx)
 
               return (
                 <View
@@ -2594,6 +2683,12 @@ function TrainingExecution() {
 
                 {isExpanded && (
                   <View className="action-content">
+                    {planActionNote && (
+                      <View className="coach-plan-note">
+                        <Text className="coach-plan-note-label">教练备注</Text>
+                        <Text className="coach-plan-note-text">{planActionNote}</Text>
+                      </View>
+                    )}
                     {isStrength ? (
                       <>
                         <View className="sets-list">
@@ -3109,6 +3204,19 @@ function TrainingExecution() {
                   ? '一键完成训练'
                   : '完成训练'}
             </Button>
+            {canCancelTraining && (
+              <View className="cancel-training-wrap">
+                <Text className="cancel-training-hint">误点进入且尚未完成任何内容时，可恢复为未开始</Text>
+                <Button
+                  className="cancel-training-btn"
+                  loading={cancelling}
+                  disabled={completing || cancelling}
+                  onClick={handleCancelTraining}
+                >
+                  取消本次训练
+                </Button>
+              </View>
+            )}
           </View>
         )}
         {(isReadOnly || isWorkoutCompleted) && canOpenWorkoutSummary && (

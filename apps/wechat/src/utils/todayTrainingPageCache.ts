@@ -133,6 +133,70 @@ export function patchExecutionInTodayTrainingPageCache(
   })
 }
 
+/** 取消空训练后移除首页缓存中的 execution，使该训练日立即恢复未开始。 */
+export function removeExecutionFromTodayTrainingPageCache(
+  userId: string,
+  instanceId: string,
+  dayIndex: number
+) {
+  if (!userId || !instanceId) return
+  const di = Number(dayIndex)
+  if (!Number.isFinite(di) || di <= 0) return
+
+  const cur = readTodayTrainingPageCache(userId)
+  if (!cur) return
+
+  if (cur.selfInstance?.id === instanceId) {
+    const selfExecutionsByDayIndex = { ...(cur.selfExecutionsByDayIndex || {}) }
+    delete selfExecutionsByDayIndex[di]
+    persistTodayTrainingPageCache({
+      userId,
+      coachSubscriptions: cur.coachSubscriptions,
+      coachPlanDataBySubId: cur.coachPlanDataBySubId,
+      activeCoachSubscriptionId: cur.activeCoachSubscriptionId,
+      selfInstance: cur.selfInstance,
+      selfActions: cur.selfActions,
+      selfDayIndex: cur.selfDayIndex,
+      selfTodayCompleted: cur.selfTodayCompleted,
+      selfCompletionDates: cur.selfCompletionDates,
+      selfExecutionsByDayIndex,
+      selfMissingDays: cur.selfMissingDays,
+      planMode: cur.planMode,
+      selectedDayIndex: cur.selectedDayIndex
+    })
+    return
+  }
+
+  const coachPlanDataBySubId = { ...(cur.coachPlanDataBySubId || {}) }
+  let hit = false
+  for (const subId of Object.keys(coachPlanDataBySubId)) {
+    const block = coachPlanDataBySubId[subId]
+    if (block?.instance?.id !== instanceId) continue
+    const executionsByDayIndex = { ...(block.executionsByDayIndex || {}) }
+    delete executionsByDayIndex[di]
+    coachPlanDataBySubId[subId] = { ...block, executionsByDayIndex }
+    hit = true
+    break
+  }
+  if (!hit) return
+
+  persistTodayTrainingPageCache({
+    userId,
+    coachSubscriptions: cur.coachSubscriptions,
+    coachPlanDataBySubId,
+    activeCoachSubscriptionId: cur.activeCoachSubscriptionId,
+    selfInstance: cur.selfInstance,
+    selfActions: cur.selfActions,
+    selfDayIndex: cur.selfDayIndex,
+    selfTodayCompleted: cur.selfTodayCompleted,
+    selfCompletionDates: cur.selfCompletionDates,
+    selfExecutionsByDayIndex: cur.selfExecutionsByDayIndex,
+    selfMissingDays: cur.selfMissingDays,
+    planMode: cur.planMode,
+    selectedDayIndex: cur.selectedDayIndex
+  })
+}
+
 export function getTodayTrainingBootFromCache() {
   const session = authService.getAuthSession({ normalize: true })
   const userId = session.userId ? String(session.userId) : ''

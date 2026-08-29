@@ -64,6 +64,8 @@ function RankingIndex() {
     switch (type) {
       case 'motion_game_pullup':
       case 'motion_game_pushup':
+      case 'power_analysis_power':
+      case 'power_analysis_speed':
         return Zap
       case 'time':
         return Target

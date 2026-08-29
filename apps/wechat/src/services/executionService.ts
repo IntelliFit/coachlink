@@ -388,6 +388,19 @@ class ExecutionService {
   }
 
   /**
+   * 取消误打开且尚未记录任何完成内容的计划训练
+   */
+  async cancelExecution(executionId: string): Promise<{ executionId: string; instanceId: string; dayIndex: number } | null> {
+    const res = await request<{ executionId: string; instanceId: string; dayIndex: number }>({
+      url: `${this.baseUrl}/cancel`,
+      method: 'POST',
+      data: { executionId }
+    })
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  /**
    * 提交训练反馈（给教练）
    */
   async submitFeedback(params: {

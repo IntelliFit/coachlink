@@ -355,6 +355,32 @@
     border-top: 1rpx solid rgba(255, 255, 255, 0.06);
   }
 
+  .coach-plan-note {
+    margin-top: 16rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    background: rgba(207, 109, 78, 0.12);
+    border: 1rpx solid rgba(207, 109, 78, 0.28);
+  }
+
+  .coach-plan-note-label {
+    display: block;
+    font-size: 22rpx;
+    line-height: 32rpx;
+    font-weight: 700;
+    color: #f0a68f;
+  }
+
+  .coach-plan-note-text {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 26rpx;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.86);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   .sets-list {
     display: flex;
     flex-direction: column;
@@ -1061,6 +1087,35 @@
     &.warning {
       background: #a94f38;
     }
+  }
+
+  .cancel-training-wrap {
+    margin-top: 16rpx;
+  }
+
+  .cancel-training-hint {
+    display: block;
+    margin-bottom: 8rpx;
+    color: #6b7280;
+    font-size: 22rpx;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .cancel-training-btn {
+    width: 100%;
+    height: 80rpx;
+    border: 1rpx solid #cf6d4e;
+    border-radius: 16rpx;
+    background: #ffffff;
+    color: #cf6d4e;
+    font-size: 28rpx;
+    font-weight: 700;
+    line-height: 80rpx;
+  }
+
+  .cancel-training-btn::after {
+    border: none;
   }
 
   .feedback-modal {
@@ -1933,6 +1988,19 @@
 
   .action-content {
     border-top: 1rpx solid #f1eee9 !important;
+  }
+
+  .coach-plan-note {
+    background: #fff7ed !important;
+    border-color: #fed7aa !important;
+  }
+
+  .coach-plan-note-label {
+    color: #c2410c !important;
+  }
+
+  .coach-plan-note-text {
+    color: #374151 !important;
   }
 
   .set-item {

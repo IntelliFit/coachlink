@@ -268,6 +268,22 @@ export async function POST(request: NextRequest) {
             });
         }
 
+        const actionSets = Array.isArray(trainingDay.actionSets)
+            ? trainingDay.actionSets
+            : Array.isArray(trainingDay.action_sets)
+                ? trainingDay.action_sets
+                : [];
+        const isEmptyRestDay =
+            String(trainingDay?.type || "training").toLowerCase() !== "training" &&
+            actionSets.length === 0;
+        if (isEmptyRestDay) {
+            return NextResponse.json({
+                success: false,
+                code: "REST_DAY_HAS_NO_TASKS",
+                message: "今天是休息日，无需开始训练",
+            }, { status: 400 });
+        }
+
         const isManualAdvanceAcrossRestDays = canManuallyAdvanceAcrossRestDays({
             planDays: trainingDays,
             recommendedDayIndex: Number(recommendedDayIndex),
@@ -292,7 +308,6 @@ export async function POST(request: NextRequest) {
         }
 
         // 7. 获取动作库信息（用于获取真实动作名称）
-        const actionSets = trainingDay.actionSets || [];
         // 支持两种字段名: action_id 和 actionId
         const actionIds = actionSets
             .map((a: any) => a.action_id || a.actionId)
