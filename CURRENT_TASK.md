@@ -9426,7 +9426,15 @@
 
 ## 微信小程序按 envVersion 自动切换 API 并直接提审 (`2026-08-30`)
 
-- Status: 代码与构建验证完成，正在提交、上传新版本并提交微信审核。
+- Status: 代码已提交并同步，新的审核候选已上传；微信审核尚未提交。普通自有小程序调用 `wxa/submit_audit` 返回 86000（仅第三方平台代理可用），必须在已登录微信公众平台网页提交；Chrome 扩展接管公众平台标签页持续超时，等待用户授权打开新的 Chrome 窗口继续。
 - Requirement: 用户确认采用 FoodLink 同类逻辑：同一个上传包在体验版自动访问 dev API，审核通过并发布为正式版后自动访问 production API；修改完成后直接提交该版本审核。
 - Implementation: 新增 `src/utils/apiBaseUrl.ts`，运行时读取 `Taro.getAccountInfoSync().miniProgram.envVersion`。production 包的 `trial -> https://dev.coachlink.fit`、`release -> https://coachlink.fit`；审核阶段可能返回 `develop`，production 包强制走 production。统一请求、教练收款码上传与街健图片上传均复用同一解析结果。
 - Verification: lint、typecheck、Vitest 42 files / 203 tests 通过；小程序 local 2,887 modules 与 release 2,874 modules 构建通过。release 产物同时包含 dev / production 地址、包含 `getAccountInfoSync/envVersion/trial/release/develop` 路由，不含 localhost/127.0.0.1。微信 DevTools CLI 已加载最新 local 项目；`mrc 1.0.0` 仍与新版 DevTools 28264 自动化协议不兼容，无法取得可靠截图/元素日志。
+- Release: 提交 `527e45b1` 已同步 GitHub/Gitee `main` / `dev`。新上传版本 `2026.08.30.0255`，约 9.6 MB，描述 `体验正式环境自动切换API 527e45b`；上传成功但未提交审核。
+
+## 微信小程序下线 AI 助手并重新提审 (`2026-08-30`)
+
+- Status: 代码修改和发布前验证已完成，正在提交、同步分支并上传新的审核候选。
+- Scope: 从公共 `BottomNav` 移除 `AiAppNavigator` 引用；保留未接入的源码，发布前扫描编译产物，确保 AI 导航接口和界面文案未进入上传包。
+- Verification: lint、typecheck、Vitest 42 files / 203 tests 通过；小程序 local 2,882 modules、release 2,869 modules 构建通过。release 产物确认不含 `/api/miniapp/ai-navigator`、AI 导航界面文案或本地 API 地址，仍包含 dev/production 域名和 `getAccountInfoSync/envVersion` 自动路由。微信 DevTools 在首页及工具箱页均确认 `.ai-app-navigator` 不存在、错误日志 0、警告日志 0；截图接口两次返回 `timeout waiting for automator response`，未取得截图。
+- Next: 同步 `main` / `dev`，上传新体验版并通过微信公众平台提交审核。

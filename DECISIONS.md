@@ -704,6 +704,11 @@
 - dev Worker 使用 `coachlink-motion-effects-worker:dev`，生产 Worker 继续使用 `:latest`；普通 dev 发布只推 `:dev`，禁止借测试名义更新生产 Worker。
 - `2026-08-30` 起，小程序 production 上传包采用与 FoodLink 一致的运行时环境路由：`trial` 体验版访问 `https://dev.coachlink.fit`，`release` 正式版访问 `https://coachlink.fit`；微信审核阶段可能以 `develop` 运行 production 包，必须访问正式 API。一次上传完成体验、审核和正式发布环境切换，不再为 dev 体验版构建写死单一域名的独立包。`TARO_APP_API_BASE_URL_OVERRIDE` / 旧 `TARO_APP_API_URL` 仅限明确联调，正式上传前必须清除。
 
+# 微信小程序暂时下线 AI 应用导航 (`2026-08-30`)
+
+- 在完成所需算法备案前，微信小程序所有一级页面不得展示或加载 AI 应用导航助手；公共底部导航不得引用 `AiAppNavigator`。
+- 审核候选的编译产物必须确认不包含 `/api/miniapp/ai-navigator` 与 AI 导航界面文案。源码暂时保留，后续完成备案并经用户明确确认后再恢复入口。
+
 # Supabase 迁移采用后台网页逐个手动执行 (`2026-08-01`)
 
 - CoachLink 当前 Supabase 迁移由用户在 Supabase 后台 SQL Editor 手动逐个执行；不要默认运行全量 `supabase db push`，避免本地与远程迁移历史分叉导致旧迁移重放。
