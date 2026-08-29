@@ -174,7 +174,6 @@ export default function SubmissionDialog({
           </View>
           <View className="submission-actions">
             <Button
-              type="primary"
               block
               loading={loading}
               disabled={loading}

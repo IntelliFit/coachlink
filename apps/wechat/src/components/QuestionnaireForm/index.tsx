@@ -262,7 +262,6 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             取消
           </Button>
           <Button
-            type="primary"
             size="small"
             loading={submitting || loading}
             onClick={handleSubmit}

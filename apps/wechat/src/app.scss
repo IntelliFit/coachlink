@@ -136,3 +136,10 @@ $bottom-nav-height-rpx: 140rpx;
     color: #fff;
   }
 }
+
+/* Prevent NutUI primary buttons from falling back to the platform green. */
+.nut-button--primary {
+  background: #CF6D4E !important;
+  border-color: #CF6D4E !important;
+  color: #FFFFFF !important;
+}
