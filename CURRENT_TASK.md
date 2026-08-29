@@ -9421,4 +9421,12 @@
 - Git: `main` / `dev` 已同时推送 GitHub 与 Gitee；原 PR #45 被 GitHub识别为 `MERGED`。
 - Web/API: `dev`、`latest`、`main`、`491d9c3` 镜像摘要统一为 `sha256:7afa5ff75c9175b43aa1754a426890f329ed331332a855cc87b090d88303b095`。`coachlink-dev` 与 `coachlink-main` 新 Pod 均 3/3 Ready 且运行该摘要；`https://dev.coachlink.fit/api/healthy` 与 `https://coachlink.fit/api/healthy` 均返回 200，`buildTime=2026-08-29T16:20:10.977Z`。
 - WeChat: release 包显式指向 `https://dev.coachlink.fit`，确认无 localhost/127.0.0.1 API；体验版 `2026.08.30.0033` 已通过微信开发者工具上传成功，约 9.6 MB，AppID `wx316e39eb71c0e834`，未提审、未发布正式版。
-- Database blocker: 只读检查显示 dev / production 均可访问 `power_analysis_best_scores` 表，但固定模板 `b7bc1548-08ed-4f52-90cc-f5b22a785103` / `...5104` 均不存在；需用户按既定流程在目标 Supabase SQL Editor 手动执行 `supabase/migrations/20260823040000_power_analysis_challenge_leaderboards.sql`，执行前功率挑战榜不会出现在列表中。
+- Database: 用户已在 Supabase SQL Editor 手动执行 `20260823040000_power_analysis_challenge_leaderboards.sql`。2026-08-30 独立只读回查确认 dev / production 配置均可访问 `power_analysis_best_scores`（当前 4 条），两个固定模板 `b7bc1548-08ed-4f52-90cc-f5b22a785103` / `...5104` 均存在，标题、类型、排序字段与降序规则正确；数据库发布阻塞已解除。
+- Audit handoff: 当前体验版 `2026.08.30.0033` 明确指向 `https://dev.coachlink.fit`，只适合体验测试，不应直接作为正式审核候选。提交审核前应从同一已发布代码重新构建 `https://coachlink.fit` 的 production release、上传一个新版本，完成登录/会话、训练执行、排行榜与功率分析真机冒烟后再提交审核。
+
+## 微信小程序按 envVersion 自动切换 API 并直接提审 (`2026-08-30`)
+
+- Status: 代码与构建验证完成，正在提交、上传新版本并提交微信审核。
+- Requirement: 用户确认采用 FoodLink 同类逻辑：同一个上传包在体验版自动访问 dev API，审核通过并发布为正式版后自动访问 production API；修改完成后直接提交该版本审核。
+- Implementation: 新增 `src/utils/apiBaseUrl.ts`，运行时读取 `Taro.getAccountInfoSync().miniProgram.envVersion`。production 包的 `trial -> https://dev.coachlink.fit`、`release -> https://coachlink.fit`；审核阶段可能返回 `develop`，production 包强制走 production。统一请求、教练收款码上传与街健图片上传均复用同一解析结果。
+- Verification: lint、typecheck、Vitest 42 files / 203 tests 通过；小程序 local 2,887 modules 与 release 2,874 modules 构建通过。release 产物同时包含 dev / production 地址、包含 `getAccountInfoSync/envVersion/trial/release/develop` 路由，不含 localhost/127.0.0.1。微信 DevTools CLI 已加载最新 local 项目；`mrc 1.0.0` 仍与新版 DevTools 28264 自动化协议不兼容，无法取得可靠截图/元素日志。

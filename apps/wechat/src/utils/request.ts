@@ -1,10 +1,9 @@
 import Taro from '@tarojs/taro'
 import { AUTH_SESSION_INVALID_EVENT } from '../services/authSessionEvents'
+import { resolveApiBaseUrl } from './apiBaseUrl'
 
-// API基础URL配置
-// TARO_APP_API_URL 通过 defineConstants 在编译时注入
-// @ts-ignore
-export const API_BASE_URL = TARO_APP_API_URL || 'http://localhost:3000'
+// 同一个上传包按微信 develop/trial/release 运行环境选择对应 API。
+export const API_BASE_URL = resolveApiBaseUrl()
 
 interface RequestOptions {
   url: string

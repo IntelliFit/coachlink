@@ -640,9 +640,6 @@ class CoachService extends BaseService {
 
   /** 上传收款码图片（小程序专用） */
   async uploadQrcodeMiniApp(filePath: string, type: 'wechat' | 'alipay') {
-    // @ts-ignore
-    const API_BASE_URL = typeof TARO_APP_API_URL !== 'undefined' ? TARO_APP_API_URL : 'http://localhost:3000'
-    
     let token: string | null = null
     try {
       token = Taro.getStorageSync('token')

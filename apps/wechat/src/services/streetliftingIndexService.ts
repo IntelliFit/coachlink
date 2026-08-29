@@ -2,11 +2,8 @@
  * 街健工具箱 API（与网页端 coachlink 共用后端）
  */
 import Taro from '@tarojs/taro'
-import { BaseService } from '@/utils/request'
+import { API_BASE_URL, BaseService } from '@/utils/request'
 import type { CalcMode, ExerciseType, Gender } from '@/utils/streetliftingCalc'
-
-// @ts-ignore
-const API_BASE = typeof TARO_APP_API_URL !== 'undefined' ? TARO_APP_API_URL : 'http://localhost:3000'
 
 export interface StreetliftingFormula {
   id: number
@@ -281,7 +278,7 @@ class StreetliftingIndexService extends BaseService {
     const token = Taro.getStorageSync('token') || ''
     return new Promise((resolve, reject) => {
       Taro.uploadFile({
-        url: `${API_BASE}/api/streetlifting-index/upload-location-image`,
+        url: `${API_BASE_URL}/api/streetlifting-index/upload-location-image`,
         filePath,
         name: 'file',
         header: { Authorization: token ? `Bearer ${token}` : '' },

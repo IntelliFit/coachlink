@@ -702,7 +702,7 @@
 
 - `coachlink-dev` 的手指光膜任务不得再使用默认 main topic；标准与极速任务在 dev 都统一进入 `coachlink-motion-effects-tasks-dev`，由 `coachlink-motion-effects-worker-dev` 的独立 consumer group 消费，避免 dev 测试任务与生产 Worker 竞争。
 - dev Worker 使用 `coachlink-motion-effects-worker:dev`，生产 Worker 继续使用 `:latest`；普通 dev 发布只推 `:dev`，禁止借测试名义更新生产 Worker。
-- 小程序 release 构建默认仍指向 `https://coachlink.fit`，但允许通过构建环境变量 `TARO_APP_API_URL` 显式覆写。dev 体验版必须显式构建为 `https://dev.coachlink.fit`，上传后从 `dist-release` 检查目标地址；体验版上传不等于审核或正式发布。
+- `2026-08-30` 起，小程序 production 上传包采用与 FoodLink 一致的运行时环境路由：`trial` 体验版访问 `https://dev.coachlink.fit`，`release` 正式版访问 `https://coachlink.fit`；微信审核阶段可能以 `develop` 运行 production 包，必须访问正式 API。一次上传完成体验、审核和正式发布环境切换，不再为 dev 体验版构建写死单一域名的独立包。`TARO_APP_API_BASE_URL_OVERRIDE` / 旧 `TARO_APP_API_URL` 仅限明确联调，正式上传前必须清除。
 
 # Supabase 迁移采用后台网页逐个手动执行 (`2026-08-01`)
 

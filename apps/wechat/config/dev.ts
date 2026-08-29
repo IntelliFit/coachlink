@@ -51,6 +51,11 @@ function getDevApiUrlSafe(): string {
 }
 
 const devApiUrl = process.env.NODE_ENV === "development" ? getDevApiUrlSafe() : "http://localhost:3000";
+const releaseApiUrl = process.env.TARO_APP_API_BASE_URL_RELEASE || "https://coachlink.fit";
+const trialApiUrl = process.env.TARO_APP_API_BASE_URL_TRIAL || "https://dev.coachlink.fit";
+const developApiUrl = process.env.TARO_APP_API_BASE_URL_DEVELOP || devApiUrl;
+const apiBaseUrlOverride =
+  process.env.TARO_APP_API_BASE_URL_OVERRIDE || process.env.TARO_APP_API_URL || "";
 if (process.env.NODE_ENV === "development") {
   console.log(
     "📱 小程序开发 API 地址:",
@@ -61,7 +66,12 @@ if (process.env.NODE_ENV === "development") {
 
 export default {
   defineConstants: {
-    TARO_APP_API_URL: JSON.stringify(devApiUrl)
+    TARO_APP_API_URL: JSON.stringify(developApiUrl),
+    __API_BASE_URL_RELEASE__: JSON.stringify(releaseApiUrl),
+    __API_BASE_URL_TRIAL__: JSON.stringify(trialApiUrl),
+    __API_BASE_URL_DEVELOP__: JSON.stringify(developApiUrl),
+    __API_BASE_URL_OVERRIDE__: JSON.stringify(apiBaseUrlOverride),
+    __DEV_MODE__: JSON.stringify(true)
   },
   mini: {},
   h5: {

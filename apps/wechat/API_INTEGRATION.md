@@ -17,9 +17,12 @@
 - 支持 GET、POST、PUT、DELETE 方法
 
 **配置：**
-- API 基础 URL 通过 `defineConstants` 中的 `TARO_APP_API_URL` 配置
-- 开发环境：`http://localhost:3000`（在 `config/dev.ts` 中配置）
-- 生产环境：`https://coachlink.fit`（在 `config/prod.ts` 中配置）
+- 构建配置通过 `defineConstants` 同时注入 develop / trial / release 三套 API 地址
+- `src/utils/apiBaseUrl.ts` 在运行时读取微信 `miniProgram.envVersion`
+- 本地开发版（develop + development build）：`http://localhost:3000` 或显式 LAN 地址
+- 体验版（trial）：`https://dev.coachlink.fit`
+- 正式版（release）：`https://coachlink.fit`
+- 微信审核阶段可能以 develop 身份运行 production 上传包，此时固定使用正式 API，确保审核链路可达
 
 ### 2. 认证服务 (`src/services/authService.ts`)
 
@@ -91,33 +94,18 @@ await sesService.sendVerificationCode({
 
 ## 环境配置
 
-### 开发环境
+### 环境映射
 
-在 `config/dev.ts` 中配置：
+| 微信环境 | API |
+| --- | --- |
+| `develop` + development build | 本机或 LAN API |
+| `trial` | `https://dev.coachlink.fit` |
+| `release` | `https://coachlink.fit` |
+| `develop` + production upload（审核阶段） | `https://coachlink.fit` |
 
-```typescript
-export default {
-  defineConstants: {
-    TARO_APP_API_URL: JSON.stringify('http://localhost:3000')
-  },
-  // ...
-}
-```
+发布包同时包含 dev 与 production 地址，由运行时 `envVersion` 选择。同一个上传版本作为体验版时访问 dev，审核通过并发布为正式版后自动访问 production；不再为体验版单独构建一个写死 dev 域名的包。
 
-### 生产环境
-
-在 `config/prod.ts` 中配置：
-
-```typescript
-export default {
-  defineConstants: {
-    TARO_APP_API_URL: JSON.stringify('https://coachlink.fit')
-  },
-  // ...
-}
-```
-
-**注意：** `defineConstants` 中定义的常量会在编译时注入到代码中。修改配置后需要重新编译项目。
+`TARO_APP_API_BASE_URL_OVERRIDE`（兼容旧 `TARO_APP_API_URL`）只用于明确的联调/诊断。正式上传前必须清除 override，避免整个上传包被强制固定到单一环境。
 
 ## 路径别名配置
 
