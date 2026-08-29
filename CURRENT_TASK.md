@@ -9414,7 +9414,11 @@
 - Handoff: 人工验收通过后，可将两条业务状态从 `验收中` 更新为 `已完成`。若要让用户实际使用，仍需另行授权后提交/推送、部署含 chat API 的 Web 后端，并构建上传小程序体验版或正式版。
 ## 2026-08-30 全分支主线同步、双环境部署与小程序体验版
 
-- Status: 进行中。用户已明确授权拉取最新代码、把发布候选与活跃分支同步到 `main` / `dev`、部署两套 Web/API，并上传微信小程序体验版。
+- Status: 发布主体已完成。`main` / `dev`、GitHub / Gitee 均已同步；两套 Web/API 已滚动完成；微信体验版已上传。唯一剩余项是由用户在 Supabase 后台手动执行功率挑战迁移，未提审、未发布小程序正式版。
 - Baseline: `main`、`dev`、`origin/main`、`origin/dev` 初始均为 `cd970125`；工作区已有 8 月 23–25 日完成但未发布的训练撤销、教练备注、功率挑战与 AI 排期修复等候选改动。
-- Branch policy: 合并当前工作区候选和仍未进入主线的近期活跃功能分支；历史备份、恢复快照、已被后续实现取代的旧分支，以及与主线相差上千提交的陈旧实验分支不反向灌入主线。
-- Release gates: 合并后执行 `npm run lint`、`npm run typecheck`、`npm test`、`npx next build` 与小程序 release 构建；Git 推送后分别构建并推送 `dev` / `main` Web/API 镜像，等待线上滚动并检查健康接口，最后上传体验版（不提审、不发布正式版）。
+- Integration: 发布代码提交为 `491d9c30`；整合当前候选及 `codex/wechat-training-action-library-20260825`、`codex/fix-wechat-primary-buttons`、`codex/fix-workout-completed-state`。历史备份、恢复快照、已被后续实现取代的旧分支，以及与主线相差上千提交的陈旧实验分支未反向灌入主线。
+- Gates: `npm run lint`、`npm run typecheck`、Vitest 42 files / 203 tests、Next 537 页生产构建、小程序 local 2,886 modules 与 release 2,873 modules 均通过。微信 DevTools 可加载项目并开启 28264 服务，但 `mrc 1.0.0` 与新版工具的自动化 WebSocket 协议不兼容，无法取得可靠截图/元素日志。
+- Git: `main` / `dev` 已同时推送 GitHub 与 Gitee；原 PR #45 被 GitHub识别为 `MERGED`。
+- Web/API: `dev`、`latest`、`main`、`491d9c3` 镜像摘要统一为 `sha256:7afa5ff75c9175b43aa1754a426890f329ed331332a855cc87b090d88303b095`。`coachlink-dev` 与 `coachlink-main` 新 Pod 均 3/3 Ready 且运行该摘要；`https://dev.coachlink.fit/api/healthy` 与 `https://coachlink.fit/api/healthy` 均返回 200，`buildTime=2026-08-29T16:20:10.977Z`。
+- WeChat: release 包显式指向 `https://dev.coachlink.fit`，确认无 localhost/127.0.0.1 API；体验版 `2026.08.30.0033` 已通过微信开发者工具上传成功，约 9.6 MB，AppID `wx316e39eb71c0e834`，未提审、未发布正式版。
+- Database blocker: 只读检查显示 dev / production 均可访问 `power_analysis_best_scores` 表，但固定模板 `b7bc1548-08ed-4f52-90cc-f5b22a785103` / `...5104` 均不存在；需用户按既定流程在目标 Supabase SQL Editor 手动执行 `supabase/migrations/20260823040000_power_analysis_challenge_leaderboards.sql`，执行前功率挑战榜不会出现在列表中。
