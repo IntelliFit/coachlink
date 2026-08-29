@@ -33,6 +33,13 @@
 - Database: 新迁移 `20260823040000_power_analysis_challenge_leaderboards.sql` 创建两个固定模板、`power_analysis_best_scores`、RLS/索引和幂等 RPC `record_power_analysis_best`，并从历史完成任务回填真实个人最好。隔离 PostgreSQL 用 4 名用户验证 camel/snake 指标兼容、历史回填、两榜独立排名、单指标异常隔离、新 PB 升榜和重复同步幂等；一次性数据库已删除。
 - Verification: `npm run typecheck`、lint（项目仅提示未配置 ESLint）、Vitest 42 files / 203 tests、Next 536 页生产构建、小程序 local 2,886 modules 均通过。微信开发者工具实际渲染截图为 `screenshots/weapp/power-curves-visible-fix-2026-08-23.png` 和 `screenshots/weapp/power-challenge-ranking-card-2026-08-23.png`；点击“查看功率榜”已跳到固定模板 `b7bc1548-08ed-4f52-90cc-f5b22a785103`。
 - Next: 获得发布授权后，先提交代码，再精确执行单一迁移，部署 Web/API，构建 production API 小程序并上传体验版；线上真机复验曲线像素、两榜人数/名次和两个榜单入口。
+## 训练执行页添加动作直接进入统一动作库 (`2026-08-25`)
+
+- Status: 已完成代码、本地小程序验证并创建 GitHub PR `#45`（目标 `dev`，功能提交 `ec14256d`）；未上传体验版、未提审、未发布正式版。
+- Change: `training/training-execution` 的“+ 添加动作”不再打开页面内只筛力量动作的旧弹窗，改为直接进入 `me/action-lib` 的选择模式；动作库可在“力量动作库 / 有氧动作库”间切换，选中公共动作后加入我的动作库、返回训练页并立即追加到当前 execution。
+- Verification: `npm run build:weapp` 通过（Taro 4.1.11，2,886 modules）；微信开发者工具本地 `dist` 已展示动作库选择页并完成“有氧动作库”点击切换，error/warn 均为 0。截图位于 `screenshots/weapp/training-action-library-2026-08-25/`。
+- Scope: 只修改 `apps/wechat/src/training/training-execution/index.tsx` 与 `apps/wechat/src/me/action-lib/index.tsx`；未运行根项目的 broad lint/typecheck/test/build，符合小范围小程序改动偏好。
+
 
 ## 两款无限体感游戏自动排行榜与局后名次 (`2026-08-22`)
 
