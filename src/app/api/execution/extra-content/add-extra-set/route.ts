@@ -116,6 +116,14 @@ export async function POST(request: NextRequest) {
             }, { status: accessDecision.status });
         }
 
+        if (String(execution.status || "").toLowerCase() !== "in_progress") {
+            return NextResponse.json<ApiData<AddExtraSetResponseDto>>({
+                success: false,
+                message: "训练已结束，不能继续修改动作或组",
+                data: null,
+            }, { status: 400 });
+        }
+
         // 5. 获取 action_executions 并添加新组
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const actionExecutions = execution.action_executions as any[];

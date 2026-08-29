@@ -49,6 +49,14 @@ export async function POST(request: NextRequest) {
             }, { status: 403 });
         }
 
+        if (String(execution.status || "").toLowerCase() !== "in_progress") {
+            return NextResponse.json<ApiData<AddImpromptuExtraExerciseResponseDto>>({
+                success: false,
+                message: "训练已结束，不能继续修改动作或组",
+                data: null,
+            }, { status: 400 });
+        }
+
         const { data: studentAction } = await supabase
             .from("student_actions")
             .select("id, name, type")

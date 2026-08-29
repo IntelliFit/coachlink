@@ -54,14 +54,6 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
-        if (execution.status === "completed") {
-            return NextResponse.json<ApiData<CompleteImpromptuSetResponseDto>>({
-                success: false,
-                message: "训练已完成，不能继续修改",
-                data: null,
-            }, { status: 400 });
-        }
-
         const actions = Array.isArray(execution.action_executions)
             ? execution.action_executions
             : [];
@@ -77,6 +69,22 @@ export async function POST(req: Request) {
         const currentSet = Array.isArray(currentAction?.sets)
             ? currentAction.sets[setIndex]
             : null;
+        if (!currentSet) {
+            return NextResponse.json<ApiData<CompleteImpromptuSetResponseDto>>({
+                success: false,
+                message: "组不存在",
+                data: null,
+            }, { status: 400 });
+        }
+        // 已结束的训练仍允许修正已经记录过的组，与计划训练的编辑体验保持一致；
+        // 但不能借此补录原本未完成的组，避免结束后的训练进度被静默改变。
+        if (execution.status === "completed" && currentSet.status !== "completed") {
+            return NextResponse.json<ApiData<CompleteImpromptuSetResponseDto>>({
+                success: false,
+                message: "训练已结束，只能修改已完成的组",
+                data: null,
+            }, { status: 400 });
+        }
         const actionName = String(
             currentAction?.action_name || currentAction?.name || `动作${actionIndex + 1}`,
         ).trim() || `动作${actionIndex + 1}`;
