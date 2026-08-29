@@ -9434,7 +9434,8 @@
 
 ## 微信小程序下线 AI 助手并重新提审 (`2026-08-30`)
 
-- Status: 代码修改和发布前验证已完成，正在提交、同步分支并上传新的审核候选。
+- Status: 代码、分支同步和新体验版上传均已完成；微信审核尚未提交。公众平台已确认新版本可见并有“提交审核”按钮，但 Chrome 页面控制在滚动/点击时持续超时；浏览器、扩展和连接组件诊断均正常，按恢复规则需用户授权为当前 Chrome 配置新开窗口后才能继续。
 - Scope: 从公共 `BottomNav` 移除 `AiAppNavigator` 引用；保留未接入的源码，发布前扫描编译产物，确保 AI 导航接口和界面文案未进入上传包。
 - Verification: lint、typecheck、Vitest 42 files / 203 tests 通过；小程序 local 2,882 modules、release 2,869 modules 构建通过。release 产物确认不含 `/api/miniapp/ai-navigator`、AI 导航界面文案或本地 API 地址，仍包含 dev/production 域名和 `getAccountInfoSync/envVersion` 自动路由。微信 DevTools 在首页及工具箱页均确认 `.ai-app-navigator` 不存在、错误日志 0、警告日志 0；截图接口两次返回 `timeout waiting for automator response`，未取得截图。
-- Next: 同步 `main` / `dev`，上传新体验版并通过微信公众平台提交审核。
+- Git/Release: 提交 `90975d6c` 已同步 GitHub/Gitee `main` / `dev`。新体验版 `2026.08.30.0340` 已上传成功，约 9.6 MB，描述 `移除首页AI助手 90975d6`；公众平台显示提交时间 `2026-08-30 03:41:08`。
+- Next: 用户授权打开新的 Chrome 窗口后，恢复公众平台控制并在最终“提交审核”动作前确认提交内容。
