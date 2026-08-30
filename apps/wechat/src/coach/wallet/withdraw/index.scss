@@ -104,4 +104,35 @@
     color: #6b7280;
     line-height: 1.6;
   }
+
+  .withdrawal-rules-card {
+    .rule-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16rpx;
+      padding: 16rpx 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .rule-row-last {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .rule-label {
+      flex: 0 0 128rpx;
+      color: #374151;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.6;
+    }
+
+    .rule-value {
+      flex: 1;
+      min-width: 0;
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+  }
 }

@@ -361,6 +361,17 @@ class CoachService extends BaseService {
       refund_protection_days?: number
       huifu_open_status?: string | null
       huifu_open_msg?: string | null
+      withdrawal_rules?: {
+        min_amount: number
+        max_amount: number
+        amount_description: string
+        daily_count_description: string
+        availability_description: string
+        arrival_type: 'D0' | 'D1' | 'DM' | 'T1'
+        arrival_description: string
+        fee_description: string
+        destination_description: string
+      }
       pending_settlements?: Array<{
         id: string
         amount: number

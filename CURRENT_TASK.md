@@ -9434,8 +9434,19 @@
 
 ## 微信小程序下线 AI 助手并重新提审 (`2026-08-30`)
 
-- Status: 代码、分支同步和新体验版上传均已完成；微信审核尚未提交。公众平台已确认新版本可见并有“提交审核”按钮，但 Chrome 页面控制在滚动/点击时持续超时；浏览器、扩展和连接组件诊断均正常，按恢复规则需用户授权为当前 Chrome 配置新开窗口后才能继续。
+- Status: 代码、分支同步和新体验版上传均已完成；微信审核尚未提交。用户已授权并成功为当前 Chrome Profile 1 新开窗口，重新打开公众平台后仍只能读取版本页、无法派发点击命令；目标 `2026.08.30.0340` 和对应“提交审核”按钮已精确定位。按浏览器安全规则不得改用 shell/坐标脚本强点，需用户手动提交，或重装/重启 ChatGPT 浏览器插件后再接管。
 - Scope: 从公共 `BottomNav` 移除 `AiAppNavigator` 引用；保留未接入的源码，发布前扫描编译产物，确保 AI 导航接口和界面文案未进入上传包。
 - Verification: lint、typecheck、Vitest 42 files / 203 tests 通过；小程序 local 2,882 modules、release 2,869 modules 构建通过。release 产物确认不含 `/api/miniapp/ai-navigator`、AI 导航界面文案或本地 API 地址，仍包含 dev/production 域名和 `getAccountInfoSync/envVersion` 自动路由。微信 DevTools 在首页及工具箱页均确认 `.ai-app-navigator` 不存在、错误日志 0、警告日志 0；截图接口两次返回 `timeout waiting for automator response`，未取得截图。
 - Git/Release: 提交 `90975d6c` 已同步 GitHub/Gitee `main` / `dev`。新体验版 `2026.08.30.0340` 已上传成功，约 9.6 MB，描述 `移除首页AI助手 90975d6`；公众平台显示提交时间 `2026-08-30 03:41:08`。
-- Next: 用户授权打开新的 Chrome 窗口后，恢复公众平台控制并在最终“提交审核”动作前确认提交内容。
+- Next: 用户可在已保留的公众平台版本管理页手动点击 `2026.08.30.0340` 卡片的“提交审核”；若希望继续自动操作，先从 ChatGPT 插件界面重装或重启浏览器插件，再通知代理接管。
+
+## 教练提现审核驳回诊断与分支口径 (`2026-08-30`)
+
+- Status: 本地修复与代码/开发者工具验证已完成；用户已明确授权提交、合并并推送 `dev`、部署开发环境 Web/API、从干净 `dev` 构建并上传新体验版，发布链路执行中。审核驳回不是按钮运行故障，而是提现规则展示不完整及 D1/T1 文案没有与运行时配置统一。
+- Audit evidence: 微信要求提现页清晰展示可提现额度、每日提现次数、提现时间、到账时间等。当前小程序仅显示可提现余额、最低 0.10 元、预计 T+1 到账和“可能扣除汇付手续费”的笼统说明；未显示单笔/单日上限、每日次数、可提现时段和明确费用口径。
+- Implementation: 新增服务端共享 `coachWithdrawalRules`，钱包 API 下发最低/最高额度、每日次数、可申请时间、到账类型/文案、到账银行卡和手续费说明；小程序提现页新增六项规则卡，零余额或金额无效时确认按钮禁用。提现接口改用同一规则校验最低金额并把运行时 D1/T1 传给汇付，成功文案不再写死 T+1。
+- Runtime config: 本机 `.env` 选择 Apollo `coachlink/local/app-config`，其中未覆盖提现规则参数，实际走代码默认 `D1`、`fix_amt=0.03`、`fee_rate=2`；本机 kubectl 未配置线上 context，无法直接读取生产 Pod 的非敏感参数。实现因此不在客户端猜生产值，而由部署后的后端按实际环境动态下发；汇付官方说明 D1=次自然日、T1=次工作日。
+- Branch facts: 诊断时 checkout 为 `codex/wechat-runtime-env-routing-20260830@eb1adc8d`，随后从同一 `dev@eb1adc8d` 创建 `codex/wechat-withdrawal-rules-20260830` 实现本次修复；远端 GitHub/Gitee `dev` 在提交前均仍为 `eb1adc8d`。体验版 `2026.08.30.0340` 由已进入 `main/dev` 的 `90975d6c` 代码产物上传，因此旧体验版没有遗漏此前分支改动。
+- Decision: 后续功能分支必须先合并 `dev`，体验版固定从干净 `dev` 的精确 commit 构建；验收后再推进 `main`。
+- Verification: `git diff --check` 通过；lint 提示脚本、typecheck、Vitest 42 files / 203 tests、Next 537 路由生产构建、小程序 local 2,882 modules 均通过。微信 DevTools 实际打开 `/coach/wallet/withdraw`，确认规则卡、6 个规则项、禁用状态提交按钮存在，error/warning 均为 0；MRC screenshot 超时，窗口捕获又命中其他前台页面，已立即删除无效截图，未取得可靠截图。
+- Next: 完成推送门禁后提交功能分支、快进合并 `dev` 并同步 GitHub/Gitee；先部署并验证开发环境 Web/API，再从干净 `dev` 构建上传新体验版。此次不更新 `main`、不发布正式版，也不自动重新提审。

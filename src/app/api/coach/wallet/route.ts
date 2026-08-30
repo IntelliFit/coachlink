@@ -9,6 +9,8 @@ import {
     COACH_WALLET_REFUND_PROTECTION_DAYS,
     getWithdrawableWalletAmounts,
 } from "@/lib/coachWalletLock";
+import { getCoachWithdrawalRules } from "@/lib/coachWithdrawalRules";
+import type { CoachWithdrawalRules } from "@/lib/coachWithdrawalRules";
 
 export interface WalletData {
     balance: number;
@@ -23,6 +25,7 @@ export interface WalletData {
     pending_settlements: PendingSettlement[];
     huifu_open_status?: string | null;
     huifu_open_msg?: string | null;
+    withdrawal_rules: CoachWithdrawalRules;
 }
 
 export interface PendingSettlement {
@@ -360,6 +363,7 @@ export async function POST(request: Request) {
         pending_settlements: pendingSettlements,
         huifu_open_status: huifuStatus,
         huifu_open_msg: huifuMessage,
+        withdrawal_rules: getCoachWithdrawalRules(walletAmounts.withdrawableFen),
     };
 
     return NextResponse.json<ApiData<WalletData>>({

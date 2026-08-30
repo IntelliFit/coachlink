@@ -5,6 +5,7 @@ import { formatYuan, formatYuanFromFen, subtractFen, yuanToFen } from "@/lib/mon
 import { encashmentForCoach, formatHuifuReqDate, generateReqSeqId } from "@/lib/huifuMiniProgramPay";
 import { calculateRefundProtectedAmountFen, getWithdrawableWalletAmounts } from "@/lib/coachWalletLock";
 import { getApiUserId } from "@/lib/getApiUserId";
+import { getCoachWithdrawalRules } from "@/lib/coachWithdrawalRules";
 
 async function getCoachIdByUser(userId: string) {
     const { data: coach } = await supabase.from("coaches").select("id").eq("user_id", userId).single();
@@ -28,10 +29,6 @@ export async function POST(req: NextRequest) {
     if (!amountYuan || amountYuan <= 0) {
         return NextResponse.json<ApiData<null>>({ success: false, message: "提现金额不合法", data: null }, { status: 400 });
     }
-    if (amountYuan < 0.1) {
-        return NextResponse.json<ApiData<null>>({ success: false, message: "单笔提现金额不能低于 0.10 元", data: null }, { status: 400 });
-    }
-
     const amountFen = yuanToFen(amountYuan);
 
     const { data: coach } = await supabase
@@ -68,6 +65,15 @@ export async function POST(req: NextRequest) {
         storedFrozenFen: Number(wallet?.frozen_amount ?? 0),
         refundProtectedFen,
     });
+    const withdrawalRules = getCoachWithdrawalRules(walletAmounts.withdrawableFen);
+
+    if (amountFen < yuanToFen(withdrawalRules.min_amount)) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: `单笔提现金额不能低于 ${withdrawalRules.min_amount.toFixed(2)} 元`,
+            data: null,
+        }, { status: 400 });
+    }
 
     if (walletAmounts.withdrawableFen < amountFen) {
         return NextResponse.json<ApiData<null>>({
@@ -89,7 +95,7 @@ export async function POST(req: NextRequest) {
             cashAmtYuan: formatYuan(amountYuan),
             huifuId: coach.huifu_id,
             tokenNo: coach.huifu_card_token,
-            intoAcctDateType: process.env.HUIFU_COACH_WITHDRAW_DATE_TYPE || process.env.HUIFU_COACH_CASH_TYPE || "D1",
+            intoAcctDateType: withdrawalRules.arrival_type,
         });
     } catch (error: any) {
         console.error("[Huifu Withdraw] encashment call failed:", error);
@@ -138,7 +144,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json<ApiData<{ hfSeqId?: string }>>({
         success: true,
-        message: "提现申请已提交，预计 T+1 到账",
+        message: `提现申请已提交，${withdrawalRules.arrival_description}`,
         data: { hfSeqId: encashResult.hf_seq_id },
     });
 }
