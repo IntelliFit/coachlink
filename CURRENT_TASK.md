@@ -9442,7 +9442,7 @@
 
 ## 教练提现审核驳回诊断与分支口径 (`2026-08-30`)
 
-- Status: 修复提交 `98553a2a` 已快进合并并同步 GitHub/Gitee `dev`；开发 Web/API 已部署并验证健康；从干净 `dev@98553a2a` 构建的 release 包已通过发布扫描并上传为新体验版 `2026.08.31.0424`。本次未更新 `main`、未发布正式版、未自动提交审核。审核驳回不是按钮运行故障，而是提现规则展示不完整及 D1/T1 文案没有与运行时配置统一。
+- Status: 修复提交 `98553a2a` 及发布记录已同步 GitHub/Gitee `dev/main@99f22b22`；开发与正式 Web/API 均已部署并验证健康；从干净 `dev@98553a2a` 构建的 release 包已通过发布扫描并上传为新体验版 `2026.08.31.0424`。用户明确微信公众平台网页上的提交审核由本人操作，代理只负责上传版本，不再处理旧审核版本。审核驳回不是按钮运行故障，而是提现规则展示不完整及 D1/T1 文案没有与运行时配置统一。
 - Audit evidence: 微信要求提现页清晰展示可提现额度、每日提现次数、提现时间、到账时间等。当前小程序仅显示可提现余额、最低 0.10 元、预计 T+1 到账和“可能扣除汇付手续费”的笼统说明；未显示单笔/单日上限、每日次数、可提现时段和明确费用口径。
 - Implementation: 新增服务端共享 `coachWithdrawalRules`，钱包 API 下发最低/最高额度、每日次数、可申请时间、到账类型/文案、到账银行卡和手续费说明；小程序提现页新增六项规则卡，零余额或金额无效时确认按钮禁用。提现接口改用同一规则校验最低金额并把运行时 D1/T1 传给汇付，成功文案不再写死 T+1。
 - Runtime config: 本机 `.env` 选择 Apollo `coachlink/local/app-config`，其中未覆盖提现规则参数，实际走代码默认 `D1`、`fix_amt=0.03`、`fee_rate=2`；本机 kubectl 未配置线上 context，无法直接读取生产 Pod 的非敏感参数。实现因此不在客户端猜生产值，而由部署后的后端按实际环境动态下发；汇付官方说明 D1=次自然日、T1=次工作日。
@@ -9450,5 +9450,6 @@
 - Decision: 后续功能分支必须先合并 `dev`，体验版固定从干净 `dev` 的精确 commit 构建；验收后再推进 `main`。
 - Verification: `git diff --check` 通过；lint 提示脚本、typecheck、Vitest 42 files / 203 tests、Next 537 路由生产构建、小程序 local 2,882 modules 均通过。微信 DevTools 实际打开 `/coach/wallet/withdraw`，确认规则卡、6 个规则项、禁用状态提交按钮存在，error/warning 均为 0；MRC screenshot 超时，窗口捕获又命中其他前台页面，已立即删除无效截图，未取得可靠截图。
 - Release evidence: 推送门禁 lint/typecheck/42 files 203 tests 全部通过；Docker 镜像 `coachlink:dev` / `coachlink:98553a2` 摘要均为 `sha256:3a6bd27927c4b108f3a5efdb42ac7411acf31a85efd3413406fefbfbede252c9`。Keel 已滚动 `coachlink-dev`，3 个主容器全部 Ready 且运行该摘要；`https://dev.coachlink.fit/api/healthy` 返回 200，`buildTime=2026-08-30T19:56:28.931Z`。小程序 release 构建 2,869 modules，包内 dev/production envVersion 路由、提现六项规则均存在，且不含 localhost/127.0.0.1 与 AI 助手接口/界面。
+- Production evidence: `main` 已快进到 `99f22b22` 并同步 GitHub/Gitee；正式镜像 `latest/main/99f22b2` 摘要均为 `sha256:c4e4791f27872b58fbdd7f55ac1357cae47224b228acbe6faa48362396923b05`。Keel 已完成 `coachlink-main` 滚动，3 个 Pod 均 2/2 Ready 且只运行新 ReplicaSet；`https://coachlink.fit/api/healthy` 返回 200，`buildTime=2026-08-30T21:20:40.014Z`。
 - WeChat release: 微信开发者工具重新登录后，复用现有 `apps/wechat/dist-release` 成功上传体验版 `2026.08.31.0424`，描述 `完善教练提现规则 98553a2`，AppID `wx316e39eb71c0e834`，约 9.6 MB。此前 CLI 显示的 `2026.08.31.0407` 因 `code 10 需要重新登录` 并未上传成功，不能视为有效版本。
-- Next: 在体验版真机核对提现页实际余额、六项规则和 D1/T1 后，可由用户在微信公众平台重新提交审核；此次不更新 `main`、不发布正式版，也不自动重新提审。
+- Next: 用户在微信公众平台自行选择 `2026.08.31.0424 / 完善教练提现规则` 提交审核；代理不再操作审核网页，也不处理此前被驳回的 `2026.08.30.0340`。审核通过后仍需由用户点击发布，正式版届时按 envVersion 自动访问 `https://coachlink.fit`。
