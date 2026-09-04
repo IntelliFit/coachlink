@@ -12,6 +12,9 @@ type CreateCoachAlipayPaymentResponse = {
   }
   paymentInfo: {
     paymentUrl?: string
+    payInfo?: unknown
+    provider?: string
+    tradeType?: string
   }
   paymentParams?: unknown
 }
@@ -20,6 +23,23 @@ export function subscriptionAmountYuan(subscription: any, fallback = 0) {
   const raw = Number(subscription?.monthly_price ?? 0)
   if (!Number.isFinite(raw) || raw <= 0) return fallback
   return raw / 100
+}
+
+function extractPaymentTarget(payInfo: unknown) {
+  if (!payInfo) return ''
+  if (typeof payInfo === 'string') return payInfo.trim()
+  if (typeof payInfo !== 'object') return ''
+  const value = payInfo as Record<string, unknown>
+  const target = value.qr_code
+    ?? value.qrcode
+    ?? value.qrCode
+    ?? value.code_url
+    ?? value.codeUrl
+    ?? value.pay_url
+    ?? value.payUrl
+    ?? value.url
+    ?? value.paymentUrl
+  return typeof target === 'string' ? target.trim() : ''
 }
 
 export async function createCoachPaymentWaitingParams(params: {
@@ -58,15 +78,17 @@ export async function createCoachPaymentWaitingParams(params: {
         isMobile: true,
       },
     })
+    const paymentTarget = payment.paymentInfo?.paymentUrl
+      || extractPaymentTarget(payment.paymentInfo?.payInfo)
 
     return {
       orderId: payment.order?.id || payment.order?.out_trade_no,
       amount: Number(payment.order?.total_amount ?? amount),
-      paymentUrl: payment.paymentInfo?.paymentUrl,
+      paymentUrl: paymentTarget || undefined,
       coachId: params.coachId,
       provider: 'alipay',
       target: 'coach',
-      message: payment.paymentInfo?.paymentUrl ? undefined : '支付订单已创建，但未返回可打开的支付宝地址。',
+      message: paymentTarget ? undefined : '支付订单已创建，但未返回可打开的支付宝地址。',
     }
   } catch (err) {
     return {

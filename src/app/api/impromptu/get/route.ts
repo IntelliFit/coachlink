@@ -6,6 +6,7 @@ import type {
     GetImpromptuExecutionDto,
     GetImpromptuExecutionResponseDto,
 } from "./entity";
+import { attachImpromptuSetVideos } from "../_helpers/setVideoUpload";
 
 export async function POST(req: Request) {
     try {
@@ -47,11 +48,13 @@ export async function POST(req: Request) {
                 data: null,
             }, { status: 403 });
         }
+        const hydrated = await attachImpromptuSetVideos(data as any);
+
 
         return NextResponse.json<ApiData<GetImpromptuExecutionResponseDto>>({
             success: true,
             message: "获取成功",
-            data,
+            data: hydrated,
         });
     } catch (error) {
         console.error("get impromptu error:", error);

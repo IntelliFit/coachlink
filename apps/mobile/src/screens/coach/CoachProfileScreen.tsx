@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import * as Clipboard from 'expo-clipboard'
 import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
@@ -68,6 +68,11 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'reviews', label: '学员评价' },
 ]
 
+
+function isInternalTestProduct(product: any) {
+  const name = String(product?.name || '').trim()
+  return name.startsWith('测试通道') || name.includes('不要支付')
+}
 function pickArray(data: any, keys: string[]) {
   for (const key of keys) {
     const value = data?.[key] ?? data?.data?.[key]
@@ -136,6 +141,8 @@ export function CoachProfileScreen({ navigation, route }: Props) {
   const coachId = route?.params?.id || ''
   const { isAuthenticated, user } = useAuth()
   const [activeTab, setActiveTab] = useState<TabKey>('about')
+  const scrollRef = useRef<ScrollView>(null)
+  const [tabBarY, setTabBarY] = useState(0)
   const [coach, setCoach] = useState<any>(null)
   const [aggregatedInfo, setAggregatedInfo] = useState<any>(null)
   const [subscription, setSubscription] = useState<any>(null)
@@ -179,7 +186,7 @@ export function CoachProfileScreen({ navigation, route }: Props) {
       const [coachRes, aggRes, pricingRes, contentRes] = await Promise.allSettled(requests)
       if (coachRes.status === 'fulfilled') setCoach(coachRes.value?.coach || null)
       if (aggRes.status === 'fulfilled') setAggregatedInfo(aggRes.value || null)
-      if (pricingRes.status === 'fulfilled') setProducts(pickArray(pricingRes.value, ['products']))
+      if (pricingRes.status === 'fulfilled') setProducts(pickArray(pricingRes.value, ['products']).filter((product) => !isInternalTestProduct(product)))
       if (contentRes.status === 'fulfilled') {
         setContents(pickArray(contentRes.value, ['contents']))
         setContentsTotal(Number(contentRes.value?.total || 0))
@@ -241,7 +248,6 @@ export function CoachProfileScreen({ navigation, route }: Props) {
 
       const questionnaires = await apiClient.request<any>('/api/coach/get-questionnaires', { method: 'POST', body: { coachId }, timeoutMs: 10000 })
         .then((payload) => pickArray(payload, ['questionnaires']))
-        .catch(() => [])
 
       if (questionnaires.length > 0) {
         safeNavigation.navigate('CoachQuestionnaire', {
@@ -350,17 +356,25 @@ export function CoachProfileScreen({ navigation, route }: Props) {
   const reviewCount = Number(aggregatedInfo?.reviewCount || 0)
   const contentCount = Number(aggregatedInfo?.contentCount ?? contentsTotal ?? 0)
   const activeStatus = statusLabel(subscription?.status)
+  const showPricing = () => {
+    setActiveTab('pricing')
+    requestAnimationFrame(() => {
+      if (tabBarY > 0) {
+        scrollRef.current?.scrollTo({ y: Math.max(0, tabBarY - spacing.sm), animated: true })
+      }
+    })
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {hasPendingPayment ? (
           <Pressable
             onPress={() => safeNavigation.navigate('PaymentWaiting', {
               orderId: subscription?.order_id || undefined,
               amount: subscriptionAmountYuan(subscription),
               coachId,
-              provider: 'wechat',
+              provider: String(subscription?.payment_method || '').toLowerCase().includes('alipay') ? 'alipay' : 'wechat',
               target: 'coach',
               message: subscription?.order_id ? undefined : '当前订阅资料已保存，但还没有可查询的支付订单，请重新选择套餐继续支付。',
             })}
@@ -419,7 +433,7 @@ export function CoachProfileScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        <View style={styles.tabBar}>
+        <View style={styles.tabBar} onLayout={(event) => setTabBarY(event.nativeEvent.layout.y)}>
           {tabs.map((tab) => (
             <Pressable key={tab.key} onPress={() => setActiveTab(tab.key)} style={[styles.tabItem, activeTab === tab.key && styles.tabActive]}>
               <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
@@ -444,11 +458,26 @@ export function CoachProfileScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <View style={styles.fixedCta}>
-        <Pressable onPress={() => safeNavigation.navigate('GeneratePlan', { coachId })} style={styles.aiPlanButton}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="根据我的档案生成 AI 计划草稿"
+          accessibilityHint="进入计划编辑器，生成后可以检查并保存到我的计划库"
+          onPress={() => {
+            if (!isAuthenticated) {
+              Alert.alert('请先登录', '登录后可以根据个人档案生成并保存计划草稿。', [
+                { text: '取消', style: 'cancel' },
+                { text: '去登录', onPress: () => safeNavigation.navigate('Login') },
+              ])
+              return
+            }
+            safeNavigation.navigate('PlanEdit', { autoGenerate: true })
+          }}
+          style={styles.aiPlanButton}
+        >
           <IconFont name="icon-a-Trainingplan" color={colors.brand} size={18} />
-          <Text style={styles.aiPlanButtonText}>AI 生成计划</Text>
+          <Text style={styles.aiPlanButtonText}>AI 计划草稿</Text>
         </Pressable>
-        <Pressable onPress={() => setActiveTab('pricing')} style={styles.fixedButton}>
+        <Pressable onPress={showPricing} style={styles.fixedButton}>
           <Text style={styles.fixedButtonText}>{subscription?.status === 'active' ? '查看订阅' : subscription?.status === 'waiting' ? '查看订阅进度' : '立即订阅 / 查看价格'}</Text>
         </Pressable>
         <Text style={styles.fixedHint}>不用横向找“订阅价格”，点这里直接跳转</Text>
@@ -717,14 +746,14 @@ const styles = StyleSheet.create({
   tag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 12, fontWeight: '800' },
   sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
   bioText: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
-  questionnaireButton: { minHeight: 40, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brandSoft },
+  questionnaireButton: { minHeight: 48, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brandSoft },
   questionnaireButtonText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
   expRow: { gap: spacing.xs },
   expItem: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, borderRadius: radius.md, padding: spacing.xs, backgroundColor: colors.surfaceMuted },
   expLabel: { color: colors.textSecondary, fontSize: 13 },
   expValue: { flex: 1, textAlign: 'right', color: colors.text, fontSize: 13, fontWeight: '800' },
   tabBar: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  tabItem: { minHeight: 40, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  tabItem: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   tabText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   tabTextActive: { color: '#FFFFFF' },
@@ -734,7 +763,7 @@ const styles = StyleSheet.create({
   productName: { color: colors.text, fontSize: 16, fontWeight: '900' },
   productDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 4 },
   durationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
-  durationOption: { minHeight: 40, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  durationOption: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   durationRecommended: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
   durationText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.48 },
@@ -749,10 +778,10 @@ const styles = StyleSheet.create({
   materialMedia: { width: 144, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   materialMediaImage: { width: 144, height: 96, backgroundColor: colors.surfaceMuted },
   materialMediaFallback: { width: 144, height: 96, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
-  materialMediaMeta: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.xs },
+  materialMediaMeta: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.xs },
   materialMediaText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '800' },
   materialLinkList: { gap: spacing.xs, marginTop: spacing.xs },
-  materialLink: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  materialLink: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   materialLinkText: { flex: 1, color: colors.brand, fontSize: 13, fontWeight: '900' },
   contactItem: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted },
   contactIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
@@ -770,7 +799,7 @@ const styles = StyleSheet.create({
   contentTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   contentMeta: { color: colors.textSecondary, fontSize: 12 },
   reviewsEmpty: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.md },
-  inlineRetry: { minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.brand },
+  inlineRetry: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.brand },
   inlineRetryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   reviewList: { gap: spacing.sm },
   reviewItem: { borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surfaceMuted },

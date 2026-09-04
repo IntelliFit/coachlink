@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   questionCard: { borderRadius: radius.lg, padding: spacing.sm, gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   questionLabel: { color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: '900' },
   optionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  optionChip: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  optionChip: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   optionChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   optionText: { color: colors.textSecondary, fontSize: 14, fontWeight: '800' },
   optionTextActive: { color: '#FFFFFF' },

@@ -36,7 +36,7 @@ export function CoachAccountScreen({ navigation }: Props) {
   }
 
   return (
-    <ScreenShell title="我的" subtitle="教练身份、经营数据和账户设置。">
+    <ScreenShell title="我的" subtitle="教练身份、经营数据和账户设置。" tabBarInset>
       <Card style={styles.profileCard}>
         <View style={styles.profileRow}>
           <InlineAvatar uri={user?.avatar_url || user?.avatar} label={displayName} size={72} />

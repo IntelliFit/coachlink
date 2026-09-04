@@ -58,7 +58,7 @@ export function CoachesScreen({ navigation }: Props) {
     try {
       if (visibilityStatus?.focusMode && visibilityStatus.focusCoachId) {
         const res = await apiClient.request('/api/coach/get-coach', { method: 'POST', body: { id: visibilityStatus.focusCoachId }, timeoutMs: 10000 })
-        const focusedCoach = (res as any).data?.coach || (res as any).data?.data?.coach || (res as any).data
+        const focusedCoach = (res as any)?.coach || (res as any)?.data?.coach || res
         setCoaches(focusedCoach && !isTestCoach(focusedCoach) ? [focusedCoach] : [])
         setCoachBuffer([])
         setNextCoachPage(1)
@@ -83,9 +83,9 @@ export function CoachesScreen({ navigation }: Props) {
           },
           timeoutMs: 10000,
         })
-        const rawList = normalizeCoachList((res as any).data)
+        const rawList = normalizeCoachList(res)
         visiblePool = visiblePool.concat(rawList)
-        const total = Math.max(Number((res as any).data?.count || (res as any).data?.total || (res as any).data?.data?.count || 0), 0)
+        const total = Math.max(Number((res as any)?.count || (res as any)?.total || (res as any)?.data?.count || 0), 0)
         rawHasMore = rawList.length === coachesPerPage && (total <= 0 || rawPage * coachesPerPage < total)
         rawPage += 1
         if (rawList.length === 0) rawHasMore = false
@@ -110,15 +110,15 @@ export function CoachesScreen({ navigation }: Props) {
       try {
         const [visibilityRes, specRes] = await Promise.allSettled([
           apiClient.request('/api/student/visibility-status', { method: 'GET', timeoutMs: 10000 }),
-          apiClient.request('/api/coach/get-specialties', { method: 'GET', timeoutMs: 10000 }),
+          apiClient.request('/api/coach/get-specialties', { method: 'POST', body: {}, timeoutMs: 10000 }),
         ])
         if (!alive) return
         if (visibilityRes.status === 'fulfilled') {
-          const status = (visibilityRes.value as any).data?.status || (visibilityRes.value as any).data
+          const status = (visibilityRes.value as any)?.status || (visibilityRes.value as any)?.data || visibilityRes.value
           setVisibilityStatus(status || null)
         }
         if (specRes.status === 'fulfilled') {
-          const rows = pickArray((specRes.value as any).data, ['specialties', 'items'])
+          const rows = pickArray(specRes.value, ['specialties', 'items'])
           if (rows.length) setSpecialties([{ label: '全部方向', value: 'all' }, ...rows.map((row) => ({ label: row.name || row.label || String(row), value: row.name || row.value || String(row) }))])
         }
       } finally {
@@ -152,13 +152,13 @@ export function CoachesScreen({ navigation }: Props) {
         <>
           <View style={styles.searchBox}>
             <IconFont name="icon-search" color={colors.textMuted} size={18} />
-            <TextInput value={search} onChangeText={setSearch} placeholder="搜索教练名字或专项方向" placeholderTextColor={colors.textMuted} style={styles.searchInput} returnKeyType="search" onSubmitEditing={onSearch} />
-            <Pressable onPress={onSearch} style={styles.searchButton}><Text style={styles.searchButtonText}>搜索</Text></Pressable>
+            <TextInput accessibilityLabel="搜索教练" value={search} onChangeText={setSearch} placeholder="搜索教练名字或专项方向" placeholderTextColor={colors.textMuted} style={styles.searchInput} returnKeyType="search" onSubmitEditing={onSearch} />
+            <Pressable accessibilityRole="button" accessibilityLabel="搜索教练" accessibilityState={{ disabled: loading, busy: loading }} disabled={loading} onPress={onSearch} style={[styles.searchButton, loading && styles.disabled]}><Text style={styles.searchButtonText}>搜索</Text></Pressable>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             {specialties.map((item) => (
-              <Pressable key={item.value} onPress={() => { setSelected(item.value); void load('reset', { specialty: item.value, search }) }} style={[styles.chip, selected === item.value && styles.chipActive]}>
+              <Pressable key={item.value} accessibilityRole="button" accessibilityLabel={`筛选${item.label}`} accessibilityState={{ selected: selected === item.value, disabled: loading }} disabled={loading} onPress={() => { setSelected(item.value); void load('reset', { specialty: item.value, search }) }} style={[styles.chip, selected === item.value && styles.chipActive, loading && styles.disabled]}>
                 <Text style={[styles.chipText, selected === item.value && styles.chipTextActive]}>{item.label}</Text>
               </Pressable>
             ))}
@@ -173,7 +173,7 @@ export function CoachesScreen({ navigation }: Props) {
         ) : null}
         {coaches.length === 0 && !loading && !visibilityLoading ? <Text style={styles.empty}>{visibilityStatus?.focusMode ? '教练信息加载失败。' : '没有找到相关教练。'}</Text> : null}
         {coaches.map((coach) => (
-          <Pressable key={coach.id} onPress={() => rootNav?.navigate('CoachProfile', { id: coach.id })} style={({ pressed }) => [styles.coachCard, pressed && styles.pressed]}>
+          <Pressable key={coach.id} accessibilityRole="button" accessibilityLabel={`查看${coach.name || '未命名教练'}`} accessibilityHint="打开教练资料与服务详情" onPress={() => rootNav?.navigate('CoachProfile', { id: coach.id })} style={({ pressed }) => [styles.coachCard, pressed && styles.pressed]}>
             <View>
               {coach.avatar_url ? <Image source={{ uri: coach.avatar_url }} style={styles.avatar} /> : <View style={styles.avatarFallback}><Text style={styles.avatarText}>{String(coach.name || '教').slice(0, 1)}</Text></View>}
               {coach.is_featured ? <View style={styles.featuredBadge}><IconFont name="icon-star" color="#FFFFFF" size={12} /></View> : null}
@@ -202,7 +202,7 @@ export function CoachesScreen({ navigation }: Props) {
           </Pressable>
         ))}
         {hasMoreCoaches && !visibilityStatus?.focusMode ? (
-          <Pressable onPress={() => load('append')} style={styles.loadMore}>
+          <Pressable accessibilityRole="button" accessibilityLabel="加载更多教练" accessibilityState={{ disabled: loading, busy: loading }} disabled={loading} onPress={() => load('append')} style={[styles.loadMore, loading && styles.disabled]}>
             {loading ? <ActivityIndicator color={colors.brand} /> : <Text style={styles.loadMoreText}>加载更多</Text>}
           </Pressable>
         ) : null}
@@ -221,10 +221,10 @@ export function CoachesScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   searchBox: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.lg, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
-  searchButton: { minHeight: 38, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
+  searchButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
   searchButtonText: { color: '#FFFFFF', fontWeight: '800' },
   chips: { gap: spacing.xs, paddingVertical: spacing.xs },
-  chip: { borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  chip: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.brand },
   chipText: { color: colors.textSecondary, fontWeight: '700' },
   chipTextActive: { color: '#FFFFFF' },
@@ -245,9 +245,10 @@ const styles = StyleSheet.create({
   priceLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   priceValue: { color: colors.brand, fontSize: 14, fontWeight: '900' },
   statsText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-  loadMore: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.surfaceMuted },
+  loadMore: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.surfaceMuted },
   loadMoreText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   endText: { textAlign: 'center', color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   empty: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+  disabled: { opacity: 0.48 },
   pressed: { opacity: 0.72 },
 })

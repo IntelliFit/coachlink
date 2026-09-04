@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { apiClient } from '../../api'
+import { useAuth } from '../../providers/AuthProvider'
 import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
@@ -29,11 +30,13 @@ function getVideoUrl(node: any) {
 }
 
 export function KnowledgeSearchScreen({ navigation, route }: Props) {
+  const { isAuthenticated } = useAuth()
   const initialQuery = route.params?.query || ''
   const initialId = route.params?.id || ''
   const [keyword, setKeyword] = useState(initialQuery)
   const [results, setResults] = useState<SearchResult[]>([])
   const [node, setNode] = useState<any>(null)
+  const [hasAccess, setHasAccess] = useState(false)
   const [articles, setArticles] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -43,10 +46,12 @@ export function KnowledgeSearchScreen({ navigation, route }: Props) {
     setLoading(true)
     setError('')
     setNode(null)
+    setHasAccess(false)
     setArticles([])
     try {
       const payload = await apiClient.request<any>(`/api/knowledge/nodes/${encodeURIComponent(id)}`, { method: 'GET', timeoutMs: 10000 })
       setNode(payload?.node || null)
+      setHasAccess(Boolean(payload?.hasAccess ?? payload?.node?.is_free))
       setArticles(Array.isArray(payload?.articles) ? payload.articles : [])
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载失败，请稍后重试')
@@ -62,6 +67,7 @@ export function KnowledgeSearchScreen({ navigation, route }: Props) {
     setLoading(true)
     setError('')
     setNode(null)
+    setHasAccess(false)
     setArticles([])
     try {
       const payload = await apiClient.request<any>(`/api/knowledge/search?q=${encodeURIComponent(q)}&limit=20`, { method: 'GET', timeoutMs: 10000 })
@@ -91,8 +97,8 @@ export function KnowledgeSearchScreen({ navigation, route }: Props) {
 
       <View style={styles.searchBox}>
         <IconFont name="icon-search" color={colors.textMuted} size={18} />
-        <TextInput value={keyword} onChangeText={setKeyword} placeholder="搜索动作、计划、伤病或书籍..." placeholderTextColor={colors.textMuted} style={styles.searchInput} returnKeyType="search" onSubmitEditing={() => search()} />
-        <Pressable onPress={() => search()} style={styles.searchButton}><Text style={styles.searchButtonText}>搜索</Text></Pressable>
+        <TextInput accessibilityLabel="搜索知识库" value={keyword} onChangeText={setKeyword} placeholder="搜索动作、计划、伤病或书籍..." placeholderTextColor={colors.textMuted} style={styles.searchInput} returnKeyType="search" onSubmitEditing={() => search()} />
+        <Pressable accessibilityRole="button" accessibilityLabel="搜索知识库" accessibilityState={{ busy: loading, disabled: loading }} disabled={loading} onPress={() => search()} style={[styles.searchButton, loading && styles.disabled]}><Text style={styles.searchButtonText}>搜索</Text></Pressable>
       </View>
 
       {loading ? <ActivityIndicator color={colors.brand} /> : null}
@@ -108,8 +114,20 @@ export function KnowledgeSearchScreen({ navigation, route }: Props) {
             {Array.isArray(node.body_region) && node.body_region.length > 0 ? (
               <View style={styles.tags}>{node.body_region.map((tag: string) => <Text key={tag} style={styles.tag}>{tag}</Text>)}</View>
             ) : null}
-            {videoUrl ? <NativeVideoPlayer url={videoUrl} title={node.title || '知识视频'} /> : null}
-            {contentText ? <Text style={styles.contentText}>{contentText}</Text> : !videoUrl ? <Text style={styles.empty}>暂无详细内容。</Text> : null}
+            {!hasAccess ? (
+              <View style={styles.lockedPanel}>
+                <Text style={styles.lockedTitle}>订阅后可查看完整内容</Text>
+                <Text style={styles.empty}>正文和视频未下发到当前设备，可前往登录或会员页检查权限。</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={isAuthenticated ? '查看会员方案' : '去登录'} onPress={() => navigation.navigate(isAuthenticated ? 'Membership' : 'Login')} style={styles.primaryButton}>
+                  <Text style={styles.primaryButtonText}>{isAuthenticated ? '查看会员' : '去登录'}</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                {videoUrl ? <NativeVideoPlayer url={videoUrl} title={node.title || '知识视频'} /> : null}
+                {contentText ? <Text style={styles.contentText}>{contentText}</Text> : !videoUrl ? <Text style={styles.empty}>暂无详细内容。</Text> : null}
+              </>
+            )}
           </SectionCard>
 
           {articles.length > 0 ? (
@@ -128,7 +146,7 @@ export function KnowledgeSearchScreen({ navigation, route }: Props) {
       )}
 
       <View style={styles.footerActions}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="返回上一页" onPress={() => navigation.goBack()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回</Text></Pressable>
       </View>
     </Page>
   )
@@ -137,7 +155,7 @@ export function KnowledgeSearchScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   searchBox: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.lg, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
-  searchButton: { minHeight: 40, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
+  searchButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
   searchButtonText: { color: '#FFFFFF', fontWeight: '800' },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.xs },
   badge: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 12, fontWeight: '800' },
@@ -145,6 +163,11 @@ const styles = StyleSheet.create({
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.xs },
   tag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.textSecondary, backgroundColor: colors.surfaceMuted, fontSize: 12 },
   contentText: { color: colors.text, fontSize: 15, lineHeight: 24 },
+  lockedPanel: { gap: spacing.sm },
+  lockedTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  primaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  disabled: { opacity: 0.55 },
   empty: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
   footerActions: { flexDirection: 'row', gap: spacing.sm },
   secondaryButton: { minHeight: 48, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },

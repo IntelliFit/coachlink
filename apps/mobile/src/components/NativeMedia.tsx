@@ -45,9 +45,9 @@ export function NativeAudioPlayer({ url, title = '音频讲解' }: { url: string
       <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress * 100}%` }]} /></View>
       {status.error ? <Text style={styles.errorText}>音频加载失败：{status.error}</Text> : null}
       <View style={styles.audioActions}>
-        <Pressable disabled={!status.isLoaded} onPress={() => void seek(-15)} style={[styles.secondaryButton, !status.isLoaded && styles.disabled]}><Text style={styles.secondaryText}>后退 15 秒</Text></Pressable>
-        <Pressable disabled={!status.isLoaded} onPress={() => status.playing ? player.pause() : player.play()} style={[styles.primaryButton, !status.isLoaded && styles.disabled]}><Text style={styles.primaryText}>{status.isBuffering ? '缓冲中…' : status.playing ? '暂停' : '播放'}</Text></Pressable>
-        <Pressable disabled={!status.isLoaded} onPress={() => void seek(15)} style={[styles.secondaryButton, !status.isLoaded && styles.disabled]}><Text style={styles.secondaryText}>快进 15 秒</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="音频后退 15 秒" accessibilityState={{ disabled: !status.isLoaded }} disabled={!status.isLoaded} onPress={() => void seek(-15)} style={[styles.secondaryButton, !status.isLoaded && styles.disabled]}><Text style={styles.secondaryText}>后退 15 秒</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={status.playing ? '暂停音频' : '播放音频'} accessibilityState={{ disabled: !status.isLoaded, busy: status.isBuffering }} disabled={!status.isLoaded} onPress={() => status.playing ? player.pause() : player.play()} style={[styles.primaryButton, !status.isLoaded && styles.disabled]}><Text style={styles.primaryText}>{status.isBuffering ? '缓冲中…' : status.playing ? '暂停' : '播放'}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="音频快进 15 秒" accessibilityState={{ disabled: !status.isLoaded }} disabled={!status.isLoaded} onPress={() => void seek(15)} style={[styles.secondaryButton, !status.isLoaded && styles.disabled]}><Text style={styles.secondaryText}>快进 15 秒</Text></Pressable>
       </View>
     </View>
   )
@@ -66,9 +66,9 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, overflow: 'hidden', borderRadius: radius.pill, backgroundColor: '#E3E3E3' },
   progressFill: { height: 8, borderRadius: radius.pill, backgroundColor: colors.brand },
   audioActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  primaryButton: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
+  primaryButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
   primaryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
-  secondaryButton: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  secondaryButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   secondaryText: { color: colors.text, fontSize: 11, fontWeight: '800' },
   disabled: { opacity: 0.48 },
   errorText: { color: colors.danger, fontSize: 12, lineHeight: 18 },

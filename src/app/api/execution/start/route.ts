@@ -254,7 +254,8 @@ export async function POST(request: NextRequest) {
             startExecutionDay: effectiveStartExecutionDay,
             executionsByDayIndex,
             explicitStartDate:
-                subscriptionStartDate || (instance as any)?.start_date || null,
+                (instance as any)?.start_date || (instance as any)?.created_at ||
+                subscriptionStartDate || null,
         });
 
         const existingStatus = String(existingExecution?.status || "").toLowerCase();

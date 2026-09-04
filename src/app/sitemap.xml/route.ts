@@ -31,6 +31,7 @@ const STATIC_PATHS = [
   '/docs/agreement',
   '/docs/disclaimer',
   '/privacy',
+  '/account-deletion',
   '/coach/discovery',
   '/streetlifting-index',
   '/streetlifting-index/calculator',

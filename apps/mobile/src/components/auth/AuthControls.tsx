@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { colors, radius, spacing } from '../../theme'
 
 type PillButtonProps = {
   label: string
-  onPress?: () => void
+  onPress: () => void
   variant?: 'primary' | 'secondary' | 'soft'
   disabled?: boolean
   loading?: boolean
@@ -14,6 +14,8 @@ export function PillButton({ label, onPress, variant = 'primary', disabled = fal
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
       disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [
@@ -35,6 +37,7 @@ export function PillButton({ label, onPress, variant = 'primary', disabled = fal
 }
 
 type AuthInputProps = {
+  label: string
   value: string
   onChangeText: (value: string) => void
   placeholder: string
@@ -52,6 +55,7 @@ type AuthInputProps = {
 }
 
 export function AuthInput({
+  label,
   value,
   onChangeText,
   placeholder,
@@ -67,29 +71,47 @@ export function AuthInput({
   inputRef,
   right,
 }: AuthInputProps) {
+  const [passwordVisible, setPasswordVisible] = useState(false)
+  const isPassword = Boolean(secureTextEntry)
+
   return (
-    <View style={styles.inputRow}>
-      {icon ? <View style={styles.inputIcon}>{icon}</View> : null}
-      <TextInput
-        ref={inputRef}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#9CA3AF"
-        style={styles.input}
-        secureTextEntry={secureTextEntry}
-        keyboardType={keyboardType}
-        inputMode={inputMode}
-        autoComplete={autoComplete}
-        textContentType={textContentType}
-        maxLength={maxLength}
-        returnKeyType={returnKeyType}
-        submitBehavior="submit"
-        onSubmitEditing={onSubmitEditing}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      {right}
+    <View style={styles.inputGroup}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <View style={styles.inputRow}>
+        {icon ? <View style={styles.inputIcon}>{icon}</View> : null}
+        <TextInput
+          accessibilityLabel={label}
+          ref={inputRef}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#9CA3AF"
+          style={styles.input}
+          secureTextEntry={isPassword && !passwordVisible}
+          keyboardType={keyboardType}
+          inputMode={inputMode}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          maxLength={maxLength}
+          returnKeyType={returnKeyType}
+          submitBehavior="submit"
+          onSubmitEditing={onSubmitEditing}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {right}
+        {isPassword ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={passwordVisible ? `隐藏${label}` : `显示${label}`}
+            accessibilityState={{ selected: passwordVisible }}
+            onPress={() => setPasswordVisible((visible) => !visible)}
+            style={({ pressed }) => [styles.passwordToggle, pressed && styles.passwordTogglePressed]}
+          >
+            <Text style={styles.passwordToggleText}>{passwordVisible ? '隐藏' : '显示'}</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   )
 }
@@ -106,7 +128,14 @@ export function ModeSwitcher<T extends string>({ value, items, onChange }: ModeS
       {items.map((item) => {
         const active = item.value === value
         return (
-          <Pressable key={item.value} onPress={() => onChange(item.value)} style={[styles.switcherItem, active && styles.switcherActive]}>
+          <Pressable
+            key={item.value}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange(item.value)}
+            style={[styles.switcherItem, active && styles.switcherActive]}
+          >
             <Text style={[styles.switcherText, active && styles.switcherTextActive]}>{item.label}</Text>
           </Pressable>
         )
@@ -118,17 +147,35 @@ export function ModeSwitcher<T extends string>({ value, items, onChange }: ModeS
 type AgreementRowProps = {
   checked: boolean
   onToggle: () => void
-  suffix?: string
+  onOpenTerms: () => void
+  onOpenPrivacy: () => void
+  onOpenDisclaimer?: () => void
 }
 
-export function AgreementRow({ checked, onToggle, suffix = '' }: AgreementRowProps) {
+export function AgreementRow({ checked, onToggle, onOpenTerms, onOpenPrivacy, onOpenDisclaimer }: AgreementRowProps) {
   return (
     <View style={styles.agreementRow}>
-      <Pressable accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={onToggle} style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked ? <Text style={styles.checkboxMark}>✓</Text> : null}
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityLabel={checked ? '取消同意用户协议和隐私政策' : '同意用户协议和隐私政策'}
+        accessibilityState={{ checked }}
+        onPress={onToggle}
+        style={styles.checkboxTouch}
+      >
+        <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+          {checked ? <Text style={styles.checkboxMark}>✓</Text> : null}
+        </View>
       </Pressable>
       <Text style={styles.agreementText}>
-        同意<Text style={styles.agreementLink}>《用户服务协议》</Text>和<Text style={styles.agreementLink}>《隐私政策》</Text>{suffix}
+        我已阅读并同意
+        <Text accessibilityRole="link" onPress={onOpenTerms} style={styles.agreementLink}>《用户服务协议》</Text>
+        和
+        <Text accessibilityRole="link" onPress={onOpenPrivacy} style={styles.agreementLink}>《隐私政策》</Text>
+        {onOpenDisclaimer ? (
+          <Text>
+            与<Text accessibilityRole="link" onPress={onOpenDisclaimer} style={styles.agreementLink}>《免责声明》</Text>
+          </Text>
+        ) : null}
       </Text>
     </View>
   )
@@ -160,6 +207,13 @@ export const authStyles = StyleSheet.create({
   tipText: {
     color: '#6B7280',
     fontSize: 15,
+  },
+  textAction: {
+    minWidth: 48,
+    minHeight: 48,
+    paddingHorizontal: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tipLink: {
     color: colors.brand,
@@ -234,6 +288,15 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.sm,
     paddingRight: spacing.xs,
   },
+  inputGroup: {
+    gap: spacing.xs,
+  },
+  inputLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
+    paddingLeft: spacing.sm,
+  },
   inputIcon: {
     width: 24,
     alignItems: 'center',
@@ -245,6 +308,20 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontSize: 16,
     paddingVertical: 0,
+  },
+  passwordToggle: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  passwordTogglePressed: {
+    opacity: 0.64,
+  },
+  passwordToggleText: {
+    color: colors.brand,
+    fontSize: 14,
+    fontWeight: '800',
   },
   switcher: {
     minHeight: 56,
@@ -287,10 +364,16 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginTop: spacing.xs,
   },
+  checkboxTouch: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

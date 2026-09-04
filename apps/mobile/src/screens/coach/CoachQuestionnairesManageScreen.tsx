@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   heroEyebrow: { color: colors.brand, fontSize: 12, fontWeight: '900' },
   heroTitle: { color: colors.text, fontSize: 22, fontWeight: '900', lineHeight: 28 },
   heroDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 4 },
-  createButton: { minHeight: 40, paddingHorizontal: spacing.sm, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
+  createButton: { minHeight: 48, paddingHorizontal: spacing.sm, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
   createText: { color: colors.surface, fontSize: 14, fontWeight: '900' },
   templateCard: { gap: spacing.sm, borderWidth: 1 },
   onlineCard: { borderColor: 'rgba(16, 185, 129, 0.22)' },

@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import * as ImagePicker from 'expo-image-picker'
-import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { apiClient, getStoredToken } from '../../api'
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { apiClient, fetchWithTimeout, getStoredToken } from '../../api'
 import { API_BASE_URL } from '../../config'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
 import { IconFont } from '../../components/IconFont'
 import { colors, radius, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
+import { openExternalUrl } from '../../externalLinks'
 import { useAuth } from '../../providers/AuthProvider'
 import { executionSnapshotKey, readExecutionSnapshot, syncTrainingExecutionToCache } from './trainingCache'
 import {
@@ -75,6 +76,23 @@ function buildPlanPreview(planData: any, dayIndex: number) {
 function formatRestTime(seconds: number) {
   const safe = Math.max(0, Math.ceil(seconds))
   return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`
+}
+
+function formatElapsedTime(seconds: number) {
+  const safe = Math.max(0, Math.floor(seconds))
+  if (safe >= 86400) {
+    const days = Math.floor(safe / 86400)
+    const hours = Math.floor((safe % 86400) / 3600)
+    const minutes = Math.floor((safe % 3600) / 60)
+    return `${days}天 ${hours}小时 ${minutes}分钟`
+  }
+  const hours = Math.floor(safe / 3600)
+  const minutes = Math.floor((safe % 3600) / 60)
+  const secondsPart = safe % 60
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(secondsPart).padStart(2, '0')}`
+  }
+  return `${String(minutes).padStart(2, '0')}:${String(secondsPart).padStart(2, '0')}`
 }
 
 export function TrainingExecutionScreen({ route, navigation }: Props) {
@@ -196,15 +214,17 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     const startedAt = new Date(execution?.started_at || execution?.created_at || Date.now()).getTime()
+    const completedAt = new Date(execution?.completed_at || execution?.updated_at || Date.now()).getTime()
     const tick = () => {
       const base = Number.isFinite(startedAt) ? startedAt : Date.now()
-      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - base) / 1000)))
+      const end = isCompleted && Number.isFinite(completedAt) ? Math.max(base, completedAt) : Date.now()
+      setElapsedSeconds(Math.max(0, Math.floor((end - base) / 1000)))
     }
     tick()
     if (isCompleted) return
     const timer = setInterval(tick, 1000)
     return () => clearInterval(timer)
-  }, [execution?.started_at, execution?.created_at, isCompleted])
+  }, [execution?.started_at, execution?.created_at, execution?.completed_at, execution?.updated_at, isCompleted])
 
   useEffect(() => {
     const executionId = String(execution?.id || '')
@@ -239,7 +259,8 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     return () => clearInterval(timer)
   }, [execution?.id, restDeadlineAt, userId])
 
-  const elapsedText = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`
+  const elapsedText = formatElapsedTime(elapsedSeconds)
+  const elapsedLabel = isCompleted && elapsedSeconds >= 86400 ? '跨天完成，历时' : isCompleted ? '本次用时' : '训练总时长'
 
   function startRestTimer(seconds: number) {
     if (readOnly || !execution?.id) return
@@ -291,11 +312,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
 
   async function uploadSetVideo(action: any, set: any) {
     const key = draftKey(action.actionIndex, set.setIndex)
-    if (isImpromptu) {
-      Alert.alert('暂不支持上传', '即兴训练会自动计算 PR，但组视频目前只支持计划训练。')
-      return
-    }
-    if (!execution?.id || !action.actionId || uploadingVideoKey) return
+    if (!execution?.id || (!isImpromptu && !action.actionId) || uploadingVideoKey) return
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       quality: 0.72,
@@ -315,13 +332,15 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
       const formData = new FormData()
       formData.append('file', { uri: asset.uri, name: asset.fileName || `training-set-${Date.now()}.${ext}`, type } as any)
       formData.append('executionId', String(execution.id))
-      formData.append('actionId', String(action.actionId))
+      if (action.actionId) formData.append('actionId', String(action.actionId))
+      formData.append('actionIndex', String(action.actionIndex))
       formData.append('setNumber', String(set.setNumber))
-      const response = await fetch(`${API_BASE_URL}/api/execution/upload-set-video`, {
+      const endpoint = isImpromptu ? '/api/impromptu/upload-set-video' : '/api/execution/upload-set-video'
+      const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
-      })
+      }, 180_000)
       const payload = await response.json().catch(() => null)
       if (!response.ok || !payload?.success || !payload?.data?.video_url) throw new Error(payload?.message || '视频上传失败')
       setDraft(action.actionIndex, set.setIndex, { videoUrl: String(payload.data.video_url), videoId: String(payload.data.id || '') })
@@ -334,13 +353,15 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
 
   async function ensureVideoLinkSaved(action: any, set: any, draft: DraftValue) {
     const url = draft.videoUrl.trim()
-    if (!url || draft.videoId || isImpromptu) return
+    if (!url || draft.videoId) return
     if (!/^https?:\/\//i.test(url)) throw new Error('视频链接需以 http:// 或 https:// 开头')
-    const payload = await apiClient.request<any>('/api/execution/add-set-video-link', {
+    const endpoint = isImpromptu ? '/api/impromptu/add-set-video-link' : '/api/execution/add-set-video-link'
+    const payload = await apiClient.request<any>(endpoint, {
       method: 'POST',
       body: {
         executionId: execution.id,
         actionId: action.actionId,
+        actionIndex: action.actionIndex,
         setNumber: set.setNumber,
         videoUrl: url,
       },
@@ -468,20 +489,21 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
       }
       const res = await apiClient.request(isImpromptu ? '/api/impromptu/complete-set' : '/api/execution/complete-set', { method: 'POST', body, timeoutMs: 15000 })
       const data = pickData(res)
-      const next = Array.isArray(data?.action_executions)
+      const responseExecution = Array.isArray(data?.action_executions)
         ? normalizeExecution(data)
-        : patchCompletedSet(execution, actionIndex, setIndex, {
-          actualWeight: body.actualWeight,
-          actualReps: body.actualReps,
-          rpe: body.rpe,
-          notes: draft.notes.trim(),
-          isPr: draft.isPr,
-          isAutoPr: Boolean(data?.autoE1RM?.isPR),
-          e1rm: data?.autoE1RM?.e1rm,
-          videoUrl: draft.videoUrl.trim(),
-          completedSets: data?.completedSets,
-          totalSets: data?.totalSets,
-        })
+        : execution
+      const next = patchCompletedSet(responseExecution, actionIndex, setIndex, {
+        actualWeight: body.actualWeight,
+        actualReps: body.actualReps,
+        rpe: body.rpe,
+        notes: draft.notes.trim(),
+        isPr: draft.isPr,
+        isAutoPr: Boolean(data?.autoE1RM?.isPR),
+        e1rm: data?.autoE1RM?.e1rm,
+        videoUrl: draft.videoUrl.trim(),
+        completedSets: data?.completedSets,
+        totalSets: data?.totalSets,
+      })
       await syncExecution(next)
       if (data?.autoE1RM?.isPR) {
         Alert.alert('刷新个人纪录', `本组估算 1RM 为 ${Number(data.autoE1RM.e1rm).toFixed(1)} kg。`)
@@ -596,9 +618,9 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         apiClient.request('/api/student/action-lib/list-actions', { method: 'POST', body: { page: 1, limit: 40, search }, timeoutMs: 10000 }),
         apiClient.request('/api/public-action-lib/list-actions', { method: 'POST', body: { page: 1, limit: 40, search, status: 'published' }, timeoutMs: 10000 }),
       ])
-      const mine = mineRes.status === 'fulfilled' ? pickActionRows((mineRes.value as any).data, 'mine') : []
+      const mine = mineRes.status === 'fulfilled' ? pickActionRows(mineRes.value, 'mine') : []
       const seen = new Set(mine.map((item) => item.name))
-      const pub = publicRes.status === 'fulfilled' ? pickActionRows((publicRes.value as any).data, 'public').filter((item) => !seen.has(item.name)) : []
+      const pub = publicRes.status === 'fulfilled' ? pickActionRows(publicRes.value, 'public').filter((item) => !seen.has(item.name)) : []
       setPickerActions([...mine, ...pub])
     } finally {
       setPickerLoading(false)
@@ -639,7 +661,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     } catch {}
 
     const mineRes = await apiClient.request('/api/student/action-lib/list-actions', { method: 'POST', body: { page: 1, limit: 50, search: row.name }, timeoutMs: 10000 })
-    const existing = pickActionRows((mineRes as any).data, 'mine').find((item) => item.name === row.name)
+    const existing = pickActionRows(mineRes, 'mine').find((item) => item.name === row.name)
     return existing || row
   }
 
@@ -673,7 +695,13 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     setSyncing(true)
     try {
       const res = await apiClient.request(isImpromptu ? '/api/impromptu/finish' : '/api/execution/finish', { method: 'POST', body: { executionId: execution.id }, timeoutMs: 15000 })
-      const next = normalizeExecution(pickData(res) || { ...execution, status: 'completed' })
+      const data = pickData(res) || {}
+      const next = normalizeExecution({
+        ...execution,
+        ...data,
+        status: data.status || 'completed',
+        action_executions: data.action_executions || execution.action_executions,
+      })
       await syncExecution(next)
       skipRestTimer()
       Alert.alert('训练已完成', '本次训练记录已保存。')
@@ -745,7 +773,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         <View>
           <Text style={styles.heroLabel}>{isImpromptu ? '自由训练' : `计划第 ${params.dayIndex || execution.day_index || 1} 天`}</Text>
           <Text style={styles.heroTitle}>{progressText}</Text>
-          <Text style={styles.heroSub}>已完成 / 总组数 · {isCompleted ? '本次用时' : '训练总时长'} {elapsedText}</Text>
+          <Text style={styles.heroSub}>已完成 / 总组数 · {elapsedLabel} {elapsedText}</Text>
         </View>
         <View style={styles.heroIcon}><IconFont name="icon-dumbbell" color={colors.brand} size={28} /></View>
       </View>
@@ -765,7 +793,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
       ) : null}
 
       {restRemaining > 0 && restTimerMinimized ? (
-        <Pressable onPress={() => setRestTimerMinimized(false)} style={styles.restBubble}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`继续组间休息，剩余 ${formatRestTime(restRemaining)}`} onPress={() => setRestTimerMinimized(false)} style={styles.restBubble}>
           <Text style={styles.restBubbleLabel}>组间休息</Text>
           <Text style={styles.restBubbleValue}>{formatRestTime(restRemaining)}</Text>
         </Pressable>
@@ -824,6 +852,9 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                 style={styles.itemInput}
               />
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${action.actionName}，${actionCompleted ? '已完成' : itemType === 'HABIT' ? '立即打卡' : '完成任务'}`}
+                accessibilityState={{ disabled: actionCompleted || operationDisabled, busy: syncing }}
                 disabled={actionCompleted || operationDisabled}
                 onPress={() => completeItem(action)}
                 style={[styles.itemDoneButton, (actionCompleted || operationDisabled) && styles.doneButtonDisabled]}
@@ -853,20 +884,20 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                       {set.videoUrl || draft.videoUrl ? <Text style={styles.videoTag}>视频</Text> : null}
                       {set.notes || draft.notes ? <Text style={styles.noteTag}>备注</Text> : null}
                     </View>
-                    <Pressable disabled={operationDisabled} onPress={() => deleteSet(action.actionIndex, set.setIndex)}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`删除第 ${set.setNumber} 组`} accessibilityState={{ disabled: operationDisabled }} disabled={operationDisabled} onPress={() => deleteSet(action.actionIndex, set.setIndex)} style={styles.deleteSetButton}>
                       <Text style={[styles.deleteText, operationDisabled && styles.disabledText]}>删除</Text>
                     </Pressable>
                   </View>
                   <Text style={styles.setPlan}>计划 {displayLoad(set.plannedWeight, set.plannedReps)}{set.plannedRestSeconds ? ` · 休息 ${set.plannedRestSeconds} 秒` : ''}</Text>
                   <View style={styles.inputs}>
-                    <TextInput value={draft.weight} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { weight: value })} keyboardType="decimal-pad" placeholder="重量" placeholderTextColor={colors.textMuted} style={styles.input} />
-                    <TextInput value={draft.reps} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { reps: value })} keyboardType="number-pad" placeholder="次数" placeholderTextColor={colors.textMuted} style={styles.input} />
-                    {!isImpromptu ? <TextInput value={draft.rpe} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { rpe: value })} keyboardType="decimal-pad" placeholder="RPE" placeholderTextColor={colors.textMuted} style={styles.input} /> : null}
-                    <Pressable disabled={!canEditSet || uploadingVideo} onPress={() => completeSet(action, set)} style={[styles.doneButton, (!canEditSet || uploadingVideo) && styles.doneButtonDisabled]}>
+                    <TextInput accessibilityLabel={`第 ${set.setNumber} 组重量`} value={draft.weight} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { weight: value })} keyboardType="decimal-pad" placeholder="重量" placeholderTextColor={colors.textMuted} style={styles.input} />
+                    <TextInput accessibilityLabel={`第 ${set.setNumber} 组次数`} value={draft.reps} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { reps: value })} keyboardType="number-pad" placeholder="次数" placeholderTextColor={colors.textMuted} style={styles.input} />
+                    {!isImpromptu ? <TextInput accessibilityLabel={`第 ${set.setNumber} 组 RPE`} value={draft.rpe} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { rpe: value })} keyboardType="decimal-pad" placeholder="RPE" placeholderTextColor={colors.textMuted} style={styles.input} /> : null}
+                    <Pressable accessibilityRole="button" accessibilityLabel={`${completed ? '保存' : '完成'}第 ${set.setNumber} 组`} accessibilityState={{ disabled: !canEditSet || uploadingVideo, busy: syncing || uploadingVideo }} disabled={!canEditSet || uploadingVideo} onPress={() => completeSet(action, set)} style={[styles.doneButton, (!canEditSet || uploadingVideo) && styles.doneButtonDisabled]}>
                       <Text style={styles.doneButtonText}>{completed ? '保存' : '完成'}</Text>
                     </Pressable>
                   </View>
-                  <Pressable onPress={() => setExpandedSetKey(expanded ? '' : setKey)} style={styles.setMoreButton}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? '收起' : '展开'}第 ${set.setNumber} 组详细记录`} accessibilityState={{ expanded }} onPress={() => setExpandedSetKey(expanded ? '' : setKey)} style={styles.setMoreButton}>
                     <Text style={styles.setMoreText}>{expanded ? '收起详细记录' : '备注、PR 与组视频'}</Text>
                     <IconFont name={expanded ? 'icon-left' : 'icon-right-arrow'} color={colors.brand} size={14} />
                   </Pressable>
@@ -885,23 +916,23 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                       />
                       <Text style={styles.setNotesCount}>{draft.notes.length}/500</Text>
                       {!isImpromptu ? (
-                        <Pressable disabled={!canEditSet} onPress={() => setDraft(action.actionIndex, set.setIndex, { isPr: !draft.isPr })} style={[styles.prToggle, draft.isPr && styles.prToggleActive, !canEditSet && styles.doneButtonDisabled]}>
+                        <Pressable accessibilityRole="checkbox" accessibilityLabel={`第 ${set.setNumber} 组标记为进步组`} accessibilityState={{ checked: draft.isPr, disabled: !canEditSet }} disabled={!canEditSet} onPress={() => setDraft(action.actionIndex, set.setIndex, { isPr: !draft.isPr })} style={[styles.prToggle, draft.isPr && styles.prToggleActive, !canEditSet && styles.doneButtonDisabled]}>
                           <IconFont name="icon-star" color={draft.isPr ? '#FFFFFF' : colors.brand} size={16} />
                           <View style={styles.prToggleMain}>
                             <Text style={[styles.prToggleTitle, draft.isPr && styles.prToggleTitleActive]}>{draft.isPr ? '已标记进步组' : '标记为进步组'}</Text>
                             <Text style={[styles.prToggleHint, draft.isPr && styles.prToggleHintActive]}>自动 PR 仍由系统按估算 1RM 独立判断</Text>
                           </View>
                         </Pressable>
-                      ) : <Text style={styles.setHelper}>即兴训练会自动计算估算 1RM 和 PR；组视频目前只支持计划训练。</Text>}
-                      {!isImpromptu ? (
+                      ) : <Text style={styles.setHelper}>即兴训练会自动计算估算 1RM 和 PR，无需手动标记。</Text>}
+                      {(
                         <>
                           <View style={styles.videoActionRow}>
-                            <Pressable disabled={!canEditSet || uploadingVideo} onPress={() => void uploadSetVideo(action, set)} style={[styles.videoActionButton, (!canEditSet || uploadingVideo) && styles.doneButtonDisabled]}>
+                            <Pressable accessibilityRole="button" accessibilityLabel={draft.videoUrl ? `替换第 ${set.setNumber} 组视频` : `选择第 ${set.setNumber} 组视频`} accessibilityState={{ disabled: !canEditSet || uploadingVideo, busy: uploadingVideo }} disabled={!canEditSet || uploadingVideo} onPress={() => void uploadSetVideo(action, set)} style={[styles.videoActionButton, (!canEditSet || uploadingVideo) && styles.doneButtonDisabled]}>
                               {uploadingVideo ? <ActivityIndicator color={colors.brand} size="small" /> : <IconFont name="icon-video" color={colors.brand} size={17} />}
                               <Text style={styles.videoActionText}>{uploadingVideo ? '上传中…' : draft.videoUrl ? '替换视频' : '选择视频'}</Text>
                             </Pressable>
                             {draft.videoUrl ? (
-                              <Pressable onPress={() => void Linking.openURL(draft.videoUrl)} style={styles.videoPreviewButton}><Text style={styles.videoPreviewText}>预览</Text></Pressable>
+                              <Pressable accessibilityRole="button" accessibilityLabel="预览本组训练视频" onPress={() => void openExternalUrl(draft.videoUrl, { errorTitle: '视频预览失败' })} style={styles.videoPreviewButton}><Text style={styles.videoPreviewText}>预览</Text></Pressable>
                             ) : null}
                           </View>
                           <TextInput
@@ -917,28 +948,28 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                           />
                           <Text style={styles.setHelper}>本地视频限 50MB；完成或保存本组时会确认关联到这组记录。</Text>
                         </>
-                      ) : null}
+                      )}
                       {completed && canEditSet ? <Text style={styles.editCompletedHint}>修改已完成组后，请点“保存”同步到云端。</Text> : null}
                     </View>
                   ) : null}
                 </View>
               )
             })}
-            <Pressable disabled={operationDisabled} onPress={() => addSet(action.actionIndex, action)} style={[styles.addButton, operationDisabled && styles.finishDisabled]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`为${action.actionName}新增一组`} accessibilityState={{ disabled: operationDisabled, busy: syncing }} disabled={operationDisabled} onPress={() => addSet(action.actionIndex, action)} style={[styles.addButton, operationDisabled && styles.finishDisabled]}>
               <Text style={styles.addButtonText}>新增一组</Text>
             </Pressable>
-            <Pressable disabled={operationDisabled} onPress={() => deleteExercise(action.actionIndex)} style={[styles.deleteButton, operationDisabled && styles.finishDisabled]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`删除额外动作${action.actionName}`} accessibilityState={{ disabled: operationDisabled, busy: syncing }} disabled={operationDisabled} onPress={() => deleteExercise(action.actionIndex)} style={[styles.deleteButton, operationDisabled && styles.finishDisabled]}>
               <Text style={styles.deleteButtonText}>删除额外动作</Text>
             </Pressable>
           </SectionCard>
         )
       })}
 
-      <Pressable disabled={operationDisabled} onPress={openActionPicker} style={[styles.addExerciseButton, operationDisabled && styles.finishDisabled]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="添加训练动作" accessibilityState={{ disabled: operationDisabled, busy: syncing }} disabled={operationDisabled} onPress={openActionPicker} style={[styles.addExerciseButton, operationDisabled && styles.finishDisabled]}>
         <Text style={styles.addExerciseButtonText}>添加动作</Text>
       </Pressable>
 
-      <Pressable disabled={operationDisabled} onPress={finish} style={[styles.finishButton, operationDisabled && styles.finishDisabled]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={readOnly ? '只读查看' : isCompleted ? '训练已完成' : '完成训练'} accessibilityState={{ disabled: operationDisabled, busy: syncing }} disabled={operationDisabled} onPress={finish} style={[styles.finishButton, operationDisabled && styles.finishDisabled]}>
         <Text style={styles.finishButtonText}>{readOnly ? '只读查看' : isCompleted ? '训练已完成' : '完成训练'}</Text>
       </Pressable>
 
@@ -954,7 +985,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
               <Text style={styles.feedbackLabel}>本次训练难度</Text>
               <View style={styles.difficultyRow}>
                 {[1, 2, 3, 4, 5].map((value) => (
-                  <Pressable key={value} onPress={() => setFeedbackDifficulty(value)} style={[styles.difficultyChip, feedbackDifficulty === value && styles.difficultyChipActive]}>
+                  <Pressable key={value} accessibilityRole="radio" accessibilityLabel={`训练难度 ${value}，${['', '很轻松', '偏轻松', '刚刚好', '有挑战', '非常吃力'][value]}`} accessibilityState={{ selected: feedbackDifficulty === value }} onPress={() => setFeedbackDifficulty(value)} style={[styles.difficultyChip, feedbackDifficulty === value && styles.difficultyChipActive]}>
                     <Text style={[styles.difficultyText, feedbackDifficulty === value && styles.difficultyTextActive]}>{value}</Text>
                   </Pressable>
                 ))}
@@ -970,7 +1001,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                 style={styles.feedbackInput}
               />
               <Text style={styles.feedbackCount}>{feedbackContent.length}/500</Text>
-              <Pressable disabled={feedbackSubmitting || !feedbackContent.trim()} onPress={submitTrainingFeedback} style={[styles.feedbackButton, (feedbackSubmitting || !feedbackContent.trim()) && styles.finishDisabled]}>
+              <Pressable accessibilityRole="button" accessibilityLabel="发送训练反馈给教练" accessibilityState={{ disabled: feedbackSubmitting || !feedbackContent.trim(), busy: feedbackSubmitting }} disabled={feedbackSubmitting || !feedbackContent.trim()} onPress={submitTrainingFeedback} style={[styles.feedbackButton, (feedbackSubmitting || !feedbackContent.trim()) && styles.finishDisabled]}>
                 {feedbackSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.feedbackButtonText}>发送给教练</Text>}
               </Pressable>
             </>
@@ -980,7 +1011,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
 
       {isCompleted ? (
         <SectionCard title="训练打卡图" description="生成本次训练的分享卡片，保留小程序分享页的训练容量、组数、PR 统计。">
-          <Pressable onPress={() => navigation.navigate('TrainingShare', { executionId: execution?.id })} style={styles.shareButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel="分享本次训练" onPress={() => navigation.navigate('TrainingShare', { executionId: execution?.id })} style={styles.shareButton}>
             <IconFont name="icon-share" color={colors.brand} size={18} />
             <Text style={styles.shareButtonText}>分享本次训练</Text>
           </Pressable>
@@ -992,16 +1023,16 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
           <View style={styles.modalPanel}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>添加动作</Text>
-              <Pressable onPress={() => setPickerVisible(false)}><Text style={styles.modalClose}>关闭</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="关闭动作选择" onPress={() => setPickerVisible(false)} style={styles.modalCloseButton}><Text style={styles.modalClose}>关闭</Text></Pressable>
             </View>
             <View style={styles.pickerSearch}>
-              <TextInput value={pickerQuery} onChangeText={setPickerQuery} placeholder="搜索动作" placeholderTextColor={colors.textMuted} style={styles.pickerInput} returnKeyType="search" onSubmitEditing={() => loadPickerActions()} />
-              <Pressable onPress={() => loadPickerActions()} style={styles.pickerSearchButton}><Text style={styles.pickerSearchText}>搜索</Text></Pressable>
+              <TextInput accessibilityLabel="搜索要添加的动作" value={pickerQuery} onChangeText={setPickerQuery} placeholder="搜索动作" placeholderTextColor={colors.textMuted} style={styles.pickerInput} returnKeyType="search" onSubmitEditing={() => loadPickerActions()} />
+              <Pressable accessibilityRole="button" accessibilityLabel="搜索要添加的动作" accessibilityState={{ disabled: pickerLoading, busy: pickerLoading }} disabled={pickerLoading} onPress={() => loadPickerActions()} style={[styles.pickerSearchButton, pickerLoading && styles.finishDisabled]}><Text style={styles.pickerSearchText}>搜索</Text></Pressable>
             </View>
             {pickerLoading ? <ActivityIndicator color={colors.brand} /> : null}
             <ScrollView style={styles.pickerList}>
               {pickerActions.map((row) => (
-                <Pressable key={`${row.source}-${row.id || row.name}`} onPress={() => addExercise(row)} style={styles.pickerRow}>
+                <Pressable key={`${row.source}-${row.id || row.name}`} accessibilityRole="button" accessibilityLabel={`添加动作${row.name}`} accessibilityHint={row.source === 'mine' ? '来自我的动作库' : '来自公共动作库'} onPress={() => addExercise(row)} style={styles.pickerRow}>
                   <View style={styles.pickerRowMain}>
                     <Text style={styles.pickerName}>{row.name}</Text>
                     <Text style={styles.pickerMeta}>{row.source === 'mine' ? '我的动作' : '公共动作'}{row.type ? ` · ${row.type}` : ''}</Text>
@@ -1015,17 +1046,17 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
       </Modal>
 
       <Modal visible={restRemaining > 0 && !restTimerMinimized} transparent animationType="fade" onRequestClose={() => setRestTimerMinimized(true)}>
-        <Pressable style={styles.restBackdrop} onPress={() => setRestTimerMinimized(true)}>
-          <Pressable style={styles.restPanel} onPress={() => undefined}>
+        <Pressable accessibilityRole="button" accessibilityLabel="最小化休息计时" style={styles.restBackdrop} onPress={() => setRestTimerMinimized(true)}>
+          <Pressable accessible={false} style={styles.restPanel} onPress={(event) => event.stopPropagation()}>
             <Text style={styles.restEmoji}>休</Text>
             <Text style={styles.restTime}>{formatRestTime(restRemaining)}</Text>
             <Text style={styles.restLabel}>组间休息</Text>
             <View style={styles.restActions}>
-              <Pressable onPress={() => adjustRestTimer(-10)} style={styles.restAction}><Text style={styles.restActionText}>-10 秒</Text></Pressable>
-              <Pressable onPress={() => adjustRestTimer(10)} style={styles.restAction}><Text style={styles.restActionText}>+10 秒</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="休息时间减少 10 秒" onPress={() => adjustRestTimer(-10)} style={styles.restAction}><Text style={styles.restActionText}>-10 秒</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="休息时间增加 10 秒" onPress={() => adjustRestTimer(10)} style={styles.restAction}><Text style={styles.restActionText}>+10 秒</Text></Pressable>
             </View>
-            <Pressable onPress={skipRestTimer} style={styles.restPrimary}><Text style={styles.restPrimaryText}>跳过休息</Text></Pressable>
-            <Pressable onPress={() => setRestTimerMinimized(true)} style={styles.restMinimize}><Text style={styles.restMinimizeText}>最小化</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="跳过休息" onPress={skipRestTimer} style={styles.restPrimary}><Text style={styles.restPrimaryText}>跳过休息</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="最小化休息计时" onPress={() => setRestTimerMinimized(true)} style={styles.restMinimize}><Text style={styles.restMinimizeText}>最小化</Text></Pressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -1056,14 +1087,15 @@ const styles = StyleSheet.create({
   videoTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#2563EB', backgroundColor: '#EFF6FF', fontSize: 10, fontWeight: '900' },
   noteTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: colors.textSecondary, backgroundColor: colors.surfaceMuted, fontSize: 10, fontWeight: '900' },
   setPlan: { color: colors.textSecondary, fontSize: 12 },
+  deleteSetButton: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   deleteText: { color: colors.danger, fontSize: 12, fontWeight: '800' },
   disabledText: { color: colors.textMuted },
   inputs: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  input: { flex: 1, minHeight: 42, borderRadius: radius.md, paddingHorizontal: spacing.xs, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14 },
-  doneButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
+  input: { flex: 1, minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.xs, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14 },
+  doneButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
   doneButtonDisabled: { backgroundColor: colors.textMuted },
   doneButtonText: { color: '#FFFFFF', fontWeight: '900' },
-  setMoreButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brandSoft },
+  setMoreButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brandSoft },
   setMoreText: { color: colors.brand, fontSize: 12, fontWeight: '900' },
   setMorePanel: { gap: spacing.xs, borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   setNotesInput: { minHeight: 80, borderRadius: radius.md, padding: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 13, lineHeight: 20 },
@@ -1076,20 +1108,20 @@ const styles = StyleSheet.create({
   prToggleHint: { color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
   prToggleHintActive: { color: 'rgba(255,255,255,0.82)' },
   videoActionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  videoActionButton: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
+  videoActionButton: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
   videoActionText: { color: colors.brand, fontSize: 12, fontWeight: '900' },
-  videoPreviewButton: { minHeight: 40, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.surfaceMuted },
+  videoPreviewButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.surfaceMuted },
   videoPreviewText: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  videoUrlInput: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 12 },
+  videoUrlInput: { minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 12 },
   setHelper: { color: colors.textMuted, fontSize: 11, lineHeight: 17 },
   editCompletedHint: { borderRadius: radius.md, padding: spacing.xs, color: colors.brandDark, backgroundColor: colors.brandSoft, fontSize: 11, lineHeight: 17 },
   itemInputRow: { flexDirection: 'row', gap: spacing.xs },
-  itemInput: { flex: 1, minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14 },
+  itemInput: { flex: 1, minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14 },
   itemTextarea: { minHeight: 88, borderRadius: radius.md, padding: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14, textAlignVertical: 'top' },
   itemDoneButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
-  addButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.brand, backgroundColor: colors.surface },
+  addButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.brand, backgroundColor: colors.surface },
   addButtonText: { color: colors.brand, fontWeight: '900' },
-  deleteButton: { minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  deleteButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   deleteButtonText: { color: colors.danger, fontWeight: '800' },
   addExerciseButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.brand, backgroundColor: colors.surface },
   addExerciseButtonText: { color: colors.brand, fontSize: 15, fontWeight: '900' },
@@ -1100,7 +1132,7 @@ const styles = StyleSheet.create({
   feedbackSuccessText: { color: '#087A63', fontSize: 14, fontWeight: '900' },
   feedbackLabel: { color: colors.text, fontSize: 14, fontWeight: '800' },
   difficultyRow: { flexDirection: 'row', gap: spacing.xs },
-  difficultyChip: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  difficultyChip: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   difficultyChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   difficultyText: { color: colors.textSecondary, fontSize: 15, fontWeight: '900' },
   difficultyTextActive: { color: '#FFFFFF' },
@@ -1117,10 +1149,11 @@ const styles = StyleSheet.create({
   modalPanel: { maxHeight: '82%', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.sm, gap: spacing.sm, backgroundColor: colors.background },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   modalTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  modalCloseButton: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   modalClose: { color: colors.brand, fontSize: 14, fontWeight: '900' },
   pickerSearch: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.lg, paddingHorizontal: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   pickerInput: { flex: 1, color: colors.text, fontSize: 15 },
-  pickerSearchButton: { minHeight: 36, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
+  pickerSearchButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
   pickerSearchText: { color: '#FFFFFF', fontWeight: '800' },
   pickerList: { maxHeight: 440 },
   pickerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -1133,10 +1166,10 @@ const styles = StyleSheet.create({
   restTime: { color: colors.text, fontSize: 52, fontWeight: '900', fontVariant: ['tabular-nums'] },
   restLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
   restActions: { flexDirection: 'row', gap: spacing.sm },
-  restAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  restAction: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   restActionText: { color: colors.text, fontSize: 13, fontWeight: '800' },
   restPrimary: { width: '100%', minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
   restPrimaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
-  restMinimize: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.md },
+  restMinimize: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.md },
   restMinimizeText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
 })

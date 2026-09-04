@@ -30,12 +30,59 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<CoachLinkUser | null>(null)
 
   useEffect(() => {
-    Promise.all([hasStoredToken(), getStoredUser()])
-      .then(([hasToken, storedUser]) => {
-        setIsAuthenticated(hasToken)
-        setUser(hasToken ? storedUser : null)
-      })
-      .finally(() => setIsBootstrapping(false))
+    let cancelled = false
+
+    async function restoreSession() {
+      let hasToken = false
+      let storedUser: CoachLinkUser | null = null
+
+      try {
+        ;[hasToken, storedUser] = await Promise.all([hasStoredToken(), getStoredUser()])
+      } catch {
+        hasToken = false
+        storedUser = null
+      }
+
+      const canRestore = hasToken && Boolean(storedUser?.id)
+      if (!cancelled) {
+        setIsAuthenticated(canRestore)
+        setUser(canRestore ? storedUser : null)
+        setIsBootstrapping(false)
+      }
+
+      if (!canRestore) {
+        if (hasToken || storedUser) {
+          await Promise.all([apiClient.clearSession(), clearMobileAppCache()]).catch(() => undefined)
+        }
+        return
+      }
+
+      let invalidSession = false
+      try {
+        const probe = await apiClient.request<{ userId?: string }>('/api/miniapp/session', {
+          method: 'GET',
+          timeoutMs: 6000,
+        })
+        invalidSession = !probe?.userId || probe.userId !== storedUser?.id
+      } catch (error) {
+        const message = error instanceof Error ? error.message.trim().toLowerCase() : ''
+        invalidSession = message === 'unauthorized' || message.includes('登录已失效') || message.includes('登录已过期')
+      }
+
+      if (!invalidSession) return
+
+      await Promise.all([apiClient.clearSession(), clearMobileAppCache()]).catch(() => undefined)
+      if (!cancelled) {
+        setIsAuthenticated(false)
+        setIsGuest(false)
+        setUser(null)
+      }
+    }
+
+    void restoreSession()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const markAuthenticated = useCallback((session: AuthSession) => {

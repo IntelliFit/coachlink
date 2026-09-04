@@ -15,12 +15,25 @@ export function hashPassword(password: string): string {
 }
 
 /**
+ * Password hashes created by CoachLink are SHA-256 hex strings.
+ *
+ * Some historical WeChat-only users store a marker such as
+ * `wechat_openid` instead of a password hash. Treat those accounts as not
+ * having a password rather than passing unequal buffers to timingSafeEqual.
+ */
+export function isPasswordHash(storedHash: unknown): storedHash is string {
+    return typeof storedHash === 'string' && /^[0-9a-f]{64}$/i.test(storedHash);
+}
+
+/**
  * 验证用户提交的密码是否与数据库中的哈希值匹配
  * @param password - 用户提交的密码
  * @param storedHash - 数据库中存储的哈希值
  * @returns 是否匹配
  */
-export function verifyPassword(password: string, storedHash: string): boolean {
+export function verifyPassword(password: string, storedHash: unknown): boolean {
+    if (!isPasswordHash(storedHash)) return false;
+
     // 计算用户提交密码的哈希值
     const hash = hashPassword(password);
     // 使用恒定时间比较函数防止时序攻击

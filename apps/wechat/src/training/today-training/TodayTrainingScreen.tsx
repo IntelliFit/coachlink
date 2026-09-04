@@ -476,10 +476,10 @@ function TodayTrainingScreen() {
     [selectedModuleModel]
   )
 
-  // 教练订阅计划以学员第一次实际开始训练为 D1；
-  // plan instance 的分配日只作无订阅键点时的兼容回退。
+  // 每份计划必须使用自己的日期锚点。fresh plan 尚无 start_date 时，
+  // 先以分配/创建日展示 D1；不能复用整段订阅的旧 start_date。
   const effectiveCalendarStartDate = planMode === 'coach'
-    ? activeSubscription?.start_date || instance?.start_date || null
+    ? instance?.start_date || instance?.created_at || activeSubscription?.start_date || null
     : instance?.start_date || null
   const scheduleModel = useMemo(
     () =>

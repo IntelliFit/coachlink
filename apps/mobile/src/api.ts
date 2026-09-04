@@ -15,6 +15,7 @@ const MOBILE_CACHE_KEYS = [
   'motion-effects-last-job-v1',
   'sl_calc_form_data',
   'sl_calc_last_run',
+  'knowledge_home_cache_v1',
 ] as const
 
 function timeoutSignal(timeoutMs?: number): { signal: AbortSignal; cancel: () => void } | undefined {
@@ -27,6 +28,24 @@ function timeoutSignal(timeoutMs?: number): { signal: AbortSignal; cancel: () =>
   }
 }
 
+export async function fetchWithTimeout(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+  timeoutMs = 180_000,
+): Promise<Response> {
+  const timeout = timeoutSignal(timeoutMs)
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: timeout?.signal || init?.signal,
+    })
+  } catch (error) {
+    if (timeout?.signal.aborted) throw new Error('请求超时，请检查网络后重试')
+    throw error
+  } finally {
+    timeout?.cancel()
+  }
+}
 async function parseJsonResponse(response: Response): Promise<unknown> {
   const text = await response.text()
   if (!text) return null

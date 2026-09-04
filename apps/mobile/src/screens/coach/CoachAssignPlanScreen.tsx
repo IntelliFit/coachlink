@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   warningText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   searchCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   searchInput: { flex: 1, minHeight: 40, color: colors.text, fontSize: 14 },
-  searchButton: { minHeight: 36, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.brand },
+  searchButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.brand },
   searchText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   templateCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   templateCardSelected: { borderColor: colors.brand, backgroundColor: colors.brandSoft },

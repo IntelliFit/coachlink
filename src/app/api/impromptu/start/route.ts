@@ -3,6 +3,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { StartImpromptuDto, StartImpromptuResponseDto } from "./entity";
+import { attachImpromptuSetVideos } from "../_helpers/setVideoUpload";
 
 export async function POST(req: Request) {
     try {
@@ -46,10 +47,11 @@ export async function POST(req: Request) {
         }
 
         if (currentExecution) {
+            const hydrated = await attachImpromptuSetVideos(currentExecution as any);
             return NextResponse.json<ApiData<StartImpromptuResponseDto>>({
                 success: true,
                 message: "继续未完成的即兴训练",
-                data: currentExecution,
+                data: hydrated,
             });
         }
 

@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   stepTab: {
-    minHeight: 40,
+    minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,

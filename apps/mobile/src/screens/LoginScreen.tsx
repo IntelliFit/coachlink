@@ -11,7 +11,7 @@ import { DEV_USERS, type DevUser } from '../../../../src/config/devUsers'
 import { colors } from '../theme'
 import type { RootStackParamList } from '../navigation/types'
 
-type LoginMode = 'wechat' | 'password' | 'verifyCode'
+type LoginMode = 'password' | 'verifyCode'
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>
 
 const IS_DEV = process.env.NODE_ENV === 'development'
@@ -28,9 +28,14 @@ function isValidPhoneOrEmail(value: string) {
   return isPhone(value) || isEmail(value)
 }
 
+function isPasswordUnavailableError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || '')
+  return message.includes('尚未设置密码') || message.includes('Input buffers must have the same byte length')
+}
+
 export function LoginScreen({ navigation }: Props) {
   const { loginWithPassword, loginWithCode, continueAsGuest, loginAsDevUser } = useAuth()
-  const [mode, setMode] = useState<LoginMode>('wechat')
+  const [mode, setMode] = useState<LoginMode>('password')
   const [phoneOrEmail, setPhoneOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [verifyCode, setVerifyCode] = useState('')
@@ -62,15 +67,42 @@ export function LoginScreen({ navigation }: Props) {
 
   async function submit() {
     if (!requireAgreement() || !canSubmit || loading) return
+    const account = phoneOrEmail.trim()
+    if (!isValidPhoneOrEmail(account)) {
+      Alert.alert('格式不正确', '请输入正确的手机号或邮箱')
+      return
+    }
+    if (mode === 'verifyCode' && !/^\d{6}$/.test(verifyCode.trim())) {
+      Alert.alert('验证码不正确', '请输入 6 位数字验证码')
+      return
+    }
     setLoading(true)
     try {
       if (mode === 'password') {
-        await loginWithPassword(phoneOrEmail.trim(), password)
+        await loginWithPassword(account, password)
       } else {
-        await loginWithCode(phoneOrEmail.trim(), verifyCode.trim())
+        await loginWithCode(account, verifyCode.trim())
       }
     } catch (error) {
-      Alert.alert('登录失败', error instanceof Error ? error.message : '请稍后重试')
+      if (mode === 'password' && isPasswordUnavailableError(error)) {
+        Alert.alert(
+          '该账号尚未设置密码',
+          '这是微信登录创建的账号。你可以使用验证码登录，或先通过“忘记密码”设置密码。',
+          [
+            {
+              text: '验证码登录',
+              onPress: () => {
+                setMode('verifyCode')
+                setPassword('')
+              },
+            },
+            { text: '忘记密码', onPress: () => navigation.navigate('ResetPassword') },
+            { text: '取消', style: 'cancel' },
+          ],
+        )
+      } else {
+        Alert.alert('登录失败', error instanceof Error ? error.message : '请稍后重试')
+      }
     } finally {
       setLoading(false)
     }
@@ -101,11 +133,6 @@ export function LoginScreen({ navigation }: Props) {
       return
     }
     setCaptchaVisible(true)
-  }
-
-  function handleWechatPlaceholder() {
-    if (!requireAgreement()) return
-    Alert.alert('手机号快捷登录', 'APP 端微信快捷登录入口已保留，等待微信开放平台能力接入。当前请使用密码登录或验证码登录。')
   }
 
   async function handleDevLogin() {
@@ -141,22 +168,20 @@ export function LoginScreen({ navigation }: Props) {
             setVerifyCode('')
           }}
           items={[
-            { value: 'wechat', label: '手机号快捷登录' },
             { value: 'password', label: '密码登录' },
             { value: 'verifyCode', label: '验证码登录' },
           ]}
         />
 
-        <AgreementRow checked={agreed} onToggle={() => setAgreed((value) => !value)} />
+        <AgreementRow
+          checked={agreed}
+          onToggle={() => setAgreed((value) => !value)}
+          onOpenTerms={() => navigation.navigate('Terms')}
+          onOpenPrivacy={() => navigation.navigate('Privacy')}
+        />
 
-        {mode === 'wechat' ? (
-          <View style={styles.wechatPanel}>
-            <PillButton label={loading ? '登录中...' : '手机号一键登录'} disabled={!agreed || loading} loading={loading} onPress={handleWechatPlaceholder} />
-            <Text style={authStyles.hint}>不登录也可以先浏览知识、找教练和公开工具；需要同步训练记录时再登录。</Text>
-          </View>
-        ) : (
-          <>
             <AuthInput
+              label="手机号或邮箱"
               value={phoneOrEmail}
               onChangeText={setPhoneOrEmail}
               placeholder="请输入手机号或邮箱"
@@ -171,6 +196,7 @@ export function LoginScreen({ navigation }: Props) {
             {mode === 'password' ? (
               <View style={authStyles.formItem}>
                 <AuthInput
+                  label="密码"
                   inputRef={passwordInputRef}
                   value={password}
                   onChangeText={setPassword}
@@ -183,13 +209,14 @@ export function LoginScreen({ navigation }: Props) {
                   onSubmitEditing={submit}
                 />
                 <View style={authStyles.formExtra}>
-                  <Pressable onPress={() => navigation.navigate('ResetPassword')}>
+                  <Pressable style={authStyles.textAction} accessibilityRole="button" accessibilityLabel="忘记密码" onPress={() => navigation.navigate('ResetPassword')}>
                     <Text style={authStyles.link}>忘记密码？</Text>
                   </Pressable>
                 </View>
               </View>
             ) : (
               <AuthInput
+                label="验证码"
                 inputRef={codeInputRef}
                 value={verifyCode}
                 onChangeText={setVerifyCode}
@@ -204,6 +231,8 @@ export function LoginScreen({ navigation }: Props) {
                 onSubmitEditing={submit}
                 right={
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={sendingCode ? '正在发送验证码' : countdown > 0 ? `${countdown} 秒后可重新获取验证码` : '获取验证码'}
                     disabled={countdown > 0 || sendingCode || !isValidPhoneOrEmail(phoneOrEmail)}
                     onPress={startSendCode}
                     style={[styles.sendCode, (countdown > 0 || sendingCode || !isValidPhoneOrEmail(phoneOrEmail)) && styles.sendCodeDisabled]}
@@ -218,12 +247,10 @@ export function LoginScreen({ navigation }: Props) {
 
             <View style={authStyles.tipRow}>
               <Text style={authStyles.tipText}>还没有账户？</Text>
-              <Pressable onPress={() => navigation.navigate('Register')}>
+              <Pressable style={authStyles.textAction} accessibilityRole="button" accessibilityLabel="立即注册" onPress={() => navigation.navigate('Register')}>
                 <Text style={authStyles.tipLink}>立即注册</Text>
               </Pressable>
             </View>
-          </>
-        )}
 
         {IS_DEV ? (
           <View style={styles.devSection}>
@@ -256,16 +283,12 @@ export function LoginScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wechatPanel: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
   sendCode: {
-    minHeight: 40,
+    minHeight: 48,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     backgroundColor: colors.brand,
   },
   sendCodeDisabled: {

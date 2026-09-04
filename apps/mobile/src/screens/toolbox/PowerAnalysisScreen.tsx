@@ -10,7 +10,7 @@ import Svg, { Polyline } from 'react-native-svg'
 import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
-import { apiClient, getStoredToken } from '../../api'
+import { apiClient, fetchWithTimeout, getStoredToken } from '../../api'
 import { API_BASE_URL } from '../../config'
 import { colors, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
@@ -174,11 +174,11 @@ async function uploadSignedVideo(params: { uploadUrl: string; uri: string; conte
   const fileResponse = await fetch(params.uri)
   const blob = await fileResponse.blob()
   params.onProgress(30)
-  const uploadResponse = await fetch(params.uploadUrl, {
+  const uploadResponse = await fetchWithTimeout(params.uploadUrl, {
     method: 'PUT',
     headers: { 'Content-Type': params.contentType },
     body: blob,
-  })
+  }, 1_800_000)
   if (!uploadResponse.ok) {
     const text = await uploadResponse.text().catch(() => '')
     throw new Error(text || `上传失败（${uploadResponse.status}）`)
@@ -480,10 +480,21 @@ export function PowerAnalysisScreen({ navigation }: Props) {
       await MediaLibrary.saveToLibraryAsync(downloaded.uri)
       setDownloadHint(`已保存到相册：${data.filename}`)
     } catch (e) {
-      if (fallbackUrl) await Clipboard.setStringAsync(fallbackUrl).catch(() => undefined)
+      const message = (e as Error)?.message || '保存未完成'
+      let fallbackCopied = false
+      if (fallbackUrl) {
+        try {
+          await Clipboard.setStringAsync(fallbackUrl)
+          fallbackCopied = true
+        } catch {
+          fallbackCopied = false
+        }
+      }
       setDownloadHint(fallbackUrl
-        ? `${(e as Error)?.message || '保存未完成'}；备用下载链接已复制，可再次重试。`
-        : (e as Error)?.message || '结果视频保存失败')
+        ? fallbackCopied
+          ? `${message}；备用下载链接已复制，可再次重试。`
+          : `${message}；备用下载链接复制失败，请稍后重试。`
+        : message || '结果视频保存失败')
     } finally {
       setDownloading(false)
     }
@@ -710,7 +721,7 @@ const styles = StyleSheet.create({
   entitlementBadgeText: { color: colors.brand, fontSize: 11, fontWeight: '900' },
   optionLabel: { color: colors.text, fontSize: 13, fontWeight: '900', marginTop: spacing.xs },
   optionRow: { flexDirection: 'row', gap: spacing.xs },
-  optionChip: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  optionChip: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   optionChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   optionText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   optionTextActive: { color: '#FFFFFF' },
@@ -745,13 +756,13 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.5 },
   errorText: { color: colors.danger, fontSize: 13, fontWeight: '800', lineHeight: 20, marginTop: spacing.xs },
   queueText: { color: colors.warning, fontSize: 12, lineHeight: 18, fontWeight: '800' },
-  retryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.brand },
+  retryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.brand },
   retryText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
   resultCard: { borderRadius: radius.xl, padding: spacing.md, gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
   resultHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
   resultKicker: { color: colors.brand, fontSize: 12, fontWeight: '900' },
   resultTitle: { color: colors.text, fontSize: 22, fontWeight: '900', marginTop: 4 },
-  downloadButton: { minHeight: 40, borderRadius: radius.pill, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1F1F1F' },
+  downloadButton: { minHeight: 48, borderRadius: radius.pill, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1F1F1F' },
   downloadText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
   emptyText: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -767,7 +778,7 @@ const styles = StyleSheet.create({
   curveCard: { gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surfaceMuted },
   curveTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   curveTabs: { flexDirection: 'row', gap: spacing.xs },
-  curveTab: { flex: 1, minHeight: 36, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surface },
+  curveTab: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surface },
   curveTabActive: { backgroundColor: colors.brand },
   curveTabText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   curveTabTextActive: { color: '#FFFFFF' },

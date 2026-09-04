@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { resolveCoachLinkAppRole } from '@coachlink/core'
 import { Alert, Image, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
 import * as Clipboard from 'expo-clipboard'
 import * as ImagePicker from 'expo-image-picker'
 import { API_BASE_URL, APP_VERSION } from '../../config'
-import { apiClient, getStoredToken, persistSession } from '../../api'
+import { apiClient, fetchWithTimeout, getStoredToken, persistSession } from '../../api'
 import { IconFont, type IconFontName } from '../../components/IconFont'
 import { useAuth } from '../../providers/AuthProvider'
 import { colors, radius, spacing } from '../../theme'
@@ -72,6 +72,7 @@ type ReferralData = {
 }
 type FitnessProfile = {
   nickname?: string | null
+  age?: number | null
   avatar_url?: string | null
   gender?: string | null
   height?: number | null
@@ -222,6 +223,24 @@ type FriendItem = {
   nickname?: string | null
   avatarUrl?: string | null
   friendsSince?: string | null
+}
+type FriendWorkoutRecord = {
+  executionId: string
+  planName?: string | null
+  dayIndex?: number | null
+  totalVolume?: number | null
+  durationMinutes?: number | null
+  completedAt?: string | null
+  shareToken?: string | null
+}
+type FriendRecordsData = {
+  user?: {
+    userId: string
+    nickname?: string | null
+    avatarUrl?: string | null
+  }
+  records?: FriendWorkoutRecord[]
+  total?: number
 }
 type FriendRequestItem = {
   friendshipId: string
@@ -818,14 +837,14 @@ function formatTime(value?: string) {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('zh-CN')
+  return `${formatDate(value)} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 function formatDate(value?: string | null) {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('zh-CN')
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 function planStatusLabel(status?: string | null) {
@@ -931,7 +950,7 @@ function formatConversationTime(value?: string | null) {
   if (days === 0) return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   if (days === 1) return '昨天'
   if (days < 7) return `${days}天前`
-  return date.toLocaleDateString('zh-CN')
+  return formatDate(value)
 }
 
 function makeLocalId(prefix: string) {
@@ -1160,9 +1179,18 @@ export function ProfileScreen() {
   const [membership, setMembership] = useState<any>(null)
   const [profileMissingCount, setProfileMissingCount] = useState(0)
   const [roleSwitching, setRoleSwitching] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [betaGroupVisible, setBetaGroupVisible] = useState(false)
+  const [betaGroupImageError, setBetaGroupImageError] = useState(false)
+  const [betaGroupImageKey, setBetaGroupImageKey] = useState(0)
 
-  async function loadStats() {
-    if (!isAuthenticated) return
+  const loadStats = useCallback(async () => {
+    if (!isAuthenticated) {
+      setStats({ actions: 0, plans: 0, trainingActions: 0 })
+      setMembership(null)
+      setProfileMissingCount(0)
+      return
+    }
     const [actions, plans, history, membershipStatus, profileStatus] = await Promise.allSettled([
       requestMaybe<any>('/api/student/action-lib/list-actions', { body: { page: 1, limit: 1, search: '' } }),
       requestMaybe<any>('/api/student/plan-lib/list-favorites', { body: { page: 1, limit: 1, search: '' } }),
@@ -1186,12 +1214,31 @@ export function ProfileScreen() {
     } else {
       setProfileMissingCount(0)
     }
-  }
+  }, [isAuthenticated, user?.id])
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void refreshUser()
     void loadStats()
-  }, [isAuthenticated])
+  }, [loadStats, refreshUser]))
+
+  const refreshProfile = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await Promise.all([refreshUser(), loadStats()])
+    } finally {
+      setRefreshing(false)
+    }
+  }, [loadStats, refreshUser])
+
+  function openBetaGroup() {
+    setBetaGroupImageError(false)
+    setBetaGroupVisible(true)
+  }
+
+  function retryBetaGroupImage() {
+    setBetaGroupImageError(false)
+    setBetaGroupImageKey((value) => value + 1)
+  }
 
   const displayName = isAuthenticated ? asText(user?.nickname || user?.name || user?.phone, 'CoachLink 学员') : '未登录'
   const subtitle = isAuthenticated ? asText(user?.phone || user?.email, '训练、服务和消息会在这里持续沉淀') : '登录后同步训练记录、会员、订单和消息'
@@ -1222,24 +1269,26 @@ export function ProfileScreen() {
   ]
 
   return (
-    <ScreenShell title="我的" subtitle="账号、训练资料和应用设置。">
+    <ScreenShell
+      title="我的"
+      subtitle="账号、训练资料和应用设置。"
+      refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.brand} colors={[colors.brand]} onRefresh={() => void refreshProfile()} />}
+      tabBarInset
+    >
       <Card style={local.profileCard}>
         <View style={local.profileTop}>
           <InlineAvatar uri={user?.avatar_url || user?.avatar} label={displayName} size={72} />
           <View style={{ flex: 1 }}>
             <Text style={local.profileName}>{displayName}</Text>
             <Text style={local.profileSubtitle}>{subtitle}</Text>
-            <Pressable onPress={() => open('ProfileEdit')}>
+            <Pressable accessibilityRole="button" accessibilityLabel={isAuthenticated ? '编辑个人资料' : '前往登录'} onPress={() => open('ProfileEdit')}>
               <Text style={local.profileLink}>{isAuthenticated ? '编辑资料' : '点击登录'} · {isAuthenticated ? `${user?.primary_role === 'coach' ? '教练身份' : '学员身份'}` : '游客模式'}</Text>
             </Pressable>
           </View>
-          <Pressable onPress={() => Alert.alert('主题', 'APP 端主题切换会随系统设置自动生效。')} style={local.roundIcon}>
-            <IconFont name="icon-zaoshang" size={24} color={colors.brand} />
-          </Pressable>
         </View>
         <View style={local.statsRow}>
           {topMenus.map((item) => (
-            <Pressable key={item.label} style={local.statItem} onPress={() => open(item.route)}>
+            <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={`${item.label}，${item.value}${item.unit}`} style={local.statItem} onPress={() => open(item.route)}>
               <IconFont name={item.icon} size={24} color={colors.brand} />
               <Text style={local.statValue}>{item.value}</Text>
               <Text style={local.statLabel}>{item.label}</Text>
@@ -1273,7 +1322,7 @@ export function ProfileScreen() {
         <MenuRow label="购买记录" icon="icon-goumaijilu" iconBg="#722ed1" onPress={() => open('PurchaseHistory')} />
         <MenuRow label="购物车" icon="icon-goumaijilu" iconBg="#B37FEB" onPress={() => open('Cart')} />
         <MenuRow label="我的朋友" icon="icon-friends-o" iconBg="#29C3A3" onPress={() => open('Friends')} />
-        <MenuRow label="加入内测群" icon="icon-messages" iconBg="#CF6D4E" onPress={() => Linking.openURL(STUDENT_BETA_GROUP_IMAGE)} />
+        <MenuRow label="加入内测群" desc="打开二维码后使用微信扫码加入" icon="icon-messages" iconBg="#CF6D4E" onPress={openBetaGroup} />
       </Card>
 
       <Card>
@@ -1285,18 +1334,44 @@ export function ProfileScreen() {
         ) : (
           <>
             {user?.is_coach ? (
-              <MenuRow label="切换到教练端" desc="进入学员、计划、视频与经营工作台" icon="icon-dashboard" iconBg="#CF6D4E" badge={roleSwitching ? '切换中' : '教练身份'} onPress={roleSwitching ? undefined : confirmCoachMode} />
+              <MenuRow label="切换到教练端" desc="进入学员、计划、视频与经营工作台" icon="icon-dashboard" iconBg="#CF6D4E" badge={roleSwitching ? '切换中' : '教练身份'} disabled={roleSwitching} onPress={confirmCoachMode} />
             ) : (
               <MenuRow label="申请成为教练" icon="icon-shenqingquanxian" iconBg="#FFD700" onPress={() => open('CoachApplication')} />
             )}
             <MenuRow label="账户设置" icon="icon-account-settings-variant" iconBg="#B0BEC5" onPress={() => open('Settings')} />
-            <Pressable onPress={() => confirm('退出登录', '确定要退出当前账号吗？', () => void logout())} style={local.logoutRow}>
+            <Pressable accessibilityRole="button" accessibilityLabel="退出登录" onPress={() => confirm('退出登录', '确定要退出当前账号吗？', () => void logout())} style={local.logoutRow}>
               <IconFont name="icon-exit" size={20} color={colors.danger} />
               <Text style={local.logoutText}>退出登录</Text>
             </Pressable>
           </>
         )}
       </Card>
+      <Modal visible={betaGroupVisible} transparent animationType="fade" onRequestClose={() => setBetaGroupVisible(false)}>
+        <View style={local.betaGroupMask}>
+          <Pressable accessibilityRole="button" accessibilityLabel="关闭内测群二维码" style={local.betaGroupDismissArea} onPress={() => setBetaGroupVisible(false)} />
+          <View style={local.betaGroupCard} accessibilityViewIsModal>
+            <Text style={local.betaGroupTitle}>加入 CoachLink 学员内测群</Text>
+            <Text style={local.betaGroupDesc}>请使用微信扫描下方二维码。二维码加载失败时可直接重试。</Text>
+            {betaGroupImageError ? (
+              <View style={local.betaGroupImageFallback}>
+                <IconFont name="icon-wenhao" size={40} color={colors.textMuted} />
+                <Text style={local.betaGroupErrorText}>二维码加载失败，请检查网络后重试。</Text>
+                <SolidButton label="重新加载" variant="secondary" onPress={retryBetaGroupImage} />
+              </View>
+            ) : (
+              <Image
+                key={betaGroupImageKey}
+                source={{ uri: STUDENT_BETA_GROUP_IMAGE }}
+                resizeMode="contain"
+                accessibilityLabel="CoachLink 学员内测群二维码"
+                style={local.betaGroupImage}
+                onError={() => setBetaGroupImageError(true)}
+              />
+            )}
+            <SolidButton label="关闭" onPress={() => setBetaGroupVisible(false)} />
+          </View>
+        </View>
+      </Modal>
     </ScreenShell>
   )
 }
@@ -1359,7 +1434,7 @@ export function ProfileEditScreen() {
     const token = await getStoredToken()
     const form = new FormData()
     form.append('file', { uri: result.assets[0].uri, name: 'avatar.jpg', type: 'image/jpeg' } as any)
-    const response = await fetch(`${API_BASE_URL}/api/upload/avatar`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: form })
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/upload/avatar`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: form })
     const json = await response.json()
     if (!response.ok || !json?.success || !json?.data?.url) throw new Error(json?.message || '头像上传失败')
     await safeRequest('/api/user/update-profile', { body: { avatar_url: json.data.url } })
@@ -1778,8 +1853,12 @@ export function ActionDetailScreen() {
       Alert.alert('暂无可复制内容', '这个动作还没有配置演示视频链接。')
       return
     }
-    await Clipboard.setStringAsync(videoUrl)
-    Alert.alert('链接已复制')
+    try {
+      await Clipboard.setStringAsync(videoUrl)
+      Alert.alert('链接已复制')
+    } catch {
+      Alert.alert('复制失败', '无法写入剪贴板，请稍后重试。')
+    }
   }
 
   return (
@@ -2123,6 +2202,8 @@ export function PlanEditScreen() {
   const navigation = useNavigationAny()
   const route = useRouteAny<'PlanEdit'>()
   const id = route.params?.id
+  const autoGenerate = route.params?.autoGenerate === true
+  const autoGenerateStartedRef = useRef(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [tagsText, setTagsText] = useState('')
@@ -2164,6 +2245,12 @@ export function PlanEditScreen() {
   useEffect(() => {
     void loadInitial()
   }, [id])
+
+  useEffect(() => {
+    if (bootLoading || id || !autoGenerate || autoGenerateStartedRef.current) return
+    autoGenerateStartedRef.current = true
+    void generateDraft()
+  }, [autoGenerate, bootLoading, id])
 
   async function generateDraft() {
     setParsing(true)
@@ -2553,16 +2640,17 @@ export function TrainingHistoryScreen() {
     setLoading(true)
     setError('')
     try {
-      const [calendar, monthStats] = await Promise.all([
-        apiClient.request<{ days?: TrainingCalendarDay[] }>('/api/training-history/calendar', { method: 'POST', body: { month: monthKey }, timeoutMs: 12000 }),
-        apiClient.request<TrainingMonthStats>('/api/training-history/month-share', { method: 'POST', body: { month: monthKey }, timeoutMs: 12000 }),
-      ])
+      const calendar = await apiClient.request<{ days?: TrainingCalendarDay[] }>('/api/training-history/calendar', { method: 'POST', body: { month: monthKey }, timeoutMs: 30000 })
       const next: Record<string, number> = {}
       ;(calendar.days || []).forEach((item) => { next[item.date] = item.sessions })
       setDays(next)
-      setStats(monthStats)
+      setLoading(false)
+      void apiClient.request<TrainingMonthStats>('/api/training-history/month-share', { method: 'POST', body: { month: monthKey }, timeoutMs: 30000 })
+        .then(setStats)
+        .catch(() => setStats(null))
       if (!selectedDate) {
-        const today = new Date().toISOString().slice(0, 10)
+        const now = new Date()
+        const today = `${getMonthKey(now)}-${String(now.getDate()).padStart(2, '0')}`
         if (today.startsWith(monthKey)) void loadDay(today)
       }
     } catch (err) {
@@ -2790,7 +2878,6 @@ export function MembershipSubscribeScreen() {
   const [activeTab, setActiveTab] = useState<MembershipTab>(route.params?.tab === 'addon' ? 'addon' : 'membership')
   const [currentTier, setCurrentTier] = useState<MembershipTier>('free')
   const [loading, setLoading] = useState(true)
-  const [payingPlanId, setPayingPlanId] = useState('')
   const plans = MEMBERSHIP_PLANS.filter((item) => item.tab === activeTab)
 
   async function loadStatus() {
@@ -2806,38 +2893,16 @@ export function MembershipSubscribeScreen() {
     }
   }
 
-  async function subscribe(plan: (typeof MEMBERSHIP_PLANS)[number]) {
-    if (payingPlanId) return
+  function subscribe(plan: (typeof MEMBERSHIP_PLANS)[number]) {
     if (plan.tier && (currentTier === plan.tier || (currentTier === 'trial' && plan.tier === 'premium'))) {
       Alert.alert('当前已是该会员等级', '无需重复购买同一会员方案。')
       return
     }
 
-    setPayingPlanId(plan.id)
-    try {
-      const payment = await apiClient.request<{ orderId?: string; amount?: number; paymentProvider?: 'wechat' }>('/api/payment/wechat/membership/create', {
-        method: 'POST',
-        timeoutMs: 15000,
-        body: { productKey: plan.id },
-      })
-      navigation.navigate('PaymentWaiting', {
-        orderId: payment.orderId,
-        amount: Number(payment.amount ?? plan.price),
-        provider: 'wechat',
-        target: 'membership',
-        membershipTab: activeTab,
-      })
-    } catch (error) {
-      navigation.navigate('PaymentWaiting', {
-        amount: Number(plan.price),
-        provider: 'wechat',
-        target: 'membership',
-        membershipTab: activeTab,
-        message: errorMessage(error, '创建支付单失败，请稍后重试'),
-      })
-    } finally {
-      setPayingPlanId('')
-    }
+    Alert.alert(
+      'App 内购接入中',
+      '为避免产生无法完成付款的微信小程序订单，本内部测试版暂不为“' + plan.name + '”创建支付单。现有会员权益不受影响。',
+    )
   }
 
   useEffect(() => {
@@ -2855,6 +2920,10 @@ export function MembershipSubscribeScreen() {
       <Card style={local.membershipStatus}>
         <Text style={local.itemMeta}>当前等级</Text>
         <Text style={local.membershipTier}>{loading ? '正在加载...' : currentLabel}</Text>
+      <Card>
+        <Text style={local.sectionTitle}>App 内购准备中</Text>
+        <Text style={local.itemMeta}>当前仅展示权益与价格，不创建无法在 App 内完成的微信小程序支付订单。商店内购接通后再开放购买。</Text>
+      </Card>
       </Card>
 
       <View style={local.segmented}>
@@ -2868,7 +2937,6 @@ export function MembershipSubscribeScreen() {
 
       {plans.map((plan) => {
         const isCurrent = Boolean(plan.tier && (currentTier === plan.tier || (currentTier === 'trial' && plan.tier === 'premium')))
-        const isPaying = payingPlanId === plan.id
         return (
           <Card key={plan.id} style={local.planCard}>
             <View style={local.planHeader}>
@@ -2895,13 +2963,13 @@ export function MembershipSubscribeScreen() {
                 </View>
               ))}
             </View>
-            <SolidButton label={isPaying ? '创建支付单中...' : '立即购买'} loading={isPaying} disabled={isCurrent} onPress={() => void subscribe(plan)} />
+            <SolidButton label={isCurrent ? '当前方案' : 'App 内购接入中'} disabled={isCurrent} onPress={() => subscribe(plan)} />
           </Card>
         )
       })}
 
       <Card>
-        <Text style={local.noticeDesc}>提示：APP 端当前会创建平台微信支付订单并进入支付等待页；原生微信 SDK 拉起支付仍在迁移中。</Text>
+        <Text style={local.noticeDesc}>提示：当前测试版仅展示方案，点击不会扣款或创建订单；已有会员权益和配额可正常使用。</Text>
       </Card>
     </ScreenShell>
   )
@@ -2945,8 +3013,12 @@ export function MembershipReferralScreen() {
       Alert.alert(emptyText)
       return
     }
-    await Clipboard.setStringAsync(value)
-    Alert.alert(successText)
+    try {
+      await Clipboard.setStringAsync(value)
+      Alert.alert(successText)
+    } catch {
+      Alert.alert('复制失败', '无法写入剪贴板，请稍后重试。')
+    }
   }
 
   const shareContent = data?.inviteLink ? `${data.shareText || '一起加入 CoachLink 训练'}\n${data.inviteLink}` : (data?.shareText || data?.code || '')
@@ -3502,7 +3574,12 @@ export function FriendsScreen() {
           <View style={local.friendList}>
             {friends.map((friend) => (
               <Card key={friend.userId} style={local.friendItemCard}>
-                <Pressable style={local.friendTapArea} onPress={() => navigation.navigate('UserHome')}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`查看${friend.nickname || '好友'}的主页`}
+                  style={local.friendTapArea}
+                  onPress={() => navigation.navigate('UserHome', { userId: friend.userId })}
+                >
                   <FriendAvatar uri={friend.avatarUrl || undefined} name={friend.nickname || 'F'} />
                   <View style={local.friendBody}>
                     <Text style={local.friendName}>{friend.nickname || '未知好友'}</Text>
@@ -4016,18 +4093,6 @@ function CoachServiceCard({
   )
 }
 
-export function PaymentWaitingScreen() {
-  return <SimpleInfoScreen title="等待支付" subtitle="支付状态会自动同步到订单和会员。" icon="icon-time" message="APP 端支付承接会根据订单类型跳转原生或网页支付。当前可返回购买记录查看状态。" />
-}
-
-export function PaymentWebviewScreen() {
-  return <SimpleInfoScreen title="网页支付" subtitle="APP 内网页支付承接页。" icon="icon-goumaijilu" message="如后端返回支付链接，APP 将使用系统浏览器打开并回到订单状态页。" />
-}
-
-export function PaymentWechatScreen() {
-  return <SimpleInfoScreen title="微信支付" subtitle="微信宿主能力在 APP 中需要原生支付 SDK。" icon="icon-goumaijilu" message="当前保留支付状态页；真实支付接入时在这里承接原生微信支付结果。" />
-}
-
 export function RankingScreen() {
   const navigation = useNavigationAny()
   const [loading, setLoading] = useState(true)
@@ -4463,7 +4528,7 @@ export function CoachApplicationScreen() {
             <Text style={local.sectionTitle}>证明材料</Text>
             <Text style={local.sectionDesc}>成就、案例、证书、图片和视频链接都可以放在这里。关闭公开后仅审核可见。</Text>
             <View style={local.materialTypeRow}>
-              {MATERIAL_CATEGORY_OPTIONS.map((item) => <Pressable key={item.value} onPress={() => openMaterial(item.value)} style={local.materialTypeChip}><Text style={local.materialTypeText}>+ {item.label}</Text></Pressable>)}
+              {MATERIAL_CATEGORY_OPTIONS.map((item) => <Pressable key={item.value} accessibilityRole="button" accessibilityLabel={`添加${item.label}`} onPress={() => openMaterial(item.value)} style={local.materialTypeChip}><Text style={local.materialTypeText}>+ {item.label}</Text></Pressable>)}
             </View>
             {form.applicationMaterials.length === 0 ? <Text style={local.materialEmpty}>还没有添加材料，建议至少补充 1 个代表案例和 1 个证书或视频链接。</Text> : null}
             {form.applicationMaterials.map((item, index) => (
@@ -4584,7 +4649,7 @@ export function FeedbackScreen() {
         const ext = type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
         const formData = new FormData()
         formData.append('file', { uri: asset.uri, name: asset.fileName || `feedback-${Date.now()}-${index}.${ext}`, type } as any)
-        const response = await fetch(`${API_BASE_URL}/api/feedback/upload-image`, {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/api/feedback/upload-image`, {
           method: 'POST',
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           body: formData,
@@ -4736,18 +4801,162 @@ export function LegalDocsScreen() {
 
 export function UserHomeScreen() {
   const navigation = useNavigationAny()
+  const route = useRouteAny<'UserHome'>()
   const { user } = useAuth()
+  const targetUserId = route.params?.userId || user?.id || ''
+  const isSelf = !route.params?.userId || route.params.userId === user?.id
+  const [profileData, setProfileData] = useState<FitnessCardData | null>(null)
+  const [recordsData, setRecordsData] = useState<FriendRecordsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [openingChat, setOpeningChat] = useState(false)
+  const [error, setError] = useState('')
+
+  async function load() {
+    if (!targetUserId) {
+      setError('缺少用户信息，请返回后重试')
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const [profileResult, recordsResult] = await Promise.allSettled([
+        apiClient.request<{ profile?: FitnessProfile | null; questionnaire?: { answers?: FitnessAnswers } | null }>('/api/user/get-student-profile', {
+          method: 'POST',
+          body: { userId: targetUserId },
+          timeoutMs: 12000,
+        }),
+        isSelf
+          ? Promise.resolve<FriendRecordsData | null>(null)
+          : apiClient.request<FriendRecordsData>('/api/user/friends/' + encodeURIComponent(targetUserId) + '/records?limit=5', {
+              method: 'GET',
+              timeoutMs: 12000,
+            }),
+      ])
+
+      if (profileResult.status === 'fulfilled') {
+        setProfileData({
+          profile: profileResult.value.profile || {},
+          answers: profileResult.value.questionnaire?.answers || {},
+        })
+      } else {
+        setProfileData(null)
+      }
+      setRecordsData(recordsResult.status === 'fulfilled' ? recordsResult.value : null)
+
+      if (profileResult.status === 'rejected') throw profileResult.reason
+      if (!isSelf && recordsResult.status === 'rejected') throw recordsResult.reason
+    } catch (err) {
+      setError(errorMessage(err, '主页加载失败，请稍后重试'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void load()
+  }, [targetUserId, isSelf])
+
+  async function openChat() {
+    if (!user?.id || !targetUserId || isSelf) return
+    setOpeningChat(true)
+    try {
+      const data = await apiClient.request<{ chatroom: { id: string } | null }>('/api/chat/get-chatroom', {
+        method: 'POST',
+        body: { members: [user.id, targetUserId] },
+        timeoutMs: 12000,
+      })
+      if (!data.chatroom?.id) throw new Error('会话创建失败')
+      navigation.navigate('Chat', { roomId: data.chatroom.id })
+    } catch (err) {
+      Alert.alert('打开会话失败', errorMessage(err))
+    } finally {
+      setOpeningChat(false)
+    }
+  }
+
+  const profile = profileData?.profile || {}
+  const answers = profileData?.answers || {}
+  const displayName = asText(profile.nickname || recordsData?.user?.nickname || (isSelf ? user?.nickname || user?.name || user?.phone : ''), 'CoachLink 用户')
+  const avatarUrl = profile.avatar_url || recordsData?.user?.avatarUrl || (isSelf ? user?.avatar_url || user?.avatar : null)
+  const goals = normalizeStringArray(answers.fitness_goals?.length ? answers.fitness_goals : profile.fitness_goal ? [profile.fitness_goal] : [])
+  const records = recordsData?.records || []
+  const hasFitnessInfo = Boolean(goals.length || profile.fitness_level || profile.height || profile.weight || profile.age)
+
   return (
-    <ScreenShell title="我的主页" subtitle="APP 端个人主页承接页。" onBack={navigation.goBack}>
-      <Card>
-        <View style={local.center}>
-          <InlineAvatar uri={user?.avatar_url || user?.avatar} label={user?.phone || user?.id} size={96} />
-          <Text style={local.profileName}>{asText(user?.phone || user?.email, 'CoachLink 用户')}</Text>
-          <Text style={local.profileSubtitle}>公开主页、训练档案和个人展示信息会在这里沉淀。</Text>
-        </View>
-        <SolidButton label="编辑资料" onPress={() => navigation.navigate('ProfileEdit')} />
-        <SolidButton label="查看资料详情" variant="secondary" onPress={() => navigation.navigate('ProfileDetail')} />
-      </Card>
+    <ScreenShell
+      title={isSelf ? '我的主页' : '好友主页'}
+      subtitle={isSelf ? '你的个人资料和训练档案。' : '好友公开资料与可见训练记录。'}
+      onBack={navigation.goBack}
+    >
+      {loading ? <LoadingState title="正在加载主页" /> : null}
+      {!loading && error ? (
+        <>
+          <EmptyState title="主页加载失败" desc={error} icon="icon-wenhao" />
+          <SolidButton label="重新加载" variant="secondary" onPress={() => void load()} />
+        </>
+      ) : null}
+      {!loading && !error ? (
+        <>
+          <Card style={local.userHomeHero}>
+            <View style={local.center}>
+              <InlineAvatar uri={avatarUrl} label={displayName} size={96} />
+              <Text style={local.profileName}>{displayName}</Text>
+              <View style={local.userHomeBadge}>
+                <Text style={local.userHomeBadgeText}>{isSelf ? '我的公开主页' : '已是好友'}</Text>
+              </View>
+              <Text style={local.userHomeIntro}>{goals.length ? '训练目标：' + goals.join('、') : '坚持训练，记录每一次进步。'}</Text>
+            </View>
+            {isSelf ? (
+              <>
+                <SolidButton label="编辑资料" onPress={() => navigation.navigate('ProfileEdit')} />
+                <SolidButton label="查看完整健身档案" variant="secondary" onPress={() => navigation.navigate('FitnessCard')} />
+              </>
+            ) : (
+              <SolidButton label="发消息" loading={openingChat} onPress={() => void openChat()} />
+            )}
+          </Card>
+
+          <Card>
+            <Text style={local.sectionTitle}>健身档案</Text>
+            {hasFitnessInfo ? (
+              <View>
+                {goals.length ? <InfoLine label="训练目标" value={goals.join('、')} /> : null}
+                {profile.fitness_level ? <InfoLine label="训练水平" value={optionLabel(FITNESS_LEVEL_OPTIONS, profile.fitness_level)} /> : null}
+                {profile.height || profile.weight ? <InfoLine label="身高 / 体重" value={(profile.height || '-') + ' cm / ' + (profile.weight || '-') + ' kg'} /> : null}
+                {profile.age ? <InfoLine label="年龄" value={profile.age + ' 岁'} /> : null}
+              </View>
+            ) : (
+              <Text style={local.emptyInline}>{isSelf ? '还没有填写健身档案。' : '对方暂未公开健身档案。'}</Text>
+            )}
+          </Card>
+
+          {!isSelf ? (
+            <Card>
+              <View style={local.userHomeSectionHeader}>
+                <View style={local.userHomeSectionTitleWrap}>
+                  <Text style={local.sectionTitle}>最近公开训练</Text>
+                  <Text style={local.userHomeSectionHint}>共 {recordsData?.total || 0} 次好友可见记录</Text>
+                </View>
+                <IconFont name="icon-training_history" size={24} color={colors.brand} />
+              </View>
+              {records.length === 0 ? (
+                <Text style={local.emptyInline}>暂时没有好友可见的训练记录。</Text>
+              ) : records.map((record) => (
+                <View key={record.executionId} style={local.userHomeWorkout}>
+                  <View style={local.userHomeWorkoutTop}>
+                    <Text style={local.userHomeWorkoutName}>{asText(record.planName, '训练记录')}</Text>
+                    <Text style={local.userHomeWorkoutDate}>{formatDate(record.completedAt)}</Text>
+                  </View>
+                  <Text style={local.userHomeWorkoutMeta}>
+                    {Math.max(0, Math.round(Number(record.durationMinutes || 0))) + ' 分钟 · ' + Math.max(0, Math.round(Number(record.totalVolume || 0))) + ' kg 总容量'}
+                  </Text>
+                </View>
+              ))}
+            </Card>
+          ) : null}
+        </>
+      ) : null}
     </ScreenShell>
   )
 }
@@ -4790,32 +4999,6 @@ export function PlatformAgreementScreen() {
 
 export function ProtectionOfConsumerScreen() {
   return <LegalDocScreen doc="ProtectionOfConsumer" />
-}
-
-function SimpleInfoScreen({ title, subtitle, icon, message }: { title: string; subtitle?: string; icon: IconFontName; message: string }) {
-  const navigation = useNavigationAny()
-  return (
-    <ScreenShell title={title} subtitle={subtitle} onBack={navigation.goBack}>
-      <EmptyState title={title} desc={message} icon={icon} />
-    </ScreenShell>
-  )
-}
-
-function DataListInline({ path, method = 'POST', body, empty }: { path: string; method?: 'GET' | 'POST'; body?: unknown; empty: string }) {
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<any>(null)
-  const [error, setError] = useState('')
-  useEffect(() => {
-    safeRequest(path, { method, body }).then(setData).catch((e) => setError(errorMessage(e))).finally(() => setLoading(false))
-  }, [path])
-  if (loading) return <LoadingState />
-  if (error) return <EmptyState title="加载失败" desc={error} />
-  if (!data || (Array.isArray(data) && data.length === 0)) return <EmptyState title={empty} />
-  return (
-    <Card>
-      <Text style={local.itemMeta}>{JSON.stringify(data, null, 2).slice(0, 1200)}</Text>
-    </Card>
-  )
 }
 
 function FitnessFieldModal({
@@ -5107,7 +5290,7 @@ function RankingSubmissionModal({
                 {field.type === 'option' ? (
                   <View style={local.submitOptions}>
                     {(field.options || []).map((option) => (
-                      <Pressable key={option} onPress={() => setField(field.name, option)} style={[local.submitOption, values[field.name] === option && local.submitOptionActive]}>
+                      <Pressable key={option} accessibilityRole="radio" accessibilityLabel={`${field.name}：${option}`} accessibilityState={{ selected: values[field.name] === option }} onPress={() => setField(field.name, option)} style={[local.submitOption, values[field.name] === option && local.submitOptionActive]}>
                         <Text style={[local.submitOptionText, values[field.name] === option && local.submitOptionTextActive]}>{option}</Text>
                       </Pressable>
                     ))}
@@ -5163,15 +5346,60 @@ const local = StyleSheet.create({
     fontWeight: '800',
     marginTop: 4,
   },
-  roundIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.pill,
+  betaGroupMask: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: spacing.lg,
+    backgroundColor: 'rgba(15, 23, 42, 0.56)',
+  },
+  betaGroupDismissArea: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  betaGroupCard: {
+    width: '100%',
+    maxWidth: 400,
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+  },
+  betaGroupTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  betaGroupDesc: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  betaGroupImage: {
+    width: '100%',
+    height: 320,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+  },
+  betaGroupImageFallback: {
+    minHeight: 320,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+  },
+  betaGroupErrorText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
   },
   statsRow: {
     flexDirection: 'row',
@@ -5673,8 +5901,8 @@ const local = StyleSheet.create({
     gap: spacing.xs,
   },
   calendarNavButton: {
-    width: 36,
-    height: 36,
+    width: 48,
+    height: 48,
     borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -6228,7 +6456,7 @@ const local = StyleSheet.create({
     fontWeight: '900',
   },
   refreshLink: {
-    minHeight: 40,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -6289,7 +6517,7 @@ const local = StyleSheet.create({
     marginTop: 4,
   },
   discoveryButton: {
-    minHeight: 40,
+    minHeight: 48,
     borderRadius: radius.md,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
@@ -6498,8 +6726,8 @@ const local = StyleSheet.create({
     gap: spacing.xs,
   },
   coachConsultButton: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -6509,7 +6737,7 @@ const local = StyleSheet.create({
   },
   coachDetailButton: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: radius.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -6554,7 +6782,7 @@ const local = StyleSheet.create({
   },
   planFilterItem: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,
@@ -6677,7 +6905,7 @@ const local = StyleSheet.create({
   },
   onermInput: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 48,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.xs,
     backgroundColor: colors.surface,
@@ -7118,7 +7346,7 @@ const local = StyleSheet.create({
     gap: spacing.xs,
   },
   submitOption: {
-    minHeight: 38,
+    minHeight: 48,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
@@ -7138,6 +7366,72 @@ const local = StyleSheet.create({
   },
   submitOptionTextActive: {
     color: colors.brand,
+  },
+  userHomeHero: {
+    gap: spacing.md,
+  },
+  userHomeBadge: {
+    minHeight: 32,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brandSoft,
+  },
+  userHomeBadgeText: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  userHomeIntro: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  userHomeSectionHeader: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  userHomeSectionTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  userHomeSectionHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  userHomeWorkout: {
+    minHeight: 72,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceMuted,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  userHomeWorkoutTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  userHomeWorkoutName: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  userHomeWorkoutDate: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  userHomeWorkoutMeta: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
   },
   friendSearchCard: {
     gap: spacing.sm,
@@ -7260,7 +7554,7 @@ const local = StyleSheet.create({
     marginTop: 4,
   },
   addFriendButton: {
-    minHeight: 36,
+    minHeight: 48,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
@@ -7273,7 +7567,7 @@ const local = StyleSheet.create({
     fontWeight: '900',
   },
   removeFriendButton: {
-    minHeight: 36,
+    minHeight: 48,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
@@ -7290,7 +7584,7 @@ const local = StyleSheet.create({
     gap: spacing.xs,
   },
   acceptButton: {
-    minHeight: 36,
+    minHeight: 48,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
@@ -7303,7 +7597,7 @@ const local = StyleSheet.create({
     fontWeight: '900',
   },
   rejectButton: {
-    minHeight: 36,
+    minHeight: 48,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
@@ -7580,7 +7874,7 @@ const local = StyleSheet.create({
     gap: spacing.xs,
   },
   choiceChip: {
-    minHeight: 36,
+    minHeight: 48,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
@@ -7607,7 +7901,7 @@ const local = StyleSheet.create({
   },
   cityInput: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.border,
@@ -7622,7 +7916,7 @@ const local = StyleSheet.create({
     gap: spacing.xs,
   },
   removableChip: {
-    minHeight: 32,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -7647,7 +7941,7 @@ const local = StyleSheet.create({
   },
   inlineInput: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.border,
@@ -7658,7 +7952,7 @@ const local = StyleSheet.create({
   },
   inlineInputSmall: {
     width: 88,
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.border,
@@ -7668,7 +7962,7 @@ const local = StyleSheet.create({
     fontSize: 14,
   },
   inlineAddButton: {
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
@@ -7686,7 +7980,7 @@ const local = StyleSheet.create({
     gap: spacing.xs,
   },
   materialTypeChip: {
-    minHeight: 34,
+    minHeight: 48,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.brand,
@@ -7788,7 +8082,7 @@ const local = StyleSheet.create({
     gap: spacing.sm,
   },
   publicToggle: {
-    minHeight: 44,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -7844,7 +8138,7 @@ const local = StyleSheet.create({
     gap: spacing.xs,
   },
   feedbackChip: {
-    minHeight: 40,
+    minHeight: 48,
     justifyContent: 'center',
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,

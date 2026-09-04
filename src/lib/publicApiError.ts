@@ -13,6 +13,7 @@ export function toPublicApiMessage(error: unknown, fallback = '操作失败，�
 
     if (
         msg.includes('ERR_INVALID_ARG_TYPE') ||
+        msg.includes('Input buffers must have the same byte length') ||
         msg.includes('path" argument must be of type string') ||
         msg.includes('Received undefined') ||
         (msg.includes('ENOENT') && msg.includes('no such file'))

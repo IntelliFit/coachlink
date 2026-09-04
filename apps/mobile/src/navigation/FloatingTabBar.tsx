@@ -42,7 +42,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           }
 
           return (
-            <Pressable key={route.key} accessibilityRole="button" accessibilityState={isFocused ? { selected: true } : {}} onPress={onPress} style={({ pressed }) => [styles.item, isFocused && styles.itemActive, pressed && styles.itemPressed]}>
+            <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: isFocused }} onPress={onPress} style={({ pressed }) => [styles.item, isFocused && styles.itemActive, pressed && styles.itemPressed]}>
               <IconFont name={iconName as any} size={20} color={isFocused ? colors.brand : 'rgba(255,255,255,0.66)'} />
               <Text numberOfLines={1} style={[styles.label, isFocused && styles.labelActive]}>{label}</Text>
             </Pressable>

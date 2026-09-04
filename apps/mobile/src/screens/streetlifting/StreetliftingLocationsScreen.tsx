@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleShe
 import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
-import { apiClient, getStoredToken } from '../../api'
+import { apiClient, fetchWithTimeout, getStoredToken } from '../../api'
 import { API_BASE_URL } from '../../config'
 import { useAuth } from '../../providers/AuthProvider'
 import { colors, radius, shadow, spacing } from '../../theme'
@@ -169,7 +169,7 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
           name: asset.fileName || `streetlifting-location-${Date.now()}-${index}.${ext}`,
           type,
         } as any)
-        const response = await fetch(`${API_BASE_URL}/api/streetlifting-index/upload-location-image`, {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/api/streetlifting-index/upload-location-image`, {
           method: 'POST',
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           body: formData,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   statLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   input: { minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, fontSize: 15, fontWeight: '800', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border, marginTop: spacing.xs },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
-  chip: { minHeight: 40, borderRadius: radius.pill, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  chip: { minHeight: 48, borderRadius: radius.pill, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   chipText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   chipTextActive: { color: '#FFFFFF' },
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   loadingCard: { minHeight: 96, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.surface },
   loadingText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   areaList: { gap: spacing.xs },
-  areaRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted },
+  areaRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted },
   areaName: { color: colors.text, fontSize: 14, fontWeight: '900' },
   areaCount: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   list: { gap: spacing.sm },
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   photoRemove: { position: 'absolute', right: -4, top: -4, width: 24, height: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.danger },
   photoRemoveText: { color: '#FFFFFF', fontSize: 18, lineHeight: 20, fontWeight: '900' },
   photoActions: { flexDirection: 'row', gap: spacing.xs },
-  photoButton: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
+  photoButton: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
   photoButtonText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
   uploadingRow: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
 })

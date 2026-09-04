@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   ActivityIndicator,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,11 +9,12 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, useRoute } from '@react-navigation/native'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import { IconFont } from '../../components/IconFont'
 import { Card, EmptyState, LoadingState, ScreenShell } from '../me/MeShared'
 import { colors, radius, spacing } from '../../theme'
+import { openExternalUrl } from '../../externalLinks'
 import type { RootStackParamList } from '../../navigation/types'
 import { safeRequest } from '../me/MeShared'
 
@@ -76,11 +76,13 @@ function formatDate(value?: string | null) {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString('zh-CN')
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 export function CoachVideosScreen() {
   const navigation = useNavigation<Navigation>()
+  const isTopLevelTab = useRoute().name === 'CoachVideosTab'
+  const backAction = isTopLevelTab ? undefined : () => navigation.goBack()
   const [videos, setVideos] = useState<VideoItem[]>([])
   const [filter, setFilter] = useState<Filter>('pending')
   const [loading, setLoading] = useState(true)
@@ -124,12 +126,15 @@ export function CoachVideosScreen() {
   const title = useMemo(() => filter === 'pending' ? '待点评视频' : '已点评视频', [filter])
 
   return (
-    <ScreenShell title="视频点评" subtitle={title} onBack={() => navigation.goBack()}>
+    <ScreenShell title="视频点评" subtitle={title} onBack={backAction} tabBarInset={isTopLevelTab}>
       <Card style={styles.toolbar}>
         <View style={styles.filterRow}>
           {FILTER_OPTIONS.map((item) => (
             <Pressable
               key={item.value}
+              accessibilityRole="button"
+              accessibilityLabel={`筛选${item.label}视频`}
+              accessibilityState={{ selected: filter === item.value }}
               onPress={() => {
                 setFilter(item.value)
                 setPage(0)
@@ -337,7 +342,9 @@ export function CoachVideoReviewScreen({ route, navigation }: NativeStackScreenP
 
           <View style={styles.videoActionRow}>
             <Pressable
-              onPress={() => video.video_url ? Linking.openURL(video.video_url).catch(() => undefined) : undefined}
+              accessibilityRole="button"
+              accessibilityLabel={`打开${video.student_name || '学员'}的训练视频`}
+              onPress={() => void openExternalUrl(video.video_url, { errorTitle: '视频打开失败' })}
               disabled={!video.video_url}
               style={({ pressed }) => [styles.secondaryBtn, !video.video_url && styles.secondaryDisabled, pressed && styles.pressed]}
             >
@@ -370,6 +377,9 @@ export function CoachVideoReviewScreen({ route, navigation }: NativeStackScreenP
             {Array.from({ length: 5 }, (_, index) => index + 1).map((value) => (
               <Pressable
                 key={value}
+                accessibilityRole="radio"
+                accessibilityLabel={`训练视频评分 ${value} 星`}
+                accessibilityState={{ selected: rating === value, disabled: isReviewed }}
                 disabled={isReviewed}
                 onPress={() => !isReviewed && setRating(value)}
                 style={({ pressed }) => [styles.star, pressed && styles.pressed]}
@@ -433,7 +443,7 @@ const styles = StyleSheet.create({
   },
   filterPill: {
     flex: 1,
-    height: 40,
+    minHeight: 48,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -542,7 +552,7 @@ const styles = StyleSheet.create({
   },
   pagerButton: {
     flex: 1,
-    height: 40,
+    height: 48,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
@@ -607,7 +617,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.sm,
-    minHeight: 38,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
@@ -661,8 +671,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   star: {
-    width: 30,
-    height: 30,
+    width: 48,
+    height: 48,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -692,7 +702,7 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     marginTop: spacing.xs,
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: radius.pill,
     backgroundColor: colors.brand,
     alignItems: 'center',

@@ -4,7 +4,7 @@ import { colors, radius, spacing } from '../theme'
 
 type AppButtonProps = {
   label: string
-  onPress?: () => void
+  onPress: () => void
   variant?: 'primary' | 'secondary'
   disabled?: boolean
   loading?: boolean
@@ -16,6 +16,8 @@ export function AppButton({ label, onPress, variant = 'primary', disabled = fals
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
       disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [

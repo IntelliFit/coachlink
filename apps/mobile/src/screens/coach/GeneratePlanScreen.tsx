@@ -141,7 +141,7 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
       setErrors({})
       try {
         const res = await apiClient.request('/api/coach/get-coach-rulepacks', { method: 'POST', body: { coach_id: coachId, domain: selectedDomain }, timeoutMs: 10000 })
-        const fields = (res as any).data?.data?.form_schema?.fields || (res as any).data?.form_schema?.fields || []
+        const fields = (res as any)?.data?.form_schema?.fields || (res as any)?.form_schema?.fields || []
         if (alive) setFormFields(Array.isArray(fields) && fields.length ? fields : getDefaultFields(selectedDomain))
       } catch {
         if (alive) setFormFields(getDefaultFields(selectedDomain))
@@ -191,7 +191,7 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
         body: { coachId, answers: { domain: selectedDomain, ...formData }, baseline_video_urls: [] },
         timeoutMs: 15000,
       })
-      if ((res as any).data?.success === false) throw new Error((res as any).data?.message || '提交评估失败')
+      if ((res as any)?.success === false) throw new Error((res as any)?.message || '提交评估失败')
       navigation.navigate('GeneratePlanWaiting', { coachId, domain: selectedDomain })
     } catch (error: any) {
       Alert.alert('提交评估失败', error?.message || '请稍后重试')
@@ -215,7 +215,7 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
       return (
         <View key={field.name} style={styles.field}>
           <Text style={styles.label}>{field.label}{field.required ? ' *' : ''}</Text>
-          <TextInput value={value != null ? String(value) : ''} onChangeText={(text) => update(field.name, text === '' ? undefined : Number(text))} keyboardType="numeric" placeholder={field.placeholder || ''} placeholderTextColor={colors.textMuted} style={[styles.input, err && styles.inputError]} />
+          <TextInput accessibilityLabel={field.label} accessibilityHint={err || undefined} value={value != null ? String(value) : ''} onChangeText={(text) => update(field.name, text === '' ? undefined : Number(text))} keyboardType="numeric" placeholder={field.placeholder || ''} placeholderTextColor={colors.textMuted} style={[styles.input, err && styles.inputError]} />
           {err ? <Text style={styles.errorText}>{err}</Text> : null}
         </View>
       )
@@ -225,7 +225,7 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
       return (
         <View key={field.name} style={styles.field}>
           <Text style={styles.label}>{field.label}{field.required ? ' *' : ''}</Text>
-          <TextInput value={value != null ? String(value) : ''} onChangeText={(text) => update(field.name, text)} multiline placeholder={field.placeholder || ''} placeholderTextColor={colors.textMuted} style={[styles.textarea, err && styles.inputError]} />
+          <TextInput accessibilityLabel={field.label} accessibilityHint={err || undefined} value={value != null ? String(value) : ''} onChangeText={(text) => update(field.name, text)} multiline placeholder={field.placeholder || ''} placeholderTextColor={colors.textMuted} style={[styles.textarea, err && styles.inputError]} />
           {err ? <Text style={styles.errorText}>{err}</Text> : null}
         </View>
       )
@@ -239,7 +239,7 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
           <View style={styles.optionWrap}>
             {opts.map((opt: string) => {
               const checked = arr.includes(opt)
-              return <Pressable key={opt} onPress={() => update(field.name, checked ? arr.filter((item: string) => item !== opt) : [...arr, opt])} style={[styles.optionChip, checked && styles.optionChipActive]}><Text style={[styles.optionText, checked && styles.optionTextActive]}>{opt}</Text></Pressable>
+              return <Pressable key={opt} accessibilityRole="checkbox" accessibilityLabel={`${field.label}：${opt}`} accessibilityState={{ checked }} onPress={() => update(field.name, checked ? arr.filter((item: string) => item !== opt) : [...arr, opt])} style={[styles.optionChip, checked && styles.optionChipActive]}><Text style={[styles.optionText, checked && styles.optionTextActive]}>{opt}</Text></Pressable>
             })}
           </View>
           {err ? <Text style={styles.errorText}>{err}</Text> : null}
@@ -252,7 +252,7 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
         <View key={field.name} style={styles.field}>
           <Text style={styles.label}>{field.label}{field.required ? ' *' : ''}</Text>
           <View style={styles.booleanRow}>
-            {[true, false].map((item) => <Pressable key={String(item)} onPress={() => update(field.name, item)} style={[styles.booleanButton, value === item && styles.booleanButtonActive]}><Text style={[styles.booleanText, value === item && styles.booleanTextActive]}>{item ? '是' : '否'}</Text></Pressable>)}
+            {[true, false].map((item) => <Pressable key={String(item)} accessibilityRole="radio" accessibilityLabel={`${field.label}：${item ? '是' : '否'}`} accessibilityState={{ selected: value === item }} onPress={() => update(field.name, item)} style={[styles.booleanButton, value === item && styles.booleanButtonActive]}><Text style={[styles.booleanText, value === item && styles.booleanTextActive]}>{item ? '是' : '否'}</Text></Pressable>)}
           </View>
           {err ? <Text style={styles.errorText}>{err}</Text> : null}
         </View>
@@ -265,7 +265,7 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
         <View style={styles.optionWrap}>
           {opts.map((opt: any) => {
             const selected = value === opt
-            return <Pressable key={String(opt)} onPress={() => update(field.name, opt)} style={[styles.optionChip, selected && styles.optionChipActive]}><Text style={[styles.optionText, selected && styles.optionTextActive]}>{String(opt)}</Text></Pressable>
+            return <Pressable key={String(opt)} accessibilityRole="radio" accessibilityLabel={`${field.label}：${String(opt)}`} accessibilityState={{ selected }} onPress={() => update(field.name, opt)} style={[styles.optionChip, selected && styles.optionChipActive]}><Text style={[styles.optionText, selected && styles.optionTextActive]}>{String(opt)}</Text></Pressable>
           })}
         </View>
         {err ? <Text style={styles.errorText}>{err}</Text> : null}
@@ -281,15 +281,15 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
     return (
       <Page>
         <View style={styles.formHeader}>
-          <Pressable onPress={() => setShowForm(false)} style={styles.backLink}><IconFont name="icon-back" color={colors.brand} size={16} /><Text style={styles.backText}>返回选择</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="返回训练域选择" onPress={() => setShowForm(false)} style={styles.backLink}><IconFont name="icon-back" color={colors.brand} size={16} /><Text style={styles.backText}>返回选择</Text></Pressable>
           <Text style={styles.stepText}>步骤 {currentStep + 1} / {categories.length}</Text>
         </View>
         <SectionCard title={categoryTitles[categoryName] || categoryName} description="请根据您的实际情况填写。">
           {categoryFields.map(renderField)}
         </SectionCard>
         <View style={styles.actions}>
-          <Pressable disabled={currentStep === 0} onPress={() => setCurrentStep((prev) => Math.max(0, prev - 1))} style={[styles.secondaryButton, currentStep === 0 && styles.disabledButton]}><Text style={styles.secondaryButtonText}>上一步</Text></Pressable>
-          <Pressable disabled={submitting} onPress={nextStep} style={[styles.primaryButton, submitting && styles.disabledButton]}><Text style={styles.primaryButtonText}>{submitting ? '提交中...' : currentStep === categories.length - 1 ? '生成计划' : '下一步'}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="上一步" accessibilityState={{ disabled: currentStep === 0 }} disabled={currentStep === 0} onPress={() => setCurrentStep((prev) => Math.max(0, prev - 1))} style={[styles.secondaryButton, currentStep === 0 && styles.disabledButton]}><Text style={styles.secondaryButtonText}>上一步</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={currentStep === categories.length - 1 ? '生成计划' : '下一步'} accessibilityState={{ disabled: submitting, busy: submitting }} disabled={submitting} onPress={nextStep} style={[styles.primaryButton, submitting && styles.disabledButton]}><Text style={styles.primaryButtonText}>{submitting ? '提交中...' : currentStep === categories.length - 1 ? '生成计划' : '下一步'}</Text></Pressable>
         </View>
       </Page>
     )
@@ -306,7 +306,7 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
         {domains.map((domain) => {
           const selected = selectedDomain === domain.key
           return (
-            <Pressable key={domain.key} onPress={() => setSelectedDomain(domain.key)} style={[styles.domainCard, selected && styles.domainCardSelected]}>
+            <Pressable key={domain.key} accessibilityRole="radio" accessibilityLabel={`训练域：${domain.name}`} accessibilityHint={domain.description} accessibilityState={{ selected }} onPress={() => setSelectedDomain(domain.key)} style={[styles.domainCard, selected && styles.domainCardSelected]}>
               <View style={styles.domainHead}>
                 <Text style={styles.domainName}>{domain.name}</Text>
                 <Text style={styles.diffPill}>{domain.difficulty}</Text>
@@ -320,8 +320,8 @@ export function GeneratePlanScreen({ navigation, route }: Props) {
         })}
       </View>
       <View style={styles.actions}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回</Text></Pressable>
-        <Pressable disabled={!selectedDomain} onPress={() => setShowForm(true)} style={[styles.primaryButton, !selectedDomain && styles.disabledButton]}><Text style={styles.primaryButtonText}>下一步</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={() => navigation.goBack()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="下一步，填写计划评估" accessibilityState={{ disabled: !selectedDomain }} disabled={!selectedDomain} onPress={() => setShowForm(true)} style={[styles.primaryButton, !selectedDomain && styles.disabledButton]}><Text style={styles.primaryButtonText}>下一步</Text></Pressable>
       </View>
     </Page>
   )
@@ -353,12 +353,12 @@ const styles = StyleSheet.create({
   inputError: { borderColor: '#DC2626' },
   errorText: { color: '#DC2626', fontSize: 12, lineHeight: 18 },
   optionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  optionChip: { minHeight: 38, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  optionChip: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   optionChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   optionText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   optionTextActive: { color: '#FFFFFF' },
   booleanRow: { flexDirection: 'row', gap: spacing.xs },
-  booleanButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  booleanButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   booleanButtonActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   booleanText: { color: colors.textSecondary, fontWeight: '800' },
   booleanTextActive: { color: '#FFFFFF' },

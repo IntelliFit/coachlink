@@ -7,6 +7,7 @@ import { SectionCard } from '../../components/SectionCard'
 import { apiClient } from '../../api'
 import { colors, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
+import { openExternalUrl } from '../../externalLinks'
 import {
   computeCoefficient,
   estimateTotal1RMFromTotalWeightAndReps,
@@ -699,7 +700,7 @@ export function StreetliftingLocationDetailScreen({ navigation, route }: DetailP
           {images.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locationGallery}>
               {images.map((url, index) => (
-                <Pressable key={url} accessibilityRole="imagebutton" accessibilityLabel={`查看点位图片 ${index + 1}`} onPress={() => void Linking.openURL(url)}>
+                <Pressable key={url} accessibilityRole="imagebutton" accessibilityLabel={`查看点位图片 ${index + 1}`} onPress={() => void openExternalUrl(url, { errorTitle: '图片打开失败' })}>
                   <Image source={{ uri: url }} style={styles.locationImage} />
                 </Pressable>
               ))}
@@ -763,7 +764,7 @@ const styles = StyleSheet.create({
   modalCard: { maxHeight: '88%', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.sm, gap: spacing.xs, backgroundColor: colors.surface },
   modalTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
-  chip: { minHeight: 40, borderRadius: radius.pill, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  chip: { minHeight: 48, borderRadius: radius.pill, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   chipText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   chipTextActive: { color: '#FFFFFF' },
@@ -780,7 +781,7 @@ const styles = StyleSheet.create({
   successIcon: { width: 64, height: 64, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.success },
   successTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: '900' },
   successText: { color: 'rgba(255,255,255,0.78)', fontSize: 14, lineHeight: 22, textAlign: 'center' },
-  areaRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted, marginBottom: spacing.xs },
+  areaRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted, marginBottom: spacing.xs },
   areaName: { color: colors.text, fontSize: 14, fontWeight: '900' },
   areaCount: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   pinCard: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.lg, padding: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },

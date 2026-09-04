@@ -118,6 +118,7 @@ const PUBLIC_PATHS = new Set([
     "/disclaimer",
     "/docs/disclaimer.md",
     "/privacy",
+    "/account-deletion",
     "/terms",
     "/docs/terms.md",
     "/contact",

@@ -42,7 +42,6 @@ export async function POST(req: Request) {
     // 2. 并行执行聚合查询
     const [
         activeSubscriptionsResult,
-        pendingReviewResult,
         ratingResult,
         contentCountResult,
         planTemplateCountResult,
@@ -56,15 +55,6 @@ export async function POST(req: Request) {
             .select("student_id")
             .eq("coach_id", coachId)
             .eq("status", "active"),
-
-        // 假设 training_videos 表有 coach_id 或可以通过关联查询
-        supabase
-            .from("training_videos")
-            .select("*", { count: "exact", head: true })
-            .eq("coach_id", coachId)
-            .eq("requires_review", true)
-            .eq("review_status", "pending")
-            .is("deleted_at", null),
 
         supabase
             .from("student_comments")
@@ -104,6 +94,21 @@ export async function POST(req: Request) {
             .map((row: any) => row.student_id)
             .filter(Boolean),
     ));
+    let pendingReviewCount = 0;
+    if (activeStudentIds.length > 0) {
+        const { count, error } = await supabase
+            .from("execution_set_videos")
+            .select("id, plan_instance_executions!inner(student_id)", { count: "exact", head: true })
+            .eq("requires_review", true)
+            .eq("review_status", "pending")
+            .in("plan_instance_executions.student_id", activeStudentIds);
+        if (error) {
+            console.error("[coach/overview] pending review count failed:", error);
+        } else {
+            pendingReviewCount = count || 0;
+        }
+    }
+
     let totalStudentCount = 0;
     if (activeStudentIds.length > 0) {
         const [{ data: activeUsers }, { data: activeProfiles }] = await Promise.all([
@@ -129,7 +134,6 @@ export async function POST(req: Request) {
             activeUserSet.has(studentId) && visibleProfileSet.has(studentId),
         ).length;
     }
-    const pendingReviewCount = pendingReviewResult.count || 0;
 
     let revenueSummary = {
         subscriptionRevenue: 0,

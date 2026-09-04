@@ -36,8 +36,6 @@ import {
   MembershipSubscribeScreen,
   MessagesScreen,
   MyCoachesScreen,
-  PaymentWebviewScreen,
-  PaymentWechatScreen,
   PlanEditScreen,
   PlanHistoryDetailScreen,
   PlanHistoryScreen,
@@ -231,6 +229,7 @@ export function RootNavigator() {
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
+        key={isAuthenticated ? 'authenticated' : isGuest ? 'guest' : 'auth'}
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
@@ -288,8 +287,6 @@ export function RootNavigator() {
             <Stack.Screen name="GeneratePlan" component={GeneratePlanScreen} />
             <Stack.Screen name="GeneratePlanWaiting" component={GeneratePlanWaitingScreen} />
             <Stack.Screen name="PaymentWaiting" component={PaymentWaitingScreen} />
-            <Stack.Screen name="PaymentWebview" component={PaymentWebviewScreen} />
-            <Stack.Screen name="PaymentWechat" component={PaymentWechatScreen} />
             <Stack.Screen name="Ranking" component={RankingScreen} />
             <Stack.Screen name="RankingDetail" component={RankingDetailScreen} />
             <Stack.Screen name="CoachApplication" component={CoachApplicationScreen} />
@@ -325,15 +322,22 @@ export function RootNavigator() {
             <Stack.Screen name="StreetliftingLocationsMap" component={StreetliftingLocationsMapScreen} />
             <Stack.Screen name="StreetliftingLocationDetail" component={StreetliftingLocationDetailScreen} />
             <Stack.Screen name="ToolboxScenario" component={ToolboxScenarioScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+            {isGuest ? (
+              <>
+                <Stack.Screen name="Login" component={LoginScreen} />
+                <Stack.Screen name="Register" component={RegisterScreen} />
+                <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+              </>
+            ) : null}
           </>
         ) : (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+            <Stack.Screen name="Disclaimer" component={DisclaimerScreen} />
+            <Stack.Screen name="Terms" component={TermsScreen} />
+            <Stack.Screen name="Privacy" component={PrivacyScreen} />
           </>
         )}
       </Stack.Navigator>

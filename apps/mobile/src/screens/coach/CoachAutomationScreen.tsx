@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   policyBlock: { gap: spacing.xs },
   policyLabel: { color: colors.text, fontSize: 14, fontWeight: '900' },
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  optionPill: { minHeight: 36, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  optionPill: { minHeight: 48, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   optionActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   optionText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   optionTextActive: { color: colors.surface },

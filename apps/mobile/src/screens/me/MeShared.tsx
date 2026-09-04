@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import type { ReactElement, ReactNode } from 'react'
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type RefreshControlProps, type StyleProp, type ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { apiClient } from '../../api'
@@ -16,18 +16,24 @@ export function ScreenShell({
   subtitle,
   children,
   onBack,
+  refreshControl,
+  tabBarInset = false,
+  contentContainerStyle,
 }: {
   title: string
   subtitle?: string
   children: ReactNode
   onBack?: () => void
+  refreshControl?: ReactElement<RefreshControlProps>
+  tabBarInset?: boolean
+  contentContainerStyle?: StyleProp<ViewStyle>
 }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView refreshControl={refreshControl} contentContainerStyle={[styles.scroll, tabBarInset && styles.scrollWithTabBar, contentContainerStyle]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           {onBack ? (
-            <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={onBack} style={styles.backButton}>
               <IconFont name="icon-back" size={20} color={colors.brand} />
             </Pressable>
           ) : null}
@@ -72,16 +78,18 @@ export function MenuRow({
   iconBg = colors.brandSoft,
   onPress,
   badge,
+  disabled = false,
 }: {
   label: string
   desc?: string
   icon: IconFontName
   iconBg?: string
-  onPress?: () => void
+  onPress: () => void
   badge?: string
+  disabled?: boolean
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityHint={desc} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.menuRow, disabled && styles.disabled, pressed && !disabled && styles.pressed]}>
       <View style={[styles.menuIcon, { backgroundColor: iconBg }]}>
         <IconFont name={icon} size={22} color={colors.surface} />
       </View>
@@ -118,6 +126,7 @@ export function FormField({
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
+        accessibilityLabel={label}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder || label}
@@ -138,7 +147,7 @@ export function SolidButton({
   disabled,
 }: {
   label: string
-  onPress?: () => void
+  onPress: () => void
   variant?: 'primary' | 'secondary' | 'danger'
   loading?: boolean
   disabled?: boolean
@@ -148,6 +157,7 @@ export function SolidButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [
@@ -216,6 +226,9 @@ export const styles = StyleSheet.create({
     paddingBottom: 96,
     gap: spacing.sm,
   },
+  scrollWithTabBar: {
+    paddingBottom: 144,
+  },
   header: {
     minHeight: 56,
     flexDirection: 'row',
@@ -227,8 +240,8 @@ export const styles = StyleSheet.create({
     gap: 4,
   },
   backButton: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',

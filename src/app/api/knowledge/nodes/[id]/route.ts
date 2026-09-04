@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
+import { getAuthUser } from '@/lib/auth';
 
 /**
  * GET /api/knowledge/nodes/[id]
@@ -12,20 +13,38 @@ export async function GET(
     const { id } = await params;
 
     try {
+        const auth = await getAuthUser(request);
         // Fetch node (兼容旧表结构，不强制要求 is_collaborative 列)
-        const { data: node, error } = await supabase
+        let nodeQuery = supabase
             .from('knowledge_nodes')
             .select('id, node_type, title, slug, description, icon, body_region, equipment, difficulty, is_free, is_published, content, created_by, created_at, updated_at')
-            .eq('id', id)
-            .single();
+            .eq('id', id);
 
-        if (error) {
+        if (!auth.user?.is_admin) {
+            nodeQuery = nodeQuery.eq('is_published', true);
+        }
+
+        const { data: node, error } = await nodeQuery.single();
+
+        if (error && error.code !== 'PGRST116') {
             console.error('[GET /api/knowledge/nodes/[id]] Error:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
         if (!node) {
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        }
+
+        let hasAccess = Boolean(node.is_free || auth.user?.is_admin);
+        if (!hasAccess && auth.userId) {
+            const { data: subscription } = await supabase
+                .from('knowledge_subscriptions')
+                .select('id')
+                .eq('user_id', auth.userId)
+                .eq('status', 'active')
+                .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+                .maybeSingle();
+            hasAccess = Boolean(subscription);
         }
 
         // Fetch editors (兼容模式，如果表不存在则忽略)
@@ -67,9 +86,11 @@ export async function GET(
         return NextResponse.json({ 
             node: { 
                 ...node,
+                content: hasAccess ? node.content : null,
                 is_collaborative: editors.length > 0,
                 editors 
-            } 
+            },
+            hasAccess,
         });
     } catch (error) {
         console.error('[GET /api/knowledge/nodes/[id]] Unexpected error:', error);
@@ -116,7 +137,7 @@ export async function DELETE(
             .delete()
             .eq('id', id);
 
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
             console.error('[DELETE /api/knowledge/nodes/[id]] Error:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }

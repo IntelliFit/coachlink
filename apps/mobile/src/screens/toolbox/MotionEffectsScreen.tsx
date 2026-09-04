@@ -355,10 +355,21 @@ export function MotionEffectsScreen({ navigation }: Props) {
       await MediaLibrary.saveToLibraryAsync(downloaded.uri)
       setHint(`已保存到相册：${data.filename}`)
     } catch (nextError) {
-      if (fallbackUrl) await Clipboard.setStringAsync(fallbackUrl).catch(() => undefined)
+      const message = (nextError as Error)?.message || '保存未完成'
+      let fallbackCopied = false
+      if (fallbackUrl) {
+        try {
+          await Clipboard.setStringAsync(fallbackUrl)
+          fallbackCopied = true
+        } catch {
+          fallbackCopied = false
+        }
+      }
       setHint(fallbackUrl
-        ? `${(nextError as Error)?.message || '保存未完成'}；备用下载链接已复制。`
-        : (nextError as Error)?.message || '结果视频保存失败')
+        ? fallbackCopied
+          ? `${message}；备用下载链接已复制。`
+          : `${message}；备用下载链接复制失败，请稍后重试。`
+        : message || '结果视频保存失败')
     } finally {
       setSaving(false)
     }
@@ -525,14 +536,14 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
   secondaryButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
   secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  retryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.brand, marginTop: spacing.sm },
+  retryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.brand, marginTop: spacing.sm },
   retryText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
   resultCard: { padding: spacing.md, gap: spacing.sm, borderRadius: radius.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
   resultHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
   resultHeaderMain: { flex: 1 },
   resultKicker: { color: colors.brand, fontSize: 12, fontWeight: '900' },
   resultTitle: { color: colors.text, fontSize: 22, fontWeight: '900', marginTop: 4 },
-  downloadButton: { minHeight: 40, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: '#1F1F1F' },
+  downloadButton: { minHeight: 48, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: '#1F1F1F' },
   downloadText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   metricCard: { width: '47%', padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surfaceMuted },

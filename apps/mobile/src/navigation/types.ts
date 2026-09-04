@@ -27,7 +27,7 @@ export type RootStackParamList = {
   CopyCoachActions: undefined
   ActionEdit: { id?: string } | undefined
   PlanLibrary: undefined
-  PlanEdit: { id?: string } | undefined
+  PlanEdit: { id?: string; autoGenerate?: boolean } | undefined
   PlanHistory: undefined
   PlanHistoryDetail: { id?: string } | undefined
   TrainingHistory: undefined
@@ -77,18 +77,12 @@ export type RootStackParamList = {
     message?: string
     membershipTab?: string
   } | undefined
-  PaymentWebview: {
-    coachId?: string
-    productId?: string
-    months?: number
-  } | undefined
-  PaymentWechat: undefined
   Ranking: undefined
   RankingDetail: { id: string } | undefined
   CoachApplication: undefined
   Feedback: undefined
   LegalDocs: undefined
-  UserHome: undefined
+  UserHome: { userId?: string } | undefined
   About: undefined
   Contact: undefined
   Disclaimer: undefined
@@ -114,7 +108,7 @@ export type RootStackParamList = {
   } | undefined
   KnowledgeSearch: { id?: string; query?: string } | undefined
   CoachContentDetail: { id?: string } | undefined
-  KnowledgePlanDetail: { id?: string } | undefined
+  KnowledgePlanDetail: { id?: string; fallback?: Record<string, unknown> } | undefined
   KnowledgeBookDetail: { id?: string } | undefined
   PowerAnalysis: undefined
   MotionEffects: undefined

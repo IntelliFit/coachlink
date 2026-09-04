@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { apiClient } from '../../api'
 import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
@@ -14,8 +14,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'KnowledgePlanDetail'>
 
 export function KnowledgePlanDetailScreen({ navigation, route }: Props) {
   const planId = route.params?.id || ''
-  const [plan, setPlan] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const fallbackPlan = route.params?.fallback || null
+  const [plan, setPlan] = useState<any>(fallbackPlan)
+  const [loading, setLoading] = useState(!fallbackPlan)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -25,13 +26,15 @@ export function KnowledgePlanDetailScreen({ navigation, route }: Props) {
       setLoading(false)
       return
     }
-    setLoading(true)
+    setLoading(!fallbackPlan)
     setError('')
     try {
       const payload = await apiClient.request<any>(`/api/knowledge/training-plans/${encodeURIComponent(planId)}`, { method: 'GET', timeoutMs: 10000 })
       setPlan(payload?.plan || null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '计划加载失败')
+      if (!fallbackPlan) {
+        setError(err instanceof Error ? err.message : '计划加载失败')
+      }
     } finally {
       setLoading(false)
     }
@@ -59,6 +62,19 @@ export function KnowledgePlanDetailScreen({ navigation, route }: Props) {
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function openSource() {
+    const url = typeof plan?.sourceUrl === 'string' ? plan.sourceUrl : ''
+    if (!url) {
+      Alert.alert('暂无来源链接', '该条目没有可打开的公开来源。')
+      return
+    }
+    try {
+      await Linking.openURL(url)
+    } catch {
+      Alert.alert('无法打开来源', '请稍后重试或复制链接到浏览器。')
     }
   }
 
@@ -108,7 +124,11 @@ export function KnowledgePlanDetailScreen({ navigation, route }: Props) {
         </View>
       </SectionCard>
 
-      <SectionCard title="动作库说明" description="加入我的计划时，会优先复用你已有的动作库动作；如果模板里有你还没有的动作，系统会自动补进你的动作库，再保存到我的计划里。" />
+      {plan.canCopy === false ? (
+        <SectionCard title="公开来源" description={`作者：${plan.author || '未知'} · 来源：${plan.sourceName || '公开资料'}。本条目只提供来源索引，不复制第三方完整处方。`} />
+      ) : (
+        <SectionCard title="动作库说明" description="加入我的计划时，会优先复用你已有的动作库动作；如果模板里有你还没有的动作，系统会自动补进你的动作库，再保存到我的计划里。" />
+      )}
 
       {Array.isArray(plan.actionSlots) && plan.actionSlots.length > 0 ? (
         <SectionCard title="可替换项目">
@@ -121,7 +141,8 @@ export function KnowledgePlanDetailScreen({ navigation, route }: Props) {
         </SectionCard>
       ) : null}
 
-      <SectionCard title="训练安排" description={trainingDays.length > 14 ? `已展示前 2 周，加入我的计划后可查看完整 ${plan.weeks} 周安排。` : undefined}>
+      <SectionCard title="训练安排" description={trainingDays.length === 0 ? '该来源索引不在 App 内复制完整处方，请到原始来源查看训练日安排。' : trainingDays.length > 14 ? `已展示前 2 周，加入我的计划后可查看完整 ${plan.weeks} 周安排。` : undefined}>
+        {trainingDays.length === 0 ? <Text style={styles.moreText}>下方按钮会打开公开来源页面。</Text> : null}
         {trainingDays.slice(0, 14).map((day: any) => (
           <View key={String(day.dayIndex)} style={[styles.dayCard, day.type === 'rest' && styles.restDay]}>
             <View style={styles.dayHead}>
@@ -163,8 +184,12 @@ export function KnowledgePlanDetailScreen({ navigation, route }: Props) {
       ) : null}
 
       <View style={styles.footerActions}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回</Text></Pressable>
-        <Pressable onPress={addToMyPlan} disabled={saving} style={[styles.primaryButton, saving && styles.disabled]}><Text style={styles.primaryButtonText}>{saving ? '加入中...' : '加入我的计划'}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="返回上一页" onPress={() => navigation.goBack()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回</Text></Pressable>
+        {plan.canCopy === false ? (
+          <Pressable accessibilityRole="link" accessibilityLabel="打开公开计划来源" onPress={openSource} style={styles.primaryButton}><Text style={styles.primaryButtonText}>查看原始来源</Text></Pressable>
+        ) : (
+          <Pressable accessibilityRole="button" accessibilityLabel="加入我的计划" accessibilityState={{ busy: saving, disabled: saving }} onPress={addToMyPlan} disabled={saving} style={[styles.primaryButton, saving && styles.disabled]}><Text style={styles.primaryButtonText}>{saving ? '加入中...' : '加入我的计划'}</Text></Pressable>
+        )}
       </View>
     </Page>
   )

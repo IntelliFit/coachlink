@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
+import { useNavigation, useRoute } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { IconFont, type IconFontName } from '../../components/IconFont'
 import type { RootStackParamList } from '../../navigation/types'
 import { colors, radius, shadow, spacing } from '../../theme'
-import { Card, EmptyState, LoadingState, ScreenShell, safeRequest } from '../me/MeShared'
+import { Card, EmptyState, LoadingState, ScreenShell, SolidButton, safeRequest } from '../me/MeShared'
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>
 
@@ -40,7 +40,7 @@ type ConfigItem = {
   ready?: boolean
   icon: IconFontName
   tone: string
-  route?: keyof RootStackParamList
+  route: keyof RootStackParamList
 }
 
 const EMPTY_OVERVIEW: OverviewData = {
@@ -88,12 +88,10 @@ function normalizeOverview(payload: any): OverviewData {
   }
 }
 
-function formatMoney(value: number) {
-  return `¥${value.toFixed(2)}`
-}
-
 export function CoachDashboardScreen() {
   const navigation = useNavigation<Navigation>()
+  const isTopLevelTab = useRoute().name === 'CoachOverviewTab'
+  const backAction = isTopLevelTab ? undefined : () => navigation.goBack()
   const [overview, setOverview] = useState<OverviewData>(EMPTY_OVERVIEW)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -119,11 +117,7 @@ export function CoachDashboardScreen() {
     void load()
   }, [load])
 
-  function go(route?: keyof RootStackParamList) {
-    if (!route) {
-      Alert.alert('迁移中', '该教练模块正在迁移到 APP，当前入口已按小程序结构预留。')
-      return
-    }
+  function go(route: keyof RootStackParamList) {
     navigation.navigate(route as any)
   }
 
@@ -134,6 +128,7 @@ export function CoachDashboardScreen() {
       desc: '当前 active 学员',
       icon: 'icon-friends-o',
       tone: '#CF6D4E',
+      route: 'CoachStudents',
     },
     {
       label: '待点评视频',
@@ -151,12 +146,12 @@ export function CoachDashboardScreen() {
       tone: '#D6A100',
     },
     {
-      label: '本月收入',
-      value: formatMoney(overview.monthlyRevenue),
-      desc: '钱包收入口径',
+      label: '我的钱包',
+      value: '查看',
+      desc: '余额、流水与提现',
       icon: 'icon-goumaijilu',
       tone: '#29C3A3',
-      route: 'CoachRevenue',
+      route: 'CoachWallet',
     },
   ]
 
@@ -168,7 +163,7 @@ export function CoachDashboardScreen() {
       ready: overview.receivingAccountReady,
       icon: 'icon-goumaijilu',
       tone: '#29C3A3',
-      route: 'CoachWallet',
+      route: 'CoachWalletMerchant',
     },
     {
       title: '订阅定价',
@@ -178,6 +173,14 @@ export function CoachDashboardScreen() {
       icon: 'icon-vips',
       tone: '#CF6D4E',
       route: 'CoachPricing',
+    },
+    {
+      title: '自动化设置',
+      desc: '计划发放、反馈调整、下一阶段',
+      value: '配置',
+      icon: 'icon-kaiji',
+      tone: '#5C8DFF',
+      route: 'CoachAutomation',
     },
     {
       title: '学员问卷',
@@ -212,72 +215,78 @@ export function CoachDashboardScreen() {
       tone: '#666666',
       route: 'CoachActions',
     },
+    {
+      title: '我的钱包',
+      desc: '余额、流水、提现',
+      icon: 'icon-goumaijilu',
+      tone: '#29C3A3',
+      route: 'CoachWallet',
+    },
   ]
 
   const tools: ConfigItem[] = [
-    { title: '学员管理', desc: '查看学员、订阅和计划状态', icon: 'icon-friends-o', tone: '#CF6D4E', route: 'CoachStudents' },
-    { title: '自动化设置', desc: '计划发放、反馈调整、下一阶段', icon: 'icon-kaiji', tone: '#5C8DFF', route: 'CoachAutomation' },
     { title: '邀请学员', desc: '分享邀请码、链接和邀请海报', icon: 'icon-share', tone: '#29C3A3', route: 'CoachInvitation' },
+    { title: '收款账户', desc: '开通汇付账户并绑定银行卡', icon: 'icon-goumaijilu', tone: '#29C3A3', route: 'CoachWalletMerchant' },
     { title: '安全设置', desc: '账号安全与隐私设置', icon: 'icon-setting', tone: '#666666', route: 'Settings' },
   ]
 
   if (loading) {
     return (
-      <ScreenShell title="教练工作台" subtitle="业务概览、教学资产和常用设置。" onBack={() => navigation.goBack()}>
+      <ScreenShell title="教练工作台" subtitle="业务概览、教学资产和常用设置。" onBack={backAction} tabBarInset={isTopLevelTab}>
         <LoadingState title="正在加载教练数据" />
       </ScreenShell>
     )
   }
 
+  if (error) {
+    return (
+      <ScreenShell title="教练工作台" subtitle="业务概览、教学资产和常用设置。" onBack={backAction} tabBarInset={isTopLevelTab}>
+        <EmptyState title="加载失败" desc={error} icon="icon-wenhao" />
+        <SolidButton label="重新加载" onPress={() => void load()} />
+      </ScreenShell>
+    )
+  }
+
   return (
-    <ScreenShell title="教练工作台" subtitle="业务概览、教学资产和常用设置。" onBack={() => navigation.goBack()}>
-      <ScrollView
-        horizontal={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
-        contentContainerStyle={styles.inner}
-        showsVerticalScrollIndicator={false}
-      >
-        {error ? <EmptyState title="加载失败" desc={error} icon="icon-wenhao" /> : null}
-
-        <View style={styles.hero}>
-          <View style={styles.heroIcon}>
-            <IconFont name="icon-dashboard" size={30} color={colors.surface} />
-          </View>
-          <View style={styles.heroText}>
-            <Text style={styles.heroTitle}>COACH CENTER</Text>
-            <Text style={styles.heroDesc}>与小程序教练概览保持一致，APP 端后续教练模块从这里进入。</Text>
-          </View>
+    <ScreenShell
+      title="教练工作台"
+      subtitle="业务概览、教学资产和常用设置。"
+      onBack={backAction}
+      tabBarInset={isTopLevelTab}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
+      contentContainerStyle={styles.inner}
+    >
+      <View style={styles.hero}>
+        <View style={styles.heroIcon}>
+          <IconFont name="icon-dashboard" size={30} color={colors.surface} />
         </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>业务概览</Text>
-          <Text style={styles.sectionMeta}>实时聚合</Text>
+        <View style={styles.heroText}>
+          <Text style={styles.heroTitle}>COACH CENTER</Text>
+          <Text style={styles.heroDesc}>统一管理学员、教学资产、计划与经营数据。</Text>
         </View>
-        <View style={styles.statGrid}>
-          {stats.map((item) => (
-            <Pressable key={item.label} style={({ pressed }) => [styles.statTile, pressed && styles.pressed]} onPress={() => go(item.route)}>
-              <View style={[styles.tileIcon, { backgroundColor: item.tone }]}>
-                <IconFont name={item.icon} size={20} color={colors.surface} />
-              </View>
-              <Text style={styles.statLabel}>{item.label}</Text>
-              <Text style={styles.statValue}>{item.value}</Text>
-              <Text style={styles.statDesc}>{item.desc}</Text>
-            </Pressable>
-          ))}
-        </View>
+      </View>
 
-        <SectionCard title="教学资产配置">
-          {assets.map((item) => (
-            <ConfigRow key={item.title} item={item} onPress={() => go(item.route)} />
-          ))}
-        </SectionCard>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>业务概览</Text>
+        <Text style={styles.sectionMeta}>实时聚合</Text>
+      </View>
+      <View style={styles.statGrid}>
+        {stats.map((item) => (
+          <StatTile key={item.label} item={item} onPress={item.route ? () => go(item.route!) : undefined} />
+        ))}
+      </View>
 
-        <SectionCard title="设置">
-          {tools.map((item) => (
-            <ConfigRow key={item.title} item={item} onPress={() => go(item.route)} />
-          ))}
-        </SectionCard>
-      </ScrollView>
+      <SectionCard title="教学资产配置">
+        {assets.map((item) => (
+          <ConfigRow key={item.title} item={item} onPress={() => go(item.route)} />
+        ))}
+      </SectionCard>
+
+      <SectionCard title="设置">
+        {tools.map((item) => (
+          <ConfigRow key={item.title} item={item} onPress={() => go(item.route)} />
+        ))}
+      </SectionCard>
     </ScreenShell>
   )
 }
@@ -290,10 +299,45 @@ function SectionCard({ title, children }: { title: string; children: React.React
     </Card>
   )
 }
+function StatTile({ item, onPress }: { item: StatItem; onPress?: () => void }) {
+  const content = (
+    <>
+      <View style={[styles.tileIcon, { backgroundColor: item.tone }]}>
+        <IconFont name={item.icon} size={20} color={colors.surface} />
+      </View>
+      <Text style={styles.statLabel}>{item.label}</Text>
+      <Text style={styles.statValue}>{item.value}</Text>
+      <Text style={styles.statDesc}>{item.desc}</Text>
+    </>
+  )
+
+  if (!onPress) {
+    return <View style={styles.statTile}>{content}</View>
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={item.label}
+      accessibilityHint={`打开${item.label}详情`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.statTile, pressed && styles.pressed]}
+    >
+      {content}
+    </Pressable>
+  )
+}
+
 
 function ConfigRow({ item, onPress }: { item: ConfigItem; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.configRow, pressed && styles.pressed]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={item.title}
+      accessibilityHint={item.desc}
+      onPress={onPress}
+      style={({ pressed }) => [styles.configRow, pressed && styles.pressed]}
+    >
       <View style={[styles.rowIcon, { backgroundColor: item.tone }]}>
         <IconFont name={item.icon} size={20} color={colors.surface} />
       </View>

@@ -4,13 +4,26 @@ import {
     getPublishedTrainingPlanByIdOrSlug,
     toTrainingPlanDetail,
 } from "../_helpers";
+import curatedReferences from "@/data/curatedTrainingPlanReferences.json";
 
 export async function GET(
     _req: Request,
     context: { params: Promise<{ id: string }> },
 ) {
     const { id } = await context.params;
-    const template = await getPublishedTrainingPlanByIdOrSlug(decodeURIComponent(id))
+    const decodedId = decodeURIComponent(id);
+    const reference = curatedReferences.items.find((item) =>
+        item.id === decodedId || item.slug === decodedId
+    );
+    if (reference) {
+        return NextResponse.json<ApiData<{ plan: typeof reference }>>({
+            success: true,
+            message: "获取训练计划参考来源成功",
+            data: { plan: reference },
+        });
+    }
+
+    const template = await getPublishedTrainingPlanByIdOrSlug(decodedId)
         .catch((error) => {
             console.error("[knowledge/training-plans] get failed:", error);
             return null;

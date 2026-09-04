@@ -47,8 +47,8 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
       if (mineRes.status === 'rejected' && publicRes.status === 'rejected') {
         throw mineRes.reason || publicRes.reason
       }
-      const mine = mineRes.status === 'fulfilled' ? pickArray((mineRes.value as any).data, ['actions', 'items', 'data']) : []
-      const pub = publicRes.status === 'fulfilled' ? pickArray((publicRes.value as any).data, ['actions', 'items', 'data']) : []
+      const mine = mineRes.status === 'fulfilled' ? pickArray(mineRes.value, ['actions', 'items', 'data']) : []
+      const pub = publicRes.status === 'fulfilled' ? pickArray(publicRes.value, ['actions', 'items', 'data']) : []
       const seen = new Set<string>()
       const merged: ActionRow[] = []
       mine.forEach((row: any) => {
@@ -177,7 +177,7 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
               已完成 {Number(recovery.completed_sets || 0)}/{Number(recovery.total_sets || 0)} 组。继续后会恢复最近一次记录。
             </Text>
           </View>
-          <Pressable onPress={resumeRecovery} style={styles.recoveryButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel="继续未完成的即兴训练" onPress={resumeRecovery} style={styles.recoveryButton}>
             <Text style={styles.recoveryButtonText}>继续</Text>
           </Pressable>
         </View>
@@ -186,18 +186,18 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
       {error ? (
         <View style={styles.errorCard}>
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={() => load()}><Text style={styles.retryText}>重新加载</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="重新加载动作列表" accessibilityState={{ disabled: loading, busy: loading }} disabled={loading} onPress={() => load()} style={styles.retryButton}><Text style={styles.retryText}>重新加载</Text></Pressable>
         </View>
       ) : null}
 
       <View style={styles.searchBox}>
         <IconFont name="icon-search" color={colors.textMuted} size={18} />
-        <TextInput value={query} onChangeText={setQuery} placeholder="搜索动作" placeholderTextColor={colors.textMuted} style={styles.searchInput} returnKeyType="search" onSubmitEditing={() => load()} />
-        <Pressable onPress={() => load()} style={styles.searchButton}><Text style={styles.searchButtonText}>搜索</Text></Pressable>
+        <TextInput accessibilityLabel="搜索训练动作" value={query} onChangeText={setQuery} placeholder="搜索动作" placeholderTextColor={colors.textMuted} style={styles.searchInput} returnKeyType="search" onSubmitEditing={() => load()} />
+        <Pressable accessibilityRole="button" accessibilityLabel="搜索训练动作" accessibilityState={{ disabled: loading, busy: loading }} disabled={loading} onPress={() => load()} style={[styles.searchButton, loading && styles.disabled]}><Text style={styles.searchButtonText}>搜索</Text></Pressable>
       </View>
 
       <SectionCard title={`已选择 ${selectedRows.length} 个力量动作`} description={recovery ? '请先继续并完成当前即兴训练，再开始新的一场。' : '每个动作先放入一组，进入执行页后可以继续加组。'}>
-        <Pressable disabled={selectedRows.length === 0 || starting || Boolean(recovery)} onPress={start} style={[styles.primaryButton, (selectedRows.length === 0 || starting || Boolean(recovery)) && styles.disabled]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={recovery ? '已有训练进行中' : '开始即兴训练'} accessibilityState={{ disabled: selectedRows.length === 0 || starting || Boolean(recovery), busy: starting }} disabled={selectedRows.length === 0 || starting || Boolean(recovery)} onPress={start} style={[styles.primaryButton, (selectedRows.length === 0 || starting || Boolean(recovery)) && styles.disabled]}>
           {starting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{recovery ? '已有训练进行中' : '开始训练'}</Text>}
         </Pressable>
       </SectionCard>
@@ -209,7 +209,7 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
           const key = row.id || row.name
           const checked = Boolean(selected[key])
           return (
-            <Pressable key={`${row.source}-${key}`} onPress={() => toggle(row)} style={[styles.actionRow, checked && styles.actionRowChecked]}>
+            <Pressable key={`${row.source}-${key}`} accessibilityRole="checkbox" accessibilityLabel={`${row.name}，${row.source === 'mine' ? '我的动作' : '公共动作'}`} accessibilityState={{ checked }} onPress={() => toggle(row)} style={[styles.actionRow, checked && styles.actionRowChecked]}>
               <View style={styles.checkCircle}>{checked ? <View style={styles.checkDot} /> : null}</View>
               <View style={styles.actionMain}>
                 <Text style={styles.actionName}>{row.name}</Text>
@@ -229,20 +229,21 @@ const styles = StyleSheet.create({
   recoveryMain: { flex: 1, gap: 4 },
   recoveryTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
   recoveryText: { color: 'rgba(255,255,255,0.72)', fontSize: 12, lineHeight: 18 },
-  recoveryButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.brand },
+  recoveryButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.brand },
   recoveryButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   errorCard: { gap: spacing.xs, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: '#FFF1EE', borderWidth: 1, borderColor: '#F2C7BC' },
   errorText: { color: '#9A3F2B', fontSize: 13, lineHeight: 20 },
+  retryButton: { alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.xs },
   retryText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
   searchBox: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.lg, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
-  searchButton: { minHeight: 38, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
+  searchButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
   searchButtonText: { color: '#FFFFFF', fontWeight: '800' },
   primaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
   primaryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
   disabled: { opacity: 0.48 },
   empty: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
+  actionRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
   actionRowChecked: { opacity: 0.92 },
   checkCircle: { width: 24, height: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.brand },
   checkDot: { width: 12, height: 12, borderRadius: radius.pill, backgroundColor: colors.brand },

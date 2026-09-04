@@ -85,8 +85,12 @@ export function TrainingShareScreen({ navigation, route }: Props) {
 
   async function copyCardText() {
     if (!shareText) return
-    await Clipboard.setStringAsync(shareText)
-    Alert.alert('已复制', '分享文案已复制，可直接粘贴分享。')
+    try {
+      await Clipboard.setStringAsync(shareText)
+      Alert.alert('已复制', '分享文案已复制，可直接粘贴分享。')
+    } catch {
+      Alert.alert('复制失败', '无法写入剪贴板，请稍后重试。')
+    }
   }
 
   async function shareCard() {
@@ -200,7 +204,7 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#667EEA', fontSize: 16, fontWeight: '900' },
   secondaryButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.20)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.36)' },
   secondaryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
-  ghostButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  ghostButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   ghostButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   disabled: { opacity: 0.55 },
 })

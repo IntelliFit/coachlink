@@ -66,8 +66,8 @@ export function GeneratePlanWaitingScreen({ navigation, route }: Props) {
         body: { coachId, domain },
         timeoutMs: 30000,
       })
-      const data = (res as any).data?.data || (res as any).data || {}
-      if ((res as any).data?.success === false) throw new Error((res as any).data?.message || '生成失败，请重试')
+      const data = (res as any)?.data || res || {}
+      if ((res as any)?.success === false) throw new Error((res as any)?.message || '生成失败，请重试')
       if (data.planId) {
         setPollStatus('success')
         setTip('计划生成成功！')
@@ -175,6 +175,6 @@ const styles = StyleSheet.create({
   secondaryButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
   secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: '900' },
   disabledButton: { opacity: 0.52 },
-  backButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  backButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   backText: { color: colors.textMuted, fontSize: 14, fontWeight: '800' },
 })

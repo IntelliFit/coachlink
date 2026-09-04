@@ -75,12 +75,14 @@ function normalizeDurationOptions(rawOptions: unknown): DurationOption[] {
 }
 
 function normalizeProduct(rawProduct: any, index: number): ProductLite | null {
+  const productName = String(rawProduct?.name || '').trim()
+  if (productName.startsWith('测试通道') || productName.includes('不要支付')) return null
   const durationOptions = normalizeDurationOptions(rawProduct?.duration_options)
   if (!durationOptions.length) return null
   return {
     id: String(rawProduct?.id || '').trim() || `product-${index}`,
     tier: normalizeTier(rawProduct?.tier),
-    name: String(rawProduct?.name || '').trim() || `订阅方案 ${index + 1}`,
+    name: productName || `订阅方案 ${index + 1}`,
     description: typeof rawProduct?.description === 'string' ? rawProduct.description : '',
     included_products: Array.isArray(rawProduct?.included_products) ? rawProduct.included_products.filter((item: unknown) => typeof item === 'string') : [],
     duration_options: durationOptions,
@@ -146,10 +148,10 @@ export function CoachMarketScreen({ navigation }: Props) {
           body: { page, limit: COACH_PAGE_LIMIT, search: '', specialty: 'all' },
           timeoutMs: 12000,
         })
-        const list = pickArray((res as any).data, ['coaches', 'items']).filter((coach) => !isTestCoach(coach))
+        const list = pickArray(res, ['coaches', 'items']).filter((coach) => !isTestCoach(coach))
         if (!list.length) break
         coaches.push(...list)
-        totalCount = typeof (res as any).data?.count === 'number' ? (res as any).data.count : coaches.length
+        totalCount = typeof (res as any)?.count === 'number' ? (res as any).count : coaches.length
         if (coaches.length >= totalCount || list.length < COACH_PAGE_LIMIT) break
         page += 1
       }
@@ -165,7 +167,7 @@ export function CoachMarketScreen({ navigation }: Props) {
           cursor += 1
           try {
             const res = await apiClient.request('/api/coach/get-pricing', { method: 'POST', body: { coachId: coach.id }, timeoutMs: 10000 })
-            const products = pickArray((res as any).data, ['products', 'items'])
+            const products = pickArray(res, ['products', 'items'])
               .map((product: any, index: number) => normalizeProduct(product, index))
               .filter((product: ProductLite | null): product is ProductLite => Boolean(product))
             pricingMap.set(coach.id, products)
@@ -254,7 +256,7 @@ export function CoachMarketScreen({ navigation }: Props) {
         },
         timeoutMs: 10000,
       })
-      if ((res as any).data?.success === false) throw new Error((res as any).data?.error || '加入购物车失败')
+      if ((res as any)?.success === false) throw new Error((res as any)?.error || '加入购物车失败')
       Alert.alert('已加入购物车', `${item.product.name}（${option.months}个月）`, [
         { text: '继续选购', style: 'cancel' },
         { text: '去购物车', onPress: () => navigation.navigate('Cart') },
@@ -363,17 +365,17 @@ const styles = StyleSheet.create({
   searchBox: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.lg, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
   tierTabs: { gap: spacing.xs, paddingVertical: spacing.xs },
-  tierTab: { minHeight: 40, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  tierTab: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tierTabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   tierTabText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   tierTabTextActive: { color: '#FFFFFF' },
   resultBar: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.lg, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted },
   resultText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  cartButton: { minHeight: 36, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
+  cartButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
   cartButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   emptyState: { gap: spacing.sm },
   emptyTitle: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
-  reloadButton: { alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.brand },
+  reloadButton: { alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.brand },
   reloadText: { color: '#FFFFFF', fontWeight: '900' },
   marketCard: { gap: spacing.sm, borderRadius: radius.lg, padding: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
@@ -410,9 +412,9 @@ const styles = StyleSheet.create({
   durationRecommend: { color: colors.brand, fontSize: 11, fontWeight: '900' },
   durationPrice: { color: colors.text, fontSize: 15, fontWeight: '900' },
   durationActions: { flexDirection: 'row', gap: spacing.xs },
-  buyButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
+  buyButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
   buyButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
-  cartSmallButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
+  cartSmallButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
   cartSmallButtonText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   disabledButton: { opacity: 0.58 },
 })

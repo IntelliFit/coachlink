@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Image, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native'
+import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import * as Clipboard from 'expo-clipboard'
@@ -7,6 +7,7 @@ import type { RootStackParamList } from '../../navigation/types'
 import { IconFont } from '../../components/IconFont'
 import { useAuth } from '../../providers/AuthProvider'
 import { colors, radius, spacing } from '../../theme'
+import { openExternalUrl } from '../../externalLinks'
 import {
   Card,
   EmptyState,
@@ -111,18 +112,27 @@ export function CoachInvitationScreen() {
 
   async function copy(value: string, label: string) {
     if (!value) return
-    await Clipboard.setStringAsync(value)
-    setFeedback(`${label}已复制`)
+    try {
+      await Clipboard.setStringAsync(value)
+      setFeedback(`${label}已复制`)
+    } catch {
+      setFeedback('复制失败，请稍后重试')
+    }
     setTimeout(() => setFeedback(''), 1800)
   }
 
   async function shareInvitation() {
     if (!inviteUrl) return
-    await Share.share({
-      title: 'CoachLink 教练邀请',
-      message: `使用我的邀请码 ${invitationCode} 加入 CoachLink：${inviteUrl}`,
-      url: inviteUrl,
-    })
+    try {
+      await Share.share({
+        title: 'CoachLink 教练邀请',
+        message: `使用我的邀请码 ${invitationCode} 加入 CoachLink：${inviteUrl}`,
+        url: inviteUrl,
+      })
+    } catch {
+      setFeedback('分享失败，请稍后重试')
+      setTimeout(() => setFeedback(''), 1800)
+    }
   }
 
   async function triggerPoster() {
@@ -197,7 +207,7 @@ export function CoachInvitationScreen() {
         </View>
 
         {posterUrl ? (
-          <Pressable onPress={() => void Linking.openURL(posterUrl)} style={styles.posterWrap}>
+          <Pressable accessibilityRole="imagebutton" accessibilityLabel="查看邀请海报高清原图" onPress={() => void openExternalUrl(posterUrl, { errorTitle: '海报打开失败' })} style={styles.posterWrap}>
             <Image source={{ uri: posterUrl }} resizeMode="contain" style={styles.posterImage} />
             <Text style={styles.posterHint}>点击查看高清原图</Text>
           </Pressable>

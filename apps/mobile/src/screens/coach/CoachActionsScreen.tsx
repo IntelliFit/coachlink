@@ -96,7 +96,7 @@ export function CoachActionsScreen() {
         </View>
         <View style={styles.typeRow}>
           {[{ label: '全部', value: '' as const }, ...ACTION_TYPES].map((item) => (
-            <Pressable key={item.value || 'all'} onPress={() => { setType(item.value); setPage(1) }} style={[styles.typePill, type === item.value && styles.typePillActive]}>
+            <Pressable key={item.value || 'all'} accessibilityRole="radio" accessibilityLabel={`筛选动作类型：${item.label}`} accessibilityState={{ selected: type === item.value }} onPress={() => { setType(item.value); setPage(1) }} style={[styles.typePill, type === item.value && styles.typePillActive]}>
               <Text style={[styles.typeText, type === item.value && styles.typeTextActive]}>{item.label}</Text>
             </Pressable>
           ))}
@@ -258,7 +258,7 @@ export function CoachActionEditScreen() {
         <Text style={styles.sectionTitle}>项目分类</Text>
         <View style={styles.typeRow}>
           {ACTION_TYPES.map((item) => (
-            <Pressable key={item.value} onPress={() => patch({ type: item.value })} style={[styles.typePill, form.type === item.value && styles.typePillActive]}>
+            <Pressable key={item.value} accessibilityRole="radio" accessibilityLabel={`动作类型：${item.label}`} accessibilityState={{ selected: form.type === item.value }} onPress={() => patch({ type: item.value })} style={[styles.typePill, form.type === item.value && styles.typePillActive]}>
               <Text style={[styles.typeText, form.type === item.value && styles.typeTextActive]}>{item.label}</Text>
             </Pressable>
           ))}
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   typePill: {
-    minHeight: 38,
+    minHeight: 48,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',

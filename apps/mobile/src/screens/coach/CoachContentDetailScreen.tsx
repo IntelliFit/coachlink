@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { apiClient } from '../../api'
 import { IconFont } from '../../components/IconFont'
@@ -8,6 +8,7 @@ import { NativeVideoPlayer } from '../../components/NativeMedia'
 import { SectionCard } from '../../components/SectionCard'
 import { colors, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
+import { openExternalUrl } from '../../externalLinks'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CoachContentDetail'>
 
@@ -87,8 +88,12 @@ export function CoachContentDetailScreen({ navigation, route }: Props) {
   const canView = content && Number(content.required_tier || 0) <= accessTier
 
   async function copyMediaUrl(url: string) {
-    await Clipboard.setStringAsync(url)
-    Alert.alert('链接已复制')
+    try {
+      await Clipboard.setStringAsync(url)
+      Alert.alert('链接已复制')
+    } catch {
+      Alert.alert('复制失败', '请稍后重试。')
+    }
   }
 
   if (loading) {
@@ -147,7 +152,7 @@ export function CoachContentDetailScreen({ navigation, route }: Props) {
                   <>
                     <NativeVideoPlayer url={url} title={`${content.title || '教学视频'}${urls.length > 1 ? ` ${index + 1}` : ''}`} />
                     <View style={styles.mediaActions}>
-                      <Pressable onPress={() => Linking.openURL(url)} style={styles.secondaryButton}><Text style={styles.secondaryText}>系统播放器</Text></Pressable>
+                      <Pressable accessibilityRole="button" accessibilityLabel="使用系统播放器打开视频" onPress={() => void openExternalUrl(url, { errorTitle: '视频打开失败' })} style={styles.secondaryButton}><Text style={styles.secondaryText}>系统播放器</Text></Pressable>
                       <Pressable onPress={() => copyMediaUrl(url)} style={styles.secondaryButton}><Text style={styles.secondaryText}>复制链接</Text></Pressable>
                     </View>
                   </>
@@ -183,7 +188,7 @@ const styles = StyleSheet.create({
   stateTitle: { color: colors.text, fontSize: 20, fontWeight: '900', textAlign: 'center' },
   stateDesc: { color: colors.textSecondary, fontSize: 14, lineHeight: 22, textAlign: 'center' },
   header: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  backButton: { width: 44, height: 44, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  backButton: { width: 48, height: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   headerTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
   titleCard: { borderRadius: radius.lg, padding: spacing.md, gap: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
   title: { color: colors.text, fontSize: 24, fontWeight: '900', lineHeight: 32 },
@@ -192,9 +197,9 @@ const styles = StyleSheet.create({
   mediaItem: { gap: spacing.xs },
   image: { width: '100%', height: 220, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   mediaActions: { flexDirection: 'row', gap: spacing.sm },
-  secondaryButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  secondaryButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   secondaryText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
-  primaryButton: { minHeight: 44, minWidth: 160, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand, paddingHorizontal: spacing.md },
+  primaryButton: { minHeight: 48, minWidth: 160, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand, paddingHorizontal: spacing.md },
   primaryText: { color: colors.surface, fontSize: 14, fontWeight: '900' },
   bodyText: { color: colors.text, fontSize: 15, lineHeight: 24 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },

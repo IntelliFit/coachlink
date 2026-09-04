@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Alert, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../../navigation/types'
@@ -72,10 +72,14 @@ export function OneArmPullUpScreen({ navigation }: Props) {
   async function shareResult() {
     if (!result) return
     const progress = Math.round(result.progress)
-    await Share.share({
-      title: 'CoachLink 单手引体评估',
-      message: `我的单手引体准备度：${result.level.name}，达到经验门槛的 ${progress}%。目标外加重量 ${formatAssessmentKg(result.targetAdditionalWeight)}。`,
-    })
+    try {
+      await Share.share({
+        title: 'CoachLink 单手引体评估',
+        message: `我的单手引体准备度：${result.level.name}，达到经验门槛的 ${progress}%。目标外加重量 ${formatAssessmentKg(result.targetAdditionalWeight)}。`,
+      })
+    } catch {
+      Alert.alert('分享失败', '暂时无法调起系统分享，请稍后重试。')
+    }
   }
 
   return (
@@ -186,7 +190,7 @@ export function OneArmPullUpScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  backButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, alignSelf: 'flex-start' },
+  backButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, alignSelf: 'flex-start' },
   backText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
   hero: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.xl, backgroundColor: '#1F1F1F' },
   heroKicker: { color: 'rgba(255,255,255,0.68)', fontSize: 12, fontWeight: '800' },

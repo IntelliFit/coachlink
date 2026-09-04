@@ -11,9 +11,9 @@ function configuredApiBaseUrl(value: unknown): string | null {
 
 function defaultApiBaseUrl(): string {
   // Android 模拟器中的 127.0.0.1 指向模拟器自身；10.0.2.2 才是开发机。
-  // 真机和生产包应显式传入 EXPO_PUBLIC_API_BASE_URL。
   if (__DEV__ && Platform.OS === 'android') return 'http://10.0.2.2:3000'
-  return 'http://127.0.0.1:3000'
+  if (__DEV__) return 'http://127.0.0.1:3000'
+  return 'https://coachlink.fit'
 }
 
 export const API_BASE_URL =

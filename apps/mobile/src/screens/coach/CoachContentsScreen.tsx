@@ -168,7 +168,7 @@ export function CoachContentsScreen() {
         <Text style={styles.filterLabel}>可见范围</Text>
         <View style={styles.filterRow}>
           {TIER_OPTIONS.map((item) => (
-            <Pressable key={String(item.value)} onPress={() => setTierFilter(item.value)} style={[styles.chip, tierFilter === item.value && styles.chipActive]}>
+            <Pressable key={String(item.value)} accessibilityRole="radio" accessibilityLabel={`筛选可见范围：${item.label}`} accessibilityState={{ selected: tierFilter === item.value }} onPress={() => setTierFilter(item.value)} style={[styles.chip, tierFilter === item.value && styles.chipActive]}>
               <Text style={[styles.chipText, tierFilter === item.value && styles.chipTextActive]}>{item.label}</Text>
             </Pressable>
           ))}
@@ -176,7 +176,7 @@ export function CoachContentsScreen() {
         <Text style={styles.filterLabel}>内容类型</Text>
         <View style={styles.filterRow}>
           {CONTENT_TYPES.map((item) => (
-            <Pressable key={String(item.value)} onPress={() => setTypeFilter(item.value)} style={[styles.chip, typeFilter === item.value && styles.chipActive]}>
+            <Pressable key={String(item.value)} accessibilityRole="radio" accessibilityLabel={`筛选内容类型：${item.label}`} accessibilityState={{ selected: typeFilter === item.value }} onPress={() => setTypeFilter(item.value)} style={[styles.chip, typeFilter === item.value && styles.chipActive]}>
               <Text style={[styles.chipText, typeFilter === item.value && styles.chipTextActive]}>{item.label}</Text>
             </Pressable>
           ))}
@@ -331,7 +331,7 @@ export function CoachContentEditScreen() {
         <Text style={styles.fieldLabel}>内容类型</Text>
         <View style={styles.filterRow}>
           {EDIT_CONTENT_TYPES.map((item) => (
-            <Pressable key={item.value} onPress={() => patch({ contentType: item.value })} style={[styles.chip, form.contentType === item.value && styles.chipActive]}>
+            <Pressable key={item.value} accessibilityRole="radio" accessibilityLabel={`内容类型：${item.label}`} accessibilityState={{ selected: form.contentType === item.value }} onPress={() => patch({ contentType: item.value })} style={[styles.chip, form.contentType === item.value && styles.chipActive]}>
               <Text style={[styles.chipText, form.contentType === item.value && styles.chipTextActive]}>{item.label}</Text>
             </Pressable>
           ))}
@@ -339,7 +339,7 @@ export function CoachContentEditScreen() {
         <Text style={styles.fieldLabel}>可见范围</Text>
         <View style={styles.filterRow}>
           {TIER_OPTIONS.filter((item) => item.value !== 'all').map((item) => (
-            <Pressable key={String(item.value)} onPress={() => patch({ requiredTier: item.value as number })} style={[styles.chip, form.requiredTier === item.value && styles.chipActive]}>
+            <Pressable key={String(item.value)} accessibilityRole="radio" accessibilityLabel={`可见范围：${item.label}`} accessibilityState={{ selected: form.requiredTier === item.value }} onPress={() => patch({ requiredTier: item.value as number })} style={[styles.chip, form.requiredTier === item.value && styles.chipActive]}>
               <Text style={[styles.chipText, form.requiredTier === item.value && styles.chipTextActive]}>{item.label}</Text>
             </Pressable>
           ))}
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   heroEyebrow: { color: colors.brand, fontSize: 12, fontWeight: '900' },
   heroTitle: { color: colors.text, fontSize: 22, fontWeight: '900', lineHeight: 28 },
   heroDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
-  createButton: { minHeight: 40, paddingHorizontal: spacing.sm, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
+  createButton: { minHeight: 48, paddingHorizontal: spacing.sm, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
   createText: { color: colors.surface, fontSize: 14, fontWeight: '900' },
   disabled: { opacity: 0.5 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
   filterLabel: { color: colors.text, fontSize: 14, fontWeight: '900' },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  chip: { minHeight: 38, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  chip: { minHeight: 48, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   chipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   chipTextActive: { color: colors.surface },

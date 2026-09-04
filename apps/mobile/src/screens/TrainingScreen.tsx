@@ -32,7 +32,7 @@ import {
 type Props = BottomTabScreenProps<MainTabParamList, 'TrainingTab'>
 
 function unwrap(response: any) {
-  return response?.data?.data ?? response?.data ?? {}
+  return response?.data?.data ?? response?.data ?? response ?? {}
 }
 
 function pickArray(data: any, keys: string[]) {
@@ -78,7 +78,7 @@ function isReadOnlyDay(block: TodayTrainingPlanBlock, dayIndex: number) {
 
 export function TrainingScreen({ navigation }: Props) {
   const rootNav = navigation.getParent<any>()
-  const { user } = useAuth()
+  const { user, isAuthenticated, isGuest } = useAuth()
   const userId = user?.id ? String(user.id) : ''
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -86,7 +86,11 @@ export function TrainingScreen({ navigation }: Props) {
   const [cache, setCache] = useState<TodayTrainingCache | null>(null)
 
   const load = useCallback(async (manual = false) => {
-    if (!userId) return
+    if (!userId) {
+      setLoading(false)
+      setRefreshing(false)
+      return
+    }
     if (manual) setRefreshing(true)
     else setLoading(true)
     setError('')
@@ -241,7 +245,18 @@ export function TrainingScreen({ navigation }: Props) {
     { label: '当前训练日', value: instance ? `第 ${activePlan.recommendedDayIndex} 天` : '-' },
   ]
 
-  const go = (name: keyof RootStackParamList, params?: any) => rootNav?.navigate(name, params)
+  const ensureLogin = () => {
+    if (isAuthenticated && !isGuest) return true
+    Alert.alert('请先登录', '登录后可以同步计划、开始训练并保存训练记录。', [
+      { text: '取消', style: 'cancel' },
+      { text: '去登录', onPress: () => rootNav?.navigate('Login') },
+    ])
+    return false
+  }
+
+  const go = (name: keyof RootStackParamList, params?: any) => {
+    if (ensureLogin()) rootNav?.navigate(name, params)
+  }
 
   const selectMode = async (planMode: TodayTrainingPlanMode) => {
     if (!cache) return
@@ -346,7 +361,7 @@ export function TrainingScreen({ navigation }: Props) {
       {error ? (
         <View style={styles.noticeError}>
           <Text style={styles.noticeErrorText}>{error}</Text>
-          <Pressable onPress={() => void load(true)} style={styles.noticeButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel="重试同步训练计划" onPress={() => void load(true)} style={styles.noticeButton}>
             <Text style={styles.noticeButtonText}>重试同步</Text>
           </Pressable>
         </View>
@@ -356,6 +371,9 @@ export function TrainingScreen({ navigation }: Props) {
         <View style={styles.segment}>
           {Object.values(cache?.coachPlanDataBySubId || {}).some((block) => block.instance) ? (
             <Pressable
+              accessibilityRole="tab"
+              accessibilityLabel="教练计划"
+              accessibilityState={{ selected: cache?.planMode === 'coach' }}
               onPress={() => void selectMode('coach')}
               style={[styles.segmentItem, cache?.planMode === 'coach' && styles.segmentItemActive]}
             >
@@ -364,6 +382,9 @@ export function TrainingScreen({ navigation }: Props) {
           ) : null}
           {cache?.selfPlanData.instance ? (
             <Pressable
+              accessibilityRole="tab"
+              accessibilityLabel="自主计划"
+              accessibilityState={{ selected: cache?.planMode === 'self' }}
               onPress={() => void selectMode('self')}
               style={[styles.segmentItem, cache?.planMode === 'self' && styles.segmentItemActive]}
             >
@@ -382,6 +403,9 @@ export function TrainingScreen({ navigation }: Props) {
               return (
                 <Pressable
                   key={subscriptionId}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${coach.name || '我的教练'}，${hasPlan ? '已有计划' : '计划待制定'}`}
+                  accessibilityState={{ selected }}
                   onPress={() => void selectCoach(subscriptionId)}
                   style={[styles.coachChip, selected && styles.coachChipActive]}
                 >
@@ -411,10 +435,10 @@ export function TrainingScreen({ navigation }: Props) {
             {activePlan.missingDays.slice(0, 3).map((dayIndex) => (
               <View key={dayIndex} style={styles.missingRow}>
                 <Text style={styles.missingDay}>第 {dayIndex} 天</Text>
-                <Pressable onPress={() => openTrainingDay(dayIndex)} style={styles.primarySmallButton}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`补练第 ${dayIndex} 天`} onPress={() => openTrainingDay(dayIndex)} style={styles.primarySmallButton}>
                   <Text style={styles.primarySmallText}>去补练</Text>
                 </Pressable>
-                <Pressable onPress={() => skipDay(dayIndex)} style={styles.secondarySmallButton}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`跳过第 ${dayIndex} 天`} onPress={() => skipDay(dayIndex)} style={styles.secondarySmallButton}>
                   <Text style={styles.secondarySmallText}>跳过</Text>
                 </Pressable>
               </View>
@@ -433,6 +457,9 @@ export function TrainingScreen({ navigation }: Props) {
                 return (
                   <Pressable
                     key={dayIndex}
+                    accessibilityRole="tab"
+                    accessibilityLabel={`第 ${dayIndex} 天，${status}`}
+                    accessibilityState={{ selected }}
                     onPress={() => void selectDay(dayIndex)}
                     style={[styles.dayCard, selected && styles.dayCardActive]}
                   >
@@ -460,7 +487,7 @@ export function TrainingScreen({ navigation }: Props) {
                   {Array.isArray(selectedDay?.actionSets) ? selectedDay.actionSets.length : 0} 个训练模块。历史和未来训练日只读查看，不会误创建 execution。
                 </Text>
               )}
-              <Pressable onPress={() => openTrainingDay()} style={styles.primaryButton}>
+              <Pressable accessibilityRole="button" accessibilityLabel={selectedDay?.type === 'rest' ? '查看恢复安排' : primaryLabel} onPress={() => openTrainingDay()} style={styles.primaryButton}>
                 <Text style={styles.primaryButtonText}>{selectedDay?.type === 'rest' ? '查看恢复安排' : primaryLabel}</Text>
               </Pressable>
             </View>
@@ -468,12 +495,12 @@ export function TrainingScreen({ navigation }: Props) {
         ) : (
           <View style={styles.emptyPlan}>
             <Text style={styles.emptyPlanTitle}>还没有可执行的计划</Text>
-            <Text style={styles.empty}>可以先去全部计划查看历史，或直接从动作库开始即兴训练。</Text>
+            <Text style={styles.empty}>{userId ? '可以先去全部计划查看历史，或直接从动作库开始即兴训练。' : '登录后即可同步计划、开始训练并保存记录。'}</Text>
           </View>
         )}
 
-        <Pressable onPress={() => void load(true)} disabled={refreshing} style={styles.syncButton}>
-          {refreshing ? <ActivityIndicator size="small" color={colors.brand} /> : <Text style={styles.syncText}>同步最新计划</Text>}
+        <Pressable accessibilityRole="button" accessibilityLabel={userId ? '同步最新计划' : '登录后同步计划'} accessibilityState={{ disabled: refreshing, busy: refreshing }} onPress={() => userId ? void load(true) : ensureLogin()} disabled={refreshing} style={styles.syncButton}>
+          {refreshing ? <ActivityIndicator size="small" color={colors.brand} /> : <Text style={styles.syncText}>{userId ? '同步最新计划' : '登录后同步计划'}</Text>}
         </Pressable>
         <RowCard title="即兴锻炼" subtitle="没有计划也能从力量动作库快速开始，未完成训练可继续。" icon="icon-strength" onPress={() => go('ImpromptuTraining')} />
       </SectionCard>
@@ -521,15 +548,15 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   noticeErrorText: { color: '#9A3F2B', fontSize: 13, lineHeight: 20 },
-  noticeButton: { alignSelf: 'flex-start', paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
+  noticeButton: { alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm },
   noticeButtonText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
   segment: { flexDirection: 'row', gap: spacing.xs, padding: 4, borderRadius: radius.lg, backgroundColor: colors.background },
-  segmentItem: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
+  segmentItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
   segmentItemActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   segmentText: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
   segmentTextActive: { color: colors.brand },
   coachList: { gap: spacing.xs, paddingVertical: spacing.xs },
-  coachChip: { minWidth: 128, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  coachChip: { minWidth: 128, minHeight: 56, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   coachChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   coachChipTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
   coachChipTitleActive: { color: '#FFFFFF' },
@@ -538,11 +565,11 @@ const styles = StyleSheet.create({
   missingCard: { gap: spacing.xs, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
   missingTitle: { color: '#9A3412', fontSize: 15, fontWeight: '900' },
   missingDescription: { color: '#9A3412', fontSize: 12, lineHeight: 18 },
-  missingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 40 },
+  missingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 48 },
   missingDay: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' },
-  primarySmallButton: { minHeight: 32, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.brand },
+  primarySmallButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.brand },
   primarySmallText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  secondarySmallButton: { minHeight: 32, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
+  secondarySmallButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
   secondarySmallText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   blockLabel: { color: colors.text, fontSize: 15, fontWeight: '900' },
   dayList: { gap: spacing.xs, paddingVertical: spacing.xs },
@@ -561,7 +588,7 @@ const styles = StyleSheet.create({
   selectedDayDescription: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
   primaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
-  syncButton: { minHeight: 40, alignItems: 'center', justifyContent: 'center' },
+  syncButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   syncText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
   emptyPlan: { gap: spacing.xs, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background },
   emptyPlanTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },

@@ -44,6 +44,8 @@ function parseJsonDays(text: string) {
 
 export function CoachPlanTemplatesScreen() {
   const navigation = useNavigation<Navigation>()
+  const isTopLevelTab = useRoute().name === 'CoachPlanTemplatesTab'
+  const backAction = isTopLevelTab ? undefined : () => navigation.goBack()
   const [templates, setTemplates] = useState<any[]>([])
   const [tags, setTags] = useState<string[]>([])
   const [selectedTag, setSelectedTag] = useState('')
@@ -111,35 +113,35 @@ export function CoachPlanTemplatesScreen() {
   }
 
   return (
-    <ScreenShell title="教练计划库" subtitle="搜索、筛选、复制和管理训练模板。" onBack={() => navigation.goBack()}>
+    <ScreenShell title="教练计划库" subtitle="搜索、筛选、复制和管理训练模板。" onBack={backAction} tabBarInset={isTopLevelTab}>
       <Card style={styles.hero}>
         <View style={styles.heroTop}>
           <View>
             <Text style={styles.heroTitle}>计划库</Text>
             <Text style={styles.heroDesc}>模板会用于学员分配、AI 生成和后续阶段计划。</Text>
           </View>
-          <Pressable onPress={() => navigation.navigate('CoachPlanTemplateEdit')} style={styles.createButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel="新建计划模板" onPress={() => navigation.navigate('CoachPlanTemplateEdit')} style={styles.createButton}>
             <Text style={styles.createText}>新建</Text>
           </Pressable>
         </View>
         <View style={styles.searchRow}>
           <IconFont name="icon-search" size={20} color={colors.textMuted} />
-          <TextInput value={searchDraft} onChangeText={setSearchDraft} onSubmitEditing={() => { setSearch(searchDraft.trim()); setSelectedTag('') }} returnKeyType="search" placeholder="搜索模板名称或描述" placeholderTextColor={colors.textMuted} style={styles.searchInput} />
+          <TextInput accessibilityLabel="搜索计划模板" accessibilityHint="输入模板名称或描述后搜索" value={searchDraft} onChangeText={setSearchDraft} onSubmitEditing={() => { setSearch(searchDraft.trim()); setSelectedTag('') }} returnKeyType="search" placeholder="搜索模板名称或描述" placeholderTextColor={colors.textMuted} style={styles.searchInput} />
         </View>
         <View style={styles.filterRow}>
           {TYPE_OPTIONS.map((item) => (
-            <Pressable key={item.label} onPress={() => { setType(item.value); setSelectedTag('') }} style={[styles.chip, type === item.value && styles.chipActive]}>
+            <Pressable key={item.label} accessibilityRole="button" accessibilityLabel={`筛选${item.label}`} accessibilityState={{ selected: type === item.value }} onPress={() => { setType(item.value); setSelectedTag('') }} style={[styles.chip, type === item.value && styles.chipActive]}>
               <Text style={[styles.chipText, type === item.value && styles.chipTextActive]}>{item.label}</Text>
             </Pressable>
           ))}
         </View>
         {tags.length > 0 ? (
           <View style={styles.filterRow}>
-            <Pressable onPress={() => setSelectedTag('')} style={[styles.tagChip, !selectedTag && styles.tagChipActive]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="筛选全部标签" accessibilityState={{ selected: !selectedTag }} onPress={() => setSelectedTag('')} style={[styles.tagChip, !selectedTag && styles.tagChipActive]}>
               <Text style={[styles.tagText, !selectedTag && styles.tagTextActive]}>全部标签</Text>
             </Pressable>
             {tags.slice(0, 8).map((tag) => (
-              <Pressable key={tag} onPress={() => setSelectedTag(tag)} style={[styles.tagChip, selectedTag === tag && styles.tagChipActive]}>
+              <Pressable key={tag} accessibilityRole="button" accessibilityLabel={`筛选标签${tag}`} accessibilityState={{ selected: selectedTag === tag }} onPress={() => setSelectedTag(tag)} style={[styles.tagChip, selectedTag === tag && styles.tagChipActive]}>
                 <Text style={[styles.tagText, selectedTag === tag && styles.tagTextActive]}>{tag}</Text>
               </Pressable>
             ))}
@@ -288,16 +290,16 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   heroTitle: { color: colors.text, fontSize: 24, fontWeight: '900' },
   heroDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 4 },
-  createButton: { minHeight: 40, paddingHorizontal: spacing.sm, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
+  createButton: { minHeight: 48, paddingHorizontal: spacing.sm, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
   createText: { color: colors.surface, fontSize: 14, fontWeight: '900' },
   searchRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  chip: { minHeight: 38, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  chip: { minHeight: 48, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   chipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   chipTextActive: { color: colors.surface },
-  tagChip: { minHeight: 32, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted },
+  tagChip: { minHeight: 48, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted },
   tagChipActive: { backgroundColor: colors.brandSoft },
   tagText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   tagTextActive: { color: colors.brand },

@@ -24,9 +24,9 @@ export function ActionGrid({ children }: { children: ReactNode }) {
   return <View style={styles.grid}>{children}</View>
 }
 
-export function ActionTile({ title, subtitle, icon, onPress }: { title: string; subtitle?: string; icon: IconFontName; onPress?: () => void }) {
+export function ActionTile({ title, subtitle, icon, onPress }: { title: string; subtitle?: string; icon: IconFontName; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityHint={subtitle} onPress={onPress} style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
       <View style={styles.tileIcon}>
         <IconFont name={icon} color={colors.brand} size={22} />
       </View>
@@ -36,9 +36,9 @@ export function ActionTile({ title, subtitle, icon, onPress }: { title: string; 
   )
 }
 
-export function RowCard({ title, subtitle, icon, onPress, right }: { title: string; subtitle?: string; icon: IconFontName; onPress?: () => void; right?: ReactNode }) {
+export function RowCard({ title, subtitle, icon, onPress, right }: { title: string; subtitle?: string; icon: IconFontName; onPress: () => void; right?: ReactNode }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityHint={subtitle} onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       <View style={styles.rowIcon}>
         <IconFont name={icon} color={colors.brand} size={22} />
       </View>
@@ -51,9 +51,9 @@ export function RowCard({ title, subtitle, icon, onPress, right }: { title: stri
   )
 }
 
-export function ImageToolCard({ title, subtitle, image, onPress }: { title: string; subtitle: string; image: ImageSourcePropType; onPress?: () => void }) {
+export function ImageToolCard({ title, subtitle, image, onPress }: { title: string; subtitle: string; image: ImageSourcePropType; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.imageCard, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityHint={subtitle} onPress={onPress} style={({ pressed }) => [styles.imageCard, pressed && styles.pressed]}>
       <Image source={image} style={styles.imageCardBg} resizeMode="cover" />
       <View style={styles.imageCardShade} />
       <View style={styles.imageCardContent}>

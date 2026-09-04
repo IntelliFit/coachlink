@@ -20,16 +20,16 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://dev.coachlink.local"
+        "EXPO_PUBLIC_API_BASE_URL": "https://coachlink.fit"
       }
     },
     "production": {
-      "distribution": "internal",
+      "distribution": "store",
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://coachlink.local"
+        "EXPO_PUBLIC_API_BASE_URL": "https://coachlink.fit"
       }
     }
   }

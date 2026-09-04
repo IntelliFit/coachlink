@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { getAuthUser } from "@/lib/auth";
+import { sanitizeBookRowForClient } from "../_helpers/bookSanitizer";
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from "@/types/api";
@@ -16,8 +18,8 @@ import type {
 } from "./entity";
 
 export async function GET(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const auth = await getAuthUser(req);
+    if (!auth.isAuthenticated || !auth.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -42,6 +44,8 @@ export async function GET(req: Request) {
 
     if (is_published !== null) {
         query = query.eq("is_published", is_published === "true");
+    } else if (!auth.user?.is_admin) {
+        query = query.eq("is_published", true);
     }
 
     const { data, error } = await query;
@@ -61,15 +65,17 @@ export async function GET(req: Request) {
         message: "获取知识库书籍成功",
         // GetKnowledgeBooksResponseDto 反应的就是这个地方 data 的数据结构
         data: {
-            books: data || [],
+            books: (data || []).map((book) =>
+                sanitizeBookRowForClient(book, { includeBody: false })
+            ),
             total: data?.length || 0,
         },
     });
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const auth = await getAuthUser(req);
+    if (!auth.isAuthenticated || !auth.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -131,8 +137,8 @@ export async function POST(req: Request) {
 
 // PUT route for updating a book
 export async function PUT(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const auth = await getAuthUser(req);
+    if (!auth.isAuthenticated || !auth.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",

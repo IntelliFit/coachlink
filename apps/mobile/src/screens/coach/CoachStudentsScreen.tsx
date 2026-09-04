@@ -42,6 +42,29 @@ function dateText(value?: string | null) {
   return String(value).slice(0, 10)
 }
 
+function genderLabel(value?: string | null) {
+  const labels: Record<string, string> = { male: '男', female: '女', other: '其他', unknown: '未填写' }
+  return labels[String(value || '').toLowerCase()] || value || '-'
+}
+
+function fitnessLevelLabel(value?: string | null) {
+  const labels: Record<string, string> = { beginner: '入门', intermediate: '进阶', advanced: '高阶' }
+  return labels[String(value || '').toLowerCase()] || value || '-'
+}
+
+function subscriptionStatusLabel(value?: string | null) {
+  const labels: Record<string, string> = {
+    active: '进行中',
+    waiting: '待处理',
+    inactive: '未激活',
+    pending_payment: '待支付',
+    expired: '已到期',
+    completed: '已完成',
+    cancelled: '已取消',
+  }
+  return labels[String(value || '').toLowerCase()] || value || '未知状态'
+}
+
 function progressOf(student: any) {
   const total = Number(student?.progress?.total || 0)
   const completed = Number(student?.progress?.completed || 0)
@@ -51,6 +74,8 @@ function progressOf(student: any) {
 
 export function CoachStudentsScreen() {
   const navigation = useNavigation<Navigation>()
+  const isTopLevelTab = useRoute().name === 'CoachStudentsTab'
+  const backAction = isTopLevelTab ? undefined : () => navigation.goBack()
   const [students, setStudents] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
@@ -101,11 +126,13 @@ export function CoachStudentsScreen() {
   }
 
   return (
-    <ScreenShell title="学员管理" subtitle={`${total} 位学员 · ${noPlanCount} 位待配置计划`} onBack={() => navigation.goBack()}>
+    <ScreenShell title="学员管理" subtitle={`${total} 位学员 · ${noPlanCount} 位待配置计划`} onBack={backAction} tabBarInset={isTopLevelTab}>
       <Card style={styles.toolbar}>
         <View style={styles.searchRow}>
           <IconFont name="icon-search" size={20} color={colors.textMuted} />
           <TextInput
+            accessibilityLabel="搜索学员"
+            accessibilityHint="输入学员昵称或手机号后搜索"
             value={search}
             onChangeText={setSearch}
             onSubmitEditing={submitSearch}
@@ -115,14 +142,14 @@ export function CoachStudentsScreen() {
             style={styles.searchInput}
           />
           {search ? (
-            <Pressable onPress={() => { setSearch(''); setQuery(''); setPage(0) }} style={styles.clearButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel="清除学员搜索" onPress={() => { setSearch(''); setQuery(''); setPage(0) }} style={styles.clearButton}>
               <Text style={styles.clearText}>×</Text>
             </Pressable>
           ) : null}
         </View>
         <View style={styles.sortRow}>
           {SORT_OPTIONS.map((item) => (
-            <Pressable key={item.value} onPress={() => { setSort(item.value); setPage(0) }} style={[styles.sortPill, sort === item.value && styles.sortPillActive]}>
+            <Pressable key={item.value} accessibilityRole="button" accessibilityLabel={`按${item.label}排序`} accessibilityState={{ selected: sort === item.value }} onPress={() => { setSort(item.value); setPage(0) }} style={[styles.sortPill, sort === item.value && styles.sortPillActive]}>
               <Text style={[styles.sortText, sort === item.value && styles.sortTextActive]}>{item.label}</Text>
             </Pressable>
           ))}
@@ -162,7 +189,6 @@ function StudentCard({ student, onOpen }: { student: any; onOpen: () => void }) 
             <Text style={styles.studentName}>{nameOf(student)}</Text>
             <View style={styles.tierChip}><Text style={styles.tierText}>{tierLabel(student?.tier)}</Text></View>
           </View>
-          <Text style={styles.studentId}>ID: {student?.student_id || student?.id}</Text>
           <View style={styles.chipRow}>
             <StatusChip label={status} tone={status === '未配置' ? 'warning' : status === '已完成' ? 'success' : 'brand'} />
             <StatusChip label={`待评 ${unreviewed}`} tone={unreviewed > 0 ? 'warning' : 'muted'} />
@@ -362,10 +388,10 @@ function StudentDetailBody({
         <InlineAvatar uri={profile.avatar_url} label={nameOf(student)} size={72} />
         <View style={styles.detailTitleBox}>
           <Text style={styles.detailName}>{nameOf(student)}</Text>
-          <Text style={styles.detailSub}>{profile.phone || profile.gender || '训练档案'}</Text>
+          <Text style={styles.detailSub}>{profile.phone || genderLabel(profile.gender) || '训练档案'}</Text>
           <View style={styles.chipRow}>
             <StatusChip label={tierLabel(student?.tier)} tone="brand" />
-            <StatusChip label={String(student?.status || 'active')} tone="muted" />
+            <StatusChip label={subscriptionStatusLabel(student?.status)} tone="muted" />
           </View>
         </View>
       </Card>
@@ -400,12 +426,12 @@ function StudentDetailBody({
 
       <Card style={styles.infoCard}>
         <Text style={styles.cardTitle}>基础资料</Text>
-        <InfoRow label="性别" value={profile.gender || '-'} />
+        <InfoRow label="性别" value={genderLabel(profile.gender)} />
         <InfoRow label="年龄" value={profile.age ? `${profile.age}` : '-'} />
         <InfoRow label="身高" value={profile.height ? `${profile.height} cm` : '-'} />
         <InfoRow label="体重" value={profile.weight ? `${profile.weight} kg` : '-'} />
         <InfoRow label="目标" value={profile.fitness_goal || '-'} />
-        <InfoRow label="水平" value={profile.fitness_level || '-'} />
+        <InfoRow label="水平" value={fitnessLevelLabel(profile.fitness_level)} />
       </Card>
 
       <Card style={styles.infoCard}>
@@ -498,8 +524,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   clearButton: {
-    width: 32,
-    height: 32,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -514,7 +540,7 @@ const styles = StyleSheet.create({
   },
   sortPill: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -799,7 +825,7 @@ const styles = StyleSheet.create({
   },
   oneRmInput: {
     width: 88,
-    minHeight: 40,
+    minHeight: 48,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.md,
     color: colors.text,

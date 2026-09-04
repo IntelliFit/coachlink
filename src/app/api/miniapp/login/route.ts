@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
-import { verifyPassword } from "../../auth/[...nextauth]/verify";
+import { isPasswordHash, verifyPassword } from "../../auth/[...nextauth]/verify";
 import { signToken } from "@/lib/jwt";
 import redis from "@/lib/redisClient";
 import { toPublicApiMessage } from "@/lib/publicApiError";
@@ -117,6 +117,13 @@ export async function POST(req: NextRequest) {
                     success: false,
                     message: "该手机号/邮箱未注册"
                 }, { status: 404 });
+            }
+
+            if (!isPasswordHash(user.password_hash)) {
+                return NextResponse.json({
+                    success: false,
+                    message: "该账号尚未设置密码，请使用验证码登录或通过“忘记密码”设置密码"
+                }, { status: 401 });
             }
 
             const isValid = verifyPassword(password, user.password_hash);

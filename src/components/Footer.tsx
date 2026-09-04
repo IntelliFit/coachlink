@@ -21,6 +21,8 @@ const Footer: React.FC<FooterProps> = ({
         { label: "关于我们", href: "/about" },
         { label: "联系我们", href: "/contact" },
         { label: "用户服务协议", href: "/terms" },
+        { label: "隐私政策", href: "/privacy" },
+        { label: "账号删除", href: "/account-deletion" },
         { label: "消费者权益保护", href: "/protection-of-consumer" },
         { label: "平台入驻协议", href: "/platform-agreement" },
         { label: "免责声明", href: "/disclaimer" },

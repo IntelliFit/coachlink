@@ -56,12 +56,17 @@ export function ResetPasswordScreen({ navigation }: Props) {
   }
 
   async function submit() {
+    if (loading) return
     if (!isPhone(phone) || !verificationCode.trim() || !newPassword.trim() || !confirmPassword.trim()) {
       Alert.alert('信息不完整', '请填写手机号、验证码和新密码')
       return
     }
     if (newPassword.trim() !== confirmPassword.trim()) {
       Alert.alert('密码不一致', '两次输入的密码不一致')
+      return
+    }
+    if (!/^\d{6}$/.test(verificationCode.trim())) {
+      Alert.alert('验证码不正确', '请输入 6 位数字验证码')
       return
     }
     setLoading(true)
@@ -85,6 +90,7 @@ export function ResetPasswordScreen({ navigation }: Props) {
     <AuthShell title="教链 CoachLink" slogan="通过手机验证码找回你的密码" cardTitle="重置密码" compactHero>
       <View style={authStyles.form}>
         <AuthInput
+          label="手机号"
           value={phone}
           onChangeText={setPhone}
           placeholder="请输入手机号码"
@@ -97,6 +103,7 @@ export function ResetPasswordScreen({ navigation }: Props) {
           onSubmitEditing={() => codeRef.current?.focus()}
         />
         <AuthInput
+          label="验证码"
           inputRef={codeRef}
           value={verificationCode}
           onChangeText={setVerificationCode}
@@ -104,11 +111,15 @@ export function ResetPasswordScreen({ navigation }: Props) {
           icon={<IconFont name="icon-messages" color="#9CA3AF" size={19} />}
           inputMode="numeric"
           keyboardType="number-pad"
+          autoComplete="one-time-code"
+          textContentType="oneTimeCode"
           maxLength={6}
           returnKeyType="next"
           onSubmitEditing={() => passwordRef.current?.focus()}
           right={
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={sendingCode ? '正在发送验证码' : countdown > 0 ? `${countdown} 秒后可重新获取验证码` : '获取验证码'}
               disabled={countdown > 0 || sendingCode || !isPhone(phone)}
               onPress={startSendCode}
               style={[styles.sendCode, (countdown > 0 || sendingCode || !isPhone(phone)) && styles.sendCodeDisabled]}
@@ -118,6 +129,7 @@ export function ResetPasswordScreen({ navigation }: Props) {
           }
         />
         <AuthInput
+          label="新密码"
           inputRef={passwordRef}
           value={newPassword}
           onChangeText={setNewPassword}
@@ -130,6 +142,7 @@ export function ResetPasswordScreen({ navigation }: Props) {
           onSubmitEditing={() => confirmRef.current?.focus()}
         />
         <AuthInput
+          label="确认新密码"
           inputRef={confirmRef}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
@@ -143,7 +156,7 @@ export function ResetPasswordScreen({ navigation }: Props) {
         />
         <PillButton label={loading ? '重置中...' : '重置密码'} loading={loading} disabled={loading} onPress={submit} />
         <View style={authStyles.tipRow}>
-          <Pressable onPress={() => navigation.navigate('Login')}>
+          <Pressable style={authStyles.textAction} accessibilityRole="button" accessibilityLabel="返回登录" onPress={() => navigation.navigate('Login')}>
             <Text style={authStyles.tipLink}>返回登录</Text>
           </Pressable>
         </View>
@@ -163,11 +176,11 @@ export function ResetPasswordScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   sendCode: {
-    minHeight: 40,
+    minHeight: 48,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     backgroundColor: colors.brand,
   },
   sendCodeDisabled: {
