@@ -9587,3 +9587,12 @@
 - Calories: 计划训练和即兴训练完成时读取个人体重、实际训练时长/距离/完成组数，由 AI 在 2024 Adult Compendium 的受控 MET 边界内做活动分类，再用确定性 `MET × 体重 × 小时` 计算估算热量；AI 不直接自由生成 kcal。无有效体重不展示虚构默认值，未接心率/呼吸代谢设备时页面明确标为估算，并将总估算及动作级估算写入 execution JSONB。
 - Verification: lint 提示脚本、typecheck、Vitest 42 files / 203 tests、Next 537 路由生产构建、小程序 local 2,883 modules 均通过，`git diff --check` 仅有 CRLF 提示。微信开发者工具用本地只读预览会话实际渲染并点击“公共动作 → 街健 → 有氧 → 我的动作 → 选择”，确认街健 313、有氧 20、底部“开始训练 · 1”存在且 error/warning 均为 0；为避免写入真实 execution，没有点击最终开始按钮。截图位于 `screenshots/weapp/unified-action-library-*-2026-08-31.png`，验收 token/user 已从本机 storage 清理。
 - Next: 若用户确认需要发布，再单独授权提交/推送 `dev`、部署开发 API 并上传体验版；当前不自动执行任何发布动作。
+## 统一动作库、训练热量估算与生产发布 (`2026-09-06`)
+
+- Status: 已完成远端同步、冲突合并、功能提交、双远端推送和生产 Web/API 部署。小程序源码在 `dev@6637b918`；生产安全提交为 `main@94dad868`，未把 `dev` 上仍依赖未执行迁移的移动 App 运行时代码带入生产。小程序体验版/正式版未由代理上传，按用户要求交由用户更新。
+- Scope: 小程序学员动作选择统一到 `/me/action-lib`，支持力量/街健/有氧与常用/我的/公共动作，即兴训练可多选开练；训练完成后按体重、实际时长/距离和受控 MET 规则生成可复算的热量估算，并明确非实验室实测。后端补齐常用动作、动作分类元数据、即兴动作类型和完成时估算写回。
+- Sync: `dev` 先快进远端移动 App 上线准备提交 `013b42d5`，再恢复本地改动；业务代码自动合并，仅 `CURRENT_TASK.md`、`DECISIONS.md` 和双方新增的 `memory/2026-09-03.md` 需要人工合并，所有记录均已保留。同步前安全 stash `codex-pre-sync-20260906-113750` 仍保留。
+- Verification: `dev` 上 lint 提示脚本、root/mobile typecheck、Vitest 45 files / 214 tests、Next 541 路由生产构建、小程序 local 2,883 modules 和 release 2,870 modules 均通过；`main@94dad868` 上 lint、typecheck、Vitest 42 files / 203 tests、Next 537 路由宿主机与 Docker 生产构建均通过。Release 包没有 `http://localhost` / `http://127.0.0.1` 配置字面量，新增样式没有按钮渐变。
+- WeChat verification boundary: 微信开发者工具 `2.02.2607171` 已成功打开本地项目，但 `mrc 1.0` 仍按旧协议直连 WebSocket，而新版 DevTools 的 9420 为 HTTP CLI 服务，无法取得本轮可靠自动截图/日志；没有把“构建成功”虚报为新的页面截图验收。8 月 31 日的同功能实际页面点击和截图证据仍在 `screenshots/weapp/unified-action-library-*-2026-08-31.png`。
+- Production: 镜像 `latest/main/94dad86` 摘要统一为 `sha256:cf6f8e03237a30fe9a2b763dca92f9abfc20e412ca7e4e36f43737550eb531aa`。Keel 已完成 `coachlink-main` 滚动，3/3 主容器 Ready、0 重启且全部运行该摘要；公网 `/api/healthy` 返回 200，`buildTime=2026-09-06T03:58:54.915Z`。公共动作接口最小只读探针成功，即兴常用动作接口未登录探针正确返回 401。
+- Follow-up: 用户从同步后的 `dev` 更新小程序版本并自行完成上传/审核/发布。依赖安装审计仍提示 73 个历史漏洞（8 critical、27 high、37 moderate、1 low），不属于本次提交新增，但需要单独安排依赖安全治理，不能用 `npm audit fix --force` 在发布收尾中盲目处理。
