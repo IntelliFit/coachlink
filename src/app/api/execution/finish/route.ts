@@ -6,6 +6,8 @@ import type { FinishTrainingDto, FinishTrainingResponseDto } from "./entity";
 import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
 import { computeExecutionProgress } from "@/lib/executionProgress";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
+import { attachWorkoutEnergyEstimate } from "@/lib/workoutEnergyExecution";
+import type { WorkoutEnergyEstimate } from "@/lib/workoutEnergy";
 
 const parseMinNumber = (value: unknown): number | null => {
     if (value === null || value === undefined) return null;
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
         const { data: execution } = await supabase
             .from("plan_instance_executions")
             .select(
-                "student_id, day_index, completed_sets, total_sets, instance_id, action_executions",
+                "student_id, day_index, completed_sets, total_sets, instance_id, action_executions, started_at",
             )
             .eq("id", executionId)
             .single();
@@ -93,23 +95,22 @@ export async function POST(request: NextRequest) {
             completed_at: nowIso,
             session_notes: sessionNotes || null,
         };
+        const rawActions = execution.action_executions;
+        let finalizedActions: any[] = [];
+        if (Array.isArray(rawActions)) {
+            finalizedActions = rawActions;
+        } else if (typeof rawActions === "string") {
+            try {
+                const parsed = JSON.parse(rawActions);
+                finalizedActions = Array.isArray(parsed) ? parsed : [];
+            } catch {
+                finalizedActions = [];
+            }
+        }
 
         if (mode === "quick") {
-            const rawActions = execution.action_executions;
-            let actions: any[] = [];
-            if (Array.isArray(rawActions)) {
-                actions = rawActions;
-            } else if (typeof rawActions === "string") {
-                try {
-                    const parsed = JSON.parse(rawActions);
-                    actions = Array.isArray(parsed) ? parsed : [];
-                } catch {
-                    actions = [];
-                }
-            }
-
             const completedAt = nowIso;
-            const updatedActions = actions.map((action) => {
+            finalizedActions = finalizedActions.map((action) => {
                 const sets = Array.isArray(action?.sets) ? action.sets : null;
                 if (sets) {
                     const nextSets = sets.map((set: any) => {
@@ -143,11 +144,29 @@ export async function POST(request: NextRequest) {
                 };
             });
 
-            const progress = computeExecutionProgress(updatedActions);
-            updatePayload.action_executions = updatedActions;
+            const progress = computeExecutionProgress(finalizedActions);
+            updatePayload.action_executions = finalizedActions;
             updatePayload.completed_sets = progress.completedItems;
             updatePayload.total_sets = progress.totalItems;
             updatePayload.last_saved_at = nowIso;
+        }
+
+        let energyEstimate: WorkoutEnergyEstimate | null = null;
+        try {
+            const energyResult = await attachWorkoutEnergyEstimate({
+                db: supabase,
+                userId,
+                startedAt: execution.started_at,
+                completedAt: nowIso,
+                actionExecutions: finalizedActions,
+            });
+            energyEstimate = energyResult.estimate;
+            if (energyEstimate) {
+                finalizedActions = energyResult.actionExecutions;
+                updatePayload.action_executions = finalizedActions;
+            }
+        } catch (energyError) {
+            console.warn("[execution/finish] calorie estimate skipped:", energyError);
         }
 
         // 更新状态
@@ -181,6 +200,8 @@ export async function POST(request: NextRequest) {
                 completed_at: data.completed_at,
                 completed_sets: data.completed_sets,
                 total_sets: data.total_sets,
+                action_executions: data.action_executions,
+                energy_estimate: energyEstimate,
             },
         });
     } catch (error) {

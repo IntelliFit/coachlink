@@ -1,6 +1,11 @@
 export interface ImpromptuActionInput {
     actionId?: string | null;
     actionName: string;
+    itemType?: "STRENGTH" | "CARDIO";
+    attrs?: string[] | null;
+    category?: string | null;
+    itemSchema?: Record<string, unknown> | null;
+    suggestedTime?: string | null;
     sets: number;
     reps?: number | string | null;
     weight?: number | string | null;

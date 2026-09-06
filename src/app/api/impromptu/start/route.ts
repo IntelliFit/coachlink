@@ -54,6 +54,9 @@ export async function POST(req: Request) {
         }
 
         const actionExecutions = actions.map((action, actionIndex) => {
+            const itemType = String(action.itemType || "STRENGTH").toUpperCase() === "CARDIO"
+                ? "CARDIO"
+                : "STRENGTH";
             const totalSets = Math.max(1, Number(action.sets || 1));
             const plannedReps = action.reps === null || action.reps === undefined
                 ? null
@@ -69,6 +72,12 @@ export async function POST(req: Request) {
                 action_id: action.actionId || null,
                 action_name: action.actionName || `动作${actionIndex + 1}`,
                 action_order: actionIndex + 1,
+                type: itemType,
+                item_type: itemType,
+                attrs: Array.isArray(action.attrs) ? action.attrs : null,
+                category: action.category || null,
+                item_schema: action.itemSchema || null,
+                suggested_time: action.suggestedTime || null,
                 sets: Array.from({ length: totalSets }, (_, setIndex) => ({
                     set_number: setIndex + 1,
                     status: "pending",

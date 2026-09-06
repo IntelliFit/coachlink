@@ -84,62 +84,75 @@ export async function POST(req: Request) {
             new Set(actions.map((a) => a.canonical_action_id).filter(Boolean)),
         );
 
-        // 1) isLiked - 仅在用户已登录时查询
-        let likedIds = new Set<string>();
-        if (userId && actionIds.length > 0) {
-            const { data: likesData } = await supabase
-                .from("community_action_likes")
-                .select("action_id")
-                .eq("user_id", userId)
-                .in("action_id", actionIds);
-            likedIds = new Set((likesData || []).map((x: any) => x.action_id));
+        // 点赞、已加入、贡献者和标准动作元数据彼此独立。动作库一次会读取数百条，
+        // 串行查询很容易把小程序 30 秒请求窗口全部耗尽，因此统一并发读取。
+        const targetTable =
+            viewerActionType === "coach" ? "coach_actions" : "student_actions";
+        const ownerColumn =
+            viewerActionType === "coach" ? "coach_id" : "user_id";
+        const [likesResult, addedResult, profilesResult, canonicalResult] = await Promise.all([
+            userId && actionIds.length > 0
+                ? supabase
+                    .from("community_action_likes")
+                    .select("action_id")
+                    .eq("user_id", userId)
+                    .in("action_id", actionIds)
+                : Promise.resolve({ data: [] as Array<{ action_id: string }>, error: null }),
+            userId && actionNames.length > 0
+                ? supabase
+                    .from(targetTable)
+                    .select("name")
+                    .eq(ownerColumn, userId)
+                    .in("name", actionNames)
+                : Promise.resolve({ data: [] as Array<{ name: string }>, error: null }),
+            contributorIds.length > 0
+                ? supabase
+                    .from("user_profiles")
+                    .select("user_id, nickname, avatar_url")
+                    .in("user_id", contributorIds)
+                : Promise.resolve({
+                    data: [] as Array<{ user_id: string; nickname: string | null; avatar_url: string | null }>,
+                    error: null,
+                }),
+            canonicalIds.length > 0
+                ? supabase
+                    .from("canonical_actions")
+                    .select("id, category, reference_image_url")
+                    .in("id", canonicalIds)
+                : Promise.resolve({
+                    data: [] as Array<{ id: string; category: string | null; reference_image_url: string | null }>,
+                    error: null,
+                }),
+        ]);
+
+        if (canonicalResult.error) {
+            console.warn(
+                "[public-action-lib] load canonical reference images failed:",
+                canonicalResult.error,
+            );
         }
 
-        // 2) isAdded (by name: aligns with existing unique constraint) - 仅在用户已登录时查询
-        let addedNames = new Set<string>();
-        if (userId && actionNames.length > 0) {
-            const targetTable =
-                viewerActionType === "coach" ? "coach_actions" : "student_actions";
-            const ownerColumn =
-                viewerActionType === "coach" ? "coach_id" : "user_id";
-
-            const { data: addedData } = await supabase
-                .from(targetTable)
-                .select("name")
-                .eq(ownerColumn, userId)
-                .in("name", actionNames);
-            addedNames = new Set((addedData || []).map((x: any) => x.name));
-        }
-
-        // 3) contributor profile
+        const likedIds = new Set(
+            (likesResult.data || []).map((row: any) => row.action_id),
+        );
+        const addedNames = new Set(
+            (addedResult.data || []).map((row: any) => row.name),
+        );
         const contributorMap = new Map<string, PublicActionContributorDto>();
-        if (contributorIds.length > 0) {
-            const { data: profilesData } = await supabase
-                .from("user_profiles")
-                .select("user_id, nickname, avatar_url")
-                .in("user_id", contributorIds);
-            for (const p of profilesData || []) {
-                contributorMap.set(p.user_id, {
-                    userId: p.user_id,
-                    nickname: p.nickname ?? null,
-                    avatarUrl: p.avatar_url ?? null,
-                });
-            }
+        for (const profile of profilesResult.data || []) {
+            contributorMap.set(profile.user_id, {
+                userId: profile.user_id,
+                nickname: profile.nickname ?? null,
+                avatarUrl: profile.avatar_url ?? null,
+            });
         }
 
-        // 4) canonical action reference image
-        const canonicalReferenceImageMap = new Map<string, string | null>();
-        if (canonicalIds.length > 0) {
-            const { data: canonicalRows, error: canonicalError } = await supabase
-                .from("canonical_actions")
-                .select("id, reference_image_url")
-                .in("id", canonicalIds);
-            if (canonicalError) {
-                console.warn("[public-action-lib] load canonical reference images failed:", canonicalError);
-            }
-            for (const row of canonicalRows || []) {
-                canonicalReferenceImageMap.set(row.id, row.reference_image_url ?? null);
-            }
+        const canonicalMetadataMap = new Map<string, { category: string | null; referenceImageUrl: string | null }>();
+        for (const row of canonicalResult.data || []) {
+            canonicalMetadataMap.set(row.id, {
+                category: row.category ?? null,
+                referenceImageUrl: row.reference_image_url ?? null,
+            });
         }
 
         const enriched: PublicActionItemDto[] = actions.map((a) => ({
@@ -158,9 +171,12 @@ export async function POST(req: Request) {
                 (a.enableAutoWeightCompute as boolean | undefined) ?? null,
             includesBodyWeight: (a.includesBodyWeight as boolean | undefined) ?? null,
             canonical_action_id: a.canonical_action_id ?? null,
+            category: a.canonical_action_id
+                ? canonicalMetadataMap.get(a.canonical_action_id)?.category ?? null
+                : null,
             reference_image_url:
                 a.canonical_action_id
-                    ? canonicalReferenceImageMap.get(a.canonical_action_id) ?? null
+                    ? canonicalMetadataMap.get(a.canonical_action_id)?.referenceImageUrl ?? null
                     : null,
             like_count: Number(a.like_count || 0),
             created_at: a.created_at ?? null,

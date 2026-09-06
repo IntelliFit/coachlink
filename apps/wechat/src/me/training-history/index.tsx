@@ -114,7 +114,7 @@ export default function TrainingHistoryPage() {
   }
 
   const handleImpromptu = () => {
-    Taro.navigateTo({ url: '/training/impromptu-training' })
+    Taro.navigateTo({ url: '/me/action-lib/index?mode=impromptu-select&source=frequent&itemType=STRENGTH' })
   }
 
   const handleShareHistoryItem = useCallback(async (item: TrainingDayHistoryItem) => {

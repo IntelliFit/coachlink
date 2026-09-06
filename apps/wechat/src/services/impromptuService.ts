@@ -3,6 +3,11 @@ import { request } from '../utils/request'
 export interface ImpromptuActionInput {
   actionId?: string | null
   actionName: string
+  itemType?: 'STRENGTH' | 'CARDIO'
+  attrs?: string[] | null
+  category?: string | null
+  itemSchema?: Record<string, unknown> | null
+  suggestedTime?: string | null
   sets: number
   reps?: number | string | null
   weight?: number | string | null
@@ -62,6 +67,18 @@ class ImpromptuService {
     })
     if (res.success && res.data) return res.data
     return null
+  }
+
+  /** 按历史训练频次返回当前学员的常用动作；无历史时返回最近维护的动作。 */
+  async listFrequentActions(): Promise<any[]> {
+    const res = await request<{ actions: any[] }>({
+      url: `${this.baseUrl}/list-actions`,
+      method: 'POST',
+      data: {},
+      showErrorToast: false
+    })
+    if (res.success && Array.isArray(res.data?.actions)) return res.data.actions
+    return []
   }
 
   /** 完成一组（注意：使用 actionIndex/setIndex，0-based） */

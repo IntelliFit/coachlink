@@ -1,3 +1,15 @@
+## 大川底停引体挑战规则调研与首个视频样本判定 (`2026-09-03`)
+
+- Status: 已完成公开网页初步调研和用户提供的首个 50.225 秒视频逐帧分析；没有修改业务代码、提交或发布。抖音公开索引已定位“大川（引体百科全书）”及其 100 次引体等挑战视频，但站内页面自动读取持续超时，尚未取得这套挑战的原始规则视频或完整参赛样本集。
+- Confirmed rule: 用户确认底部只要求“双臂放直后有明显停顿”，不要求停满 1 秒；单次底部停顿上限为 3 秒。下巴过杠拟拆成两套独立口径：宽松规则允许横杠遮住下巴时推定通过，严格规则要求选定下巴下缘点并直接高于单杠上沿。产品上应让同一视频可输出两套结果，但排行榜分开，不能混排。
+- Elbow/swing findings: 用户希望底部真实伸肘至少 175°或完全伸直。首个样本中肉眼基本伸直的底部帧，MediaPipe 原始“较差一侧”肘角仍跨 157.7°–178.3°，24次只有4次达到原始175°，证明必须做个体/机位校准与多信号融合，不能直接硬切原始角度。画面内踝相对髋横向摆幅前12次平均约1.12%画宽、后12次约2.41%，后程最大3.65%，可量化疲劳摆动增强，但正面单目不能可靠观察经典前后摆浪/髋驱动。
+- Data requirement: 要达到排行榜裁判可信度，必须建立按“每一次动作”标注的金标集，覆盖标准底停、自然小摆、主动膝踢、髋驱动摆浪、未伸直、无停顿、过杠边界、超3秒及不可判机位；建议受控采集时同步正面产品机位和侧面真值机位，由至少2名教练独立标注、争议仲裁。模型只对高置信度样本自动判罚，边界进入复核；新数据可进入主动学习，但只用于下一裁判版本。
+- Dataset workflow: 用户确认理解为先拍摄各规则/标准/违规模式形成学习数据集，再拍全新视频检验。正式方案需划分开发训练集、阈值验证集和冻结盲测集；同一参赛者或同一拍摄场次不得跨训练/测试，测试集必须先由算法独立输出再揭示教练金标。错例用于下一版学习后，原测试集即转为训练资产，必须另建新盲测集。
+- Sample: `018c9d982f63004708f20840099c7beb.mp4` 为 720×1280、30fps、连续固定正面机位，机器稳定切出 24 次完整上拉。可见底部静止段约 0.23–2.00 秒，均未超过用户描述的 3 秒上限；前 18 次多数仅 0.23–0.50 秒，因此该玩法若要复刻，应把“明显停顿”的最小帧数写成明确规则，不能擅自解释为底部至少停满 1 秒。
+- Form evidence: 底部关键帧总体能看到双肘回到伸直位，未见明显主动屈膝蹬腿；后程存在轻微下肢/悬挂负重摆动，正面机位不能可靠判断前后方向借力。当前低位正面视角使横杠在 24 次顶部关键帧中持续遮挡下巴区域，Face Mesh 在所有顶部候选帧均无法稳定检出下巴，故严格按“证明视角下下巴明显过杠”不能自动通过；正确处理应是拍摄质量门禁拒判并提示改用杆高侧前方机位，而不是武断把 24 次都记为 0。
+- Rule draft: 每次必须经历双肘伸直的底部稳定状态、可见停顿、上拉、证明视角下下巴越过杆上沿、回到底部；底部停顿超过 3.00 秒时结束整组。仍需从规则原视频和 3–5 个已接受/争议样本确认最小停顿时长、借力容忍、超时后果、握法/换手、负重触地和未过杠是否只记 no-rep。
+- Next: 用户可优先提供大川发布的规则视频分享链接，以及 2–3 个官方认可和 1–2 个被判无效的挑战视频；拿到分享链接后可直接解析抖音视频并建立逐次金标规则表。
+
 ## AI 修改器“改为周一周三周五训练”排期误改修复 (`2026-08-25`)
 
 - Status: 本地代码修复完成；用户明确授权后已直接修复学员线上计划并独立回读通过。代码仍未提交、推送或部署。
@@ -9453,3 +9465,125 @@
 - Production evidence: `main` 已快进到 `99f22b22` 并同步 GitHub/Gitee；正式镜像 `latest/main/99f22b2` 摘要均为 `sha256:c4e4791f27872b58fbdd7f55ac1357cae47224b228acbe6faa48362396923b05`。Keel 已完成 `coachlink-main` 滚动，3 个 Pod 均 2/2 Ready 且只运行新 ReplicaSet；`https://coachlink.fit/api/healthy` 返回 200，`buildTime=2026-08-30T21:20:40.014Z`。
 - WeChat release: 微信开发者工具重新登录后，复用现有 `apps/wechat/dist-release` 成功上传体验版 `2026.08.31.0424`，描述 `完善教练提现规则 98553a2`，AppID `wx316e39eb71c0e834`，约 9.6 MB。此前 CLI 显示的 `2026.08.31.0407` 因 `code 10 需要重新登录` 并未上传成功，不能视为有效版本。
 - Next: 用户在微信公众平台自行选择 `2026.08.31.0424 / 完善教练提现规则` 提交审核；代理不再操作审核网页，也不处理此前被驳回的 `2026.08.30.0340`。审核通过后仍需由用户点击发布，正式版届时按 envVersion 自动访问 `https://coachlink.fit`。
+## 鞑靼新计划错误显示“顺延224天” (`2026-08-26`)
+
+- Status: 根因已定位并完成 Web / 小程序 / 后端严格推进的本地代码修复；生产数据未改，尚未提交、推送或部署。
+- Root cause: 新计划 `47457535-7e45-4aa5-abf4-19c0d3905420` 创建于北京时间 2026-08-26，`start_date` 尚为空；页面和后端却优先使用订阅 `06f07de8-e013-4106-a5ef-0637147a7e0b` 的 `start_date=2026-01-14`，恰好相差224个北京时间日。
+- Fix: 每份计划优先使用自身 `start_date`；fresh plan 尚未真正开练时，以实例 `created_at` 作为日历预览 D1；订阅开始日只保留为旧数据兼容兜底。Web、小程序、get-instance 与 execution/start 四条路径已统一。
+- Verification: 真实数据模型对照确认新锚点顺延0天、旧订阅锚点顺延224天；Web 用鞑靼账号验证第1天为8月26日、第2天为8月27日、无顺延文案且0 error/warn；小程序构建成功，但开发者工具无鞑靼登录态，未做真实账号页面验证。lint、typecheck、Vitest 42 files / 203 tests、Next生产构建均通过。
+- Delivery: 仅保留本地代码修改；线上仍需发布 Web/API 和小程序版本后才会生效。
+
+## 移动 App 持续完善、好友主页与发布审计（2026-08-31）
+
+- Status: 用户要求持续测试和修正移动 App，整体目标仍进行中；本轮已完成真实好友主页、会员支付防误下单、Android 新包与上架准备审计，不宣称 App 已完成或可直接上架。
+- Feature: 好友列表进入主页时携带目标 `userId`；好友主页读取目标公开健身档案和好友可见训练记录，自身主页读取自己的档案，并保留编辑资料与完整健身档案入口。
+- Messaging boundary: “发消息”已接 `/api/chat/get-chatroom` 并进入 Chat；模拟器中的目标好友没有既有聊天室，为避免生产数据残留未点击创建新会话，代码与目标路由已核验。
+- Payment safety: App 已停止调用只适用于微信小程序 JSAPI 的会员/AI 次数/存储包下单接口；页面明确显示“App 内购准备中”，点击套餐只弹提示，不创建无法付款的订单。真实 StoreKit / Google Play Billing 尚未实现。
+- Distribution: `eas.json` 的 production 改为商店分发 AAB，preview 保留内部 APK；当前本地 Release APK 仍由 Android Debug 证书签名，只能内部验收。
+- Verification: `npm run lint`、`npm run typecheck`、Vitest 42 files / 203 tests、Android `assembleRelease`、`lintVitalRelease`、Next.js 536 页生产构建全部通过。
+- UI verification: Android 模拟器实测朋友列表 → 清水百合真实主页、自身主页资料；实测我的会员 → 续费/升级 → 会员订阅，套餐点击仅出现内购未开放提示。证据为 `screenshots/mobile-app-audit-20260831/65-friend-home.png` 与 `71-membership-guard.png`。
+- Artifact: `apps/mobile/android/app/build/outputs/apk/release/CoachLink-0.0.1-android-audited-20260831.apk`，88,341,718 bytes，SHA-256 `DE555FA4EBA028F5D5CB10BE5EFB6FD200828522C3DB9624753C770328F7B80E`，v2 签名有效但证书为 Android Debug。
+- Audit: 发布就绪报告位于 `docs/work/roadmap/mobile-app-release-readiness-20260831.md`，已覆盖支付政策边界、签名/AAB、隐私、账号删除、健康类声明和商店物料。
+- Next: P0 依次为商店内购与 SKU 拆分、生产签名/正式 AAB、iOS TestFlight 与双端真机、验证码/注册/刷新会话回归、教练订阅真实支付/取消/退款/重复回调、隐私政策与网页删除入口。需要用户以组织邀请或受限密钥提供 Apple/Google/微信开放平台/商户测试能力；不要提供个人主账号密码。
+
+## 移动 App 登录可靠性与教练总览对齐（2026-08-31）
+
+- Status: 本轮代码修复、Android Release 构建与可执行的模拟器回归已完成；长期 App 完善/上架目标仍进行中，不宣称已可发布。
+- Auth/legal: 未登录导航栈注册协议、隐私和免责声明；登录/注册页的法律链接已在清空数据后的首装状态逐个点击验证。移除不可完成的微信登录占位分支，补充表单、协议勾选、按钮的无障碍标签和 48dp 触摸目标。
+- Session: 启动时先恢复本地 token/user，再后台探测 `/api/miniapp/session`；只有明确失效或 userId 不一致才清理，弱网/超时保留离线会话。
+- Coach overview: 总学员/待点评/钱包进入真实路由，平均评分改为非交互展示；按微信端补齐收款账户、定价、自动化、问卷、内容、计划模板、动作库、钱包和设置顺序，并加入单 ScrollView 下拉刷新和失败重试。
+- UI verification: Android 模拟器已验证首装法律入口、虚构账号失败提示、现有测试账号真实密码登录、强制停止/重启后会话恢复、真实训练首页与教练列表加载。当前账号恢复为学员且显示“申请成为教练”，教练总览本轮尚缺已批准 coach 账号的最终 UI 点击回归；另一个自动化 App 反复抢占同一模拟器前台，教练详情的本轮连续截图不计为通过。
+- Gates: `npm run lint`、`npm run typecheck:mobile`、根 `npm run typecheck`、Vitest 42 files / 203 tests、Android `assembleRelease`、`lintVitalRelease`、Next.js 536 页生产构建、`git diff --check` 全部通过。
+- Artifact: `apps/mobile/android/app/build/outputs/apk/release/CoachLink-0.0.1-android-auth-dashboard-tested-20260831.apk`，88,344,182 bytes，SHA-256 `FBC5B560DDEE4EACC8E75E89CFBA03AF27324EB978C8639368CDC7D52E66789B`；v2 签名有效，证书仍为 Android Debug，只用于内部验收。
+- Next: 获得一个明确授权的已批准 coach 测试账号后，复测教练总览全部按钮；随后推进验证码/注册真机、StoreKit/Play Billing、生产签名/AAB、iOS/TestFlight、真实支付与上架合规。
+
+## 移动 App 个人中心与媒体按钮可靠性补强（2026-08-31）
+
+- Status: 本轮代码、Android Release、生产构建与模拟器 UI 回归已完成；长期 App 对齐、真实支付与上架目标继续进行，未提交、未推送、未发布商店。
+- Profile: 个人中心进入/返回均刷新用户与统计，并支持下拉刷新；动作库/计划库/训练记录三个统计卡已分别打开真实页面，显示 10 项动作、1 个计划和 6 个训练动作，无加载错误。
+- Honest UI: 删除实际上不会改变当前硬编码浅色主题的伪主题按钮；“加入内测群”改为 App 内二维码弹窗，含加载失败重试、关闭入口和无障碍标签，不再把图片 URL 直接丢给浏览器。
+- Media links: 新增统一 `openExternalUrl`，教练内容视频、训练组视频、教练待点评视频、邀请海报和街健点位图片在系统无法打开时均明确报错，不再静默吞掉点击失败。
+- UI verification: 最新包覆盖安装后保持登录并恢复真实训练首页；个人中心统计、子页返回刷新、底部滚动、内测群二维码弹窗均在 `emulator-5554` 复测。证据：`screenshots/mobile-app-audit-20260831/90-profile-latest.png`、`91-beta-group-latest.png`。
+- Gates: mobile/root TypeScript、lint 提示、Vitest 42 files / 203 tests、Android `assembleRelease`/`lintVitalRelease`、Next.js 536 页生产构建及 `git diff --check` 通过。Next 首次与 Android 并行构建在 standalone copy 阶段遇到 Windows `EBUSY`，单独重跑后完整通过。
+- Artifact: `apps/mobile/android/app/build/outputs/apk/release/CoachLink-0.0.1-android-profile-media-tested-20260831.apk`，88,348,626 bytes，SHA-256 `9B184867A1223418D3446F873CCC064887CAD0D2FEC800003E23153D12B2CF7D`；`cn.coachlink.app` / `0.0.1 (1)` / minSdk 24 / targetSdk 36，v2 签名有效但仍是 Android Debug 证书，仅供内部验收。
+- Next: 需要用户明确授权的已批准 coach 测试账号完成教练总览按钮 UI 回归；外部 P0 仍是验证码/注册真机、StoreKit/Play Billing、生产签名/AAB、iOS TestFlight、完整隐私/账号删除网页及真实支付闭环。
+
+## 移动 App 上架合规：公开隐私/删除通道与删除工单（2026-09-01）
+
+- Status: 本地代码与浏览器/构建验证已完成，未提交、未推送、未部署；长期 App 完善与上架目标继续进行。
+- Public pages: 新增公开 `/privacy` 与 `/account-deletion`，删除页提供 App 内、登录网页和无法登录邮件三种申请方式；两页加入公开路由、Footer 和 sitemap。
+- Deletion workflow: `/api/user/delete-account` 在停用登录凭据前，先幂等创建或复用 `feedbacks.related_question=account_deletion` 工单；工单失败则不注销。凭据停用后的即时资料/订阅清理即使部分失败，也保留工单并返回成功，避免用户被锁死后只能重试。
+- Boundary: 训练、健康、聊天、视频、反馈等关联数据当前进入可追踪的人工删除/去标识化队列，不是全自动跨表清理；页面和政策尚未部署，运营处理时限与闭环仍需上线后验证，不能宣称已完全满足商店合规。
+- Verification: 桌面与 390px 手机视口实测，无横向溢出；两个申请按钮 48px；删除页到隐私页跳转正常；页面 0 error/0 warning，语义结构无嵌套 main。lint 脚本、Web/mobile typecheck、Vitest 42 files / 203 tests、Next.js 538 页生产构建和 `git diff --check` 全部通过。
+- Next: 继续审计并清理 App 支付死路由/占位入口；随后需要用户授权 coach 测试账号、验证码/注册环境、商店内购/正式签名和双端真机条件。
+
+## 移动 App 支付死路由与支付宝契约修复（2026-09-01）
+
+- Status: 已完成代码修复、Android Release、lintVital、模拟器非破坏性回归和最终测试；未提交、未推送、未部署支付后端，也未产生新订单。
+- Cleanup: 删除零调用的 `PaymentWebview` / `PaymentWechat` 路由、重复的假 `PaymentWaitingScreen`，以及零引用的占位信息页和 JSON 调试组件；真实 `screens/payment/PaymentWaitingScreen.tsx` 保留。
+- Contract fixes: App 现在同时解析直连 `paymentUrl` 与汇付 `payInfo` 中的二维码/URL 字段；已有订阅的待支付横幅按 `payment_method` 选择支付宝或微信查询接口，不再把支付宝订单硬编码到微信查询。
+- UX: 支付等待页的打开付款、查询结果、继续、重试、返回按钮增加明确无障碍标签，返回按钮触控高度由 44dp 提升到 48dp。
+- UI verification: 新包覆盖安装到 `emulator-5554` 后保持登录，真实训练首页、个人中心、4 条历史购买记录、我的教练、枭马葛教练详情和续费价格区均正常；点击“查看订阅”只滚动到价格区，未创建订单。CoachLink PID 日志无 FATAL/未处理 JS 错误。截图：`screenshots/mobile-app-audit-20260901/01-coach-pricing-safe.png`。
+- Gates/artifact: mobile typecheck、Vitest 42 files / 203 tests、Android `assembleRelease` + `lintVitalRelease`、`git diff --check` 通过。APK：`CoachLink-0.0.1-android-payment-web-compliance-tested-20260901.apk`，88,348,186 bytes，SHA-256 `2F10095BEE26152376BB127C6979F86212746FCBD13D9E9AB402FA77205D1EDA`；v2 有效但仍为 Android Debug 证书。
+- Boundary: 未点击套餐/续费时长，避免生产数据残留；真实支付宝/汇付付款、回调、重复通知、退款仍需受控测试订单与商户测试能力。数字会员仍保持不可购买，直到 StoreKit / Google Play Billing 接通。
+
+## 移动 App 认证与支付反馈可靠性补强（2026-09-03）
+
+- Status: 本轮代码修复、完整代码门禁、两次 Android Release + lintVital、最终 APK 安装及冷/热启动检查已完成；长期 App 完善和上架目标仍进行中，未提交、未推送、未部署，也未发送验证码或创建支付订单。
+- Static audit: 对 apps/mobile/src 58 个 TSX 文件做 AST 扫描，未发现缺失 onPress 的 Pressable/Touchable/Button，也未发现空 onPress 处理器；继续审计静默降级时发现购买前问卷请求失败会被当成空问卷，已改为失败关闭并走现有“订阅失败”反馈。
+- Auth UX: 登录/注册/重置密码字段加入可见标签和可访问名称；密码字段加入 48dp“显示/隐藏”按钮；验证码补充 6 位数字本地校验与 OTP autofill；注册/重置的键盘提交增加 loading 防重复提交，主按钮暴露 disabled/busy 语义。
+- Payment UX: 支付等待页手动查询失败不再被默认等待文案覆盖；状态查询加并发锁和按钮 loading/disabled；支付宝打不开时只有复制成功才提示“已复制”；页面支持底部安全区和纵向滚动，避免小屏/大字体遮住操作。
+- Verification: lint 脚本通过（仓库仍未配置 ESLint）；根 typecheck 与 mobile typecheck 通过；Vitest 42 files / 203 tests 通过；Next.js 生产构建成功生成 538 页；Android assembleRelease + lintVitalRelease 两次成功；最终 APK adb install --no-streaming -r 返回 Success。
+- Launch: 最终包冷启动 Status ok / 1070ms，Home 后热恢复 Status ok / 428ms；进程保持前台，启动日志无 CoachLink FATAL、未处理 JS 错误或 App ANR。第一版新包覆盖安装后曾用真实缓存会话确认直接恢复训练首页。
+- UI boundary: emulator-5554 的 Android system_server / System UI 在连续 uiautomator dump 时反复弹系统 ANR；日志指向系统无障碍/UI 主线程慢调度，不是 CoachLink。AVD 无清数据重启后仍在无障碍树读取时复现，因此本轮停止重型页面树回归，认证新视觉与支付异常页不能宣称已完整 UI 验收。
+- Artifact: apps/mobile/android/app/build/outputs/apk/release/CoachLink-0.0.1-android-auth-payment-reliability-tested-20260903.apk，88,350,186 bytes，SHA-256 D555C5EBB567B6B874CC7410F6D14860E3E912C77555DEE72B77EFC0735162A1；cn.coachlink.app / 0.0.1 (1) / minSdk 24 / targetSdk 36，APK v2 签名有效但证书仍是 Android Debug，仅供内部验收。
+- Next: 用一台稳定 Android 真机或修复后的 AVD 验证登录/注册/找回密码视觉、无效输入、显示/隐藏密码和键盘提交；发送真实验证码/注册新账号前需要用户提供专用测试手机号或邮箱；教练总览需要已批准 coach 测试账号；真实支付/取消/回调/退款需要明确授权的沙箱或低额测试订单与清理权限。
+
+## 移动 App 真实账号登录与教练端交互回归（2026-09-03）
+
+- Status: 已使用用户授权的真实教练账号和备用账号完成非破坏性回归、问题修复、最终 Android Release 构建与安装；未提交、未推送、未部署后端，未发送短信、创建订单或修改真实业务数据。
+- Root cause: 备用账号是微信登录创建的历史账号，password_hash 保存的是非密码标记而不是 64 位 SHA-256；旧 timingSafeEqual 直接比较不同长度 Buffer，导致登录页暴露 Input buffers must have the same byte length。教练账号密码哈希有效，密码登录正常。
+- Fix: 密码校验先验证哈希格式，微信-only/旧账号统一返回“尚未设置密码”；公共错误过滤底层加密异常；App 对线上旧错误也提供“验证码登录 / 忘记密码 / 取消”恢复入口，切换验证码模式不会自动发送短信，验证码不足 6 位在本地拦截。
+- Coach UX: 教练五个顶层标签页不再显示无效“返回”；共享页面为浮动 Tab Bar 预留 144dp 底部空间；返回、清除和筛选等小触控目标提升到至少 48dp；Tab 与筛选项增加显式 accessibility label/selected state。
+- UI verification: 教练账号实测密码登录成功，强制停止/冷启动后会话恢复；总览、待点评、学员、计划模板、我的与钱包完成只读导航和返回测试。备用账号实测友好恢复弹窗、切换验证码模式与 5 位验证码本地拦截；没有发送验证码。最终包覆盖安装后冷启动成功，登录页和协议入口可见，日志 0 FATAL / 0 App ANR / 0 未处理 JS 错误。
+- Gates: lint 提示通过；根 typecheck、mobile typecheck、Vitest 43 files / 210 tests、Android assembleRelease + lintVitalRelease、Next.js 538 页干净生产构建和 git diff --check 全通过。Next standalone 首两次遇到 Windows EBUSY，备份无重解析点的旧 .next 后干净构建完整通过。
+- Artifact: apps/mobile/android/app/build/outputs/apk/release/CoachLink-0.0.1-android-login-coach-ui-tested-20260903.apk，88,351,466 bytes，SHA-256 3A6630D6E1C84BF7CC80838719B9F69038734414B2933B7A185237F98C415D0C；cn.coachlink.app / 0.0.1 (1) / minSdk 24 / targetSdk 36，APK v2 签名有效但仍是 Android Debug，仅供内部验收。
+- Boundary: 客户端兼容提示已包含在 APK；服务端友好错误修复仍需未来部署才会在线生效。备用账号若要完成真实登录，需要用户在场接收一次验证码或先走忘记密码设置密码。
+
+
+## 移动 App 验证码滑块与全端交互可靠性收尾（2026-09-03）
+
+- Status: 本轮继续完成可直接本地修复的交互可靠性问题，并生成新的 Android 内部验收包；长期 App 完善/上架仍进行中，未提交、未推送、未部署服务端或商店。
+- Critical fix: 验证码滑块的 PanResponder 过去闭包捕获初始空 challengeId，导致真实用户无法拖动；现改为 ref 读取最新 challenge/位置/验证状态/回调，并补 adjustable 可访问操作。
+- Button contract: 共享可交互组件要求必传 onPress；不可用操作必须显式 disabled/busy。训练、教练、知识、即兴训练、训练执行及大量次级页的独立操作目标已提升到至少 48dp，剩余小尺寸扫描项均为图标、头像、状态或数据展示行。
+- Honest feedback: 复制/分享失败不再静默或谎报成功，已覆盖功率分析、特效视频、教练邀请、动作视频链接、训练分享和单手引体分享。
+- UI verification: 最终 APK 在 emulator-5554 冷启动正常；验证码模式、虚构手机号、协议勾选、获取验证码 → 安全验证滑块 → 取消路径通过。此前错误位置拖动明确得到服务端“验证失败”，证明手势和验证请求已实际触发；未完成验证、未发送短信。
+- Safety: 真实教练账号仅用于此前只读导航；本轮没有登录真实账号，没有点评、提现、角色切换、训练写入、订单、支付或账号数据修改。
+- Gates: lint 提示、root/mobile typecheck、Vitest 43 files / 210 tests、Next.js 538 页生产构建、Android assembleRelease + lintVitalRelease、APK v2 签名和 diff check 通过。最终安装 Success，冷启动 1125ms，0 App crash/ANR/未处理 JS 错误。
+- Artifact: apps/mobile/android/app/build/outputs/apk/release/CoachLink-0.0.1-android-interaction-regression-20260903.apk；88,355,978 bytes；SHA-256 3E0681D71DCB8E75A3F3D6FAEBEDDEF7CADFF2EAB7074FBF83E5D1158D75BEAB；仍为 Android Debug 证书，只能内部安装。
+- Remaining code: 知识模块仍在建设；AI 计划旧 taskId 轮询分支需删除或配套后端任务模型；即兴训练视频需新增服务端关联模型/迁移/API；完整 TalkBack、动态字体、横屏/平板和 iOS 交互矩阵待补。
+- External P0: StoreKit/Play Billing、正式 Android 签名+AAB+版本升级、iOS TestFlight、专用短信/注册测试条件、真实支付/取消/回调/退款沙箱、公开法律页部署与删除 Worker、崩溃监控/灰度回滚/商店物料。
+
+## 移动 App 登录、知识页与训练链路深度回归（2026-09-04）
+
+- Status: 已持续完成两小时以上代码审计、修复、Android Release 构建与模拟器回归；本批代码于 2026-09-05 提交并同步至 `dev`，尚未部署后端或执行迁移，真实账号只做了登录与只读导航。
+- Critical login fix: `RootNavigator` 在认证成功后不再继续保留 Login/Register/ResetPassword 栈。旧行为是 Token 已写入但画面停在空白登录页；最终 APK 实测提交密码后立即进入教练首页，强制停止并重启后仍保持会话，随后已安全退出。
+- Knowledge: 知识首页加入账号隔离的 60 天本地缓存、错误/重试/登录状态；补充 6 份可离线查看的公开参考计划，详情页可打开原始来源；书籍/文章/节点接口补齐移动 Bearer 支持、published 过滤与付费正文/音频脱敏。
+- Plan/coach: 教练端“AI 制定计划”直达真实计划编辑器并自动生成一次；总览待点评数量改为统计当前订阅学员的 `execution_set_videos`，不再读取旧 `training_videos`。
+- Impromptu video: 新增即兴训练组视频关联表迁移、上传/外链 API、查询附加与 App 调用；修复即兴训练结束合并数据时丢失新组状态。迁移尚未执行、后端尚未部署，因此线上不能宣称闭环。
+- UI/accessibility: 继续把教练、知识、计划、训练等独立操作目标提升到至少 48dp，并补 loading/disabled/selected/error 语义；按钮仍遵守纯色品牌规范。
+- Verification: lint 提示、root/mobile typecheck、Vitest 45 files / 214 tests、最新 `dev` 基线 Next.js 541 页生产构建、Android `assembleRelease` + `lintVitalRelease` 全部通过。E2E 的登录刷新会话、计划状态、训练开始/完成与后端 CRUD 幂等共 4 条最终通过；首轮计划状态播种遇到一次开发服务器启动期 HTML 404，单项重跑通过。最终包 `adb install -r` 成功；游客知识计划/详情/来源外链、教练登录即时跳转、冷启动会话保持、教练只读页面与退出登录已验证。
+- Artifact: `artifacts/mobile/CoachLink-android-release-20260904.apk`，88,370,058 bytes，SHA-256 `F7DA2217BDFD9558C957AB4B6EB7010131F04A8B60BF61718184A7A52F517332`；仍为内部验收 APK，不是正式商店签名包。
+- Upload reliability: 头像、反馈截图、街健点位图、训练组视频的原生直传统一增加 180 秒超时；功率分析大视频上传使用 30 分钟超时。超时会给出可恢复的中文错误，不再永久保持 loading。
+- Final UI check: 登录页“忘记密码”可点击节点由 54px 提升为 126px（模拟器密度下对应 48dp）；最终 APK 覆盖安装成功，保持未登录状态，冷启动日志无 App FATAL/ANR/未处理 JS 错误。
+- Confirmed blocker: 计划训练与即兴训练多条写 API 仍只认网页 Cookie，而 App 发送 Bearer Token；批量改动会扩大生产鉴权边界，本轮未机械替换。逐路清单和安全实施顺序见 `docs/work/mobile-api-auth-audit-20260904.md`。
+- Next: 获得明确授权后分阶段修复训练 P0 Bearer 鉴权并用可清理测试数据做接口/UI 回归；再执行即兴视频迁移和服务端部署。备用微信历史账号若要登录，需用户在场授权一次短信验证码或先设置密码。
+
+## 小程序学员动作库界面重复诊断 (`2026-08-31`)
+
+- Status: 已在本地 `dev` 分支完成统一动作库、街健/有氧分类、常用动作、多选即兴开练和训练后热量估算；代码未提交、未推送、未部署，微信小程序未上传体验版或正式版。
+- Unified flow: “即兴锻炼”、训练历史入口和新学员引导均直接进入 `/me/action-lib/index?mode=impromptu-select`；旧 `/training/impromptu-training` 只保留兼容重定向，不再维护第二套搜索/筛选/列表。统一页支持“力量 / 街健 / 有氧”和“常用 / 我的动作 / 公共动作”，多选后底部直接开始训练；若有未完成即兴训练则优先恢复。
+- Library/data: 只读核对 `街头健身动作汇总.docx` 得到 304 个去重文本（其中 1 个仅为全/半角括号差异），数据库精确命中 303 个公共力量动作且 303 个均有图片；当前统一页实际渲染公共力量非街健 101 个、街健 313 个（含 303 个本次文档动作和已有街健动作）、有氧 20 个。公共库接口将四项独立元数据查询改为并发，小程序首屏不再因重复 500 条请求撞上 30 秒超时。
+- Calories: 计划训练和即兴训练完成时读取个人体重、实际训练时长/距离/完成组数，由 AI 在 2024 Adult Compendium 的受控 MET 边界内做活动分类，再用确定性 `MET × 体重 × 小时` 计算估算热量；AI 不直接自由生成 kcal。无有效体重不展示虚构默认值，未接心率/呼吸代谢设备时页面明确标为估算，并将总估算及动作级估算写入 execution JSONB。
+- Verification: lint 提示脚本、typecheck、Vitest 42 files / 203 tests、Next 537 路由生产构建、小程序 local 2,883 modules 均通过，`git diff --check` 仅有 CRLF 提示。微信开发者工具用本地只读预览会话实际渲染并点击“公共动作 → 街健 → 有氧 → 我的动作 → 选择”，确认街健 313、有氧 20、底部“开始训练 · 1”存在且 error/warning 均为 0；为避免写入真实 execution，没有点击最终开始按钮。截图位于 `screenshots/weapp/unified-action-library-*-2026-08-31.png`，验收 token/user 已从本机 storage 清理。
+- Next: 若用户确认需要发布，再单独授权提交/推送 `dev`、部署开发 API 并上传体验版；当前不自动执行任何发布动作。

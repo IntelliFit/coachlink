@@ -32,6 +32,7 @@ export interface PublicActionItemDto {
     enableAutoWeightCompute?: boolean | null;
     includesBodyWeight?: boolean | null;
     canonical_action_id?: string | null;
+    category?: string | null;
     reference_image_url?: string | null;
     like_count: number;
     created_at: string | null;

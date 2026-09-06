@@ -3,6 +3,8 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { FinishImpromptuDto, FinishImpromptuResponseDto } from "./entity";
+import { attachWorkoutEnergyEstimate } from "@/lib/workoutEnergyExecution";
+import type { WorkoutEnergyEstimate } from "@/lib/workoutEnergy";
 
 export async function POST(req: Request) {
     try {
@@ -29,7 +31,7 @@ export async function POST(req: Request) {
 
         const { data: execution, error: queryError } = await supabase
             .from("impromptu_executions")
-            .select("id, student_id, status, action_executions")
+            .select("id, student_id, status, action_executions, started_at")
             .eq("id", executionId)
             .single();
 
@@ -88,6 +90,21 @@ export async function POST(req: Request) {
             0,
         );
 
+        let energyEstimate: WorkoutEnergyEstimate | null = null;
+        try {
+            const energyResult = await attachWorkoutEnergyEstimate({
+                db: supabase,
+                userId,
+                startedAt: execution.started_at,
+                completedAt: nowIso,
+                actionExecutions: updatedActions,
+            });
+            energyEstimate = energyResult.estimate;
+            if (energyEstimate) updatedActions = energyResult.actionExecutions;
+        } catch (energyError) {
+            console.warn("[impromptu/finish] calorie estimate skipped:", energyError);
+        }
+
         const { data, error } = await supabase
             .from("impromptu_executions")
             .update({
@@ -100,7 +117,7 @@ export async function POST(req: Request) {
                 last_saved_at: nowIso,
             })
             .eq("id", executionId)
-            .select("id, status, completed_at, completed_sets, total_sets")
+            .select("id, status, completed_at, completed_sets, total_sets, action_executions")
             .single();
 
         if (error || !data) {
@@ -140,7 +157,10 @@ export async function POST(req: Request) {
         return NextResponse.json<ApiData<FinishImpromptuResponseDto>>({
             success: true,
             message: "完成训练成功",
-            data,
+            data: {
+                ...data,
+                energy_estimate: energyEstimate,
+            },
         });
     } catch (error) {
         console.error("finish impromptu error:", error);
