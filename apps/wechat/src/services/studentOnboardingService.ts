@@ -1,7 +1,7 @@
 import { studentService } from './studentService'
 
 const DEFAULT_STUDENT_NEXT_URL = '/pages/index/index'
-const DEFAULT_ONBOARDING_NEXT_URL = '/training/impromptu-training?from=onboarding'
+const DEFAULT_ONBOARDING_NEXT_URL = '/me/action-lib/index?mode=impromptu-select&source=frequent&itemType=STRENGTH&from=onboarding'
 
 const LEGACY_ROUTE_ALIASES: Record<string, string> = {
   '/index': '/pages/index/index'

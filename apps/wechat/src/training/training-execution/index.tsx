@@ -137,6 +137,16 @@ interface ActionExecution {
   sets: SetData[]
   total_sets: number
   completed_sets: number
+  type?: string
+  item_type?: string
+  energy_estimate?: {
+    calories?: number
+    activeCalories?: number
+    met?: number
+    minutes?: number
+    confidence?: 'high' | 'medium' | 'low'
+    basis?: string
+  } | null
 }
 
 type PickerActionSource = 'mine' | 'public'
@@ -829,8 +839,11 @@ function TrainingExecution() {
             actionMap[item.action_id] = {
               id: item.action_id,
               name: item.action_name || '动作',
-              type: 'STRENGTH',
-              attrs: ['组数', '次数', '强度', '休息时间']
+              type: item.type || item.item_type || 'STRENGTH',
+              attrs: Array.isArray(item.attrs) ? item.attrs : ['组数', '次数', '强度', '休息时间'],
+              category: item.category || null,
+              item_schema: item.item_schema || null,
+              suggested_time: item.suggested_time || null
             }
           }
         })
@@ -2276,9 +2289,13 @@ function TrainingExecution() {
   const workoutSummary = (() => {
     let totalVolume = 0
     let completedSetTotal = 0
+    let cardioDistanceKm = 0
+    let cardioRecordedMinutes = 0
+    let calories = 0
     const muscleScores: Record<string, number> = {}
     const actionRows = actionExecutions.map((action: ActionExecution) => {
       const detail = actions[action.action_id] || {}
+      const actionType = String(detail?.type || action.type || action.item_type || 'STRENGTH').toUpperCase()
       const completed = (action.sets || []).filter((set: SetData) => set.status === 'completed')
       const actionVolume = completed.reduce((sum: number, set: SetData) => {
         const actualWeight = Number(set.actual_weight)
@@ -2293,11 +2310,25 @@ function TrainingExecution() {
       })
       totalVolume += actionVolume
       completedSetTotal += completed.length
+      const actionDistanceKm = completed.reduce((sum: number, set: SetData) => (
+        sum + Math.max(0, Number(set.actual_distance || 0)) / 1000
+      ), 0)
+      const actionDurationMin = completed.reduce((sum: number, set: SetData) => (
+        sum + Math.max(0, Number(set.actual_duration || 0)) / 60
+      ), 0)
+      const actionCalories = Math.max(0, Number(action.energy_estimate?.calories || 0))
+      cardioDistanceKm += actionDistanceKm
+      cardioRecordedMinutes += actionDurationMin
+      calories += actionCalories
       return {
         id: action.action_id,
         name: action.action_name || detail?.name || '动作',
         setsCount: completed.length,
         volume: actionVolume,
+        type: actionType,
+        distanceKm: actionDistanceKm,
+        durationMin: actionDurationMin,
+        calories: actionCalories,
         sets: completed.map((set: SetData, setIndex: number) => {
           const hasActualWeight =
             set.actual_weight !== null &&
@@ -2346,6 +2377,9 @@ function TrainingExecution() {
     return {
       totalVolume,
       completedSetTotal,
+      cardioDistanceKm,
+      cardioRecordedMinutes,
+      calories,
       durationMin,
       muscles,
       actionRows
@@ -3322,19 +3356,38 @@ function TrainingExecution() {
             </View>
 
             <View className="summary-stat-grid">
-              <View className="summary-stat">
-                <Text className="summary-stat-value">{Math.round(workoutSummary.totalVolume)}</Text>
-                <Text className="summary-stat-label">总容量 kg</Text>
-              </View>
+              {workoutSummary.totalVolume > 0 ? (
+                <View className="summary-stat">
+                  <Text className="summary-stat-value">{Math.round(workoutSummary.totalVolume)}</Text>
+                  <Text className="summary-stat-label">总容量 kg</Text>
+                </View>
+              ) : null}
+              {workoutSummary.cardioDistanceKm > 0 ? (
+                <View className="summary-stat">
+                  <Text className="summary-stat-value">{workoutSummary.cardioDistanceKm.toFixed(1)}</Text>
+                  <Text className="summary-stat-label">有氧公里</Text>
+                </View>
+              ) : null}
               <View className="summary-stat">
                 <Text className="summary-stat-value">{workoutSummary.completedSetTotal}</Text>
-                <Text className="summary-stat-label">完成组数</Text>
+                <Text className="summary-stat-label">完成项目</Text>
               </View>
               <View className="summary-stat">
                 <Text className="summary-stat-value">{workoutSummary.durationMin || '-'}</Text>
                 <Text className="summary-stat-label">分钟</Text>
               </View>
+              {workoutSummary.calories > 0 ? (
+                <View className="summary-stat">
+                  <Text className="summary-stat-value">{Math.round(workoutSummary.calories)}</Text>
+                  <Text className="summary-stat-label">AI估算 kcal</Text>
+                </View>
+              ) : null}
             </View>
+            <Text className="summary-energy-note">
+              {workoutSummary.calories > 0
+                ? `热量按体重、实际时长与2024运动MET估算${execution?.energy_estimate?.method === 'ai_assisted_2024_compendium' ? '，AI用于强度分类' : ''}；未接入心率设备时不等同实验室实测。`
+                : '完善个人体重并记录有氧时长后，才能生成可复算的训练热量估算。'}
+            </Text>
 
             <View className="summary-muscle-list">
               {(workoutSummary.muscles.length > 0 ? workoutSummary.muscles : [{ label: '全身', score: 1 }]).slice(0, 5).map((item) => (
@@ -3351,7 +3404,15 @@ function TrainingExecution() {
               {workoutSummary.actionRows.slice(0, 8).map((item) => (
                 <View key={item.id} className="summary-action-row">
                   <Text className="summary-action-name">{item.name}</Text>
-                  <Text className="summary-action-meta">{item.setsCount}组 · {Math.round(item.volume)}kg</Text>
+                  <Text className="summary-action-meta">
+                    {item.type === 'CARDIO'
+                      ? [
+                          item.durationMin > 0 ? `${Math.round(item.durationMin)}分钟` : null,
+                          item.distanceKm > 0 ? `${item.distanceKm.toFixed(1)}km` : null,
+                          item.calories > 0 ? `${Math.round(item.calories)}kcal` : null
+                        ].filter(Boolean).join(' · ') || '已完成'
+                      : `${item.setsCount}组 · ${Math.round(item.volume)}kg${item.calories > 0 ? ` · ${Math.round(item.calories)}kcal` : ''}`}
+                  </Text>
                 </View>
               ))}
               {workoutSummary.actionRows.length === 0 && (
