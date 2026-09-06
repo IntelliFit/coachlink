@@ -40,6 +40,7 @@ ALTER TABLE public.impromptu_execution_set_videos ENABLE ROW LEVEL SECURITY;
 
 -- All reads and writes currently pass through authenticated API routes using
 -- the service role. Do not grant direct anon/authenticated table access.
+REVOKE ALL ON TABLE public.impromptu_execution_set_videos FROM anon, authenticated;
 GRANT ALL ON TABLE public.impromptu_execution_set_videos TO service_role;
 
 COMMENT ON TABLE public.impromptu_execution_set_videos IS
