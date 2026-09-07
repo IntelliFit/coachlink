@@ -9618,3 +9618,13 @@
 - WeChat verification boundary: 微信开发者工具 `2.02.2607171` 已成功打开本地项目，但 `mrc 1.0` 仍按旧协议直连 WebSocket，而新版 DevTools 的 9420 为 HTTP CLI 服务，无法取得本轮可靠自动截图/日志；没有把“构建成功”虚报为新的页面截图验收。8 月 31 日的同功能实际页面点击和截图证据仍在 `screenshots/weapp/unified-action-library-*-2026-08-31.png`。
 - Production: 镜像 `latest/main/94dad86` 摘要统一为 `sha256:cf6f8e03237a30fe9a2b763dca92f9abfc20e412ca7e4e36f43737550eb531aa`。Keel 已完成 `coachlink-main` 滚动，3/3 主容器 Ready、0 重启且全部运行该摘要；公网 `/api/healthy` 返回 200，`buildTime=2026-09-06T03:58:54.915Z`。公共动作接口最小只读探针成功，即兴常用动作接口未登录探针正确返回 401。
 - Follow-up: 用户从同步后的 `dev` 更新小程序版本并自行完成上传/审核/发布。依赖安装审计仍提示 73 个历史漏洞（8 critical、27 high、37 moderate、1 low），不属于本次提交新增，但需要单独安排依赖安全治理，不能用 `npm audit fix --force` 在发布收尾中盲目处理。
+
+## 全量双分支、数据库、全后端与小程序体验版发布 (`2026-09-06`，`2026-09-08` 复核)
+
+- Status: 用户追加授权后，已把移动 App 上线准备、统一动作库/热量估算、即兴训练组视频及数据库权限修复完整纳入同一发布候选。GitHub/Gitee 的 `dev` 与 `main` 均同步到 `928414df`；2026-09-08 继续任务前再次 fetch，四个远端引用仍完全一致、没有遗漏的新提交。
+- Database: 生产 Supabase 项目 `uhlqribpagvklpqmcqvo` 已精确执行并登记迁移 `20260904_create_impromptu_execution_set_videos.sql`。新表 RLS 已启用，`anon/authenticated` 无权限，只授予 `service_role`，唯一约束、级联外键、更新时间触发器均在线回读通过；没有因历史迁移记录分叉而执行全量 `db push`。安全顾问仍报告若干既有 public 表未启用 RLS、security-definer 视图/函数等历史债务，本次未越权批量修改。
+- Images: Web/API 生产摘要 `sha256:8dc27a49ca44cf9245db771dce0342650cda2c1d29175dd4bf7af38d051398f1`，开发摘要 `sha256:b5cc4b53088575c895a2eae34af346436a484d9bbe018c680bf430a59c8305df`；Power Worker 摘要 `sha256:90933f411dafa4a3ca8e61031c8258c3a0e47e2fa27923b3a34d474161662b33`；Motion Effects/视频 Worker 摘要 `sha256:e2e0c2a0b9f297c6829e889e8f7b3eb0c8ff649b742db3c593f874f2cc5701ce`。视频 Worker 首次构建两次遇 Debian CDN 中断，改用 Docker host network 后同一 Dockerfile 构建成功。
+- Deployment: `coachlink-main` 3/3、`coachlink-dev` 3/3、Power Worker main/dev 各 1/1、Motion Effects Worker main/dev 各 1/1、生产优先视频 Worker 1/1，全部滚动完成、Ready、0 重启并运行上述摘要。生产/开发 `/api/healthy` 均 HTTP 200；两边 `/api/impromptu/upload-set-video` 未登录探针均正确返回 401。Power 与视频 Worker 容器内 `ffmpeg/ffprobe 5.1.9` 可执行。
+- WeChat: 从干净 `dev@928414df` 构建 release，扫描确认无 localhost/127.0.0.1/0.0.0.0；微信开发者工具成功上传体验版 `2026.09.06.1342`，描述 `全量同步训练视频 928414d`，AppID `wx316e39eb71c0e834`，微信侧统计约 9.6 MB。只上传体验版，未提交审核、未发布正式版。
+- Gates: lint 提示脚本、root/mobile typecheck、Vitest 45 files / 214 tests、Next 541 路由生产构建、小程序 release 2,870 modules、Web/Power/Motion 三类 Docker 构建均通过。2026-09-08 补装匹配 Playwright Chromium 后，登录/刷新会话、订阅训练闭环与后端 CRUD 幂等清理共 4 条 E2E 全部通过；首轮只因浏览器二进制缺失在启动前失败，没有业务断言失败，也没有修改测试。
+- Remaining: 小程序体验版仍需用户真机验收，即兴训练组视频的真实拍摄/上传/教练查看链路尤其需要覆盖；本轮没有提审或正式发布小程序。历史 npm 依赖漏洞和 Supabase 安全顾问存量问题需另开治理任务。
