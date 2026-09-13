@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { resolveCoachLinkAppRole } from '@coachlink/core'
-import { Alert, Image, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Alert, AppState, Image, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
 import * as Clipboard from 'expo-clipboard'
@@ -10,6 +10,14 @@ import { API_BASE_URL, APP_VERSION } from '../../config'
 import { apiClient, fetchWithTimeout, getStoredToken, persistSession } from '../../api'
 import { IconFont, type IconFontName } from '../../components/IconFont'
 import { useAuth } from '../../providers/AuthProvider'
+import { useMessageCenter } from '../../providers/MessageCenterProvider'
+import {
+  getChatMessagesCache,
+  mergeOlderMessages,
+  mergeServerLatestPage,
+  setChatMessagesCache,
+  type CachedChatMessage,
+} from '../messages/chatMessageCache'
 import { colors, radius, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
 import {
@@ -107,8 +115,20 @@ type FitnessFieldKey =
 type StudentActionItem = {
   id: string
   name: string
+  detail?: string | null
+  description?: string | null
+  url?: string | null
+  video_url?: string | null
+  positions?: string[] | null
+  attrs?: string[] | null
+  type?: string | null
   reference_1rm?: number | null
   includesBodyWeight?: boolean
+  enableAutoWeightCompute?: boolean
+  canonical_action_id?: string | null
+  category?: string | null
+  reference_image_url?: string | null
+  suggested_time?: string | null
 }
 type ActionDetailData = {
   id?: string
@@ -122,12 +142,40 @@ type ActionDetailData = {
   url?: string | null
   video_url?: string | null
   reference_1rm?: number | null
+  includesBodyWeight?: boolean | null
+  enableAutoWeightCompute?: boolean | null
+  canonical_action_id?: string | null
+  category?: string | null
+  reference_image_url?: string | null
+  suggested_time?: string | null
 }
 type CoachActionItem = ActionDetailData & {
   id: string
   isAdded?: boolean
   is_added?: boolean
 }
+type PublicActionItem = ActionDetailData & {
+  id: string
+  isAdded?: boolean
+  is_added?: boolean
+  isLiked?: boolean
+  like_count?: number
+  contributor?: {
+    nickname?: string | null
+  } | null
+}
+type ActionLibraryItem = ActionDetailData & {
+  id: string
+  isAdded?: boolean
+  is_added?: boolean
+  isLiked?: boolean
+  like_count?: number
+  contributor?: {
+    nickname?: string | null
+  } | null
+}
+type ActionLibrarySource = 'mine' | 'coach' | 'public'
+type ActionLibraryMode = 'all' | 'strength' | 'street' | 'cardio'
 type E1RMHistoryPoint = {
   date: string
   e1rm?: number
@@ -205,19 +253,7 @@ type CoachAggregatedInfo = {
   } | null
 }
 type CoachStatusKey = 'active' | 'preparing' | 'not_started' | 'expired' | 'expiring' | 'waiting' | 'inactive'
-type ChatMessage = {
-  id: string
-  chatUserId?: string
-  chatUserProfile?: {
-    name?: string | null
-    avatar?: string | null
-  } | null
-  messageType?: string
-  content?: string | null
-  mediaUrl?: string | null
-  createdAt?: string
-  isMine?: boolean
-}
+type ChatMessage = CachedChatMessage
 type FriendItem = {
   userId: string
   nickname?: string | null
@@ -1068,7 +1104,10 @@ function tierToneStyle(tier: MembershipTier) {
 function actionTypeLabel(type?: string | null) {
   const normalized = String(type || '').toUpperCase()
   if (normalized === 'CARDIO') return '有氧'
+  if (normalized === 'DIET') return '饮食'
+  if (normalized === 'HABIT') return '习惯'
   if (normalized === 'FLEXIBILITY') return '柔韧'
+  if (normalized === 'BALANCE') return '平衡'
   if (normalized === 'MOBILITY') return '灵活性'
   if (normalized === 'SKILL') return '技术'
   if (normalized === 'STRENGTH') return '力量'
@@ -1090,6 +1129,77 @@ function actionDetailText(action?: ActionDetailData | null) {
 
 function actionVideoUrl(action?: ActionDetailData | null) {
   return asText(action?.url || action?.video_url, '')
+}
+
+const ACTION_LIBRARY_SOURCES: Array<{ key: ActionLibrarySource; label: string }> = [
+  { key: 'mine', label: '我的' },
+  { key: 'coach', label: '教练' },
+  { key: 'public', label: '公共' },
+]
+
+const ACTION_LIBRARY_MODES: Array<{ key: ActionLibraryMode; label: string }> = [
+  { key: 'all', label: '全部' },
+  { key: 'strength', label: '力量' },
+  { key: 'street', label: '街健' },
+  { key: 'cardio', label: '有氧' },
+]
+
+const ACTION_POSITION_FILTERS = [
+  { key: 'all', label: '全部部位', keywords: [] },
+  { key: 'chest', label: '胸', keywords: ['胸', '卧推', '俯卧撑'] },
+  { key: 'back', label: '背', keywords: ['背', '引体', '划船', '下拉'] },
+  { key: 'shoulder', label: '肩', keywords: ['肩', '三角肌', '推举'] },
+  { key: 'arms', label: '手臂', keywords: ['手臂', '二头', '三头', '弯举', '臂屈伸'] },
+  { key: 'core', label: '核心', keywords: ['核心', '腹', '腰腹', '平板'] },
+  { key: 'legs', label: '腿', keywords: ['腿', '股四头', '腘绳', '深蹲', '硬拉'] },
+  { key: 'glutes', label: '臀', keywords: ['臀', '髋'] },
+] as const
+
+const ACTION_EDIT_TYPES = [
+  { key: 'STRENGTH', label: '力量' },
+  { key: 'CARDIO', label: '有氧' },
+  { key: 'FLEXIBILITY', label: '柔韧' },
+  { key: 'BALANCE', label: '平衡' },
+  { key: 'DIET', label: '饮食' },
+  { key: 'HABIT', label: '习惯' },
+] as const
+
+const ACTION_EDIT_POSITIONS = ['胸部', '背部', '肩部', '手臂', '核心', '腿部', '臀部', '全身'] as const
+const ACTION_EDIT_ATTRS = ['力量', '耐力', '爆发力', '柔韧性', '平衡', '强度'] as const
+
+function actionLibrarySearchText(action: ActionDetailData) {
+  return [
+    actionName(action),
+    action.detail,
+    action.description,
+    action.type,
+    action.category,
+    ...normalizeStringList(action.positions),
+    ...normalizeStringList(action.attrs),
+    ...(action && 'contributor' in action
+      ? [String((action as ActionLibraryItem).contributor?.nickname || '')]
+      : []),
+  ].filter(Boolean).join(' ').toLowerCase()
+}
+
+function isStreetAction(action: ActionDetailData) {
+  const canonicalId = String(action.canonical_action_id || '').toLowerCase()
+  const text = actionLibrarySearchText(action)
+  return canonicalId.startsWith('street_workout_') || text.includes('街头健身') || text.includes('街健')
+}
+
+function matchesActionLibraryMode(action: ActionDetailData, mode: ActionLibraryMode) {
+  if (mode === 'all') return true
+  const type = String(action.type || 'STRENGTH').toUpperCase()
+  if (mode === 'cardio') return type === 'CARDIO'
+  if (type !== 'STRENGTH') return false
+  return mode === 'street' ? isStreetAction(action) : !isStreetAction(action)
+}
+
+function actionLibrarySourceLabel(source: ActionLibrarySource) {
+  if (source === 'coach') return '教练动作'
+  if (source === 'public') return '公共动作'
+  return '我的动作'
 }
 
 function DataListScreen({
@@ -1174,6 +1284,7 @@ function useRouteAny<T extends keyof RootStackParamList>() {
 export function ProfileScreen() {
   const navigation = useNavigationAny()
   const { user, isAuthenticated, logout, refreshUser, switchRole } = useAuth()
+  const { unreadCount } = useMessageCenter()
   const { open } = useProtectedNavigation(navigation)
   const [stats, setStats] = useState({ actions: 0, plans: 0, trainingActions: 0 })
   const [membership, setMembership] = useState<any>(null)
@@ -1317,7 +1428,7 @@ export function ProfileScreen() {
         <MenuRow label="排行榜" icon="icon-ranking" iconBg="#CF6D4E" onPress={() => open('Ranking')} />
         <MenuRow label="我的教练" icon="icon-coachline_line" iconBg="#5C8DFF" onPress={() => open('MyCoaches')} />
         <MenuRow label="我的会员" desc={membership?.membership?.name || membership?.level || '查看会员状态'} icon="icon-vips" iconBg="#FFA940" onPress={() => open('Membership')} />
-        <MenuRow label="消息中心" icon="icon-messages" iconBg="#26A69A" onPress={() => open('Messages')} />
+        <MenuRow label="消息中心" icon="icon-messages" iconBg="#26A69A" badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : undefined} onPress={() => open('Messages')} />
         <MenuRow label="我的主页" icon="icon-user" iconBg="#8FD3FE" onPress={() => open('UserHome')} />
         <MenuRow label="购买记录" icon="icon-goumaijilu" iconBg="#722ed1" onPress={() => open('PurchaseHistory')} />
         <MenuRow label="购物车" icon="icon-goumaijilu" iconBg="#B37FEB" onPress={() => open('Cart')} />
@@ -1753,60 +1864,255 @@ export function E1RMChartScreen() {
 
 export function ActionLibraryScreen() {
   const navigation = useNavigationAny()
+  const [source, setSource] = useState<ActionLibrarySource>('mine')
+  const [mode, setMode] = useState<ActionLibraryMode>('all')
+  const [positionFilter, setPositionFilter] = useState('all')
+  const [searchText, setSearchText] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [actions, setActions] = useState<ActionDetailData[]>([])
+  const [mineActions, setMineActions] = useState<ActionLibraryItem[]>([])
+  const [coachActions, setCoachActions] = useState<CoachActionItem[]>([])
+  const [publicActions, setPublicActions] = useState<PublicActionItem[]>([])
+  const [coachName, setCoachName] = useState('')
   const [error, setError] = useState('')
+  const [addingId, setAddingId] = useState('')
+  const requestSequence = useRef(0)
 
-  async function load(silent = false) {
+  const load = useCallback(async (target: ActionLibrarySource, silent = false) => {
+    const sequence = ++requestSequence.current
     if (!silent) setLoading(true)
     setError('')
     try {
-      const data = await requestMaybe<unknown>('/api/student/action-lib/list-actions', { body: { page: 1, limit: 80, search: '' } })
-      setActions(pickList(data, ['actions', 'items', 'data']) as ActionDetailData[])
+      if (target === 'mine') {
+        const data = await requestMaybe<unknown>('/api/student/action-lib/list-actions', { body: { page: 1, limit: 500, search: '' } })
+        setMineActions(pickList(data, ['actions', 'items', 'data']) as ActionLibraryItem[])
+      } else if (target === 'coach') {
+        const data = await requestMaybe<unknown>('/api/student/action-lib/list-coach-actions', { body: {} })
+        const record = data && typeof data === 'object' ? data as AnyRecord : {}
+        setCoachActions(pickList(record, ['actions', 'items', 'data']) as CoachActionItem[])
+        setCoachName(asText(record.coachName || record.coach?.name, ''))
+      } else {
+        const data = await requestMaybe<unknown>('/api/public-action-lib/list-actions', {
+          body: { page: 1, limit: 500, search: '', viewerActionType: 'student' },
+        })
+        setPublicActions(pickList(data, ['actions', 'items', 'data']) as PublicActionItem[])
+      }
     } catch (err) {
-      setError(errorMessage(err))
-      setActions([])
+      if (sequence === requestSequence.current) setError(errorMessage(err, `加载${actionLibrarySourceLabel(target)}失败`))
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      if (sequence === requestSequence.current) {
+        setLoading(false)
+        setRefreshing(false)
+      }
+    }
+  }, [])
+
+  useFocusEffect(useCallback(() => {
+    void load(source)
+  }, [load, source]))
+
+  const sourceActions: ActionLibraryItem[] = source === 'mine'
+    ? mineActions
+    : source === 'coach' ? coachActions : publicActions
+  const position = ACTION_POSITION_FILTERS.find((item) => item.key === positionFilter) || ACTION_POSITION_FILTERS[0]
+  const keyword = searchText.trim().toLowerCase()
+  const filteredActions = sourceActions.filter((action) => {
+    const haystack = actionLibrarySearchText(action)
+    return matchesActionLibraryMode(action, mode)
+      && (!keyword || haystack.includes(keyword))
+      && (position.key === 'all' || position.keywords.some((item) => haystack.includes(item)))
+  })
+
+  function refresh() {
+    setRefreshing(true)
+    void load(source, true)
+  }
+
+  function resetFilters() {
+    setSearchText('')
+    setMode('all')
+    setPositionFilter('all')
+  }
+
+  async function addToMine(action: ActionLibraryItem) {
+    if (addingId || action.isAdded || action.is_added || source === 'mine') return
+    setAddingId(action.id)
+    try {
+      const data = source === 'coach'
+        ? await safeRequest<{ action?: ActionLibraryItem }>('/api/student/action-lib/copy-coach-action', { body: { coachActionId: action.id } })
+        : await safeRequest<{ action?: ActionLibraryItem }>('/api/public-action-lib/add-to-my-lib', { body: { actionId: action.id, targetActionType: 'student' } })
+      if (source === 'coach') {
+        setCoachActions((prev) => prev.map((item) => item.id === action.id ? { ...item, isAdded: true, is_added: true } : item))
+      } else {
+        setPublicActions((prev) => prev.map((item) => item.id === action.id ? { ...item, isAdded: true, is_added: true } : item))
+      }
+      if (data?.action?.id) {
+        setMineActions((prev) => prev.some((item) => item.id === data.action?.id) ? prev : [data.action as ActionLibraryItem, ...prev])
+      }
+      Alert.alert('已加入我的动作库', `${actionName(action)}现在可以直接用于训练和计划。`)
+    } catch (err) {
+      Alert.alert('加入失败', errorMessage(err))
+    } finally {
+      setAddingId('')
     }
   }
 
-  useEffect(() => {
-    void load()
-  }, [])
-
   return (
-    <ScreenShell title="我的动作库" subtitle="管理个人动作、参考 1RM 和演示链接。" onBack={navigation.goBack}>
-      <Card>
-        <MenuRow label="从教练复制动作" desc="选择已订阅教练分享的动作，一键添加到我的动作库。" icon="icon-coachline_line" iconBg="#5C8DFF" onPress={() => navigation.navigate('CopyCoachActions')} />
-        <SolidButton label="新增动作" variant="secondary" onPress={() => navigation.navigate('ActionEdit')} />
+    <ScreenShell
+      title="动作库"
+      subtitle="在我的、教练与公共动作间快速搜索和筛选。"
+      onBack={navigation.goBack}
+      refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.brand} colors={[colors.brand]} onRefresh={refresh} />}
+    >
+      <View style={local.actionLibrarySourceTabs}>
+        {ACTION_LIBRARY_SOURCES.map((item) => (
+          <Pressable
+            key={item.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: source === item.key }}
+            onPress={() => setSource(item.key)}
+            style={[local.actionLibrarySourceTab, source === item.key && local.actionLibrarySourceTabActive]}
+          >
+            <Text style={[local.actionLibrarySourceText, source === item.key && local.actionLibrarySourceTextActive]}>{item.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Card style={local.actionLibrarySearchCard}>
+        <View style={local.actionLibrarySearchRow}>
+          <IconFont name="icon-search" color={colors.textMuted} size={18} />
+          <TextInput
+            accessibilityLabel="搜索动作"
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder={`搜索${actionLibrarySourceLabel(source)}`}
+            placeholderTextColor={colors.textMuted}
+            returnKeyType="search"
+            autoCorrect={false}
+            style={local.actionLibrarySearchInput}
+          />
+          {searchText ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="清空搜索" onPress={() => setSearchText('')} style={local.actionLibraryClearSearch}>
+              <Text style={local.actionLibraryClearSearchText}>×</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={local.actionLibraryFilterRow}>
+          {ACTION_LIBRARY_MODES.map((item) => (
+            <Pressable key={item.key} onPress={() => setMode(item.key)} style={[local.actionLibraryFilterChip, mode === item.key && local.actionLibraryFilterChipActive]}>
+              <Text style={[local.actionLibraryFilterText, mode === item.key && local.actionLibraryFilterTextActive]}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={local.actionLibraryFilterRow}>
+          {ACTION_POSITION_FILTERS.map((item) => (
+            <Pressable key={item.key} onPress={() => setPositionFilter(item.key)} style={[local.actionLibraryPositionChip, positionFilter === item.key && local.actionLibraryPositionChipActive]}>
+              <Text style={[local.actionLibraryPositionText, positionFilter === item.key && local.actionLibraryPositionTextActive]}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </Card>
-      {loading ? <LoadingState /> : null}
-      {!loading && error ? (
+
+      <View style={local.actionLibrarySummaryRow}>
+        <View style={local.flexOne}>
+          <Text style={local.actionLibrarySummaryTitle}>{actionLibrarySourceLabel(source)}</Text>
+          <Text style={local.actionLibrarySummaryMeta}>
+            {source === 'coach' && coachName ? `${coachName} · ` : ''}{filteredActions.length} 个动作
+          </Text>
+        </View>
+        {source === 'mine' ? (
+          <Pressable accessibilityRole="button" onPress={() => navigation.navigate('ActionEdit')} style={local.actionLibraryAddAction}>
+            <Text style={local.actionLibraryAddActionText}>＋ 新增动作</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {loading && sourceActions.length === 0 ? <LoadingState title={`正在加载${actionLibrarySourceLabel(source)}`} /> : null}
+      {!loading && error && sourceActions.length === 0 ? (
         <>
           <EmptyState title="加载失败" desc={error} icon="icon-wenhao" />
-          <SolidButton label="重试" onPress={() => void load()} />
+          <SolidButton label="重试" variant="secondary" onPress={() => void load(source)} />
         </>
       ) : null}
-      {!loading && !error && actions.length === 0 ? <EmptyState title="暂无动作" desc="先新增动作，或从已订阅教练的动作库复制。" icon="icon-dumbbell" /> : null}
-      {!loading && !error && actions.length > 0 ? (
-        <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true) }} />} scrollEnabled={false}>
-          <Card>
-            {actions.map((item, index) => (
-              <View key={String(item.id || item.name || index)} style={local.itemBlock}>
-                <Pressable onPress={() => navigation.navigate('ActionDetail', { id: item.id, action: item, source: 'mine' })} style={local.actionListItem}>
-                  <View style={local.actionListMain}>
-                    <Text style={local.itemTitle}>{actionName(item)}</Text>
-                    <Text style={local.itemMeta}>{secondaryFromItem(item as AnyRecord, ['type', 'detail']) || `参考 1RM：${asText(item.reference_1rm, '未设置')}`}</Text>
+      {error && sourceActions.length > 0 ? <Text style={local.actionLibraryWarning}>刷新失败：{error}</Text> : null}
+      {!loading && !error && sourceActions.length === 0 ? (
+        <>
+          <EmptyState
+            title={source === 'mine' ? '暂无个人动作' : source === 'coach' ? '暂无教练动作' : '暂无公共动作'}
+            desc={source === 'mine'
+              ? '新建动作，或切换到教练/公共动作库一键加入。'
+              : source === 'coach' ? '订阅教练并由教练分享动作后，会在这里显示。' : '公共动作库暂时没有可用内容，请稍后刷新。'}
+            icon={source === 'coach' ? 'icon-coachline_line' : 'icon-dumbbell'}
+          />
+          {source === 'mine' ? <SolidButton label="新增动作" onPress={() => navigation.navigate('ActionEdit')} /> : null}
+        </>
+      ) : null}
+      {!loading && sourceActions.length > 0 && filteredActions.length === 0 ? (
+        <>
+          <EmptyState title="没有匹配动作" desc="换个关键词，或清空类型和部位筛选。" icon="icon-search" />
+          <SolidButton label="清空筛选" variant="secondary" onPress={resetFilters} />
+        </>
+      ) : null}
+      {filteredActions.length > 0 ? (
+        <View style={local.actionLibraryList}>
+          {filteredActions.map((item) => {
+            const added = Boolean(item.isAdded || item.is_added)
+            const isAdding = addingId === item.id
+            const tags = [...normalizeStringList(item.positions), ...normalizeStringList(item.attrs)].slice(0, 3)
+            const publicMeta = source === 'public'
+              ? `${item.contributor?.nickname || 'CoachLink 用户'} · ${Math.max(0, Number(item.like_count) || 0)} 赞`
+              : ''
+            return (
+              <Card key={item.id} style={local.actionLibraryItemCard}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`查看${actionName(item)}详情`}
+                  onPress={() => navigation.navigate('ActionDetail', { id: item.id, action: item, source })}
+                  style={({ pressed }) => [local.actionLibraryItemTop, pressed && local.actionLibraryPressed]}
+                >
+                  <View style={local.actionLibraryInitial}>
+                    <Text style={local.actionLibraryInitialText}>{actionName(item).slice(0, 1)}</Text>
+                  </View>
+                  <View style={local.actionLibraryItemMain}>
+                    <View style={local.actionLibraryNameRow}>
+                      <Text numberOfLines={1} style={local.actionLibraryItemName}>{actionName(item)}</Text>
+                      <Text style={local.typePill}>{isStreetAction(item) ? '街健' : actionTypeLabel(item.type)}</Text>
+                    </View>
+                    <Text numberOfLines={2} style={local.actionLibraryItemDetail}>{actionDetailText(item)}</Text>
+                    {publicMeta ? <Text style={local.actionLibraryPublicMeta}>{publicMeta}</Text> : null}
                   </View>
                   <IconFont name="icon-right-arrow" size={18} color={colors.textMuted} />
                 </Pressable>
-              </View>
-            ))}
-          </Card>
-        </ScrollView>
+                {tags.length > 0 || item.reference_1rm ? (
+                  <View style={local.tagWrap}>
+                    {tags.map((tag, index) => <Text key={`${item.id}-${tag}-${index}`} style={local.actionTag}>{tag}</Text>)}
+                    {item.reference_1rm ? <Text style={local.actionTag}>1RM {item.reference_1rm}kg</Text> : null}
+                  </View>
+                ) : null}
+                <View style={local.actionLibraryItemFooter}>
+                  <Text style={local.actionLibraryFooterHint}>
+                    {source === 'mine' ? '个人动作' : source === 'coach' ? '来自订阅教练' : '来自公共动作库'}
+                  </Text>
+                  {source === 'mine' ? (
+                    <Pressable accessibilityRole="button" onPress={() => navigation.navigate('ActionEdit', { id: item.id, action: item })} style={local.actionLibrarySecondaryAction}>
+                      <Text style={local.actionLibrarySecondaryActionText}>编辑</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: added || Boolean(addingId) }}
+                      disabled={added || Boolean(addingId)}
+                      onPress={() => void addToMine(item)}
+                      style={[local.actionLibraryPrimaryAction, (added || Boolean(addingId)) && local.actionLibraryActionDisabled]}
+                    >
+                      <Text style={local.actionLibraryPrimaryActionText}>{added ? '已加入' : isAdding ? '加入中…' : source === 'coach' ? '复制到我的' : '加入我的'}</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </Card>
+            )
+          })}
+        </View>
       ) : null}
     </ScreenShell>
   )
@@ -1862,7 +2168,7 @@ export function ActionDetailScreen() {
   }
 
   return (
-    <ScreenShell title={actionName(action)} subtitle={source === 'coach' ? '教练动作详情' : '动作详情'} onBack={navigation.goBack}>
+    <ScreenShell title={actionName(action)} subtitle={source === 'coach' ? '教练动作详情' : source === 'public' ? '公共动作详情' : '我的动作详情'} onBack={navigation.goBack}>
       {loading ? <LoadingState title="正在加载动作详情" /> : null}
       {!loading && error ? <EmptyState title="加载失败" desc={error} icon="icon-wenhao" /> : null}
       {!loading && !error && !action ? (
@@ -1901,7 +2207,7 @@ export function ActionDetailScreen() {
               <SolidButton label="复制视频链接" variant="secondary" onPress={copyVideoUrl} />
             </View>
           ) : null}
-          {source === 'mine' ? <SolidButton label="编辑动作" onPress={() => navigation.navigate('ActionEdit', { id: action.id || id })} /> : null}
+          {source === 'mine' ? <SolidButton label="编辑动作" onPress={() => navigation.navigate('ActionEdit', { id: action.id || id, action })} /> : null}
         </Card>
       ) : null}
     </ScreenShell>
@@ -1997,15 +2303,84 @@ export function ActionEditScreen() {
   const navigation = useNavigationAny()
   const route = useRouteAny<'ActionEdit'>()
   const id = route.params?.id
-  const [name, setName] = useState('')
-  const [detail, setDetail] = useState('')
-  const [url, setUrl] = useState('')
+  const initialAction = route.params?.action as StudentActionItem | undefined
+  const [name, setName] = useState(initialAction?.name || '')
+  const [detail, setDetail] = useState(initialAction?.detail || initialAction?.description || '')
+  const [url, setUrl] = useState(initialAction?.url || initialAction?.video_url || '')
+  const [type, setType] = useState(String(initialAction?.type || 'STRENGTH').toUpperCase())
+  const [positions, setPositions] = useState<string[]>(normalizeStringList(initialAction?.positions))
+  const [attrs, setAttrs] = useState<string[]>(normalizeStringList(initialAction?.attrs))
+  const [reference1RM, setReference1RM] = useState(initialAction?.reference_1rm ? String(initialAction.reference_1rm) : '')
+  const [suggestedTime, setSuggestedTime] = useState(initialAction?.suggested_time || '')
+  const [includesBodyWeight, setIncludesBodyWeight] = useState(Boolean(initialAction?.includesBodyWeight))
+  const [initialLoading, setInitialLoading] = useState(Boolean(id && !initialAction))
+  const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const loadExistingAction = useCallback(async () => {
+    if (!id || initialAction) return
+    setInitialLoading(true)
+    setLoadError('')
+    try {
+      const data = await requestMaybe<unknown>('/api/student/action-lib/list-actions', { body: { page: 1, limit: 500, search: '' } })
+      const action = (pickList(data, ['actions', 'items', 'data']) as StudentActionItem[]).find((item) => item.id === id)
+      if (!action) throw new Error('动作不存在或已被删除')
+      setName(action.name || '')
+      setDetail(action.detail || action.description || '')
+      setUrl(action.url || action.video_url || '')
+      setType(String(action.type || 'STRENGTH').toUpperCase())
+      setPositions(normalizeStringList(action.positions))
+      setAttrs(normalizeStringList(action.attrs))
+      setReference1RM(action.reference_1rm ? String(action.reference_1rm) : '')
+      setSuggestedTime(action.suggested_time || '')
+      setIncludesBodyWeight(Boolean(action.includesBodyWeight))
+    } catch (error) {
+      setLoadError(errorMessage(error, '动作加载失败'))
+    } finally {
+      setInitialLoading(false)
+    }
+  }, [id, initialAction])
+
+  useEffect(() => {
+    void loadExistingAction()
+  }, [loadExistingAction])
+
+  function toggleOption(value: string, list: string[], setter: (next: string[]) => void) {
+    setter(list.includes(value) ? list.filter((item) => item !== value) : [...list, value])
+  }
+
   async function save() {
+    if (!name.trim()) {
+      Alert.alert('请填写动作名称')
+      return
+    }
+    if (!isValidHttpUrl(url)) {
+      Alert.alert('演示链接格式不正确', '请输入以 http:// 或 https:// 开头的链接。')
+      return
+    }
+    const parsedReference1RM = reference1RM.trim() ? Number(reference1RM) : null
+    if (parsedReference1RM != null && (!Number.isFinite(parsedReference1RM) || parsedReference1RM <= 0)) {
+      Alert.alert('1RM 格式不正确', '请输入大于 0 的数字，或留空。')
+      return
+    }
+    const isStrength = type === 'STRENGTH'
     setLoading(true)
     try {
-      await safeRequest(id ? '/api/student/action-lib/update-action' : '/api/student/action-lib/add-action', { body: { id, name, detail, url } })
+      await safeRequest(id ? '/api/student/action-lib/update-action' : '/api/student/action-lib/add-action', {
+        body: {
+          id,
+          name: name.trim(),
+          detail: detail.trim() || null,
+          url: url.trim() || null,
+          type,
+          positions: isStrength ? (positions.length > 0 ? positions : ['全身']) : null,
+          attrs: isStrength ? (attrs.length > 0 ? attrs : null) : null,
+          reference_1rm: isStrength ? parsedReference1RM : null,
+          enableAutoWeightCompute: isStrength && attrs.includes('强度'),
+          includesBodyWeight: isStrength && attrs.includes('强度') && includesBodyWeight,
+          suggested_time: type === 'DIET' ? (suggestedTime.trim() || null) : null,
+        },
+      })
       Alert.alert('已保存', '动作库已同步')
       navigation.goBack()
     } catch (error) {
@@ -2016,13 +2391,78 @@ export function ActionEditScreen() {
   }
 
   return (
-    <ScreenShell title={id ? '编辑动作' : '新增动作'} subtitle="演示视频链接和动作描述与小程序共用。" onBack={navigation.goBack}>
-      <Card>
-        <FormField label="动作名称" value={name} onChangeText={setName} />
-        <FormField label="动作说明" value={detail} onChangeText={setDetail} multiline />
-        <FormField label="演示链接" value={url} onChangeText={setUrl} />
-        <SolidButton label="保存动作" loading={loading} disabled={!name.trim()} onPress={save} />
-      </Card>
+    <ScreenShell title={id ? '编辑动作' : '新增动作'} subtitle="动作类型、部位、属性和演示资料与小程序共用。" onBack={navigation.goBack}>
+      {initialLoading ? <LoadingState title="正在加载动作" /> : null}
+      {!initialLoading && loadError ? (
+        <>
+          <EmptyState title="动作加载失败" desc={loadError} icon="icon-wenhao" />
+          <SolidButton label="重试" variant="secondary" onPress={() => void loadExistingAction()} />
+        </>
+      ) : null}
+      {!initialLoading && !loadError ? (
+        <>
+          <Card>
+            <Text style={local.actionEditSectionTitle}>基础信息</Text>
+            <FormField label="动作名称" value={name} onChangeText={setName} placeholder="例如：杠铃深蹲" />
+            <FormField label="动作说明" value={detail} onChangeText={setDetail} multiline placeholder="描述动作要领和注意事项" />
+            <FormField label="演示链接" value={url} onChangeText={setUrl} placeholder="https://..." />
+          </Card>
+
+          <Card>
+            <Text style={local.actionEditSectionTitle}>动作类型</Text>
+            <Text style={local.actionEditHint}>类型决定训练记录采用组次、时长或轻量任务结构。</Text>
+            <View style={local.actionEditOptionGrid}>
+              {ACTION_EDIT_TYPES.map((item) => (
+                <Pressable
+                  key={item.key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: type === item.key }}
+                  onPress={() => setType(item.key)}
+                  style={[local.actionEditOption, type === item.key && local.actionEditOptionActive]}
+                >
+                  <Text style={[local.actionEditOptionText, type === item.key && local.actionEditOptionTextActive]}>{item.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </Card>
+
+          {type === 'STRENGTH' ? (
+            <>
+              <Card>
+                <Text style={local.actionEditSectionTitle}>训练部位（多选）</Text>
+                <View style={local.actionEditOptionGrid}>
+                  {ACTION_EDIT_POSITIONS.map((item) => (
+                    <Pressable key={item} onPress={() => toggleOption(item, positions, setPositions)} style={[local.actionEditOption, positions.includes(item) && local.actionEditOptionActive]}>
+                      <Text style={[local.actionEditOptionText, positions.includes(item) && local.actionEditOptionTextActive]}>{item}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </Card>
+              <Card>
+                <Text style={local.actionEditSectionTitle}>动作属性（多选）</Text>
+                <View style={local.actionEditOptionGrid}>
+                  {ACTION_EDIT_ATTRS.map((item) => (
+                    <Pressable key={item} onPress={() => toggleOption(item, attrs, setAttrs)} style={[local.actionEditOption, attrs.includes(item) && local.actionEditOptionActive]}>
+                      <Text style={[local.actionEditOptionText, attrs.includes(item) && local.actionEditOptionTextActive]}>{item}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={local.actionEditHint}>选择“强度”后启用计划自动算重；参考 1RM 仅用于符合条件的力量动作。</Text>
+                <FormField label="参考 1RM（kg）" value={reference1RM} onChangeText={setReference1RM} keyboardType="numeric" placeholder="例如：100" />
+              </Card>
+            </>
+          ) : null}
+
+          {type === 'DIET' ? (
+            <Card>
+              <Text style={local.actionEditSectionTitle}>执行建议</Text>
+              <FormField label="建议时间" value={suggestedTime} onChangeText={setSuggestedTime} placeholder="例如：训练后 30 分钟" />
+            </Card>
+          ) : null}
+
+          <SolidButton label="保存动作" loading={loading} disabled={!name.trim()} onPress={save} />
+        </>
+      ) : null}
     </ScreenShell>
   )
 }
@@ -3271,6 +3711,7 @@ export function PurchaseHistoryScreen() {
 export function SettingsScreen() {
   const navigation = useNavigationAny()
   const { user, logout, switchRole, clearLocalCache, deleteAccount } = useAuth()
+  const { pushState, enablingPush, enableNotifications } = useMessageCenter()
   const [switchingRole, setSwitchingRole] = useState<'student' | 'coach' | null>(null)
   const [clearingCache, setClearingCache] = useState(false)
   const [cacheFeedback, setCacheFeedback] = useState('')
@@ -3327,6 +3768,18 @@ export function SettingsScreen() {
     setDeleteConfirmation('')
   }
 
+  async function enablePush() {
+    const state = await enableNotifications()
+    if (state.registration === 'registered') {
+      Alert.alert('消息通知已开启', state.message)
+    } else if (state.permission === 'denied') {
+      Alert.alert('需要系统通知权限', state.message, [
+        { text: '取消', style: 'cancel' },
+        { text: '打开系统设置', onPress: () => void Linking.openSettings() },
+      ])
+    }
+  }
+
   async function submitDeleteAccount() {
     if (deleteConfirmation.trim() !== '注销账号') {
       Alert.alert('确认文字不正确', '请输入“注销账号”后再继续。')
@@ -3370,6 +3823,25 @@ export function SettingsScreen() {
         ) : (
           <Text style={local.settingsHelp}>当前账号还没有教练资格，可在“我的”页面提交教练申请。</Text>
         )}
+      </Card>
+
+      <Card>
+        <Text style={local.settingsSectionTitle}>消息通知</Text>
+        <View style={local.settingsSummary}>
+          <View style={local.settingsSummaryIcon}>
+            <IconFont name="icon-messages" size={24} color={colors.brand} />
+          </View>
+          <View style={local.settingsSummaryMain}>
+            <Text style={local.settingsSummaryTitle}>{pushState?.registration === 'registered' ? '远程提醒已开启' : '远程提醒未完成'}</Text>
+            <Text style={local.settingsHelp}>{pushState?.message || '可开启教练、学员和系统消息提醒。'}</Text>
+          </View>
+        </View>
+        <SolidButton
+          label={pushState?.registration === 'registered' ? '重新同步通知设备' : '开启消息通知'}
+          variant={pushState?.registration === 'registered' ? 'secondary' : 'primary'}
+          loading={enablingPush}
+          onPress={() => void enablePush()}
+        />
       </Card>
 
       <Card>
@@ -3691,34 +4163,54 @@ export function FriendActivityScreen() {
 
 export function MessagesScreen() {
   const navigation = useNavigationAny()
+  const { refreshUnreadCount, setUnreadCount } = useMessageCenter()
   const [chatrooms, setChatrooms] = useState<ChatroomListItem[]>([])
   const [requests, setRequests] = useState<FriendRequestItem[]>([])
   const [searchText, setSearchText] = useState('')
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const loadingRef = useRef(false)
 
-  async function load() {
-    setLoading(true)
-    setError('')
+  const load = useCallback(async (silent = false) => {
+    if (loadingRef.current) {
+      setRefreshing(false)
+      return
+    }
+    loadingRef.current = true
+    if (!silent) setLoading(true)
     try {
       const [roomData, requestData] = await Promise.all([
         apiClient.request<{ chatRooms?: ChatroomListItem[]; total?: number }>('/api/chat/list-chatrooms?page=1&limit=50', { method: 'GET', timeoutMs: 12000 }),
         apiClient.request<{ requests?: FriendRequestItem[]; total?: number }>('/api/user/friends/pending', { method: 'GET', timeoutMs: 12000 }),
       ])
-      setChatrooms([...(roomData.chatRooms || [])].sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime()))
+      const nextRooms = [...(roomData.chatRooms || [])].sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime())
+      setChatrooms(nextRooms)
       setRequests(requestData.requests || [])
+      setUnreadCount(nextRooms.reduce((sum, room) => sum + Math.max(0, Number(room.unreadCount) || 0), 0))
+      setError('')
     } catch (err) {
       setError(errorMessage(err))
-      setChatrooms([])
-      setRequests([])
     } finally {
       setLoading(false)
+      setRefreshing(false)
+      loadingRef.current = false
     }
-  }
+    void refreshUnreadCount()
+  }, [refreshUnreadCount, setUnreadCount])
 
-  useEffect(() => {
-    void load()
-  }, [])
+  useFocusEffect(useCallback(() => {
+    void load(false)
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') void load(true)
+    }, 12_000)
+    return () => clearInterval(timer)
+  }, [load]))
+
+  const refresh = useCallback(() => {
+    setRefreshing(true)
+    void load(true)
+  }, [load])
 
   const filtered = searchText.trim()
     ? chatrooms.filter((room) => {
@@ -3728,7 +4220,12 @@ export function MessagesScreen() {
     : chatrooms
 
   return (
-    <ScreenShell title="消息中心" subtitle="教练、学员和系统会话。" onBack={navigation.goBack}>
+    <ScreenShell
+      title="消息中心"
+      subtitle="教练、学员和系统会话。"
+      onBack={navigation.goBack}
+      refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.brand} colors={[colors.brand]} onRefresh={refresh} />}
+    >
       <Pressable onPress={() => navigation.navigate('Friends', requests.length > 0 ? { tab: 'requests' } : undefined)} style={local.messagesFriendsEntry}>
         <View style={local.messagesFriendsLeft}>
           <Text style={local.messagesFriendsTitle}>好友</Text>
@@ -3752,14 +4249,21 @@ export function MessagesScreen() {
       </View>
 
       {loading ? <LoadingState /> : null}
-      {!loading && error ? <EmptyState title="加载失败" desc={error} icon="icon-wenhao" /> : null}
+      {!loading && error && chatrooms.length === 0 ? (
+        <>
+          <EmptyState title="加载失败" desc={error} icon="icon-wenhao" />
+          <SolidButton label="重试" variant="secondary" onPress={() => void load(false)} />
+        </>
+      ) : null}
+      {!loading && error && chatrooms.length > 0 ? <Text style={local.inlineWarning}>刷新失败：{error}</Text> : null}
+      {!loading && chatrooms.length > 0 && filtered.length === 0 ? <EmptyState title="没有匹配会话" desc="换个联系人名称或聊天关键词试试。" icon="icon-search" /> : null}
       {!loading && !error && filtered.length === 0 ? <EmptyState title="暂无会话" desc="下拉刷新，或从上方进入好友页添加联系人。" icon="icon-messages" /> : null}
-      {!loading && !error && filtered.length > 0 ? (
+      {!loading && filtered.length > 0 ? (
         <View style={local.chatroomList}>
           {filtered.map((room, index) => {
             const name = room.chatUserProfile?.name || '未知用户'
             return (
-              <Pressable key={room.id} onPress={() => navigation.navigate('Chat', { roomId: room.id })} style={local.chatroomItem}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`与${name}聊天${Number(room.unreadCount || 0) > 0 ? `，${room.unreadCount} 条未读` : ''}`} key={room.id} onPress={() => navigation.navigate('Chat', { roomId: room.id, peerName: name })} style={local.chatroomItem}>
                 <FriendAvatar uri={room.chatUserProfile?.avatar || undefined} name={name} toneIndex={index} square />
                 <View style={local.chatroomContent}>
                   <View style={local.chatroomHeader}>
@@ -3786,76 +4290,235 @@ export function MessagesScreen() {
 export function ChatScreen() {
   const route = useRouteAny<'Chat'>()
   const navigation = useNavigationAny()
+  const { user } = useAuth()
+  const { refreshUnreadCount } = useMessageCenter()
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [cacheReadyRoomId, setCacheReadyRoomId] = useState('')
+  const loadingRef = useRef(false)
   const roomId = route.params?.roomId
+  const peerName = route.params?.peerName || '聊天'
 
-  async function loadMessages() {
+  const loadMessages = useCallback(async (silent = false) => {
     if (!roomId) {
       setLoading(false)
       setMessages([])
       setError('缺少会话 ID')
       return
     }
-    setLoading(true)
-    setError('')
+    if (loadingRef.current) {
+      setRefreshing(false)
+      return
+    }
+    loadingRef.current = true
+    if (!silent) setLoading(true)
     try {
-      const data = await apiClient.request<{ messages?: ChatMessage[] }>('/api/chat/list-messages', {
+      const data = await apiClient.request<{ messages?: ChatMessage[]; has_more?: boolean }>('/api/chat/list-messages', {
         method: 'POST',
-        body: { roomId, page: 1, limit: 50 },
+        body: { roomId, limit: 50 },
         timeoutMs: 12000,
       })
-      setMessages(data.messages || [])
+      setMessages((current) => mergeServerLatestPage(current, data.messages || []))
+      setHasMore(Boolean(data.has_more))
+      setError('')
+      await apiClient.request('/api/chat/mark-as-read', {
+        method: 'POST',
+        body: { roomId },
+        timeoutMs: 8000,
+      }).catch(() => undefined)
+      void refreshUnreadCount()
     } catch (err) {
       setError(errorMessage(err))
-      setMessages([])
     } finally {
       setLoading(false)
+      setRefreshing(false)
+      loadingRef.current = false
     }
-  }
+  }, [refreshUnreadCount, roomId])
+
+  useFocusEffect(useCallback(() => {
+    let active = true
+    setCacheReadyRoomId('')
+    void (async () => {
+      const cached = user?.id && roomId ? await getChatMessagesCache(user.id, roomId) : null
+      if (!active) return
+      if (cached) {
+        setMessages(cached.messages)
+        setHasMore(cached.hasMore)
+        setLoading(false)
+      } else {
+        setMessages([])
+        setHasMore(false)
+      }
+      setCacheReadyRoomId(roomId || '')
+      await loadMessages(Boolean(cached))
+    })()
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') void loadMessages(true)
+    }, 3_000)
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
+  }, [loadMessages, roomId, user?.id]))
 
   useEffect(() => {
-    void loadMessages()
-  }, [roomId])
+    if (!user?.id || !roomId || cacheReadyRoomId !== roomId) return
+    void setChatMessagesCache(user.id, roomId, { messages, hasMore })
+  }, [cacheReadyRoomId, hasMore, messages, roomId, user?.id])
+
+  const loadMore = useCallback(async () => {
+    if (!roomId || loadingMore || !hasMore) return
+    const firstStable = messages.find((item) => !String(item.id).startsWith('temp-'))
+    if (!firstStable) return
+    setLoadingMore(true)
+    try {
+      const data = await apiClient.request<{ messages?: ChatMessage[]; has_more?: boolean }>('/api/chat/list-messages', {
+        method: 'POST',
+        body: { roomId, limit: 50, beforeId: firstStable.id },
+        timeoutMs: 12000,
+      })
+      setMessages((current) => mergeOlderMessages(current, data.messages || []))
+      setHasMore(Boolean(data.has_more))
+    } catch (err) {
+      Alert.alert('加载失败', errorMessage(err))
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [hasMore, loadingMore, messages, roomId])
 
   async function send() {
     if (!roomId || !message.trim()) return
+    const content = message.trim()
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const optimistic: ChatMessage = {
+      id: tempId,
+      messageType: 'text',
+      content,
+      createdAt: new Date().toISOString(),
+      isMine: true,
+      pending: true,
+    }
+    setMessages((current) => [...current, optimistic])
+    setMessage('')
     setSending(true)
     try {
-      await apiClient.request('/api/chat/send-message', {
+      const data = await apiClient.request<{ messageId?: string; createdAt?: string }>('/api/chat/send-message', {
         method: 'POST',
-        body: { roomId, messageType: 'text', content: message.trim() },
+        body: { roomId, messageType: 'text', content },
         timeoutMs: 12000,
       })
-      setMessage('')
-      await loadMessages()
+      setMessages((current) => current.map((item) => item.id === tempId ? {
+        ...item,
+        id: data.messageId || item.id,
+        createdAt: data.createdAt || item.createdAt,
+        pending: false,
+      } : item))
+      void loadMessages(true)
     } catch (error) {
+      setMessages((current) => current.map((item) => item.id === tempId ? { ...item, pending: false, failed: true } : item))
       Alert.alert('发送失败', errorMessage(error))
     } finally {
       setSending(false)
     }
   }
+
+  async function sendImage() {
+    if (!roomId || uploadingImage) return
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert('需要相册权限', '请允许 CoachLink 访问相册后再发送图片。')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.82 })
+    const asset = result.canceled ? null : result.assets[0]
+    if (!asset?.uri) return
+
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    setMessages((current) => [...current, {
+      id: tempId,
+      messageType: 'image',
+      content: '[图片]',
+      mediaUrl: asset.uri,
+      createdAt: new Date().toISOString(),
+      isMine: true,
+      pending: true,
+    }])
+    setUploadingImage(true)
+    try {
+      const token = await getStoredToken()
+      const form = new FormData()
+      form.append('file', {
+        uri: asset.uri,
+        name: asset.fileName || `chat-${Date.now()}.jpg`,
+        type: asset.mimeType || 'image/jpeg',
+      } as any)
+      const uploadResponse = await fetchWithTimeout(`${API_BASE_URL}/api/upload/chat-image`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: form,
+      })
+      const uploadJson = await uploadResponse.json()
+      if (!uploadResponse.ok || !uploadJson?.success || !uploadJson?.data?.url) {
+        throw new Error(uploadJson?.message || '图片上传失败')
+      }
+      const sent = await apiClient.request<{ messageId?: string; createdAt?: string }>('/api/chat/send-message', {
+        method: 'POST',
+        body: { roomId, messageType: 'image', mediaUrl: uploadJson.data.url, content: '' },
+        timeoutMs: 12_000,
+      })
+      setMessages((current) => current.map((item) => item.id === tempId ? {
+        ...item,
+        id: sent.messageId || item.id,
+        createdAt: sent.createdAt || item.createdAt,
+        mediaUrl: uploadJson.data.url,
+        pending: false,
+      } : item))
+      void loadMessages(true)
+    } catch (imageError) {
+      setMessages((current) => current.map((item) => item.id === tempId ? { ...item, pending: false, failed: true } : item))
+      Alert.alert('图片发送失败', errorMessage(imageError))
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
   return (
-    <ScreenShell title="聊天" subtitle={`会话：${roomId || '-'}`} onBack={navigation.goBack}>
+    <ScreenShell
+      title={peerName}
+      subtitle="消息会在本机保留最近 60 天，并与云端同步。"
+      onBack={navigation.goBack}
+      refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.brand} colors={[colors.brand]} onRefresh={() => { setRefreshing(true); void loadMessages(true) }} />}
+    >
       {loading ? <LoadingState /> : null}
-      {!loading && error ? (
+      {!loading && error && messages.length === 0 ? (
         <>
           <EmptyState title="加载失败" desc={error} icon="icon-messages" />
-          <SolidButton label="重试" variant="secondary" onPress={() => void loadMessages()} />
+          <SolidButton label="重试" variant="secondary" onPress={() => void loadMessages(false)} />
         </>
       ) : null}
-      {!loading && !error && messages.length === 0 ? <EmptyState title="暂无消息" desc="发送第一条消息，与教练保持同步。" icon="icon-messages" /> : null}
-      {!loading && !error && messages.length > 0 ? (
+      {!loading && error && messages.length > 0 ? <Text style={local.inlineWarning}>同步失败：{error}</Text> : null}
+      {!loading && messages.length === 0 && !error ? <EmptyState title="暂无消息" desc="发送第一条消息，与教练保持同步。" icon="icon-messages" /> : null}
+      {!loading && messages.length > 0 ? (
         <Card style={local.chatListCard}>
+          {hasMore ? <SolidButton label="加载更早消息" variant="secondary" loading={loadingMore} onPress={() => void loadMore()} /> : null}
           {messages.map((item) => (
             <View key={item.id} style={[local.chatBubbleRow, item.isMine && local.chatBubbleRowMine]}>
               <View style={[local.chatBubble, item.isMine && local.chatBubbleMine]}>
                 {!item.isMine ? <Text style={local.chatSender}>{item.chatUserProfile?.name || '对方'}</Text> : null}
-                <Text style={[local.chatContent, item.isMine && local.chatContentMine]}>{item.content || messageTypeLabel(item.messageType)}</Text>
-                <Text style={[local.chatTime, item.isMine && local.chatTimeMine]}>{formatTime(item.createdAt)}</Text>
+                {item.messageType === 'image' && item.mediaUrl ? (
+                  <Image source={{ uri: item.mediaUrl }} style={local.chatImage} resizeMode="cover" />
+                ) : (
+                  <Text style={[local.chatContent, item.isMine && local.chatContentMine]}>{item.content || messageTypeLabel(item.messageType)}</Text>
+                )}
+                <Text style={[local.chatTime, item.isMine && local.chatTimeMine, item.failed && local.chatFailed]}>{item.failed ? '发送失败' : item.pending ? '发送中…' : formatTime(item.createdAt)}</Text>
               </View>
             </View>
           ))}
@@ -3863,7 +4526,14 @@ export function ChatScreen() {
       ) : null}
       <Card>
         <FormField label="发送消息" value={message} onChangeText={setMessage} multiline />
-        <SolidButton label="发送" loading={sending} onPress={send} disabled={!roomId || !message.trim()} />
+        <View style={local.chatComposerActions}>
+          <View style={local.chatComposerSecondary}>
+            <SolidButton label="发送图片" variant="secondary" loading={uploadingImage} disabled={!roomId || sending} onPress={() => void sendImage()} />
+          </View>
+          <View style={local.chatComposerPrimary}>
+            <SolidButton label="发送" loading={sending} onPress={send} disabled={!roomId || !message.trim() || uploadingImage} />
+          </View>
+        </View>
       </Card>
     </ScreenShell>
   )
@@ -5611,6 +6281,298 @@ const local = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
   },
+  actionLibrarySourceTabs: {
+    minHeight: 56,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    padding: spacing.xs,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  actionLibrarySourceTab: {
+    flex: 1,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.sm,
+  },
+  actionLibrarySourceTabActive: {
+    backgroundColor: colors.brand,
+  },
+  actionLibrarySourceText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  actionLibrarySourceTextActive: {
+    color: colors.surface,
+  },
+  actionLibrarySearchCard: {
+    gap: spacing.sm,
+  },
+  actionLibrarySearchRow: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+  },
+  actionLibrarySearchInput: {
+    flex: 1,
+    minHeight: 48,
+    color: colors.text,
+    fontSize: 15,
+  },
+  actionLibraryClearSearch: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.border,
+  },
+  actionLibraryClearSearchText: {
+    color: colors.textSecondary,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '700',
+  },
+  actionLibraryFilterRow: {
+    gap: spacing.xs,
+    paddingRight: spacing.sm,
+  },
+  actionLibraryFilterChip: {
+    minWidth: 64,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  actionLibraryFilterChipActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  actionLibraryFilterText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  actionLibraryFilterTextActive: {
+    color: colors.surface,
+  },
+  actionLibraryPositionChip: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  actionLibraryPositionChipActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSoft,
+  },
+  actionLibraryPositionText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  actionLibraryPositionTextActive: {
+    color: colors.brandDark,
+  },
+  actionLibrarySummaryRow: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  actionLibrarySummaryTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  actionLibrarySummaryMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 20,
+  },
+  actionLibraryAddAction: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    backgroundColor: colors.surface,
+  },
+  actionLibraryAddActionText: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  actionLibraryWarning: {
+    color: colors.warning,
+    fontSize: 13,
+    lineHeight: 20,
+    paddingHorizontal: spacing.xs,
+  },
+  actionLibraryList: {
+    gap: spacing.sm,
+  },
+  actionLibraryItemCard: {
+    gap: spacing.sm,
+  },
+  actionLibraryItemTop: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  actionLibraryPressed: {
+    opacity: 0.82,
+  },
+  actionLibraryInitial: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+  },
+  actionLibraryInitialText: {
+    color: colors.brandDark,
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  actionLibraryItemMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  actionLibraryNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  actionLibraryItemName: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  actionLibraryItemDetail: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: spacing.xs,
+  },
+  actionLibraryPublicMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 20,
+  },
+  actionLibraryItemFooter: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceMuted,
+  },
+  actionLibraryFooterHint: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  actionLibraryPrimaryAction: {
+    minWidth: 112,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  actionLibraryPrimaryActionText: {
+    color: colors.surface,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  actionLibrarySecondaryAction: {
+    minWidth: 80,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    backgroundColor: colors.surface,
+  },
+  actionLibrarySecondaryActionText: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  actionLibraryActionDisabled: {
+    opacity: 0.5,
+  },
+  actionEditSectionTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  actionEditHint: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  actionEditOptionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  actionEditOption: {
+    minWidth: 80,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  actionEditOptionActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  actionEditOptionText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  actionEditOptionTextActive: {
+    color: colors.surface,
+  },
   sectionTitle: {
     color: colors.text,
     fontSize: 17,
@@ -6575,6 +7537,39 @@ const local = StyleSheet.create({
   },
   chatTimeMine: {
     color: 'rgba(255,255,255,0.72)',
+  },
+  chatFailed: {
+    color: '#FFF1A8',
+    fontWeight: '900',
+  },
+  chatImage: {
+    width: 224,
+    height: 224,
+    maxWidth: '100%',
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
+  },
+  chatComposerActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  chatComposerSecondary: {
+    flex: 1,
+  },
+  chatComposerPrimary: {
+    flex: 2,
+  },
+  inlineWarning: {
+    minHeight: 48,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    color: '#9A3412',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    fontSize: 13,
+    lineHeight: 20,
   },
   coachSkeletonList: {
     gap: spacing.sm,

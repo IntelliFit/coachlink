@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { CurrentImpromptuExecutionResponseDto } from "./entity";
 import { attachImpromptuSetVideos } from "../_helpers/setVideoUpload";
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json<ApiData<CurrentImpromptuExecutionResponseDto>>({
                 success: false,
                 message: "用户未登录",
@@ -19,7 +19,7 @@ export async function GET() {
         const { data, error } = await supabase
             .from("impromptu_executions")
             .select("*")
-            .eq("student_id", session.user.id)
+            .eq("student_id", userId)
             .eq("status", "in_progress")
             .order("started_at", { ascending: false })
             .limit(1)

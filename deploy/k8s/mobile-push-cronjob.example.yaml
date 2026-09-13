@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: coachlink-mobile-push-drain
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: drain
+              image: curlimages/curl:8.12.1
+              env:
+                - name: MOBILE_PUSH_CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: coachlink-runtime-secrets
+                      key: MOBILE_PUSH_CRON_SECRET
+              command:
+                - /bin/sh
+                - -ec
+                - >-
+                  curl --fail-with-body --silent --show-error
+                  -H "Authorization: Bearer ${MOBILE_PUSH_CRON_SECRET}"
+                  "https://coachlink.fit/api/internal/mobile-push/drain?limit=100"

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { AddSetVideoLinkDto, AddSetVideoLinkResponseDto } from "./entity";
@@ -23,8 +23,8 @@ function isProbablyUrl(url: string) {
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json<ApiData<AddSetVideoLinkResponseDto>>({
                 success: false,
                 message: "未登录",
@@ -46,8 +46,6 @@ export async function POST(req: Request) {
                 data: null,
             }, { status: 500 });
         }
-
-        const userId = session.user.id;
 
         const body = (await req.json()) as AddSetVideoLinkDto;
         const { executionId, actionId, setNumber, videoUrl } = body;

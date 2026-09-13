@@ -1,17 +1,15 @@
 import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { NextRequest } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getApiUserId } from '@/lib/getApiUserId';
 // 推送通知现在完全由前端通过 Service Worker 处理，不再需要后端推送
 
 export const runtime = 'nodejs'; // ⚠️ 不能是 edge
 
 export async function GET(req: NextRequest) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const userId = await getApiUserId(req);
+    if (!userId) {
         return new Response('Unauthorized', { status: 401 });
     }
-
-    const userId = session.user.id;
     let cleanupStream: (() => void) | undefined;
 
     const stream = new ReadableStream({

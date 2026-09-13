@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import { sendDirectMessage } from "@/lib/chat";
 import { onExecutionFeedbackSubmitted } from "@/lib/coachingAutomation";
@@ -17,8 +17,8 @@ import type {
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json<ApiData<SubmitFeedbackResponseDto>>({
                 success: false,
                 message: "用户未登录",
@@ -26,7 +26,6 @@ export async function POST(req: Request) {
             }, { status: 401 });
         }
 
-        const userId = session.user.id;
         const { executionId, content, difficultyRating } =
             (await req.json()) as SubmitFeedbackDto;
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { FinishImpromptuDto, FinishImpromptuResponseDto } from "./entity";
@@ -8,8 +8,8 @@ import type { WorkoutEnergyEstimate } from "@/lib/workoutEnergy";
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json<ApiData<FinishImpromptuResponseDto>>({
                 success: false,
                 message: "用户未登录",
@@ -17,7 +17,6 @@ export async function POST(req: Request) {
             }, { status: 401 });
         }
 
-        const userId = session.user.id;
         const body = await req.json() as FinishImpromptuDto;
         const { executionId, sessionNotes, mode } = body;
 
@@ -117,6 +116,7 @@ export async function POST(req: Request) {
                 last_saved_at: nowIso,
             })
             .eq("id", executionId)
+            .eq("student_id", userId)
             .select("id, status, completed_at, completed_sets, total_sets, action_executions")
             .single();
 

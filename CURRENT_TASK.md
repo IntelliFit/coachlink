@@ -9628,3 +9628,24 @@
 - WeChat: 从干净 `dev@928414df` 构建 release，扫描确认无 localhost/127.0.0.1/0.0.0.0；微信开发者工具成功上传体验版 `2026.09.06.1342`，描述 `全量同步训练视频 928414d`，AppID `wx316e39eb71c0e834`，微信侧统计约 9.6 MB。只上传体验版，未提交审核、未发布正式版。
 - Gates: lint 提示脚本、root/mobile typecheck、Vitest 45 files / 214 tests、Next 541 路由生产构建、小程序 release 2,870 modules、Web/Power/Motion 三类 Docker 构建均通过。2026-09-08 补装匹配 Playwright Chromium 后，登录/刷新会话、订阅训练闭环与后端 CRUD 幂等清理共 4 条 E2E 全部通过；首轮只因浏览器二进制缺失在启动前失败，没有业务断言失败，也没有修改测试。
 - Remaining: 小程序体验版仍需用户真机验收，即兴训练组视频的真实拍摄/上传/教练查看链路尤其需要覆盖；本轮没有提审或正式发布小程序。历史 npm 依赖漏洞和 Supabase 安全顾问存量问题需另开治理任务。
+
+## 小程序基准同步与移动 App 深度对齐（2026-09-08）
+
+- Status: 08:03 开始，用户要求连续至少 1 小时 20 分钟；已将当前分支安全快进到最新 `origin/dev@32be39a6`，正在对齐 `apps/wechat/` 与 `apps/mobile/` 的整体导航、消息/推送、训练与交互细节。
+- Boundary: 本轮默认只做本地代码、构建和验证，不提交、不推送、不上传小程序、不部署服务端，不修改真实用户数据。
+
+## CoachLink 项目总控基线（2026-09-08）
+
+- Status: 首次审计产物共覆盖 94 条用户任务（原分类 52 条完成、42 条需继续/复核，健康度 70/100）。本轮以当前仓库、远端引用、构建产物、线上只读回读和运行探针重新核对三项优先任务；详细证据见 `docs/work/project-control-baseline-20260908.md`。
+- Priority correction: “为鞑靼创建 RM 训练计划”已闭环：线上唯一 active 计划仍为 `47457535-7e45-4aa5-abf4-19c0d3905420`，84 天 / 36 训练日 / 94 个 `STRENGTH` 模块 / `fixedWeight=0` / 体重 75kg；“顺延224天”修复提交 `013b42d5` 已进入远端 `main/dev` 并随 2026-09-06 Web/API 发布。旧“提交并同步开发分支”也已被后续提交和推送覆盖，当前 GitHub `main/dev` 同为 `32be39a6`。
+- Active work: “打包最新 App 并汇报进度”原任务正在继续执行，并非静止中断。当前 WIP 涉及消息/推送、聊天与训练 Bearer 鉴权，工作树除 `.codex-tmp` 外有 62 个已修改文件和 17 个新增源码文件；root/mobile typecheck 通过，针对性 Vitest 47/50 通过、3 条超时，尚无基于这批源码的新 APK、完整门禁、数据库迁移或部署证据。截至审计时原任务正在运行 Android `assembleRelease`。
+- Last stable artifact: `artifacts/mobile/CoachLink-android-release-20260904.apk`，88,370,058 bytes，SHA-256 `F7DA2217BDFD9558C957AB4B6EB7010131F04A8B60BF61718184A7A52F517332`；它早于 2026-09-08 WIP，且仍为 Debug 证书内部验收包，不是商店发布包。
+- Duplicates: 识别 5 组语义重复任务：拉取远端最新代码、概述近期改动与分支、读取 Lark 需求列表、迁移动作库配图，以及一组 3 条已完成的文件/Prompt 任务；默认不归档，后续以最近且证据最完整的一条为继续入口。
+
+## 移动消息、推送与 Bearer API 集中收口（2026-09-14）
+
+- Status: 已完成当前全部 WIP 的代码审计与发布前门禁，用户已授权集中提交到 `dev` 并快进同步到 `main`；最终远端提交以两个分支共同 tip 为准。
+- Review fixes: 修复聊天缓存初始化竞态；禁止无效显式 Bearer 降级为 Cookie；把推送 drain 路由加入 cron 代理白名单并补上 15 秒进程内消费；为推送处理器补齐 Kubernetes 恢复型 CronJob 与运维说明；隔离 Bearer/推送测试的外部依赖；收紧聊天视频引用的所有权解析；将遗留 `expo-constants` 18 / `expo-font` 14 对齐到 Expo SDK 56，解除 Android 原生编译失败。
+- Gates: `npm run lint`、root/mobile TypeScript、完整 Vitest 53 files / 274 tests、Next.js 生产构建 543 页、Playwright E2E 4/4、Expo public/prebuild config 与 Android `assembleRelease` 全部通过；针对性 Vitest 8 files / 60 tests 通过。
+- Artifact: `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`，89,298,008 bytes，SHA-256 `3E4A94B5E4AE59A28FA75F1FABBB63D965B11289351129F0FBDBE0E822FDCED2`。该本地产物位于 ignored build 目录，不进入 Git；当前 release 仍使用本地 Debug 证书，仅用于内部构建验证。
+- Rollout boundary: 本轮不执行数据库迁移、服务端部署或商店发布。真实远程推送仍需先应用 `20260908090000_mobile_push_installations.sql`，配置 Expo project ID、FCM/APNs 和 `MOBILE_PUSH_CRON_SECRET`，再做真机注册、撤销、收件与点击跳转回归。

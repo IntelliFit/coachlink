@@ -36,7 +36,8 @@ export interface SendMessageDto {
     fileName?: string;
     fileSize?: number;
     duration?: number;
-    videoReferences?: VideoReferenceItem[]; // 新增：视频引用列表
+    /** Only videoId is trusted; the server rebuilds all metadata after authorization. */
+    videoReferences?: Array<Pick<VideoReferenceItem, "videoId"> & Partial<VideoReferenceItem>>;
     replyToMessageId?: string;
 }
 

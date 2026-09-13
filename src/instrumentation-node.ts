@@ -117,6 +117,7 @@ export async function registerNodeRuntime() {
     const sharedSecret = readRuntimeSecret("CRON_SECRET");
     const alipaySecret = readRuntimeSecret("ALIPAY_SYNC_SECRET") || sharedSecret;
     const huifuSecret = readRuntimeSecret("HUIFU_SETTLEMENT_CRON_SECRET") || sharedSecret;
+    const mobilePushSecret = readRuntimeSecret("MOBILE_PUSH_CRON_SECRET") || sharedSecret;
 
     if (alipaySecret) {
         startIntervalJob(
@@ -172,5 +173,23 @@ export async function registerNodeRuntime() {
         );
     } else {
         console.warn("[BackgroundJobs] missing HUIFU_SETTLEMENT_CRON_SECRET/CRON_SECRET; skip Huifu settlement jobs");
+    }
+
+    if (mobilePushSecret) {
+        startIntervalJob(
+            "MobilePush Drain",
+            readIntervalMs("MOBILE_PUSH_DRAIN_INTERVAL_MS", 15 * 1000),
+            () => {
+                postCronEndpoint(
+                    baseUrl,
+                    "/api/internal/mobile-push/drain?limit=100",
+                    mobilePushSecret,
+                ).catch((error) => {
+                    console.error("[MobilePush] drain background run error:", error);
+                });
+            },
+        );
+    } else {
+        console.warn("[BackgroundJobs] missing MOBILE_PUSH_CRON_SECRET/CRON_SECRET; skip mobile push job");
     }
 }

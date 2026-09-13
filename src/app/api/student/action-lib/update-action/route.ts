@@ -5,7 +5,7 @@ import type {
     UpdateStudentActionResponseDto,
 } from "./entity";
 import type { ApiData } from "@/types/api";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type { StudentActionRow } from "@/types/student";
 import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
 
@@ -13,8 +13,7 @@ export async function POST(req: Request) {
     const { id, ...updateData } = await req.json() as UpdateStudentActionDto;
 
     // 检查用户登录
-    const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const userId = await getApiUserId(req);
 
     if (!userId) {
         return NextResponse.json({

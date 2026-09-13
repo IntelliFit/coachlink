@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
@@ -10,15 +10,14 @@ import { attachImpromptuSetVideos } from "../_helpers/setVideoUpload";
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json<ApiData<GetImpromptuExecutionResponseDto>>({
                 success: false,
                 message: "用户未登录",
                 data: null,
             }, { status: 401 });
         }
-        const userId = session.user.id;
         const { id } = await req.json() as GetImpromptuExecutionDto;
         if (!id) {
             return NextResponse.json<ApiData<GetImpromptuExecutionResponseDto>>({

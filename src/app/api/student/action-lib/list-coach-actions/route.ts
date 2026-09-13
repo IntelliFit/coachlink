@@ -2,17 +2,16 @@ import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import type { ListCoachActionsResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 
 /**
  * POST /api/student/action-lib/list-coach-actions
  * 获取学员订阅教练的动作库
  */
-export async function POST() {
+export async function POST(req: Request) {
     try {
         // 检查用户登录
-        const session = await getServerSession();
-        const userId = session?.user?.id || null;
+        const userId = await getApiUserId(req);
 
         if (!userId) {
             return NextResponse.json<ApiData<null>>({

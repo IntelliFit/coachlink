@@ -1,4 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { useEffect } from 'react'
 import { resolveCoachLinkAppRole } from '@coachlink/core'
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
@@ -98,9 +99,20 @@ import { MotionEffectsScreen } from '../screens/toolbox/MotionEffectsScreen'
 import { OneArmPullUpScreen } from '../screens/toolbox/OneArmPullUpScreen'
 import { ToolboxScenarioScreen } from '../screens/toolbox/ToolboxScenarioScreen'
 import type { MainTabParamList, RootStackParamList } from './types'
+import { flushPendingNotificationChat, rootNavigationRef } from './navigationRef'
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
 const Stack = createNativeStackNavigator<RootStackParamList>()
+
+const linking = {
+  prefixes: ['coachlink://'],
+  config: {
+    screens: {
+      Messages: 'messages',
+      Chat: 'messages/:roomId',
+    },
+  },
+}
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -217,6 +229,10 @@ export function RootNavigator() {
   const { isBootstrapping, isAuthenticated, isGuest, user } = useAuth()
   const isCoachMode = isAuthenticated && resolveCoachLinkAppRole(user) === 'coach'
 
+  useEffect(() => {
+    if (!isBootstrapping) flushPendingNotificationChat(isAuthenticated)
+  }, [isAuthenticated, isBootstrapping])
+
   if (isBootstrapping) {
     return (
       <View style={styles.boot}>
@@ -227,7 +243,12 @@ export function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer
+      ref={rootNavigationRef}
+      theme={navigationTheme}
+      linking={linking}
+      onReady={() => flushPendingNotificationChat(isAuthenticated)}
+    >
       <Stack.Navigator
         key={isAuthenticated ? 'authenticated' : isGuest ? 'guest' : 'auth'}
         screenOptions={{

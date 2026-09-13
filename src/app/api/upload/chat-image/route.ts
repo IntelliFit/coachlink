@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import { cosUpload, buildDatedKey } from "@/lib/cos";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
@@ -7,8 +7,8 @@ const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "im
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json({ success: false, message: "未登录" }, { status: 401 });
         }
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         const buffer = Buffer.from(arrayBuffer);
 
         const ext = file.type.split("/")[1] || "jpg";
-        const key = buildDatedKey(ext, session.user.id);
+        const key = buildDatedKey(ext, userId);
 
         const { url } = await cosUpload("chat-images", key, buffer, { contentType: file.type });
 

@@ -5,15 +5,14 @@ import type {
     DeleteStudentActionResponseDto,
 } from "./entity";
 import type { ApiData } from "@/types/api";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import { countActionRefs } from "@/lib/actionRefs";
 
 export async function POST(req: Request) {
     const { id } = await req.json() as DeleteStudentActionDto;
 
     // 检查用户登录
-    const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const userId = await getApiUserId(req);
 
     if (!userId) {
         return NextResponse.json({

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import type { CopyCoachActionDto, CopyCoachActionResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 
 /**
  * POST /api/student/action-lib/copy-coach-action
@@ -11,8 +11,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 export async function POST(req: Request) {
     try {
         // 检查用户登录
-        const session = await getServerSession();
-        const userId = session?.user?.id || null;
+        const userId = await getApiUserId(req);
 
         if (!userId) {
             return NextResponse.json<ApiData<null>>({

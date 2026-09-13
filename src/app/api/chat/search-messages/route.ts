@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type { ApiData } from "@/types/api";
 import type { SearchMessagesDto, SearchMessagesResponseDto } from "./entity";
 import supabase from "@/lib/supabaseClient";
@@ -10,8 +10,8 @@ function escapeIlikePattern(s: string): string {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const userId = await getApiUserId(req);
+    if (!userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -19,7 +19,6 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
     const body = await req.json() as SearchMessagesDto;
     const { roomId } = body;
     const rawQ = typeof body.query === "string" ? body.query.trim() : "";

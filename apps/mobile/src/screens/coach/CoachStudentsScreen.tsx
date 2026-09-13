@@ -7,6 +7,7 @@ import { IconFont } from '../../components/IconFont'
 import type { RootStackParamList } from '../../navigation/types'
 import { colors, radius, spacing } from '../../theme'
 import { Card, EmptyState, InlineAvatar, LoadingState, ScreenShell, SolidButton, safeRequest } from '../me/MeShared'
+import { useAuth } from '../../providers/AuthProvider'
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>
 type SortMode = 'subscription_created_desc' | 'subscription_created_asc' | 'subscription_updated_desc'
@@ -224,12 +225,14 @@ function StatusChip({ label, tone }: { label: string; tone: 'brand' | 'success' 
 export function CoachStudentDetailScreen() {
   const navigation = useNavigation<Navigation>()
   const route = useRoute<RouteProp<RootStackParamList, 'CoachStudentDetail'>>()
+  const { user } = useAuth()
   const [student, setStudent] = useState<any>(null)
   const [planData, setPlanData] = useState<any>(null)
   const [feedbacks, setFeedbacks] = useState<any[]>([])
   const [studentActions, setStudentActions] = useState<any[]>([])
   const [oneRmDrafts, setOneRmDrafts] = useState<Record<string, string>>({})
   const [savingOneRm, setSavingOneRm] = useState(false)
+  const [openingChat, setOpeningChat] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -320,6 +323,26 @@ export function CoachStudentDetailScreen() {
     }
   }
 
+  async function openStudentChat() {
+    const studentId = String(route.params?.studentId || student?.student_id || '')
+    if (!user?.id || !studentId || studentId === user.id) {
+      Alert.alert('暂无法联系', '缺少有效的教练或学员账号信息。')
+      return
+    }
+    setOpeningChat(true)
+    try {
+      const data = await safeRequest<{ chatroom?: { id?: string } | null }>('/api/chat/get-chatroom', {
+        body: { members: [user.id, studentId] },
+      })
+      if (!data.chatroom?.id) throw new Error('会话创建失败')
+      navigation.navigate('Chat', { roomId: data.chatroom.id, peerName: nameOf(student) })
+    } catch (chatError) {
+      Alert.alert('打开会话失败', chatError instanceof Error ? chatError.message : '请稍后重试')
+    } finally {
+      setOpeningChat(false)
+    }
+  }
+
   return (
     <ScreenShell title="学员档案" subtitle="订阅、问卷、训练资料与当前计划。" onBack={() => navigation.goBack()}>
       {loading ? <LoadingState title="正在加载学员档案" /> : null}
@@ -332,6 +355,7 @@ export function CoachStudentDetailScreen() {
           eligibleActions={eligibleActions}
           oneRmDrafts={oneRmDrafts}
           savingOneRm={savingOneRm}
+          openingChat={openingChat}
           onOneRmChange={(actionId, value) => setOneRmDrafts((current) => ({ ...current, [actionId]: value }))}
           onSaveOneRm={() => void saveOneRm()}
           onAssignPlan={() => navigation.navigate('CoachAssignPlan', {
@@ -344,7 +368,7 @@ export function CoachStudentDetailScreen() {
             dayIndex,
             readOnly: true,
           })}
-          onOpenMessages={() => navigation.navigate('Messages')}
+          onOpenMessages={() => void openStudentChat()}
         />
       ) : null}
     </ScreenShell>
@@ -358,6 +382,7 @@ function StudentDetailBody({
   eligibleActions,
   oneRmDrafts,
   savingOneRm,
+  openingChat,
   onOneRmChange,
   onSaveOneRm,
   onAssignPlan,
@@ -370,6 +395,7 @@ function StudentDetailBody({
   eligibleActions: any[]
   oneRmDrafts: Record<string, string>
   savingOneRm: boolean
+  openingChat: boolean
   onOneRmChange: (actionId: string, value: string) => void
   onSaveOneRm: () => void
   onAssignPlan: () => void
@@ -456,7 +482,7 @@ function StudentDetailBody({
             <Text style={styles.cardTitle}>训练反馈</Text>
             <Text style={styles.cardSubtitle}>最近反馈会按训练日倒序展示。</Text>
           </View>
-          <SolidButton label="联系学员" variant="secondary" onPress={onOpenMessages} />
+          <SolidButton label="联系学员" variant="secondary" loading={openingChat} onPress={onOpenMessages} />
         </View>
         {feedbacks.length > 0 ? feedbacks.slice(0, 10).map((feedback: any, index: number) => (
           <Pressable key={`${feedback.instance_id || ''}-${feedback.day_index}-${feedback.created_at || index}`} onPress={() => onOpenDay(Number(feedback.day_index || 1))} style={styles.feedbackRow}>

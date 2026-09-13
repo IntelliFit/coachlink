@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getApiUserId } from '@/lib/getApiUserId';
 import supabase from '@/lib/supabaseClient';
 import type { createChatroomsDto, createChatroomsResponseDto } from './entity';
 import { ApiData } from '@/types/api';
 
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const userId = await getApiUserId(req);
+    if (!userId) {
         return NextResponse.json({
             success: false,
             message: '用户未登录',
@@ -15,7 +15,6 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
     const {
         members
     } = await req.json() as createChatroomsDto;

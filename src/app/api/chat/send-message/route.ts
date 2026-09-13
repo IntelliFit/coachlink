@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import { getAuthUser } from '@/lib/auth';
+import { getApiUserId } from '@/lib/getApiUserId';
 import supabase from '@/lib/supabaseClient';
 import { maybeCreateCoachAiAutoReply } from '@/lib/coachAiAutoReply';
+import { resolveAuthorizedChatVideoReferences } from '@/lib/resolveChatVideoReferences';
 import type { ApiData } from '@/types/api';
 import type { SendMessageDto, SendMessageResponseDto } from './entity';
 
@@ -21,11 +21,8 @@ function buildReplyPreview(messageType: string, content: string | null, mediaUrl
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    const authResult = session?.user?.id
-        ? { isAuthenticated: true, userId: session.user.id }
-        : await getAuthUser(req);
-    if (!authResult.isAuthenticated || !authResult.userId) {
+    const userId = await getApiUserId(req);
+    if (!userId) {
         return NextResponse.json(
             {
                 success: false,
@@ -36,7 +33,6 @@ export async function POST(req: Request) {
         );
     }
 
-    const userId = authResult.userId;
     const {
         roomId,
         messageType,
@@ -175,12 +171,26 @@ export async function POST(req: Request) {
     }
 
     if (messageType === 'video_reference' && videoReferences) {
+        const canonicalVideoReferences = await resolveAuthorizedChatVideoReferences(
+            userId,
+            videoReferences.map((reference) => reference.videoId),
+        );
+        if (!canonicalVideoReferences) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: '视频不存在或无权引用',
+                    data: null,
+                },
+                { status: 403 },
+            );
+        }
         messageData.content_metadata = {
             ...(messageData.content_metadata || {}),
-            video_references: videoReferences,
+            video_references: canonicalVideoReferences,
         };
-        const count = videoReferences.length;
-        messageData.content = count === 1 ? `[视频] ${videoReferences[0].actionName}` : `[${count}个视频]`;
+        const count = canonicalVideoReferences.length;
+        messageData.content = count === 1 ? `[视频] ${canonicalVideoReferences[0].actionName}` : `[${count}个视频]`;
     }
 
     const { data: message, error } = await supabase

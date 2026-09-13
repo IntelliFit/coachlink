@@ -1,12 +1,12 @@
 import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { NextRequest } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getApiUserId } from '@/lib/getApiUserId';
 
 export const runtime = 'nodejs'; // ⚠️ 不能是 edge
 
 export async function GET(req: NextRequest) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const userId = await getApiUserId(req);
+    if (!userId) {
         return new Response('Unauthorized', { status: 401 });
     }
 
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
         return new Response(chatRoomError.message, { status: 500 });
     }
 
-    if (!chatRoom.members.includes(session.user.id)) {
+    if (!chatRoom.members.includes(userId)) {
         return new Response('Unauthorized', { status: 401 });
     }
 
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     const stream = new ReadableStream({
         start(controller) {
             const channel = serviceRoleSupabase
-                .channel(`room:${roomId},user:${session.user.id}`)
+                .channel(`room:${roomId},user:${userId}`)
                 .on(
                     'postgres_changes',
                     {

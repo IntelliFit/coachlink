@@ -146,6 +146,7 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 const ROUTE_AUTHENTICATED_CRON_PATHS = new Set([
     "/api/admin/coach-subscription-settlements/process-due",
     "/api/admin/coach-subscription-settlements/reconcile",
+    "/api/internal/mobile-push/drain",
 ]);
 
 function handleMiddleware(request: NextRequest) {
