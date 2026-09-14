@@ -19,6 +19,7 @@ export interface ChatroomItem {
 export interface ChatroomDetail {
   id: string
   members: string[]
+  chatUserProfile?: { name: string; avatar?: string | null }
   lastMessage: string | null
   lastMessageAt: string | null
   unreadMembers: string[]

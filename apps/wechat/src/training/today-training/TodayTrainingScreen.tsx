@@ -73,6 +73,7 @@ import {
   trainingExecutionSnapshotKey
 } from '@/utils/trainingExecutionCache'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
+import { openCoachChat } from '@/utils/coachChat'
 import './index.scss'
 
 type PlanMode = 'coach' | 'self'
@@ -1079,12 +1080,14 @@ function TodayTrainingScreen() {
   const handleContactCoach = useCallback(() => {
     const coachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
     const coachName = activeSubscription?.coach?.name || ''
-    Taro.navigateTo({
-      url: coachId
-        ? `/me/messages/index?coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
-        : '/me/messages/index'
+    void openCoachChat({
+      currentUserId,
+      coachId,
+      coachUserId: activeSubscription?.coach?.user_id,
+      coachName,
+      fallbackToMessagesList: true
     })
-  }, [activeSubscription])
+  }, [activeSubscription, currentUserId])
 
   const scrollToScheduleCalendar = useCallback(() => {
     setScheduleScrollIntoView('schedule-calendar-anchor')
