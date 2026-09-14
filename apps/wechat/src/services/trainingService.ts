@@ -7,6 +7,10 @@ interface GetInstanceParams {
   fetchSelf?: boolean
 }
 
+interface GetInstanceOptions {
+  showErrorToast?: boolean
+}
+
 interface GetNextTrainingDayParams {
   instanceId: string
 }
@@ -21,6 +25,22 @@ interface PlanInstance {
   start_execution_day?: number
   execution_notice?: string | null
   executionNotice?: string | null
+}
+
+interface GetInstanceData {
+  instance: PlanInstance | null
+  actions?: Record<string, any>
+  [key: string]: any
+}
+
+type LoadedInstanceData = GetInstanceData & {
+  actions: Record<string, any>
+}
+
+interface GetInstanceResult {
+  success: boolean
+  data?: GetInstanceData
+  message?: string
 }
 
 interface TrainingDay {
@@ -58,13 +78,27 @@ interface NextTrainingDayData {
 
 class TrainingService extends BaseService {
   /**
+   * 获取计划实例的完整请求结果。
+   * 今日训练页需要区分“服务端确认暂无计划”和“网络请求失败”，避免弱网时清空本地缓存。
+   */
+  async getInstanceResult(
+    params: GetInstanceParams,
+    options: GetInstanceOptions = {}
+  ): Promise<GetInstanceResult> {
+    return this.post<GetInstanceData>('get-instance', params, options)
+  }
+
+  /**
    * 获取计划实例
    */
-  async getInstance(params: GetInstanceParams) {
-    const res = await this.post<{ instance: PlanInstance; actions: Record<string, any> }>('get-instance', params)
+  async getInstance(params: GetInstanceParams): Promise<LoadedInstanceData | null> {
+    const res = await this.getInstanceResult(params)
     
     if (res.success && res.data) {
-      return res.data
+      return {
+        ...res.data,
+        actions: res.data.actions || {}
+      }
     }
     
     return null
@@ -111,5 +145,13 @@ class TrainingService extends BaseService {
 
 export const trainingService = new TrainingService('/api/plan-lib')
 
-export type { PlanInstance, TrainingDay, ActionSet, NextTrainingDayData }
+export type {
+  PlanInstance,
+  TrainingDay,
+  ActionSet,
+  NextTrainingDayData,
+  GetInstanceData,
+  LoadedInstanceData,
+  GetInstanceResult
+}
 
