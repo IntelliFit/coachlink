@@ -254,6 +254,7 @@ export async function POST(req: Request) {
             last_message: lastMessage,
             last_message_at: message.created_at,
             unread_members: chatRoom.members.filter((member: string) => member !== userId),
+            updated_at: message.created_at,
         })
         .eq('id', roomId);
 

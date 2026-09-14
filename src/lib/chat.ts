@@ -88,7 +88,8 @@ export async function sendSystemMessage(
         .update({
             last_message: message.content,
             last_message_at: createdAt,
-            unread_members: [userId]
+            unread_members: [userId],
+            updated_at: createdAt,
         })
         .eq('id', systemChatroom.id)
         .single();
