@@ -19,6 +19,7 @@ import {
     deriveStrictSequentialProgressDay,
 } from "@/lib/planProgress";
 import { toBeijingDateKey } from "@/lib/beijingTime";
+import { expireAndActivatePendingPlanRevisions } from "@/lib/planExecutionLifecycle";
 
 function canManuallyAdvanceAcrossRestDays(params: {
     planDays: any[];
@@ -117,6 +118,15 @@ export async function POST(request: NextRequest) {
                 message: "缺少必填参数",
                 data: null,
             }, { status: 400 });
+        }
+
+        const lifecycle = await expireAndActivatePendingPlanRevisions({ instanceId });
+        if (lifecycle.activations.some((activation) => activation.activated)) {
+            return NextResponse.json({
+                success: false,
+                code: "PLAN_REVISION_ACTIVATED",
+                message: "教练更新的计划已生效，请刷新后重新开始训练",
+            }, { status: 409 });
         }
 
         const accessDecision = await validateExecutionSubscriptionAccess({
@@ -505,22 +515,32 @@ export async function POST(request: NextRequest) {
         );
 
         // 8. 创建新的执行记录
-        const { data: newExecution, error: insertError } = await supabase
-            .from("plan_instance_executions")
-            .insert({
-                instance_id: instanceId,
-                student_id: userId,
-                day_index: dayIndex,
-                action_executions: actionExecutions,
-                total_sets: totalSets,
-                completed_sets: 0,
-                status: "in_progress",
-            })
-            .select()
-            .single();
+        const { data: createdRows, error: insertError } = await (serviceRoleSupabase as any)
+            .rpc("create_plan_execution_atomic", {
+                p_instance_id: instanceId,
+                p_student_id: userId,
+                p_day_index: dayIndex,
+                p_action_executions: actionExecutions,
+                p_total_sets: totalSets,
+            });
+        const newExecution = Array.isArray(createdRows) ? createdRows[0] : createdRows;
 
         if (insertError) {
+            if (String((insertError as any)?.message || "").includes("PLAN_INSTANCE_NOT_CURRENT")) {
+                return NextResponse.json({
+                    success: false,
+                    code: "PLAN_REVISION_ACTIVATED",
+                    message: "教练更新的计划已生效，请刷新后重新开始训练",
+                }, { status: 409 });
+            }
             console.error("创建执行记录失败:", insertError);
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: false,
+                message: "创建训练记录失败",
+                data: null,
+            }, { status: 500 });
+        }
+        if (!newExecution) {
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
                 success: false,
                 message: "创建训练记录失败",

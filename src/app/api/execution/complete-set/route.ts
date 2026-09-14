@@ -7,6 +7,7 @@ import { computeExecutionProgress } from "@/lib/executionProgress";
 import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 import { handleAutoE1RMCheck } from "@/lib/autoE1rmTracking";
+import { expireTimedOutPlanExecutions } from "@/lib/planExecutionLifecycle";
 
 /**
  * POST /api/execution/complete-set
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
+        await expireTimedOutPlanExecutions({ executionId });
+
         // 3. 获取执行记录
         const { data: execution, error: fetchError } = await supabase
             .from("plan_instance_executions")
@@ -72,6 +75,13 @@ export async function POST(request: NextRequest) {
                 message: "无权访问此记录",
                 data: null,
             }, { status: 403 });
+        }
+        if (String(execution.status || "").toLowerCase() === "timed_out") {
+            return NextResponse.json({
+                success: false,
+                code: "EXECUTION_TIMED_OUT",
+                message: "本次训练已超过5小时，请返回今日训练重新开始这一天",
+            }, { status: 409 });
         }
 
         const accessDecision = await validateExecutionSubscriptionAccess({

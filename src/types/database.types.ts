@@ -884,6 +884,9 @@ export type Database = {
           created_at: string | null
           description: string | null
           end_date: string | null
+          activated_at: string | null
+          activation_after_execution_id: string | null
+          activation_reason: string | null
           archive_reason: string | null
           entitlement_consumption_note: string | null
           entitlement_consumption_policy: string
@@ -891,6 +894,7 @@ export type Database = {
           id: string
           name: string
           rest_days_count: number | null
+          revision_of_instance_id: string | null
           source: string | null
           start_date: string | null
           start_execution_day: number | null
@@ -910,6 +914,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string | null
+          activated_at?: string | null
+          activation_after_execution_id?: string | null
+          activation_reason?: string | null
           archive_reason?: string | null
           entitlement_consumption_note?: string | null
           entitlement_consumption_policy?: string
@@ -917,6 +924,7 @@ export type Database = {
           id?: string
           name: string
           rest_days_count?: number | null
+          revision_of_instance_id?: string | null
           source?: string | null
           start_date?: string | null
           start_execution_day?: number | null
@@ -936,6 +944,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string | null
+          activated_at?: string | null
+          activation_after_execution_id?: string | null
+          activation_reason?: string | null
           archive_reason?: string | null
           entitlement_consumption_note?: string | null
           entitlement_consumption_policy?: string
@@ -943,6 +954,7 @@ export type Database = {
           id?: string
           name?: string
           rest_days_count?: number | null
+          revision_of_instance_id?: string | null
           source?: string | null
           start_date?: string | null
           start_execution_day?: number | null
@@ -2531,8 +2543,10 @@ export type Database = {
           action_executions: Json
           completed_at: string | null
           completed_sets: number
+          close_reason: string | null
           created_at: string
           day_index: number
+          ended_at: string | null
           id: string
           instance_id: string
           last_saved_at: string | null
@@ -2550,8 +2564,10 @@ export type Database = {
           action_executions?: Json
           completed_at?: string | null
           completed_sets?: number
+          close_reason?: string | null
           created_at?: string
           day_index: number
+          ended_at?: string | null
           id?: string
           instance_id: string
           last_saved_at?: string | null
@@ -2569,8 +2585,10 @@ export type Database = {
           action_executions?: Json
           completed_at?: string | null
           completed_sets?: number
+          close_reason?: string | null
           created_at?: string
           day_index?: number
+          ended_at?: string | null
           id?: string
           instance_id?: string
           last_saved_at?: string | null

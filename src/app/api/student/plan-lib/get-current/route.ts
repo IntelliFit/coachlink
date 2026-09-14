@@ -31,6 +31,7 @@ export async function POST(req: Request) {
         .select("id")
         .eq("student_id", userId)
         .eq("status", "scheduled")
+        .is("revision_of_instance_id", null)
         .lte("start_date", today);
 
     // 如果有 scheduled 计划到期，触发状态流转

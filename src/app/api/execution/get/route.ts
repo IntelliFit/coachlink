@@ -9,6 +9,7 @@ import { getAuthUser } from "@/lib/auth";
 import { buildShareInfo } from "../share-helper";
 import type { ShareInfoResponseDto } from "../entity";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
+import { expireAndActivatePendingPlanRevisions } from "@/lib/planExecutionLifecycle";
 
 /**
  * POST /api/execution/get
@@ -37,6 +38,8 @@ export async function POST(req: Request) {
                 data: null,
             }, { status: 400 });
         }
+
+        await expireAndActivatePendingPlanRevisions({ executionId });
 
         // Share mode - return data for share card
         if (mode === "share") {
@@ -97,6 +100,8 @@ export async function POST(req: Request) {
                 session_notes: data.session_notes,
                 started_at: data.started_at,
                 completed_at: data.completed_at,
+                ended_at: (data as any).ended_at,
+                close_reason: (data as any).close_reason,
             },
         });
     } catch (error) {

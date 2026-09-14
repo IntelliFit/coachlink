@@ -28,6 +28,10 @@ import {
     summarizePlanCompletion,
 } from "@/lib/planInstanceCompletion";
 import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
+import {
+    activatePendingPlanRevisionForSource,
+    expireTimedOutPlanExecutions,
+} from "@/lib/planExecutionLifecycle";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -186,6 +190,29 @@ export async function POST(req: Request) {
             code: "PERMISSION_DENIED",
             message: "权限不足",
         }, { status: 403 });
+    }
+
+    let pendingRevision: any = null;
+    try {
+        await expireTimedOutPlanExecutions({ instanceId: instance.id });
+        const activation = await activatePendingPlanRevisionForSource({
+            sourceInstanceId: instance.id,
+        });
+        if (activation.activated && activation.instance) {
+            instance = activation.instance;
+        } else if (hasCoachPermission) {
+            const { data: queuedRevision } = await supabase
+                .from("coach_plan_instances")
+                .select("*")
+                .eq("revision_of_instance_id", instance.id)
+                .eq("status", "scheduled")
+                .order("updated_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            pendingRevision = queuedRevision || null;
+        }
+    } catch (lifecycleError) {
+        console.warn("[get-instance] plan lifecycle refresh failed:", lifecycleError);
     }
 
     const isHistoricalInstanceView = !!id &&
@@ -815,6 +842,7 @@ export async function POST(req: Request) {
         message: "获取训练计划实例成功",
         data: {
             instance,
+            pendingRevision,
             matchedSubscriptionId,
             actions: Object.keys(actionsMap).length > 0
                 ? actionsMap

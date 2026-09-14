@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { activatePendingPlanRevisionForSource } from "@/lib/planExecutionLifecycle";
 
 const db = serviceRoleSupabase as any;
 
@@ -145,6 +146,14 @@ export async function POST(request: NextRequest) {
                 success: false,
                 message: "训练记录刚刚发生变化，请刷新后重试",
             }, { status: 409 });
+        }
+
+        try {
+            await activatePendingPlanRevisionForSource({
+                sourceInstanceId: execution.instance_id,
+            });
+        } catch (activationError) {
+            console.error("[execution/cancel] pending revision activation failed", activationError);
         }
 
         return NextResponse.json({

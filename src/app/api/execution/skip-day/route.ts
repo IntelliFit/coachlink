@@ -4,6 +4,7 @@ import { getApiUserId } from "@/lib/getApiUserId";
 import { ApiData } from "@/types/api";
 import { filterTrainingDaysByAccessWindow } from "@/lib/subscriptionAccess";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
+import { activatePendingPlanRevisionForSource } from "@/lib/planExecutionLifecycle";
 
 // Minimal "skip" endpoint (spec v1):
 // - Mark a training day as abandoned (treated as "skipped" for progress pointer)
@@ -124,6 +125,12 @@ export async function POST(req: Request) {
         if (insErr) {
             return NextResponse.json({ success: false, message: "Failed to create execution" }, { status: 500 });
         }
+    }
+
+    try {
+        await activatePendingPlanRevisionForSource({ sourceInstanceId: instanceId });
+    } catch (activationError) {
+        console.error("[execution/skip-day] pending revision activation failed:", activationError);
     }
 
     return NextResponse.json<ApiData<any>>({
