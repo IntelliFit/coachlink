@@ -26,6 +26,7 @@ async function handleListChatrooms(req: Request, body: GetChatroomsDto = {}) {
         .select('*', { count: 'exact' })
         .eq('is_archived', false)
         .contains('members', [userId])
+        .order('last_message_at', { ascending: false, nullsFirst: false })
         .order('updated_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
