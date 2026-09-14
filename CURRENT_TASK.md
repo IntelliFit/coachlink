@@ -1,3 +1,43 @@
+## Web 线上“更新学员计划一直转圈”诊断与即时解锁 (`2026-09-14`–`2026-09-15`)
+
+- Status: 已完成根因诊断、Fkj 即时解锁、系统性代码修复、生产数据库迁移和 Web/API 正式发布。生产 `coachlink-main` 3/3 实例已于 `2026-09-15` 滚动到镜像摘要 `sha256:49471d505b61deb7e1555c288ebe123ff0d7c32ca24c9ef5445db9f05e029a37`，公网健康检查正常。
+- Exact requests: Fkj 订阅 `9c9d56b3-c85b-4ef6-8835-52a94654bd01` 在北京时间 `18:34:37`、`18:35:42` 两次 `POST /api/plan-lib/create-instance` 均已返回 HTTP 409，并非后端仍在处理。另一个手机浏览器请求在 `18:40:39` 对订阅 `6eac1c45-...` 提交同一接口，也返回 409。
+- Fkj blocker: 当前 active 计划 `91518ae6-aa7a-49b6-93dd-1537a3e17abc` 留有 Day 43 的 `in_progress` execution `012399ad-88f1-4ff9-ab95-680c27739b50`，创建于 `2026-09-08 12:07:43` 后从未更新；同一 Day 43 在约 1.5 秒后另建 execution 并最终 completed。旧行 `completed_sets=0`、15 组均 pending、无实际值/备注/视频/反馈/PR，符合误开空 execution 特征。
+- Data-model/concurrency cause: `execution/start` 采用“先查同实例/同学员/同 day 是否已有 execution，再做多次读取和计算，最后 insert”的 check-then-insert；数据库没有 `(instance_id, student_id, day_index)` 唯一约束或等价原子 upsert。两个并发开始请求可同时查到空并各插入一行。后续按 dayIndex 聚合时后一行覆盖前一行，所以 completed 行正常显示并推进，较早的 `in_progress` 行则成为不可见幽灵状态。
+- Fkj creation evidence: 历史 Nginx 日志确认微信小程序在 `2026-09-08 12:07:43` 和 `12:07:44` 连续发出两次 `POST /api/execution/start`；第一条返回 200，第二条客户端中断为 499，但服务端写入仍已发生，数据库两条 Day 43 execution 的创建时间相差约 1.5 秒。这排除了“学员人为创建脏数据”的解释，属于请求并发/取消后端未原子幂等。
+- Scope audit: 生产 1,410 条 execution 中已有 9 个重复的 instance/student/day 组合（18 条记录）；其中 4 组同时含 completed 与空的 in_progress，Fkj 是其中之一。这不是单一浏览器缓存问题，而是已出现多次的数据一致性缺口。
+- Coach-wide audit after user correction: 用户说明并非只针对 Fkj，而是多名学员都无法正常更新。该教练当前 34 份 active/paused 计划中，31 份有 execution 历史，14 份含至少一条 `in_progress`，会被同一个 revision guard 直接 409；这 14 份共有 16 条 in-progress，其中 15 条已超过 1 天、13 条超过 30 天、11 条完全空白。说明产品缺少 in-progress 生命周期收口/过期机制，阻塞面远大于 Fkj 个案。其余 20 份当前计划没有 in-progress，不能仅凭现有证据断言也被同一 guard 阻塞。
+- Request scope: 当天生产 access log 中真正到达保存接口的 6 次请求只涉及两份计划（“双人余的计划”4次、Fkj 2次），6 次均为 `create-instance` 409；没有其他学员的更新 POST 到达服务器。因此“所有人都转圈”的共同可证实 UI 层问题是：任何保存错误都会因为缺少 `finally` 变成无限 loading，而具体后端错误仍需按各请求区分。
+- Historical exposure: `PLAN_EXECUTION_IN_PROGRESS` revision guard 于 `2026-08-20` 加入；前端 `handleSave` 缺少统一异常收尾则源自旧实现。新 guard 把大量长期未关闭的 execution 状态暴露为 409，而旧前端把这些 409 全部伪装成“很慢”。
+- Backend behavior: 有历史训练记录的计划更新会改为创建 revision；生产 `create-instance` 明确检测任意 `in_progress` execution 并返回 `PLAN_EXECUTION_IN_PROGRESS` 409，文案为“学员正在执行当前计划，请在本次训练完成或放弃后再更新计划”。这是保护训练快照的预期业务拦截。
+- Frontend bug: `handleSave` 在 `setSaving(true)` 后没有 `try/catch/finally`。`planLibService.createInstance` 遇到 409 会抛异常，使代码跳过末尾 `setSaving(false)`，既不显示后端业务提示，也让按钮无限转圈；因此用户误以为更新耗时很久。
+- Mobile evidence: 本次日志中的手机请求对应“双人余的计划”，其 Day 1 execution 正在真实训练（14 组已完成 1 组，且有 1 个视频和 1 条 PR），该 409 属于正确拦截，不能按空记录清理。
+- Production remediation: 对 Fkj 空 execution `012399ad-88f1-4ff9-ab95-680c27739b50` 写入前重新执行安全检查：仍为 in_progress、`completed_sets=0`、15 组均未触碰、无 session notes，视频/反馈/PR 依赖计数均为 0。使用 `id + status + completed_sets + updated_at` 乐观锁将状态改为 `abandoned`（保留审计、不删除数据），回读确认该 active instance 剩余 in-progress 为 0；已完成记录未修改。Fkj 刷新后可立即重试更新计划。
+- Confirmed product requirement: 教练更新计划权限不能被 execution 状态永久剥夺。真实进行中的训练内容必须保持快照不被改写，但计划保存应被接受为新版本/待生效修订，而不是 409 后无限转圈；空的过期 execution 应自动收口。
+- Timeout behavior (`2026-09-15`): 用户确认单次训练满 5 小时自动结束，并允许重新训练同一计划日。已新增非推进终态 `timed_out`：保留整条训练尝试和已填内容、解除活跃与计划更新阻塞，但不算完成、不自动跳过、不推进计划；重新进入当天会创建新 attempt。只有用户主动完成或跳过才推进。
+- Delivered fix: Web 保存统一用 `try/catch/finally` 收口 loading；真实训练进行中时教练保存改为覆盖同一份 scheduled pending revision，并在训练完成、取消、跳过或满 5 小时后自动原子激活；`execution/start` 使用数据库原子函数和部分唯一索引防并发重复创建，开始训练与 pending activation 锁同一 plan instance，消除切换竞态。
+- Production data: 迁移前全库 75 条 `in_progress` 全部已超过 5 小时且不存在仍活跃的重复组合；迁移后 75 条均保留为 `timed_out`，当前 `in_progress=0`。没有删除训练记录，也没有把超时记录计入计划推进。
+- Verification: lint 提示脚本、根 typecheck、Next.js 生产构建、Vitest（合并主线后 53 files / 274 tests）与计划 start→finish E2E（2 条）通过。GitHub/Gitee `main` 汇合到 `d2c58118`；生产 3 个 Pod 全部 Ready 且镜像摘要与本次推送一致。
+- Next: 用户刷新计划页后直接更新 Fkj 或其他学员；若浏览器仍持有旧静态资源，强制刷新一次即可。后续可再增加 `timed_out` 的显式历史标签，但不影响当前更新权限和同日重练。
+
+## Web 线上“学员计划打不开/返回慢”诊断 (`2026-09-14`)
+
+- Status: 已完成本机访问链路、生产 Nginx/K8s、健康探测和相关前端代码的只读诊断；未改业务代码、线上配置或生产数据。
+- Reproduction evidence: 用户本次浏览器会话在 `07:04:29` 已实际进入 `/dashboard/students/plan/f41716eb-...`；`action-lib/list-actions`、`plan-lib/get-with-executions`、`coach/get-student`、`plan-lib/get-instance` 均返回 HTTP 200，最后一个在 `07:04:31` 返回，点击和路由没有失效。
+- Network evidence: 本机通过 `127.0.0.1:7897` HTTP/HTTPS/ALL proxy 访问；重复请求出现 0.7–1.8 秒 TLS 延迟，首次 5 次主页测试有 1 次 15 秒超时。绕过代理直连 `154.8.205.78` 仍有 1/8 次约 5 秒 TLS 握手，说明当前公网/本地链路存在偶发建连抖动，代理不是唯一变量但会增加一层不确定性。
+- Server evidence: 生产主机负载约 `0.75/1.16/1.36`，可用内存约 5.5 GiB，3 个 `coachlink-main` 实例单实例约 291–327 MiB、采样 CPU 0–2.57%。近 8 小时内部探测成功率 100%，平均 12 ms、P95 16 ms、最大 314 ms；计划相关请求未见 5xx 或应用错误，因此不支持“服务器整体过载/计划接口宕机”的判断。
+- Amplifier: 计划页进入后同时请求动作库、学员资料、计划实例和执行记录，并用 `Promise.all` 等待全部完成；客户端 Axios 基础层没有默认超时。本次响应体约 47 KB + 131 KB + 5.7 KB + 153 KB，弱网时会把偶发抖动放大为长时间 loading/“点了没反应”。
+- Separate systemic issue: `/api/chat/unified-stream` 没有 SSE heartbeat，Nginx 默认约 60 秒无数据即 `upstream timed out`，多个客户端（含本次列表页/计划页会话）持续断开重连。这是全站共同问题但不是计划页 4 个数据接口成功返回的直接阻断原因。
+- Next: 若用户授权修复，优先让计划页分阶段渲染并对每个请求设置可恢复超时/重试、合并或瘦身重复的计划数据请求；为 SSE 增加 heartbeat 或针对该路由调整代理超时。即时排障可先把 `coachlink.fit` 设为代理直连或临时关闭代理，再用手机热点交叉验证。
+
+## 微信小程序今日训练弱网误显示“计划正在制定中”修复 (`2026-09-11`)
+
+- Status: 本地修复、类型检查、小程序构建与微信开发者工具元素级验收已完成；未提交、未推送、未上传体验版或正式版。
+- Root cause: 今日训练页已具备账号隔离的 60 天本地缓存，但教练计划与自助计划请求把网络失败、HTTP/API 失败统一折叠为 `null`，随后按“服务端确认无计划”清空内存和缓存，因此弱网刷新后会误显示“计划正在制定中”。服务端 `get-instance` 还先判断 `rawInstance` 为空、后判断数据库 `error`，数据库波动也会被误报成成功但无计划。
+- Fix: `trainingService` 新增返回完整请求状态的 `getInstanceResult`；今日训练刷新按订阅逐项合并，只有成功响应明确返回 `instance: null` 才清空对应计划，请求失败时继续展示同账号 60 天内最后一次缓存，并提示“网络不稳定，已显示上次计划”。自助计划与订阅列表整体失败采用同样的缓存保护。服务端现先处理数据库错误，再判定确实无实例。
+- Verification: `npm run lint` 提示项目未配置 ESLint；根 `npm run typecheck` 通过；小程序定向 TypeScript 检查只剩既有历史错误，本次新增错误为 0；`npm --workspace apps/wechat run build:weapp` 最终 2,883 modules 构建通过。微信开发者工具用隔离账号和本地缓存、API 不可用场景验收，`.tt-plan-identity` 存在且 `.tt-daily-progress-card--empty-state` 不存在，error/warn 均为 0；当前 DevTools 的 `App.captureScreenshot` 持续超时，因此未取得目标状态截图，测试缓存和隔离登录态已清理。
+- Remaining: 代码尚未部署，线上用户需要在后续 Web/API 部署并上传新小程序版本后才能获得该弱网保护。
+
 ## 大川底停引体挑战规则调研与首个视频样本判定 (`2026-09-03`)
 
 - Status: 已完成公开网页初步调研和用户提供的首个 50.225 秒视频逐帧分析；没有修改业务代码、提交或发布。抖音公开索引已定位“大川（引体百科全书）”及其 100 次引体等挑战视频，但站内页面自动读取持续超时，尚未取得这套挑战的原始规则视频或完整参赛样本集。
@@ -9649,3 +9689,34 @@
 - Gates: `npm run lint`、root/mobile TypeScript、完整 Vitest 53 files / 274 tests、Next.js 生产构建 543 页、Playwright E2E 4/4、Expo public/prebuild config 与 Android `assembleRelease` 全部通过；针对性 Vitest 8 files / 60 tests 通过。
 - Artifact: `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`，89,298,008 bytes，SHA-256 `3E4A94B5E4AE59A28FA75F1FABBB63D965B11289351129F0FBDBE0E822FDCED2`。该本地产物位于 ignored build 目录，不进入 Git；当前 release 仍使用本地 Debug 证书，仅用于内部构建验证。
 - Rollout boundary: 本轮不执行数据库迁移、服务端部署或商店发布。真实远程推送仍需先应用 `20260908090000_mobile_push_installations.sql`，配置 Expo project ID、FCM/APNs 和 `MOBILE_PUSH_CRON_SECRET`，再做真机注册、撤销、收件与点击跳转回归。
+## 智健启能科技嘉年华展位产品图准备 (`2026-09-10`)
+
+- Status: 已完成并打包可直接发送的产品图，不再等待交付格式确认。输出位于 `output/exhibition/`，含主推 4 张压缩包和全部 9 张压缩包。
+- Confirmed requirements: 标准展位材料要求企业介绍 200 字以内、配图为高清原图、企业 Logo 为 AI 矢量文件；企业还需自备展品、宣传页和用于屏幕播放的电子宣传资料。群聊最新、最紧急需求是补充直观的真实产品图供下厂制作。
+- Layout evidence: 智健启能 056 展位稿含 900×2000 mm 竖版展板、2300×2600 mm 背板、2300×300 mm 门头及 55 英寸显示屏；通用标准展位说明写 50 英寸屏，最终屏幕规格需与园区确认，但两者均可按 16:9 内容制作。
+- Content gap: 当前竖版展板使用通用 AI 医疗/科技素材，没有呈现 CoachLink 或 FoodLink 的真实界面。现有企业介绍按字符计 209，超过 200 字；已准备 199 字压缩版候选。
+- Deliverables: 主推图为 FoodLink 首页营养仪表盘、FoodLink AI 健康综合分析、CoachLink 动作库、CoachLink 视频功率分析；备选增加 FoodLink 微量营养、AI 健康伙伴、多入口记录，以及 CoachLink 今日训练、教练工作台。全部使用真实产品界面，无生成式虚构 UI。
+- Next: 可直接把主推 4 张包发群；若园区还要 50/55 英寸屏幕轮播文件，再基于全部 9 张制作 16:9 演示稿。
+## 投资机构面试数据准备与后台口径审计 (`2026-09-14`)
+
+- Status: 已只读核对 `.env.production` 指向的生产 Supabase 事实表，并形成投资人高频问题、可直接使用的快照数字、口径风险与补数优先级；未修改业务代码或生产数据。
+- Snapshot: 截至 `2026-09-14 03:33`（Asia/Shanghai），生产库有 3,909 个非管理员账号，近 30 天新增 375；跨 Web 生产访问、训练、功率分析、聊天、支付等事实表去重得到的“可观测已登录活跃下限”为 30 天 209、7 天 58、1 天 9，不能等同于完整 DAU/WAU/MAU。训练累计 1,762 次、完成 1,421 次、完成 14,487 组；近 30 天 60 人发起 155 次训练、完成 114 次。21 名 approved 教练中仅 3 名有 active 学员关系，104 条 active 订阅关系集中在 55/45/4 三名教练。
+- Revenue: 支付主台账共有 74 笔 paid、39 位买家、GMV 6,210.18 元，但其中 38 笔低于 1 元，明显混入测试/极小额交易；采用“单笔至少 10 元”的临时商业清洗口径后为 25 笔、23 位买家、GMV 6,198.80 元。`platform_revenue` 记录平台分成 928 元；该值不是包含会员/内容收入的完整净收入，也未经财务审计。104 条 active 订阅不能表述为 104 个付费订阅。
+- Data quality: 现有 `/admin/analytics` 不可用于对外口径：总用户数写死为 0，训练完成查询空的旧 `training_records`，`feature_usage_stats` 与 `daily_active_users` 均为空；`last_login_at` 基本不能反映复访，跨 Web/小程序/App 的用户活跃与 D1/D7/D30 留存也没有统一事件流。功率任务已完成后会转成 `expired`，不能用当前 status 计算成功率。
+- Recommended next step: 建立一页投资人数据底稿，先固化 test/internal 账号排除规则、跨端活跃事件、注册 cohort 留存、GMV/净收入/MRR/退款、教练供给激活与训练结果指标，再改造后台投资人指标页。
+- Active range update (`2026-09-14 05:35`): 将生产 Web page_view/page_enter 按 `user_id > 可回链 anon_id > session_id` 合并为活跃身份，再加上仅在训练、功率分析、聊天、分享、AI、交易等非 Web 事实表出现的已登录用户，得到 1d/7d/30d 的建议对外上限代理为 23/199/1,088；对应可确认已登录下限为 8/58/209。若极宽松地假设每个 Web session 都是不同用户，上限为 29/288/1,652，但不得称为去重 MAU。面试推荐说“近 30 天约 1,100 个可观测活跃身份，严格已确认 209 个；统一三端 ID 后会收敛为正式 MAU”。
+## 微信小程序私聊误用 coach record ID (`2026-09-14`，`2026-09-15` 深挖)
+
+- Status: 本地系统性修复已完成并通过服务端/小程序构建、类型、测试与微信开发者工具验证；聊天代码与迁移已独立提交为 `2482bb86`，尚未推送、部署、上传小程序或执行生产历史数据迁移，生产会话记录仍未改变。
+- User: 学员“双人余”用户 ID `ede656e8-eb67-4096-a227-60c528720b1e`；教练“枭马葛”真实用户 ID `f9eac5b1-45f9-4479-9ab8-8223a5db8835`，其 `coaches.id` 为 `02db8c38-dc64-490b-9b78-e002a13811df`。
+- Evidence: 截图内 2026-09-14 19:02:13–19:03:15 的视频与四条文字消息均写入房间 `0b279dcd-7928-43f3-9748-84bb226fab35`；房间成员为“双人余”的真实用户 ID和“枭马葛”的 `coaches.id`，后者不是 `users.id` 且没有 `user_profiles` 行，所以小程序显示“未知用户”，教练真实账号也无法收到该房间消息。
+- Correct room: 双方真实用户 ID 的正确会话为 `e70a4ce4-aae5-4831-816b-0a2495e07afd`，即用户截图外层 Web 当前打开的“双人余”会话。
+- Conclusion: 消息业务意图确实指向“枭马葛”，但技术上误投到他的教练资料实体 ID，并未发给另一个真人账号。后续修复需让从订阅进入聊天的路径把 `coach_subscriptions.coach_id` 解析为 `coaches.user_id`，并评估将错误房间消息迁移/合并到正确房间。
+- Root cause: 小程序 `me/my-coaches` 与 `me/messages` 的学员咨询入口把订阅返回的 `coach_id` 直接传入 `getChatroom({ members: [...] })`；该值是 `coaches.id`，而房间成员语义是 `users.id`。`today-training` 也把同一 `coach_id` 深链给消息页。仓库虽已有会先解析 `coaches.user_id` 的 `utils/coachChat.ts`，但这些入口没有复用它。
+- Server/data-model gap: `/api/chat/get-chatroom` 和 `/api/chat/create-chatroom` 只校验当前登录用户位于 `members`，不校验另一成员是否存在于 `users`；`chat_rooms.members` 是 UUID 数组而非带外键的成员关系表。`send-message` 也只校验发送者属于房间，所以孤立房间仍能持续写消息。消息表没有独立 `receiver_id`，收件人完全由房间成员推导，因此错误 ID 对应的不是另一个真人，而是没有账号能接收的空目标。
+- Scope audit (`2026-09-15`): 生产共 236 个房间、1,877 条消息；23 个房间至少含一个非 `users.id` 成员，其中 22 个误用了 `coaches.id`。11 个此类 coach-record 房间已有消息，共 18 条；“枭马葛”涉及 9 个错误房间、16 条消息，“双人余”的目标错误房间有 7 条。说明不是单会话偶发，而是学生侧咨询入口的系统性 ID 类型错误。
+- Required fix boundary: 学生侧所有“联系教练”入口统一通过 `coaches.user_id` 创建/查找会话；服务端拒绝不存在的用户成员并限制私聊恰好两个去重后的真实用户；历史错误房间需先映射到双方正确房间，再迁移消息/已读状态并归档旧房间，不能直接删消息。
+- Local implementation (`2026-09-15`): `my-coaches`、学员消息页和今日训练页已统一复用 `openCoachChat`，先将 `coaches.id` 解析为 `coaches.user_id`；服务端 get/create 增加双方真实用户校验、旧 `coaches.id` 兼容映射、精确双成员查房与并发去重，send-message 禁止向归档/非法房间继续写入。会话详情同时返回真实对方资料，旧错误 roomId 会自动切换到规范房间并覆盖“未知用户”标题。
+- Data repair migration: 新增 `supabase/migrations/20260915000000_repair_chat_room_members.sql`，会把错误房间消息与未读数合并到真实双方规范房间、保留消息主键/时间/媒体/预览并归档源房间；同时增加 active 私聊成员触发器与无序成员对唯一索引，阻止同类脏房间和重复房间再次产生。迁移已在临时 PostgreSQL 16 中执行两轮场景验证，但因服务端兼容代码必须先上线，未直接对生产执行。
+- Verification: 根 `npm run typecheck`、`npx next build`、`npm test`（45 files / 214 tests）通过；小程序完整本地构建 2,884 modules 通过。微信开发者工具以“双人余”身份从“我的教练”打开“枭马葛”时进入正确房间 `e70a4ce4-aae5-4831-816b-0a2495e07afd`；用旧错误房间 `0b279dcd-7928-43f3-9748-84bb226fab35` 重放也自动切换到该房间并显示“枭马葛”，错误日志 0 条。截图：`screenshots/weapp/chat-coach-id-fix-correct-room-2026-09-15.png`、`screenshots/weapp/chat-coach-id-fix-legacy-redirect-final-2026-09-15.png`。
+- Release order: 必须先部署 Web/API 兼容代码，再执行聊天数据迁移，最后上传/发布小程序；不能先加数据库约束，否则旧线上小程序仍可能发送 `coaches.id` 而被阻止。
