@@ -179,6 +179,7 @@ const StudentPlanPage = () => {
                 // 5. 处理 Instance (训练计划详情)
                 if (instanceRes?.instance) {
                     const instance = instanceRes.instance;
+                    const editableInstance = instanceRes.pendingRevision || instance;
                     const isLogicallyCompleted =
                         !!instanceRes.isLogicallyCompleted ||
                         instanceRes.derivedStatus === 'completed';
@@ -189,11 +190,11 @@ const StudentPlanPage = () => {
                     if (instance.status === 'active') {
                         setInstanceExists(true);
                         setInstanceId(instance.id);
-                        setName(instance.name);
-                        setDescription(instance.description || '');
-                        setExecutionNotice((instance as any).execution_notice || '');
+                        setName(editableInstance.name);
+                        setDescription(editableInstance.description || '');
+                        setExecutionNotice((editableInstance as any).execution_notice || '');
 
-                        const convertedDays = (instance.training_days || []).map((day: any) => ({
+                        const convertedDays = (editableInstance.training_days || []).map((day: any) => ({
                             id: day.id,
                             dayIndex: day.dayIndex,
                             type: day.type,
@@ -204,6 +205,13 @@ const StudentPlanPage = () => {
                         setDays(convertedDays);
                         if (convertedDays.length > 0) setSelectedDayIndex(convertedDays[0].dayIndex);
                         if (instance.start_execution_day > 1) setStartExecutionDay(instance.start_execution_day);
+                        if (instanceRes.pendingRevision) {
+                            showToast({
+                                severity: 'info',
+                                summary: '已有待生效更新',
+                                detail: '当前显示的是已保存的新版本；学员本次训练结束或满5小时后自动生效',
+                            });
+                        }
                     } else if (instance.status === 'completed') {
                         showToast({ severity: 'info', summary: '计划已完成', detail: '请为学员创建新阶段计划' });
                         setInstanceExists(false);
@@ -797,6 +805,7 @@ const StudentPlanPage = () => {
         }
 
         setSaving(true);
+        try {
         // Prepare data according to API format
         const daysData = days.map(day => ({
             dayIndex: day.dayIndex,
@@ -922,9 +931,12 @@ const StudentPlanPage = () => {
                             detail: `训练计划已创建，已同步 ${adjustmentResult.applied} 个动作的全局1RM，但仍有 ${adjustmentResult.skipped} 个动作待手动确认`,
                         });
                     } else {
-                        const detail = adjustmentResult.applied > 0
-                            ? `训练计划已创建，并同步调整 ${adjustmentResult.applied} 个动作的全局1RM`
+                        const pendingDetail = res.activationPending
+                            ? '计划新版本已保存，将在学员本次训练结束或满5小时后自动生效'
                             : '训练计划已创建';
+                        const detail = adjustmentResult.applied > 0
+                            ? `${pendingDetail}，并同步调整 ${adjustmentResult.applied} 个动作的全局1RM`
+                            : pendingDetail;
                         showToast({ severity: 'success', summary: '创建成功', detail });
                     }
                 } catch (error: any) {
@@ -948,8 +960,16 @@ const StudentPlanPage = () => {
         if (saveSucceeded && canLeaveAfterSave) {
             router.push('/dashboard/students');
         }
-
-        setSaving(false);
+        } catch (error: any) {
+            console.error('保存学员计划失败:', error);
+            showToast({
+                severity: 'error',
+                summary: '保存失败',
+                detail: error?.message || '更新训练计划失败，请稍后重试',
+            });
+        } finally {
+            setSaving(false);
+        }
     };
 
     const confirmCancel = () => {

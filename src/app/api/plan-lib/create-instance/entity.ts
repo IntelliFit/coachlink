@@ -35,4 +35,6 @@ export interface CreateInstanceDto {
 // 返回参数的接口类型
 export interface CreateInstanceResponseDto {
     instance: CoachPlanInstanceRow;
+    activationPending?: boolean;
+    activationAfterExecutionId?: string | null;
 }

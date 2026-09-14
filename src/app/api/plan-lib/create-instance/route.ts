@@ -13,6 +13,7 @@ import {
     reconcileCurrentPlanInstancesForSubscription,
 } from "@/lib/subscriptionEntitlement";
 import { toBeijingDateKey } from "@/lib/beijingTime";
+import { expireTimedOutPlanExecutions } from "@/lib/planExecutionLifecycle";
 
 export async function POST(req: Request) {
     const {
@@ -90,6 +91,8 @@ export async function POST(req: Request) {
         start_execution_day?: number | null;
     } | null = null;
     let revisionResolvedDayIndexes = new Set<number>();
+    let activationPending = false;
+    let activationAfterExecutionId: string | null = null;
 
     if (revisionOfInstanceId) {
         const { data: source, error: sourceError } = await serviceRoleSupabase
@@ -111,10 +114,11 @@ export async function POST(req: Request) {
         }
 
         revisionSource = source;
+        await expireTimedOutPlanExecutions({ instanceId: revisionOfInstanceId });
         const { data: resolvedExecutions, error: resolvedExecutionsError } =
             await serviceRoleSupabase
                 .from("plan_instance_executions")
-                .select("day_index, status")
+                .select("id, day_index, status, started_at")
                 .eq("instance_id", revisionOfInstanceId);
 
         if (resolvedExecutionsError) {
@@ -124,15 +128,16 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
-        if ((resolvedExecutions || []).some((execution: any) =>
-            String(execution?.status || "").toLowerCase() === "in_progress"
-        )) {
-            return NextResponse.json({
-                success: false,
-                code: "PLAN_EXECUTION_IN_PROGRESS",
-                message: "学员正在执行当前计划，请在本次训练完成或放弃后再更新计划",
-            }, { status: 409 });
-        }
+        const activeExecutions = (resolvedExecutions || [])
+            .filter((execution: any) =>
+                String(execution?.status || "").toLowerCase() === "in_progress"
+            )
+            .sort((left: any, right: any) =>
+                new Date(right?.started_at || 0).getTime() -
+                new Date(left?.started_at || 0).getTime()
+            );
+        activationPending = activeExecutions.length > 0;
+        activationAfterExecutionId = activeExecutions[0]?.id || null;
 
         revisionResolvedDayIndexes = new Set(
             (resolvedExecutions || [])
@@ -234,28 +239,72 @@ export async function POST(req: Request) {
             ? subscriptionStartDate || requestedStartDate
             : null;
 
-    // 创建计划实例
-    const { data: instance, error } = await serviceRoleSupabase
-        .from("coach_plan_instances")
-        .insert({
-            name,
-            description: description || null,
-            execution_notice: normalizedExecutionNotice,
-            coach_subscription_id: subscriptionId,
-            coach_id: subscription.coach_id || null,
-            student_id: subscription.student_id || null,
-            coach_plan_template_id: templateId || null,
-            start_date: resolvedStartDate,
-            end_date: endDate || null,
-            tags: tags || null,
-            type: type || null,
-            suitable_for: suitableFor || null,
-            status: status || "active",
-            training_days: trainingDays,
-            start_execution_day: startExecutionDay > 1 ? startExecutionDay : 1,
-        })
-        .select()
-        .single();
+    const effectiveStatus = activationPending ? "scheduled" : status || "active";
+    const instancePayload = {
+        name,
+        description: description || null,
+        execution_notice: normalizedExecutionNotice,
+        coach_subscription_id: subscriptionId,
+        coach_id: subscription.coach_id || null,
+        student_id: subscription.student_id || null,
+        coach_plan_template_id: templateId || null,
+        start_date: resolvedStartDate,
+        end_date: endDate || null,
+        tags: tags || null,
+        type: type || null,
+        suitable_for: suitableFor || null,
+        status: effectiveStatus,
+        training_days: trainingDays,
+        start_execution_day: startExecutionDay > 1 ? startExecutionDay : 1,
+        revision_of_instance_id: revisionSource?.id || null,
+        activation_after_execution_id: activationPending ? activationAfterExecutionId : null,
+        activation_reason: activationPending ? "execution_in_progress" : null,
+        activated_at: activationPending ? null : new Date().toISOString(),
+        ...(activationPending && { entitlement_consumption_policy: "no_charge" }),
+        updated_at: new Date().toISOString(),
+    };
+
+    let instance: any = null;
+    let error: any = null;
+    if (activationPending && revisionSource) {
+        const { data: existingPending, error: pendingQueryError } = await serviceRoleSupabase
+            .from("coach_plan_instances")
+            .select("id")
+            .eq("revision_of_instance_id", revisionSource.id)
+            .eq("status", "scheduled")
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        if (pendingQueryError) {
+            error = pendingQueryError;
+        } else if (existingPending) {
+            const result = await serviceRoleSupabase
+                .from("coach_plan_instances")
+                .update(instancePayload)
+                .eq("id", existingPending.id)
+                .eq("status", "scheduled")
+                .select()
+                .single();
+            instance = result.data;
+            error = result.error;
+        } else {
+            const result = await serviceRoleSupabase
+                .from("coach_plan_instances")
+                .insert(instancePayload)
+                .select()
+                .single();
+            instance = result.data;
+            error = result.error;
+        }
+    } else {
+        const result = await serviceRoleSupabase
+            .from("coach_plan_instances")
+            .insert(instancePayload)
+            .select()
+            .single();
+        instance = result.data;
+        error = result.error;
+    }
 
     if (error) {
         // Once the database single-current constraint is deployed, two truly
@@ -263,6 +312,30 @@ export async function POST(req: Request) {
         // both requests carried the same plan, return the already-published
         // instance so a double tap remains idempotent.
         if ((error as any)?.code === "23505" && subscriptionId) {
+            if (activationPending && revisionSource) {
+                const { data: concurrentPending } = await serviceRoleSupabase
+                    .from("coach_plan_instances")
+                    .select("*")
+                    .eq("revision_of_instance_id", revisionSource.id)
+                    .eq("status", "scheduled")
+                    .order("updated_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                const isEquivalentPendingSave = !!concurrentPending &&
+                    String(concurrentPending.name || "") === String(name || "") &&
+                    JSON.stringify(concurrentPending.training_days || []) === JSON.stringify(trainingDays || []);
+                if (isEquivalentPendingSave) {
+                    return NextResponse.json<ApiData<CreateInstanceResponseDto>>({
+                        success: true,
+                        message: "计划新版本已保存，等待当前训练结束后生效",
+                        data: {
+                            instance: concurrentPending as any,
+                            activationPending: true,
+                            activationAfterExecutionId,
+                        },
+                    });
+                }
+            }
             const { data: concurrentCurrent } = await serviceRoleSupabase
                 .from("coach_plan_instances")
                 .select("*")
@@ -294,7 +367,7 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    if (revisionSource) {
+    if (revisionSource && !activationPending) {
         try {
             // The database single-current trigger may already have archived the
             // source as replaced_counted before this insert returned. Correct
@@ -320,7 +393,7 @@ export async function POST(req: Request) {
     // Converge by a deterministic newest-row rule. Every concurrent request
     // chooses the same winner, so requests cannot archive each other's row and
     // leave two current plans behind.
-    const shouldReplaceCurrent = !status || status === "active" || status === "paused";
+    const shouldReplaceCurrent = instance.status === "active" || instance.status === "paused";
     let publishedInstance = instance;
     if (shouldReplaceCurrent) {
         try {
@@ -390,7 +463,7 @@ export async function POST(req: Request) {
     // best-effort: notify student via chat message
     try {
         const studentId = subscription.student_id as string | null;
-        if (publishedInstance.id === instance.id && studentId) {
+        if (!activationPending && publishedInstance.id === instance.id && studentId) {
             const planName = name?.trim() || "训练计划";
             const content = `✅ 你的训练计划已制定完成：**${planName}**\n\n` +
                 `请点击 [今日训练](/today-training) 查看并开始训练。`;
@@ -415,6 +488,8 @@ export async function POST(req: Request) {
         message: "创建训练计划实例成功",
         data: {
             instance: publishedInstance,
+            activationPending,
+            activationAfterExecutionId,
         },
     });
 }

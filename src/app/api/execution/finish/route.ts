@@ -8,6 +8,10 @@ import { computeExecutionProgress } from "@/lib/executionProgress";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 import { attachWorkoutEnergyEstimate } from "@/lib/workoutEnergyExecution";
 import type { WorkoutEnergyEstimate } from "@/lib/workoutEnergy";
+import {
+    activatePendingPlanRevisionForSource,
+    expireTimedOutPlanExecutions,
+} from "@/lib/planExecutionLifecycle";
 
 const parseMinNumber = (value: unknown): number | null => {
     if (value === null || value === undefined) return null;
@@ -59,11 +63,13 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
+        await expireTimedOutPlanExecutions({ executionId });
+
         // 验证权限并获取 instance_id
         const { data: execution } = await supabase
             .from("plan_instance_executions")
             .select(
-                "student_id, day_index, completed_sets, total_sets, instance_id, action_executions, started_at",
+                "student_id, day_index, completed_sets, total_sets, instance_id, action_executions, started_at, status",
             )
             .eq("id", executionId)
             .single();
@@ -74,6 +80,13 @@ export async function POST(request: NextRequest) {
                 message: "无权限",
                 data: null,
             }, { status: 403 });
+        }
+        if (String(execution.status || "").toLowerCase() === "timed_out") {
+            return NextResponse.json({
+                success: false,
+                code: "EXECUTION_TIMED_OUT",
+                message: "本次训练已超过5小时，请返回今日训练重新训练这一天",
+            }, { status: 409 });
         }
 
         const accessDecision = await validateExecutionSubscriptionAccess({
@@ -189,6 +202,13 @@ export async function POST(request: NextRequest) {
         // 异步更新订阅的预计完成日期
         if (execution.instance_id) {
             updateEstimatedEndDateForInstance(execution.instance_id);
+            try {
+                await activatePendingPlanRevisionForSource({
+                    sourceInstanceId: execution.instance_id,
+                });
+            } catch (activationError) {
+                console.error("[execution/finish] pending revision activation failed:", activationError);
+            }
         }
 
         return NextResponse.json<ApiData<FinishTrainingResponseDto>>({

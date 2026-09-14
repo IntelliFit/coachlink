@@ -10,6 +10,7 @@ export interface GetInstanceDto {
 
 export interface GetInstanceResponseDto {
     instance: any; // CoachPlanInstance
+    pendingRevision?: any; // Coach-only draft waiting for the current execution to close
     actions?: Record<string, any>; // Map of action_id -> action details
     executions?: any[]; // Detailed executions list (if loaded)
     executionsByDayIndex?: Record<number, any>; // Map of day_index -> most relevant execution

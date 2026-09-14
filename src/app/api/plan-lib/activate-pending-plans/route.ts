@@ -3,6 +3,10 @@ import supabase from "@/lib/supabaseClient";
 import { sendDirectMessage } from "@/lib/chat";
 import type { ApiData } from "@/types/api";
 import { archiveCurrentPlanInstancesForSubscription } from "@/lib/subscriptionEntitlement";
+import {
+    activatePendingPlanRevisionForSource,
+    expireTimedOutPlanExecutions,
+} from "@/lib/planExecutionLifecycle";
 
 /**
  * 激活延迟的计划实例（定时任务）
@@ -23,6 +27,8 @@ export async function POST(req: Request) {
     }
 
     try {
+        const expiredExecutions = await expireTimedOutPlanExecutions();
+
         // 计算2分钟前的时间戳
         const twoMinutesAgo = new Date();
         twoMinutesAgo.setMinutes(twoMinutesAgo.getMinutes() - 2);
@@ -31,7 +37,7 @@ export async function POST(req: Request) {
         // 查询创建时间超过2分钟且仍为 scheduled 状态的计划
         const { data: pendingPlans, error: queryError } = await supabase
             .from("coach_plan_instances")
-            .select("id, name, student_id, coach_id, coach_subscription_id, created_at")
+            .select("id, name, student_id, coach_id, coach_subscription_id, created_at, revision_of_instance_id")
             .eq("status", "scheduled")
             .lte("created_at", twoMinutesAgoIso);
 
@@ -58,6 +64,15 @@ export async function POST(req: Request) {
         // 批量激活计划
         for (const plan of pendingPlans) {
             try {
+                const revisionSourceId = String((plan as any).revision_of_instance_id || "").trim();
+                if (revisionSourceId) {
+                    const activation = await activatePendingPlanRevisionForSource({
+                        sourceInstanceId: revisionSourceId,
+                    });
+                    if (activation.activated) activatedCount++;
+                    continue;
+                }
+
                 await archiveCurrentPlanInstancesForSubscription({
                     supabase,
                     subscriptionId: (plan as any).coach_subscription_id || null,
@@ -131,6 +146,7 @@ export async function POST(req: Request) {
             message: `成功激活 ${activatedCount} 个计划`,
             data: {
                 activated: activatedCount,
+                expired: expiredExecutions.length,
                 ...(errors.length > 0 && { errors }),
             },
         });
