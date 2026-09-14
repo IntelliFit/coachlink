@@ -6,6 +6,7 @@
 /** 教练行（coaches 表） */
 export interface CoachRow {
   id: string
+  user_id?: string | null
   name: string
   avatar_url?: string | null
   bio?: string | null

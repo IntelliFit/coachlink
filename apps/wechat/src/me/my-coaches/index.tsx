@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { authService } from '@/services/authService'
-import { chatService } from '@/services/chatService'
+import { openCoachChat } from '@/utils/coachChat'
 import { fetchMyCoachSubscriptions, fetchCoachAggregatedInfo } from './service'
 import type { QueryCoachSubscription, GetAggregatedInfoResponseDto } from './types'
 import CoachCard from './components/CoachCard'
@@ -84,45 +84,16 @@ export default function MyCoaches() {
     })
   }
 
-  const openChatWithCoach = useCallback(async (coachId: string, coachName?: string) => {
-    const userId = authService.getCurrentUser()?.id
-    if (!userId) {
-      Taro.showToast({ title: '请先登录', icon: 'none' })
-      Taro.navigateTo({
-        url: '/auth/login?returnTo=' + encodeURIComponent('/me/my-coaches/index')
-      })
-      return
-    }
-    if (!coachId) {
-      Taro.showToast({ title: '缺少教练信息', icon: 'none' })
-      return
-    }
-    if (coachId === userId) {
-      Taro.showToast({ title: '无法与自己发起会话', icon: 'none' })
-      return
-    }
-
-    const safeCoachName = coachName || '教练'
-    try {
-      const room = await chatService.getChatroom({ members: [userId, coachId] })
-      if (room?.id) {
-        await Taro.navigateTo({
-          url: `/me/messages/chat/index?roomId=${room.id}&peerName=${encodeURIComponent(safeCoachName)}`
-        })
-        return
-      }
-    } catch (error) {
-      console.error('[my-coaches] open chat failed:', error)
-    }
-
-    await Taro.navigateTo({
-      url: `/me/messages/index?coachId=${encodeURIComponent(coachId)}&coachName=${encodeURIComponent(safeCoachName)}`
-    })
-  }, [])
-
   const onConsult = (coachId: string) => {
     const coachName = subscriptions.find((item) => item.coach_id === coachId)?.coach?.name || ''
-    void openChatWithCoach(coachId, coachName)
+    const coachUserId = aggregatedMap[coachId]?.coach?.user_id || ''
+    void openCoachChat({
+      currentUserId: authService.getCurrentUser()?.id,
+      coachId,
+      coachUserId,
+      coachName,
+      fallbackToMessagesList: true
+    })
   }
 
   const renderSkeleton = () => (

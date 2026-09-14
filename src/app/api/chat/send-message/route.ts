@@ -3,6 +3,7 @@ import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import { getAuthUser } from '@/lib/auth';
 import supabase from '@/lib/supabaseClient';
 import { maybeCreateCoachAiAutoReply } from '@/lib/coachAiAutoReply';
+import { normalizePrivateChatMembers } from '@/lib/chatMembers';
 import type { ApiData } from '@/types/api';
 import type { SendMessageDto, SendMessageResponseDto } from './entity';
 
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
 
     const { data: chatRoom, error: chatRoomError } = await supabase
         .from('chat_rooms')
-        .select('id, members')
+        .select('id, members, is_archived')
         .eq('id', roomId)
         .single();
 
@@ -119,6 +120,43 @@ export async function POST(req: Request) {
                 data: null,
             },
             { status: 403 },
+        );
+    }
+
+    if (chatRoom.is_archived) {
+        return NextResponse.json(
+            {
+                success: false,
+                message: '该会话已归档，请返回消息列表重新进入',
+                data: null,
+            },
+            { status: 409 },
+        );
+    }
+
+    const normalizedMembers = await normalizePrivateChatMembers(
+        supabase,
+        chatRoom.members,
+        userId,
+    );
+    if (normalizedMembers.ok === false) {
+        return NextResponse.json(
+            {
+                success: false,
+                message: normalizedMembers.message,
+                data: null,
+            },
+            { status: normalizedMembers.status },
+        );
+    }
+    if (normalizedMembers.normalizedLegacyCoachIds) {
+        return NextResponse.json(
+            {
+                success: false,
+                message: '该会话成员信息已失效，请返回消息列表重新进入',
+                data: null,
+            },
+            { status: 409 },
         );
     }
 

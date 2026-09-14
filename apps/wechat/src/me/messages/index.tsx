@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { authService } from '@/services/authService'
 import { chatService, type ChatroomItem, CHAT_UNREAD_BADGE_REFRESH_EVENT } from '@/services/chatService'
 import { request } from '@/utils/request'
+import { openCoachChat } from '@/utils/coachChat'
 import { Location, Message } from '@nutui/icons-react-taro'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
@@ -69,8 +70,9 @@ function MessagesPage() {
   const { effectiveTheme } = useTheme()
   const router = useRouter()
   const pendingCoachId = router.params?.coachId ? decodeURIComponent(router.params.coachId) : ''
+  const pendingPeerUserId = router.params?.peerUserId ? decodeURIComponent(router.params.peerUserId) : ''
   const pendingCoachName = router.params?.coachName ? decodeURIComponent(router.params.coachName) : ''
-  const lastAutoOpenCoachIdRef = useRef('')
+  const lastAutoOpenTargetRef = useRef('')
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollingInFlightRef = useRef(false)
 
@@ -92,25 +94,6 @@ function MessagesPage() {
     })
   }, [])
 
-  const openChatWithCoach = useCallback(async (userId: string, coachId: string, coachName?: string) => {
-    try {
-      const room = await chatService.getChatroom({ members: [userId, coachId] })
-      if (!room?.id) {
-        Taro.showToast({ title: '创建会话失败，请稍后重试', icon: 'none' })
-        return false
-      }
-      const name = coachName || '教练'
-      await Taro.navigateTo({
-        url: `/me/messages/chat/index?roomId=${room.id}&peerName=${encodeURIComponent(name)}`
-      })
-      return true
-    } catch (error) {
-      console.error('打开会话失败:', error)
-      Taro.showToast({ title: '打开会话失败，请稍后重试', icon: 'none' })
-      return false
-    }
-  }, [])
-
   const loadConversations = useCallback(async (options?: { silent?: boolean; skipAutoOpen?: boolean }) => {
     const silent = Boolean(options?.silent)
     const skipAutoOpen = Boolean(options?.skipAutoOpen)
@@ -126,12 +109,17 @@ function MessagesPage() {
 
       if (
         !skipAutoOpen &&
-        pendingCoachId &&
-        pendingCoachId !== userId &&
-        lastAutoOpenCoachIdRef.current !== pendingCoachId
+        (pendingPeerUserId || pendingCoachId) &&
+        pendingPeerUserId !== userId &&
+        lastAutoOpenTargetRef.current !== `${pendingPeerUserId}|${pendingCoachId}`
       ) {
-        lastAutoOpenCoachIdRef.current = pendingCoachId
-        const opened = await openChatWithCoach(userId, pendingCoachId, pendingCoachName)
+        lastAutoOpenTargetRef.current = `${pendingPeerUserId}|${pendingCoachId}`
+        const opened = await openCoachChat({
+          currentUserId: userId,
+          coachId: pendingCoachId,
+          coachUserId: pendingPeerUserId,
+          coachName: pendingCoachName
+        })
         if (opened) return
       }
 
@@ -148,7 +136,7 @@ function MessagesPage() {
       if (!silent) setLoading(false)
       Taro.eventCenter.trigger(CHAT_UNREAD_BADGE_REFRESH_EVENT)
     }
-  }, [openChatWithCoach, pendingCoachId, pendingCoachName, sortChatrooms])
+  }, [pendingCoachId, pendingCoachName, pendingPeerUserId, sortChatrooms])
 
   const loadFriendRequests = useCallback(async () => {
     try {

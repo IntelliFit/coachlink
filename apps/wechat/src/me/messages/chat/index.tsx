@@ -178,6 +178,16 @@ function ChatPage() {
       try {
         const room = await chatService.getChatroom({ roomId })
         if (cancelled) return
+        if (room?.id && room.id !== roomId) {
+          const replacementPeerName = room.chatUserProfile?.name || peerName || '聊天'
+          await Taro.redirectTo({
+            url: `/me/messages/chat/index?roomId=${room.id}&peerName=${encodeURIComponent(replacementPeerName)}`
+          })
+          return
+        }
+        if (room?.chatUserProfile?.name) {
+          setNavTitle(room.chatUserProfile.name)
+        }
         const peer = room?.members?.find(id => id !== myId) || ''
         setPeerUserId(peer)
       } catch (e) {
@@ -187,7 +197,7 @@ function ChatPage() {
     return () => {
       cancelled = true
     }
-  }, [roomId, myId])
+  }, [roomId, myId, peerName, setNavTitle])
 
   // 支持从其他页面带入建议消息草稿，避免“反馈 -> 沟通”丢失上下文
   useEffect(() => {
