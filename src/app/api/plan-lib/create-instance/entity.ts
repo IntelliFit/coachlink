@@ -37,4 +37,5 @@ export interface CreateInstanceResponseDto {
     instance: CoachPlanInstanceRow;
     activationPending?: boolean;
     activationAfterExecutionId?: string | null;
+    updatedExisting?: boolean;
 }

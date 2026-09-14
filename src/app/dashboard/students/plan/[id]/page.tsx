@@ -821,12 +821,9 @@ const StudentPlanPage = () => {
             return;
         }
 
-        const shouldCreateRevision =
-            !!instanceExists && !!instanceId && importMode === 'overwrite' && hasExecutionHistory;
         const shouldCreateNewInstance =
             (!instanceExists || !instanceId) ||
-            (instanceExists && instanceId && importMode === 'new_instance') ||
-            shouldCreateRevision;
+            (instanceExists && instanceId && importMode === 'new_instance');
         let canLeaveAfterSave = true;
         let saveSucceeded = false;
 
@@ -879,27 +876,9 @@ const StudentPlanPage = () => {
             const requestedStartDayIndex = importStartConfig
                 ? ((importStartConfig.startWeek - 1) * 7 + importStartConfig.startDay)
                 : Number(rawInstance?.start_execution_day || 1);
-            const resolvedDayIndexes = new Set(
-                Object.values(executions)
-                    .filter((execution: any) => ['completed', 'abandoned'].includes(String(execution?.status || '').toLowerCase()))
-                    .map((execution: any) => Number(execution?.day_index ?? execution?.dayIndex ?? 0))
-                    .filter((dayIndex) => dayIndex > 0),
-            );
-            const firstUnresolvedTrainingDay = daysData
-                .filter((day) => day.type === 'training')
-                .map((day) => Number(day.dayIndex || 0))
-                .filter((dayIndex) => dayIndex > 0 && !resolvedDayIndexes.has(dayIndex))
-                .sort((left, right) => left - right)[0];
-            const revisionStartDayIndex = shouldCreateRevision
-                ? Math.max(requestedStartDayIndex, firstUnresolvedTrainingDay || requestedStartDayIndex)
-                : requestedStartDayIndex;
-            const revisionStartDate = shouldCreateRevision
-                ? rawInstance?.start_date || toBeijingDateKey(
-                    addBeijingDays(new Date(), -Math.max(0, revisionStartDayIndex - 1)),
-                )
-                : customStartDate
-                    ? toBeijingDateKey(customStartDate)
-                    : undefined;
+            const createStartDate = customStartDate
+                ? toBeijingDateKey(customStartDate)
+                : undefined;
             const res = await planLibService.createInstance({
                 templateId: selectedTemplateId,
                 subscriptionId: params.id.toString(),
@@ -910,12 +889,9 @@ const StudentPlanPage = () => {
                 type: type || null,
                 suitableFor: suitableFor || null,
                 trainingDays: daysData,
-                revisionOfInstanceId: shouldCreateRevision ? instanceId : undefined,
-                // 覆盖有执行历史的计划只建立内容 revision，不重置日历节奏：
-                // 优先继承旧实例 start_date；新阶段才使用重新选择的日期。
-                startDate: revisionStartDate,
-                startWeek: Math.floor((revisionStartDayIndex - 1) / 7) + 1,
-                startDay: ((revisionStartDayIndex - 1) % 7) + 1,
+                startDate: createStartDate,
+                startWeek: Math.floor((requestedStartDayIndex - 1) / 7) + 1,
+                startDay: ((requestedStartDayIndex - 1) % 7) + 1,
             });
 
             if (res) {

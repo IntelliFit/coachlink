@@ -8,18 +8,6 @@ import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import { validateTrainingDaysPresence } from "@/utils/template";
 import { toBeijingDateKey } from "@/lib/beijingTime";
 
-function stableJson(value: unknown): string {
-    if (Array.isArray(value)) {
-        return `[${value.map((item) => stableJson(item)).join(",")}]`;
-    }
-    if (value && typeof value === "object") {
-        const entries = Object.entries(value as Record<string, unknown>)
-            .sort(([left], [right]) => left.localeCompare(right));
-        return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
-    }
-    return JSON.stringify(value) ?? "null";
-}
-
 export async function POST(req: Request) {
     const {
         id,
@@ -101,40 +89,9 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    // Once an execution exists, training_days is the master definition for an
-    // immutable execution snapshot. Structural edits must create a new plan
-    // instance/revision; updating in place would make the same day_index mean
-    // two different workouts and corrupt history displays.
-    const trainingDaysChanged = trainingDays !== undefined &&
-        stableJson(trainingDays) !== stableJson((existingInstance as any).training_days || []);
-    const startDateChanged = startDate !== undefined &&
-        (startDate ? toBeijingDateKey(startDate) : null) !==
-        (existingInstance.start_date ? String(existingInstance.start_date).slice(0, 10) : null);
-    const startExecutionDayChanged = startExecutionDay !== undefined &&
-        Number(startExecutionDay) !== Number(existingInstance.start_execution_day || 1);
-
-    if (trainingDaysChanged || startDateChanged || startExecutionDayChanged) {
-        const { count: executionCount, error: executionCountError } = await serviceRoleSupabase
-            .from("plan_instance_executions")
-            .select("id", { count: "exact", head: true })
-            .eq("instance_id", id);
-
-        if (executionCountError) {
-            console.error("Error checking instance executions:", executionCountError);
-            return NextResponse.json({
-                success: false,
-                message: "Failed to verify execution history",
-            }, { status: 500 });
-        }
-
-        if (Number(executionCount || 0) > 0) {
-            return NextResponse.json({
-                success: false,
-                code: "PLAN_REVISION_REQUIRED",
-                message: "当前计划已有训练记录，训练内容、D1 和接续进度只能通过新版本更新",
-            }, { status: 409 });
-        }
-    }
+    // Execution rows contain immutable action snapshots. Updating the current
+    // plan definition in place preserves the logical plan id and all workout,
+    // video and PR relationships without rewriting historical execution data.
 
     // Normalize & validate start_execution_day if provided
     let normalizedStartExecutionDay: number | undefined = undefined;
@@ -196,6 +153,21 @@ export async function POST(req: Request) {
             message: "Failed to update instance",
         }, { status: 500 });
     }
+
+    // A direct update supersedes any temporary pending payload left by an
+    // older client. Never let that payload later replace the current instance.
+    await serviceRoleSupabase
+        .from("coach_plan_instances")
+        .update({
+            status: "archived",
+            archive_reason: "superseded_pending_update",
+            entitlement_consumption_policy: "no_charge",
+            activation_after_execution_id: null,
+            activation_reason: null,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("revision_of_instance_id", id)
+        .eq("status", "scheduled");
 
     // 如果更新了 trainingDays，同步动作到学员库
     if (trainingDays !== undefined && Array.isArray(trainingDays)) {

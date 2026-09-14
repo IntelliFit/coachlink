@@ -234,10 +234,99 @@ export async function POST(req: Request) {
     // has no fixed start_date. Only a carried revision/mid-cycle migration may
     // preserve an already-known calendar anchor.
     const resolvedStartDate = revisionSource
-        ? subscriptionStartDate || revisionStartDate || requestedStartDate
+        ? revisionStartDate || subscriptionStartDate || requestedStartDate
         : startExecutionDay > 1
             ? subscriptionStartDate || requestedStartDate
             : null;
+
+    // "Update current plan" must keep the same instance id so every existing
+    // execution, video and personal record remains attached and visible. Each
+    // execution already stores its own immutable action snapshot, so updating
+    // the plan definition in place cannot rewrite historical workout data.
+    if (revisionSource) {
+        const nowIso = new Date().toISOString();
+        const { data: updatedInstance, error: updateError } = await serviceRoleSupabase
+            .from("coach_plan_instances")
+            .update({
+                name,
+                description: description || null,
+                execution_notice: normalizedExecutionNotice,
+                coach_plan_template_id: templateId || null,
+                start_date: resolvedStartDate,
+                end_date: endDate || null,
+                tags: tags || null,
+                type: type || null,
+                suitable_for: suitableFor || null,
+                training_days: trainingDays,
+                start_execution_day: startExecutionDay > 1 ? startExecutionDay : 1,
+                updated_at: nowIso,
+            })
+            .eq("id", revisionSource.id)
+            .eq("coach_subscription_id", subscriptionId)
+            .in("status", ["active", "paused"])
+            .select()
+            .maybeSingle();
+
+        if (updateError || !updatedInstance) {
+            console.error("[create-instance] Failed to update current instance in place:", updateError);
+            return NextResponse.json({
+                success: false,
+                message: "当前计划已发生变化，请刷新后重试",
+            }, { status: 409 });
+        }
+
+        await serviceRoleSupabase
+            .from("coach_plan_instances")
+            .update({
+                status: "archived",
+                archive_reason: "superseded_pending_update",
+                entitlement_consumption_policy: "no_charge",
+                activation_after_execution_id: null,
+                activation_reason: null,
+                updated_at: nowIso,
+            })
+            .eq("revision_of_instance_id", revisionSource.id)
+            .eq("status", "scheduled");
+
+        try {
+            const studentId = subscription.student_id as string | null;
+            if (studentId && Array.isArray(trainingDays)) {
+                const actionIds = new Set<string>();
+                trainingDays.forEach((day: any) => {
+                    day.actionSets?.forEach((set: any) => {
+                        const actionId = set.action_id || set.actionId;
+                        if (actionId) actionIds.add(actionId);
+                    });
+                });
+                if (actionIds.size > 0) {
+                    const { data: coachActions } = await supabase
+                        .from("coach_actions")
+                        .select("*")
+                        .in("id", Array.from(actionIds));
+                    if (coachActions?.length) {
+                        await syncCoachActionsToStudentLibrary(
+                            studentId,
+                            coachActions as any[],
+                            actionIds,
+                        );
+                    }
+                }
+            }
+        } catch (syncError) {
+            console.warn("[create-instance] Failed to sync updated plan actions:", syncError);
+        }
+
+        return NextResponse.json<ApiData<CreateInstanceResponseDto>>({
+            success: true,
+            message: "更新训练计划成功",
+            data: {
+                instance: updatedInstance as any,
+                activationPending: false,
+                activationAfterExecutionId: null,
+                updatedExisting: true,
+            },
+        });
+    }
 
     const effectiveStatus = activationPending ? "scheduled" : status || "active";
     const instancePayload = {
