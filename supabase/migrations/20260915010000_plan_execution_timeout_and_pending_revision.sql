@@ -147,7 +147,7 @@ set search_path = ''
 as $$
 declare
   source_row public.coach_plan_instances%rowtype;
-  pending_id uuid;
+  pending_row public.coach_plan_instances%rowtype;
   now_value timestamptz := now();
 begin
   select *
@@ -169,8 +169,8 @@ begin
     return;
   end if;
 
-  select id
-  into pending_id
+  select *
+  into pending_row
   from public.coach_plan_instances
   where revision_of_instance_id = p_source_instance_id
     and status = 'scheduled'
@@ -178,33 +178,47 @@ begin
   limit 1
   for update;
 
-  if pending_id is null then
+  if pending_row.id is null then
     return;
   end if;
 
+  -- A coach-facing "update" keeps the logical/current instance and all of its
+  -- execution relationships. The scheduled row is only temporary content
+  -- storage while an immutable execution snapshot is running.
   return query
-  update public.coach_plan_instances as pending
+  update public.coach_plan_instances as source
   set
-    status = 'active',
-    start_date = coalesce(source_row.start_date, pending.start_date),
+    name = pending_row.name,
+    description = pending_row.description,
+    execution_notice = pending_row.execution_notice,
+    coach_plan_template_id = pending_row.coach_plan_template_id,
+    end_date = pending_row.end_date,
+    tags = pending_row.tags,
+    type = pending_row.type,
+    suitable_for = pending_row.suitable_for,
+    training_days = pending_row.training_days,
+    training_days_count = pending_row.training_days_count,
+    rest_days_count = pending_row.rest_days_count,
+    start_date = coalesce(source_row.start_date, pending_row.start_date),
     start_execution_day = greatest(coalesce(p_start_execution_day, 1), 1),
     activation_after_execution_id = null,
     activation_reason = null,
-    activated_at = now_value,
     entitlement_consumption_policy = 'count_service',
     updated_at = now_value
-  where pending.id = pending_id
-    and pending.status = 'scheduled'
-  returning pending.*;
+  where source.id = p_source_instance_id
+    and source.status in ('active', 'paused')
+  returning source.*;
 
   update public.coach_plan_instances
   set
     status = 'archived',
-    archive_reason = 'replaced_no_charge',
+    archive_reason = 'pending_update_applied',
     entitlement_consumption_policy = 'no_charge',
-    entitlement_consumption_note = 'Progress is carried by the replacement revision',
+    entitlement_consumption_note = 'Temporary update payload applied back to the original plan instance',
+    activation_after_execution_id = null,
+    activation_reason = null,
     updated_at = now_value
-  where id = p_source_instance_id;
+  where id = pending_row.id;
 end;
 $$;
 
