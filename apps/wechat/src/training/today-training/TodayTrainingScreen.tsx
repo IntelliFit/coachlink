@@ -749,6 +749,7 @@ function TodayTrainingScreen() {
         return
       }
       setIsGuestHome(false)
+      const fallbackCache = getTodayTrainingBootFromCache().cache
 
       const postLoginUrl = await studentOnboardingService.resolvePostLoginUrl({
         loggedInUser: session.user,
@@ -782,14 +783,28 @@ function TodayTrainingScreen() {
       setCoachSubscriptions(activeSubs)
 
       const coachPromises = activeSubs.map((item: any) =>
-        trainingService.getInstance({ subscriptionId: item.id }).catch(() => null)
+        trainingService
+          .getInstanceResult({ subscriptionId: item.id }, { showErrorToast: false })
+          .catch((error) => ({
+            success: false,
+            data: undefined,
+            message: error instanceof Error ? error.message : '计划加载失败'
+          }))
       )
-      const [coachResults, selfRes] = await Promise.all([
-        Promise.allSettled(coachPromises),
-        trainingService.getInstance({ fetchSelf: true }).catch(() => null)
+      const [coachResults, selfResult] = await Promise.all([
+        Promise.all(coachPromises),
+        trainingService
+          .getInstanceResult({ fetchSelf: true }, { showErrorToast: false })
+          .catch((error) => ({
+            success: false,
+            data: undefined,
+            message: error instanceof Error ? error.message : '计划加载失败'
+          }))
       ])
 
       const coachPlanData: Record<string, any> = {}
+      let planRequestFailed = false
+      let restoredCachedPlan = false
       for (let index = 0; index < activeSubs.length; index += 1) {
         const sub = activeSubs[index]
         const result = coachResults[index]
@@ -803,8 +818,16 @@ function TodayTrainingScreen() {
           missingDays: []
         }
 
-        if (result?.status === 'fulfilled' && result.value?.instance) {
-          const derived = result.value as any
+        if (!result?.success) {
+          planRequestFailed = true
+          const cachedData = fallbackCache?.coachPlanDataBySubId?.[sub.id]
+          if (cachedData) {
+            coachPlanData[sub.id] = cachedData
+            restoredCachedPlan = restoredCachedPlan || !!cachedData.instance
+            continue
+          }
+        } else if (result.data?.instance) {
+          const derived = result.data as any
           data.instance = derived.instance
           data.actions = derived.actions || {}
           data.dayIndex = derived.recommendedDayIndex ?? derived.nextDayIndex ?? 1
@@ -862,10 +885,28 @@ function TodayTrainingScreen() {
         }))
       })
 
-      if (selfRes?.instance) {
-        const derived = selfRes as any
-        setSelfInstance(selfRes.instance)
-        setSelfActions(selfRes.actions || {})
+      const selfRes = selfResult?.success ? selfResult.data : null
+      const cachedSelfAvailable = !selfResult?.success && !!fallbackCache
+      if (!selfResult?.success) {
+        planRequestFailed = true
+        restoredCachedPlan = restoredCachedPlan || !!fallbackCache?.selfInstance
+      }
+      const effectiveSelfRes = cachedSelfAvailable
+        ? {
+            instance: fallbackCache?.selfInstance ?? null,
+            actions: fallbackCache?.selfActions ?? {},
+            recommendedDayIndex: fallbackCache?.selfDayIndex ?? 1,
+            todayCompleted: fallbackCache?.selfTodayCompleted ?? false,
+            completionDates: fallbackCache?.selfCompletionDates ?? {},
+            executionsByDayIndex: fallbackCache?.selfExecutionsByDayIndex ?? {},
+            missingDays: fallbackCache?.selfMissingDays ?? []
+          }
+        : selfRes
+
+      if (effectiveSelfRes?.instance) {
+        const derived = effectiveSelfRes as any
+        setSelfInstance(effectiveSelfRes.instance)
+        setSelfActions(effectiveSelfRes.actions || {})
         setSelfDayIndex(derived.recommendedDayIndex ?? derived.nextDayIndex ?? 1)
         setSelfTodayCompleted(!!derived.todayCompleted)
         setSelfCompletionDates(derived.completionDates || {})
@@ -874,8 +915,8 @@ function TodayTrainingScreen() {
 
         const completedCount = Array.isArray(derived.completedDays) ? derived.completedDays.length : 0
         const totalCount = Number(derived.totalTrainingDays || 0)
-        if (totalCount > 0 && completedCount >= totalCount && selfRes.instance?.status === 'active') {
-          await handleCompletePlan(selfRes.instance)
+        if (totalCount > 0 && completedCount >= totalCount && effectiveSelfRes.instance?.status === 'active') {
+          await handleCompletePlan(effectiveSelfRes.instance)
         }
       } else {
         setSelfInstance(null)
@@ -888,7 +929,7 @@ function TodayTrainingScreen() {
       }
 
       const hasCoachPlan = activeSubs.some((item: any) => coachPlanData[item.id]?.instance)
-      const hasSelfPlan = !!selfRes?.instance
+      const hasSelfPlan = !!effectiveSelfRes?.instance
       // 刷新/回到前台时保留用户最后主动选择的有效计划；只有该计划不存在才回退。
       const persistedPlanMode: PlanMode =
         planModeRef.current === 'self' && hasSelfPlan
@@ -902,21 +943,21 @@ function TodayTrainingScreen() {
                 : planModeRef.current
       updatePlanMode(persistedPlanMode)
 
-      const selfDerivedPersist = selfRes as any
+      const selfDerivedPersist = effectiveSelfRes as any
       persistTodayTrainingPageCache({
         userId: String(session.userId),
         coachSubscriptions: activeSubs,
         coachPlanDataBySubId: coachPlanData,
         activeCoachSubscriptionId: nextActiveId,
-        selfInstance: selfRes?.instance ?? null,
+        selfInstance: effectiveSelfRes?.instance ?? null,
         selfActions: selfDerivedPersist?.actions ?? {},
-        selfDayIndex: selfRes?.instance
+        selfDayIndex: effectiveSelfRes?.instance
           ? Number(selfDerivedPersist.recommendedDayIndex ?? selfDerivedPersist.nextDayIndex ?? 1) || 1
           : 1,
-        selfTodayCompleted: selfRes?.instance ? !!selfDerivedPersist.todayCompleted : false,
-        selfCompletionDates: selfRes?.instance ? selfDerivedPersist.completionDates || {} : {},
-        selfExecutionsByDayIndex: selfRes?.instance ? selfDerivedPersist.executionsByDayIndex || {} : {},
-        selfMissingDays: selfRes?.instance
+        selfTodayCompleted: effectiveSelfRes?.instance ? !!selfDerivedPersist.todayCompleted : false,
+        selfCompletionDates: effectiveSelfRes?.instance ? selfDerivedPersist.completionDates || {} : {},
+        selfExecutionsByDayIndex: effectiveSelfRes?.instance ? selfDerivedPersist.executionsByDayIndex || {} : {},
+        selfMissingDays: effectiveSelfRes?.instance
           ? Array.isArray(selfDerivedPersist.missingDays)
             ? selfDerivedPersist.missingDays
             : []
@@ -924,9 +965,22 @@ function TodayTrainingScreen() {
         planMode: persistedPlanMode,
         selectedDayIndex: selectedDayIndexRef.current
       })
+
+      if (planRequestFailed) {
+        Taro.showToast({
+          title: restoredCachedPlan ? '网络不稳定，已显示上次计划' : '部分计划加载失败，请稍后重试',
+          icon: 'none'
+        })
+      }
     } catch (error) {
       console.error('[today-training] load failed', error)
-      Taro.showToast({ title: '加载失败，请稍后重试', icon: 'none' })
+      const fallbackCache = getTodayTrainingBootFromCache().cache
+      const hasCachedPlan = !!fallbackCache?.selfInstance || Object.values(fallbackCache?.coachPlanDataBySubId || {})
+        .some((item: any) => !!item?.instance)
+      Taro.showToast({
+        title: hasCachedPlan ? '网络不稳定，已显示上次计划' : '加载失败，请稍后重试',
+        icon: 'none'
+      })
     }
   }, [handleCompletePlan, updatePlanMode])
 

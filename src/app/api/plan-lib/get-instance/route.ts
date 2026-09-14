@@ -110,6 +110,14 @@ export async function POST(req: Request) {
     const { data: rawInstance, error } = await query.maybeSingle();
     timings["2_query_instance"] = performance.now() - queryStart;
 
+    if (error) {
+        console.error("Error fetching instance:", error);
+        return NextResponse.json({
+            success: false,
+            message: "Failed to fetch instance",
+        }, { status: 500 });
+    }
+
     if (!rawInstance) {
         return NextResponse.json({
             success: true,
@@ -118,14 +126,6 @@ export async function POST(req: Request) {
                 instance: null,
             },
         });
-    }
-
-    if (error) {
-        console.error("Error fetching instance:", error);
-        return NextResponse.json({
-            success: false,
-            message: "Failed to fetch instance",
-        }, { status: 500 });
     }
 
     // Track which subscription matched in batch mode
