@@ -450,6 +450,7 @@ export async function POST(req: Request) {
     // 5. Student-visible auto load compute (server-side, non-persistent)
     // Ensures student "plan view" shows kg even if only RM/% configured.
     const autoLoadStart = performance.now();
+    let aggregated1RM: Record<string, number> = {};
     try {
         const targetStudentStart = performance.now();
         const targetStudentId: string | null =
@@ -490,6 +491,9 @@ export async function POST(req: Request) {
                 // 计划负荷统一按 PR 递增逻辑计算，避免状态波动导致自动降重。
                 // 学员若需下调，必须通过手动编辑动作库 reference_1rm。
                 preferPR: true,
+            }, {
+                // 本路由上方已经验证当前用户是该计划的教练或学员。
+                authorizationVerified: true,
             });
             timings["5c_rm_records"] = performance.now() - rmRecordsStart;
 
@@ -507,6 +511,7 @@ export async function POST(req: Request) {
                     rmMap[r.canonicalActionId] = r.current1RM;
                 }
             }
+            aggregated1RM = rmMap;
 
             const calcStart = performance.now();
             const days = instance.training_days as any[];
@@ -847,6 +852,7 @@ export async function POST(req: Request) {
             actions: Object.keys(actionsMap).length > 0
                 ? actionsMap
                 : undefined,
+            aggregated1RM,
             executions: executionsList.length > 0 ? executionsList : undefined,
             executionsByDayIndex: Object.keys(executionsByDayIndex).length > 0
                 ? executionsByDayIndex

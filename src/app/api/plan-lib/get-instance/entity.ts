@@ -12,6 +12,7 @@ export interface GetInstanceResponseDto {
     instance: any; // CoachPlanInstance
     pendingRevision?: any; // Coach-only draft waiting for the current execution to close
     actions?: Record<string, any>; // Map of action_id -> action details
+    aggregated1RM?: Record<string, number>; // 1RM aliases already resolved while calculating loads
     executions?: any[]; // Detailed executions list (if loaded)
     executionsByDayIndex?: Record<number, any>; // Map of day_index -> most relevant execution
     matchedSubscriptionId?: string; // For subscriptionIds[] queries, which subscription the instance belongs to

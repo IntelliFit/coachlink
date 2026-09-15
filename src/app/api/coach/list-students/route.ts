@@ -9,9 +9,11 @@ import {
     StudentSubscription,
 } from "./entity";
 import { UserProfilesRow } from "@/types";
-import pLimit from "p-limit";
 import { ApiData } from "@/types/api";
-import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import {
+    getSubscriptionCarryoverSummariesBatch,
+    SubscriptionCarryoverSummary,
+} from "@/lib/subscriptionCarryover";
 import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
 import { summarizePlanCompletion } from "@/lib/planInstanceCompletion";
 
@@ -159,25 +161,19 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
     return result;
 }
 
-async function deriveProjectedEndDate(params: {
+function deriveProjectedEndDate(params: {
     subscription: any;
-        instanceMeta?: {
-            instance_id?: string;
-            created_at?: string | null;
-            status?: string | null;
-            training_days: any[];
-            start_execution_day: number;
-            executions: Array<{ day_index: number; status: string | null }>;
+    carryover: SubscriptionCarryoverSummary;
+    instanceMeta?: {
+        instance_id?: string;
+        created_at?: string | null;
+        status?: string | null;
+        training_days: any[];
+        start_execution_day: number;
+        executions: Array<{ day_index: number; status: string | null }>;
     } | null;
 }) {
-    const { subscription, instanceMeta } = params;
-    const carryover = await getSubscriptionCarryoverSummary({
-        subscriptionId: String(subscription?.id || ""),
-        subscribedWeeks: Number(subscription?.subscribed_weeks || 0),
-        excludeInstanceId: String(instanceMeta?.instance_id || ""),
-        createdBefore: instanceMeta?.created_at || null,
-        subscriptionStartDate: subscription?.start_date || null,
-    });
+    const { subscription, instanceMeta, carryover } = params;
     const model = deriveSubscriptionEntitlementState({
         subscription,
         planInstance: instanceMeta
@@ -320,15 +316,40 @@ export async function POST(req: Request) {
     // 4. 批量获取 Plan 和 Progress 数据（1-2 queries instead of 2N queries）
     const planDetailByStudentId = await getStudentPlanDataBatch(coachRow.id, studentIds as string[]);
 
-    // 5. 组装数据
-    const students: StudentSubscription[] = await Promise.all((subs || []).map(async (sub) => {
+    // 5. 整页批量读取历史计划与完成记录。此前每个订阅各发 1-2 次查询，
+    // 一页 10 人会额外产生约 20 次跨公网往返。
+    const carryoverBySubscriptionId = await getSubscriptionCarryoverSummariesBatch(
+        (subs || []).map((sub) => {
+            const detail = planDetailByStudentId.get(sub.student_id);
+            const instanceMeta = (detail as any)?.instanceMeta || null;
+            return {
+                subscriptionId: String(sub.id || ""),
+                subscribedWeeks: Number(sub.subscribed_weeks || 0),
+                excludeInstanceId: String(instanceMeta?.instance_id || ""),
+                createdBefore: instanceMeta?.created_at || null,
+                subscriptionStartDate: sub.start_date || null,
+            };
+        }),
+    );
+
+    // 6. 组装数据
+    const students: StudentSubscription[] = (subs || []).map((sub) => {
         const studentId = sub.student_id;
         const profile = profileMap.get(studentId) || null;
         const view = studentViews.get(studentId);
         const detail = planDetailByStudentId.get(studentId);
-        const projectedEndDate = await deriveProjectedEndDate({
+        const carryover = carryoverBySubscriptionId.get(String(sub.id)) || {
+            purchasedWeeks: Number(sub.subscribed_weeks || 0),
+            progressedDayIndex: 0,
+            progressedWeeks: 0,
+            remainingWeeks: Number(sub.subscribed_weeks || 0),
+            sourceInstanceId: null,
+            exhausted: Number(sub.subscribed_weeks || 0) <= 0,
+        };
+        const projectedEndDate = deriveProjectedEndDate({
             subscription: sub,
             instanceMeta: (detail as any)?.instanceMeta || null,
+            carryover,
         });
 
         return {
@@ -342,7 +363,7 @@ export async function POST(req: Request) {
             plan: detail?.plan || null, // 对应实例中的 status, name 等
             progress: detail?.progress || { total: 0, completed: 0 },
         } as unknown as StudentSubscription;
-    }));
+    });
 
     return NextResponse.json<ApiData<ListStudentsResponseDto>>({
         success: true,
