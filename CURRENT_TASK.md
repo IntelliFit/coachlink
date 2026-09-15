@@ -1,6 +1,38 @@
-## Web 线上“更新学员计划一直转圈”诊断与即时解锁 (`2026-09-14`–`2026-09-15`)
+## Web 教练端列表、计划详情与 1RM 保存性能优化及生产发布 (`2026-09-15`)
 
-- Status: 已完成根因诊断、Fkj 即时解锁、系统性代码修复、生产数据库迁移和 Web/API 正式发布。生产 `coachlink-main` 3/3 实例已于 `2026-09-15` 滚动到镜像摘要 `sha256:49471d505b61deb7e1555c288ebe123ff0d7c32ca24c9ef5445db9f05e029a37`，公网健康检查正常。
+- Status: 已实现、验证并发布生产；数据库迁移、GitHub/Gitee `main`、CCR 镜像与生产 3 个 Web/API Pod 均已完成切换。
+- Student list: `list-students` 的订阅结转历史从“每个学员各查计划实例和 execution”的 N+1 改为整页两次批量查询，10 人页面内部 Supabase fetch 从固定 24 次降为约 8 次；翻页、搜索和排序时保留已有列表并显示 loading，不再先清空为整页骨架。
+- Plan editor: 删除教练计划页重复的 `get-with-executions` 请求，直接复用 `get-instance` 已返回的计划、动作、execution 与 1RM；`get-student` 不再重复计算 1RM。计划实例先解除全页 loading，学员档案和完整动作库在后台补齐；动作同步和 1RM 内部读取各再减少一次重复查询。
+- 1RM save: 面板以稳定动作签名防止初始化重复请求，只提交 dirty 动作；成功后直接补丁本地 `aggregated1RM`，移除保存后的 `get-student-actions` 与 `get-student(need1RM=true)` 两次阻塞刷新。服务端保留原教练权限和动作资格校验，再通过 service-role-only RPC 在单条 SQL/单事务中更新全部目标动作，不再按动作逐条 PATCH。
+- Safety: 没有改变计划更新语义、计划实例 ID、execution/视频/PR 关联或教练权限。生产回读双人余仍为计划 `3cbecd41-1262-4176-b458-ecb8191ee0b2` 且有 1 个 execution day；Fkj 仍为 `91518ae6-aa7a-49b6-93dd-1537a3e17abc` 且有 16 个 execution days。
+- Migration: `20260915020000_batch_update_student_action_1rm.sql` 已精确应用并记入迁移历史；隔离 PostgreSQL 验证只更新指定学员的目标动作。生产权限回读为 `anon=false`、`authenticated=false`、`service_role=true`。
+- Verification: lint 提示脚本、typecheck、Next production build、Vitest 53 files / 274 tests、订阅/计划状态 Playwright E2E 2/2 全部通过。用幂等测试账号走通列表、get-instance、1RM 单 RPC 保存与回读，测试数据已清理；热路径本机实测约列表 1.548s、get-instance 2.444s、1RM 1.006s。
+- Production evidence: 生产真实教练只读请求中，10 人列表连续三次为 1.718s / 1.406s / 0.918s；双人余计划 2.273s，Fkj 1.952s。发布提交 `f534e4b9`，镜像 `latest/main/f534e4b` 摘要 `sha256:5b609f387258277c897251eda1c21dc66b33e687d8e40a7c0d9d34e749b56b32`；`coachlink-main` 3/3 Pod Ready、均运行该摘要，Pod 内与公网健康接口均 healthy，发布后各 Pod error 日志计数为 0。
+- UI verification: 按 `USER.md` 的长期偏好未做人工浏览器/DevTools 验收；使用自动 E2E、真实生产 API 回读与部署健康检查替代。用户强制刷新网页后即可体验新链路。
+
+## Web 消息中心会话排序修复与生产发布 (`2026-09-15`)
+
+- Status: 已修复并发布生产；GitHub/Gitee `main=5356aff5`，生产 3/3 Pod 已运行新镜像摘要。
+- Finding: `/api/chat/list-chatrooms` 当前按 `chat_rooms.updated_at DESC` 返回会话，但页面右侧显示的是 `last_message_at`，前端不再做排序，因此界面排序字段与展示字段不一致。
+- Root cause: 常规 `/api/chat/send-message` 更新 `last_message`、`last_message_at` 和未读成员时没有更新 `updated_at`；`chat_rooms` 也没有通用 `updated_at` 自动触发器。于是普通新消息只改变显示日期，不会把会话置顶；列表更接近按房间创建时间或某次其他业务更新排序，截图中的 05/10、07/19、08/25、08/02、04/20、06/02、06/28、06/05 日期倒挂正是该问题的表现。
+- Fix: 会话查询改为 `last_message_at DESC NULLS LAST`，保留 `updated_at DESC` 作为次级排序；常规 `/api/chat/send-message` 和系统消息入口同时写入 `updated_at`，使会话预览时间字段保持一致。未修改数据库数据。
+- Verification: 本地 `lint` 提示脚本、typecheck、Next build、Vitest 45 files / 214 tests 通过；基于生产 `main` 的干净临时副本再次通过 typecheck 和 Vitest 53 files / 274 tests，Docker 内 Next 生产构建通过。GitHub Test workflow 成功。镜像 `latest/main/5356aff` 摘要 `sha256:fd5c97e2163e0f21c3123a25caa12fa8af54070b446de7af14fa62740ae674d0`，Keel 已更新 `coachlink-main`，3/3 Pod Ready 且均运行该摘要，公网健康接口 healthy。浏览器自动化连接未返回任何浏览器实例，无法复用用户登录态做最终消息顺序截图；需用户刷新 `/messages` 肉眼确认。
+
+## Web 教练端列表、计划详情与 1RM 保存性能诊断 (`2026-09-15`)
+
+- Status: 已完成代码调用链、生产 Nginx 访问记录、Prometheus 指标、Jaeger trace 与生产主机到 Supabase 链路的只读诊断；未修改业务代码、生产配置或数据。
+- Student list evidence: 教练“我的学员”每页 10 人时，`list-students` 单请求内部固定产生 24 次 Supabase fetch。枭马葛最近三次相关 trace 为 1.397s、1.794s、4.187s；同一路径历史样本曾达 8.832s 和 11.821s。主要放大器是逐订阅调用 `getSubscriptionCarryoverSummary`，每人再查历史计划/完成记录；同时批量读取 `user_profiles.*`、视频反馈、计划 `training_days` 等列表首屏不一定需要的重数据。页面每次加载/翻页还会先清空旧列表，导致等待期完全显示骨架。
+- Plan page evidence: 计划编辑页首屏并行等待 `get-student`、`get-instance`、`get-with-executions` 和动作库；仅前三个端点就分别产生 10、20、7 次 Supabase fetch（合计 37 次，不含动作库和订阅请求）。`get-instance` 与 `get-with-executions` 重复返回计划、execution 和动作数据；双人余两包约 79KB + 97KB，Fkj 约 206KB + 146KB。双人余最近一次加载中 `get-instance=6.802s`、`get-student=5.040s`、`get-with-executions=2.405s`，全页由最慢请求决定；`get-instance` 内一次 student_actions 查询单独停顿 5.076s。
+- 1RM evidence: 面板即使只改一个值也提交全部 6 个可配置动作，`batch-update-student-1rm` 再拆成 6 个独立 PATCH；成功后同步全量刷新 `get-student-actions`，并触发父层再次读取 `get-student(need1RM=true)`。最近一次服务端保存 1.059s / 8 次 fetch；历史一次因其中一个 PATCH 停顿 10.490s，整次保存达到 11.651s。初始加载时 `eligibleActions` 状态分两次稳定，生产日志证实同一页面连续重复请求两次 `get-student-actions`。
+- Network evidence: 生产主机对 Supabase REST 的 10 次无鉴权 HTTPS 探测每次总耗时约 0.305–0.442s（TLS 约 0.214–0.337s）；trace 中复用连接的常态 fetch 仍约 0.1–0.3s，并偶发 5–10s。主因不是单一“加载顺序”，而是跨公网 Supabase 往返数过多、重复/过量读取以及全页等待最慢请求共同放大了链路抖动。
+- Recommended P0: ① 将列表的订阅结转历史改为整页批量查询，把 24 次 fetch 压到约 6–8 次；② 计划页取消 `get-instance` / `get-with-executions` 重复数据，提供轻量 editor bootstrap，先渲染计划定义，execution 视频和反馈延迟加载；③ 1RM 只提交 dirty action，用单个数据库 RPC/事务批量更新并直接返回新值，前端乐观更新，移除保存后的两次阻塞性全量刷新。
+- Recommended P1: 保留上一页数据并后台刷新、缓存教练动作库/学员基础资料、列表 API 精简字段并用数据库聚合视频统计；再评估服务与 Supabase 同区域部署或直连连接池。合理目标是常态列表/计划可编辑首屏约 1s 级、1RM 保存反馈低于 1s，但需实现后用生产 trace 验证，不能把目标当成已达成。
+
+## Web 线上“更新学员计划一直转圈”修复及版本切换回归 (`2026-09-14`–`2026-09-15`)
+
+- Status: 回归已修复并发布。双人余的原计划已恢复为 active，新编辑内容已合并回原计划，原 execution、视频和个人纪录关联完整保留；Web/API 热修复确保“更新计划”始终保留同一实例 ID，不再创建零历史的新 active instance。
+- Regression evidence: 双人余订阅 `6eac1c45-9e23-4980-a20b-4f90fe7b5068` 的原计划 `3cbecd41-1262-4176-b458-ecb8191ee0b2` 被归档，新 active revision 为 `97ff96f5-a29b-4614-9280-0c79c0ac2a07`。原 execution `06e0c02f-d5d5-4534-86f1-c97248e9b84c` 未删除、未覆盖，仍有 Day 1 的 13/14 组、6 个视频、3 条个人纪录；状态为 `timed_out`。当前页只查新 active instance（0 executions），造成“原计划和训练记录没了”的真实用户观感。
+- Corrected requirement: “更新计划”必须保持原 `coach_plan_instances.id` 与全部 execution 关联；即使需要等待当前训练结束，也只能暂存编辑内容，生效时合并回原实例，不能用新 active instance 替换后让历史记录消失。提示必须写“更新/已保存”，不得写“创建成功”。
 - Exact requests: Fkj 订阅 `9c9d56b3-c85b-4ef6-8835-52a94654bd01` 在北京时间 `18:34:37`、`18:35:42` 两次 `POST /api/plan-lib/create-instance` 均已返回 HTTP 409，并非后端仍在处理。另一个手机浏览器请求在 `18:40:39` 对订阅 `6eac1c45-...` 提交同一接口，也返回 409。
 - Fkj blocker: 当前 active 计划 `91518ae6-aa7a-49b6-93dd-1537a3e17abc` 留有 Day 43 的 `in_progress` execution `012399ad-88f1-4ff9-ab95-680c27739b50`，创建于 `2026-09-08 12:07:43` 后从未更新；同一 Day 43 在约 1.5 秒后另建 execution 并最终 completed。旧行 `completed_sets=0`、15 组均 pending、无实际值/备注/视频/反馈/PR，符合误开空 execution 特征。
 - Data-model/concurrency cause: `execution/start` 采用“先查同实例/同学员/同 day 是否已有 execution，再做多次读取和计算，最后 insert”的 check-then-insert；数据库没有 `(instance_id, student_id, day_index)` 唯一约束或等价原子 upsert。两个并发开始请求可同时查到空并各插入一行。后续按 dayIndex 聚合时后一行覆盖前一行，所以 completed 行正常显示并推进，较早的 `in_progress` 行则成为不可见幽灵状态。
@@ -15,10 +47,11 @@
 - Production remediation: 对 Fkj 空 execution `012399ad-88f1-4ff9-ab95-680c27739b50` 写入前重新执行安全检查：仍为 in_progress、`completed_sets=0`、15 组均未触碰、无 session notes，视频/反馈/PR 依赖计数均为 0。使用 `id + status + completed_sets + updated_at` 乐观锁将状态改为 `abandoned`（保留审计、不删除数据），回读确认该 active instance 剩余 in-progress 为 0；已完成记录未修改。Fkj 刷新后可立即重试更新计划。
 - Confirmed product requirement: 教练更新计划权限不能被 execution 状态永久剥夺。真实进行中的训练内容必须保持快照不被改写，但计划保存应被接受为新版本/待生效修订，而不是 409 后无限转圈；空的过期 execution 应自动收口。
 - Timeout behavior (`2026-09-15`): 用户确认单次训练满 5 小时自动结束，并允许重新训练同一计划日。已新增非推进终态 `timed_out`：保留整条训练尝试和已填内容、解除活跃与计划更新阻塞，但不算完成、不自动跳过、不推进计划；重新进入当天会创建新 attempt。只有用户主动完成或跳过才推进。
-- Delivered fix: Web 保存统一用 `try/catch/finally` 收口 loading；真实训练进行中时教练保存改为覆盖同一份 scheduled pending revision，并在训练完成、取消、跳过或满 5 小时后自动原子激活；`execution/start` 使用数据库原子函数和部分唯一索引防并发重复创建，开始训练与 pending activation 锁同一 plan instance，消除切换竞态。
+- Delivered fix: Web 保存统一用 `try/catch/finally` 收口 loading；“覆盖当前计划”直接原位更新同一实例，即使已有 execution 也不改变实例 ID，既有 execution 继续使用自己的不可变动作快照。旧 Web/小程序若仍调用 revision 创建入口，服务端也会改为原位更新；历史 scheduled pending 内容只作为临时载荷，最终原子合并回原实例并归档临时行。`execution/start` 使用数据库原子函数和部分唯一索引防并发重复创建。
+- Production restoration: 原计划 `3cbecd41-1262-4176-b458-ecb8191ee0b2` 已恢复 active，并保留 execution `06e0c02f-d5d5-4534-86f1-c97248e9b84c` 的 13/14 组、6 个视频、3 条个人纪录；误建 revision `97ff96f5-a29b-4614-9280-0c79c0ac2a07` 已按 `mistaken_revision_restored` 归档且没有 execution。
 - Production data: 迁移前全库 75 条 `in_progress` 全部已超过 5 小时且不存在仍活跃的重复组合；迁移后 75 条均保留为 `timed_out`，当前 `in_progress=0`。没有删除训练记录，也没有把超时记录计入计划推进。
-- Verification: lint 提示脚本、根 typecheck、Next.js 生产构建、Vitest（合并主线后 53 files / 274 tests）与计划 start→finish E2E（2 条）通过。GitHub/Gitee `main` 汇合到 `d2c58118`；生产 3 个 Pod 全部 Ready 且镜像摘要与本次推送一致。
-- Next: 用户刷新计划页后直接更新 Fkj 或其他学员；若浏览器仍持有旧静态资源，强制刷新一次即可。后续可再增加 `timed_out` 的显式历史标签，但不影响当前更新权限和同日重练。
+- Verification: lint 提示脚本、typecheck、Next.js 生产构建、Vitest 53 files / 274 tests 全部通过；定向回归同时覆盖新版 `update-instance` 与旧版 `create-instance + revisionOfInstanceId`，两条路径都保持原计划 ID，更新前 execution 仍可查询。GitHub/Gitee `main=d2fe29a1`；生产 3/3 Pod 均 Ready，主容器摘要均为 `sha256:e614958cb31e82295f5007b4d3eea941fe645fe1189aa75c8f2fb213abc2b769`，三个 Pod 内部健康接口均返回 healthy。
+- Next: 用户强制刷新一次计划页后可直接更新双人余、Fkj 或其他学员；页面应提示更新成功并继续显示同一计划的历史训练记录。
 
 ## Web 线上“学员计划打不开/返回慢”诊断 (`2026-09-14`)
 
