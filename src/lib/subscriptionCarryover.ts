@@ -30,6 +30,14 @@ export type SubscriptionCarryoverSummary = {
   exhausted: boolean;
 };
 
+export type SubscriptionCarryoverLookup = {
+  subscriptionId: string;
+  subscribedWeeks?: number | null;
+  excludeInstanceId?: string | null;
+  createdBefore?: string | null;
+  subscriptionStartDate?: string | null;
+};
+
 const CARRYOVER_INSTANCE_STATUSES = new Set([
   "active",
   "paused",
@@ -205,49 +213,66 @@ export async function getSubscriptionCarryoverSummary(params: {
   createdBefore?: string | null;
   subscriptionStartDate?: string | null;
 }): Promise<SubscriptionCarryoverSummary> {
-  const purchasedWeeks = Math.max(0, Number(params.subscribedWeeks || 0));
-  if (!params.subscriptionId || purchasedWeeks <= 0) {
-    return {
-      purchasedWeeks,
-      progressedDayIndex: 0,
-      progressedWeeks: 0,
-      remainingWeeks: purchasedWeeks,
-      sourceInstanceId: null,
-      exhausted: purchasedWeeks <= 0,
-    };
+  const summaries = await getSubscriptionCarryoverSummariesBatch([params]);
+  return summaries.get(params.subscriptionId) || createEmptyCarryoverSummary(params.subscribedWeeks);
+}
+
+function createEmptyCarryoverSummary(
+  subscribedWeeks?: number | null,
+): SubscriptionCarryoverSummary {
+  const purchasedWeeks = Math.max(0, Number(subscribedWeeks || 0));
+  return {
+    purchasedWeeks,
+    progressedDayIndex: 0,
+    progressedWeeks: 0,
+    remainingWeeks: purchasedWeeks,
+    sourceInstanceId: null,
+    exhausted: purchasedWeeks <= 0,
+  };
+}
+
+/**
+ * Resolve carryover for a page of subscriptions with two database round trips.
+ * The entitlement calculation remains single-source in
+ * deriveSubscriptionCarryoverSummaryFromHistory; only data loading is batched.
+ */
+export async function getSubscriptionCarryoverSummariesBatch(
+  lookups: SubscriptionCarryoverLookup[],
+): Promise<Map<string, SubscriptionCarryoverSummary>> {
+  const summaries = new Map<string, SubscriptionCarryoverSummary>();
+  const validLookups: SubscriptionCarryoverLookup[] = [];
+
+  for (const lookup of lookups || []) {
+    const subscriptionId = String(lookup?.subscriptionId || "").trim();
+    if (!subscriptionId) continue;
+
+    const emptySummary = createEmptyCarryoverSummary(lookup.subscribedWeeks);
+    summaries.set(subscriptionId, emptySummary);
+    if (emptySummary.purchasedWeeks > 0) {
+      validLookups.push({ ...lookup, subscriptionId });
+    }
   }
 
-  let query = supabase
+  const subscriptionIds = Array.from(
+    new Set(validLookups.map((lookup) => lookup.subscriptionId)),
+  );
+  if (subscriptionIds.length === 0) return summaries;
+
+  const { data: instances, error: instancesError } = await supabase
     .from("coach_plan_instances")
-    .select("id, start_execution_day, created_at, status, entitlement_consumption_policy")
-    .eq("coach_subscription_id", params.subscriptionId)
-    .in("status", Array.from(CARRYOVER_INSTANCE_STATUSES))
-    .order("created_at", { ascending: true });
+    .select(
+      "id, coach_subscription_id, start_execution_day, created_at, status, entitlement_consumption_policy",
+    )
+    .in("coach_subscription_id", subscriptionIds)
+    .in("status", Array.from(CARRYOVER_INSTANCE_STATUSES));
 
-  if (params.excludeInstanceId) {
-    query = query.neq("id", params.excludeInstanceId);
-  }
-
-  if (params.createdBefore) {
-    query = query.lt("created_at", params.createdBefore);
-  }
-
-  const { data: instances, error: instancesError } = await query;
   if (instancesError || !instances || instances.length === 0) {
-    return {
-      purchasedWeeks,
-      progressedDayIndex: 0,
-      progressedWeeks: 0,
-      remainingWeeks: purchasedWeeks,
-      sourceInstanceId: null,
-      exhausted: false,
-    };
+    return summaries;
   }
 
   const instanceIds = instances
     .map((instance) => String(instance?.id || "").trim())
     .filter(Boolean);
-
   const { data: executions } = instanceIds.length > 0
     ? await supabase
       .from("plan_instance_executions")
@@ -256,12 +281,46 @@ export async function getSubscriptionCarryoverSummary(params: {
       .eq("status", "completed")
     : { data: [] as CarryoverExecutionLike[] };
 
-  return deriveSubscriptionCarryoverSummaryFromHistory({
-    subscribedWeeks: purchasedWeeks,
-    instances: instances as CarryoverInstanceLike[],
-    executions: executions as CarryoverExecutionLike[],
-    excludeInstanceId: params.excludeInstanceId,
-    createdBefore: params.createdBefore,
-    subscriptionStartDate: params.subscriptionStartDate,
-  });
+  const instancesBySubscription = new Map<string, CarryoverInstanceLike[]>();
+  const subscriptionByInstance = new Map<string, string>();
+  for (const instance of instances as Array<CarryoverInstanceLike & {
+    coach_subscription_id?: string | null;
+  }>) {
+    const subscriptionId = String(instance.coach_subscription_id || "").trim();
+    const instanceId = String(instance.id || "").trim();
+    if (!subscriptionId || !instanceId) continue;
+
+    const bucket = instancesBySubscription.get(subscriptionId) || [];
+    bucket.push(instance);
+    instancesBySubscription.set(subscriptionId, bucket);
+    subscriptionByInstance.set(instanceId, subscriptionId);
+  }
+
+  const executionsBySubscription = new Map<string, CarryoverExecutionLike[]>();
+  for (const execution of (executions || []) as CarryoverExecutionLike[]) {
+    const subscriptionId = subscriptionByInstance.get(
+      String(execution.instance_id || "").trim(),
+    );
+    if (!subscriptionId) continue;
+
+    const bucket = executionsBySubscription.get(subscriptionId) || [];
+    bucket.push(execution);
+    executionsBySubscription.set(subscriptionId, bucket);
+  }
+
+  for (const lookup of validLookups) {
+    summaries.set(
+      lookup.subscriptionId,
+      deriveSubscriptionCarryoverSummaryFromHistory({
+        subscribedWeeks: lookup.subscribedWeeks,
+        instances: instancesBySubscription.get(lookup.subscriptionId) || [],
+        executions: executionsBySubscription.get(lookup.subscriptionId) || [],
+        excludeInstanceId: lookup.excludeInstanceId,
+        createdBefore: lookup.createdBefore,
+        subscriptionStartDate: lookup.subscriptionStartDate,
+      }),
+    );
+  }
+
+  return summaries;
 }

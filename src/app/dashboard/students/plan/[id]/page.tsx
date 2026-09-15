@@ -152,31 +152,21 @@ const StudentPlanPage = () => {
                 setRawInstance(null);
                 setCurrentPlanCompleted(false);
 
-                // 1. 定义所有并发任务
-                const actionsPromise = actionLibService.listActions({ page: 1, limit: 100 });
-                const studentPromise = coachService.getStudent({ subscriptionId: params.id.toString(), need1RM: true });
-                const instancePromise = planLibService.getInstance({ subscriptionId: params.id as string });
-                const executionPromise = planLibService.getWithExecutions({ subscriptionId: params.id as string });
+                // 1. 并发启动请求，但只让计划实例阻塞编辑器首屏。
+                // 学员档案和完整动作库稍后补齐，避免其中一个慢查询拖住整页。
+                const actionsPromise = actionLibService
+                    .listActions({ page: 1, limit: 100 })
+                    .catch(e => (console.error('Actions load failed', e), null));
+                const studentPromise = coachService.getStudent({
+                    subscriptionId: params.id.toString(),
+                    // get-instance 已在计算计划负荷时解析 1RM，避免这里重复整套查询。
+                    need1RM: false,
+                }).catch(e => (console.error('Student load failed', e), null));
+                const instanceRes = await planLibService
+                    .getInstance({ subscriptionId: params.id as string })
+                    .catch(e => (console.error('Instance load failed', e), null));
 
-                // 2. 使用 Promise.all 并行请求
-                // 注意：有些接口报错不应中断整个流程（如 execution 可能为空），所以需处理 catch
-                const [actionsRes, studentRes, instanceRes, exeRes] = await Promise.all([
-                    actionsPromise.catch(e => (console.error('Actions load failed', e), null)),
-                    studentPromise.catch(e => (console.error('Student load failed', e), null)),
-                    instancePromise.catch(e => (console.error('Instance load failed', e), null)),
-                    executionPromise.catch(e => (console.error('Execution load failed', e), null))
-                ]);
-
-                // 3. 先记录动作库结果，后续会与实例内 actions 映射合并
-                const baseActions: CoachActionRow[] = (actionsRes?.actions || []) as CoachActionRow[];
-
-                // 4. 处理 Student Data
-                if (studentRes?.student) {
-                    setStudentData(studentRes.student);
-                }
-                setStudentDataLoading(false);
-
-                // 5. 处理 Instance (训练计划详情)
+                // 2. 处理 Instance (训练计划详情)
                 if (instanceRes?.instance) {
                     const instance = instanceRes.instance;
                     const editableInstance = instanceRes.pendingRevision || instance;
@@ -221,34 +211,25 @@ const StudentPlanPage = () => {
                         setDays([]);
                         setSelectedDayIndex(null);
                     }
+                } else {
+                    setInstanceExists(false);
+                    setInstanceId(null);
+                    setExecutionNotice('');
+                    setDays([]);
+                    setSelectedDayIndex(null);
                 }
 
-                // 5.1 合并动作来源：
-                // - 教练动作库（action-lib/list-actions）
-                // - 当前计划实例返回的 actions 映射（可能包含“非当前教练动作库”的历史动作）
-                // 这样可避免教练页出现“未选定动作”，但学员页正常的分裂表现。
-                const mergedActionMap = new Map<string, CoachActionRow>();
-                baseActions.forEach((a) => {
-                    if (a?.id) mergedActionMap.set(a.id, a);
-                });
+                // get-instance 已经包含执行记录和计划内动作，不再调用重复返回
+                // plan/execution/actions 的 get-with-executions。
                 const instanceActions = (instanceRes?.actions || {}) as Record<string, CoachActionRow>;
-                Object.values(instanceActions).forEach((a) => {
-                    if (!a?.id) return;
-                    if (!mergedActionMap.has(a.id)) {
-                        mergedActionMap.set(a.id, a);
-                    }
-                });
-                setActions(Array.from(mergedActionMap.values()));
+                setActions(Object.values(instanceActions));
+                setExecutions(instanceRes?.executionsByDayIndex || {});
+                setExecutionActions(instanceActions);
 
-                // 6. 处理 Executions (执行记录)
-                if (exeRes?.executions) {
-                    setExecutions(exeRes.executions);
-                }
-                if (exeRes?.actions) {
-                    setExecutionActions(exeRes.actions);
-                }
+                // 到这里计划主体即可编辑；学员档案和完整动作库继续在后台补齐。
+                setLoading(false);
 
-                // 7. 异步加载学员反馈（不阻塞主流程）
+                // 3. 异步加载学员反馈（不阻塞主流程）
                 if (instanceRes?.instance?.id && instanceRes.instance.status === 'active') {
                     coachService.getStudentFeedbacks({
                         instanceId: instanceRes.instance.id,
@@ -260,6 +241,37 @@ const StudentPlanPage = () => {
                         }
                     }).catch((e) => console.warn('Feedbacks load failed', e));
                 }
+
+                const [actionsRes, studentRes] = await Promise.all([
+                    actionsPromise,
+                    studentPromise,
+                ]);
+
+                // 4. 学员资料直接复用 get-instance 已解析的 1RM，避免第二次全量读取。
+                if (studentRes?.student) {
+                    setStudentData({
+                        ...studentRes.student,
+                        aggregated1RM: instanceRes?.aggregated1RM || {},
+                    });
+                }
+                setStudentDataLoading(false);
+
+                // 5. 合并动作来源：
+                // - 教练动作库（action-lib/list-actions）
+                // - 当前计划实例返回的 actions 映射（可能包含“非当前教练动作库”的历史动作）
+                // 这样可避免教练页出现“未选定动作”，但学员页正常的分裂表现。
+                const mergedActionMap = new Map<string, CoachActionRow>();
+                const baseActions: CoachActionRow[] = (actionsRes?.actions || []) as CoachActionRow[];
+                baseActions.forEach((a) => {
+                    if (a?.id) mergedActionMap.set(a.id, a);
+                });
+                Object.values(instanceActions).forEach((a) => {
+                    if (!a?.id) return;
+                    if (!mergedActionMap.has(a.id)) {
+                        mergedActionMap.set(a.id, a);
+                    }
+                });
+                setActions(Array.from(mergedActionMap.values()));
 
             } catch (error) {
                 console.error('加载训练页面失败:', error);
@@ -620,16 +632,29 @@ const StudentPlanPage = () => {
             if (!updateRes.ok || !updateData.success) {
                 throw new Error(updateData.message || '无法保存 1RM 调整');
             }
+
+            const nextValueByStudentActionId = new Map(
+                updates.map(update => [update.actionId, update.reference_1rm]),
+            );
+            setStudentData(prev => {
+                if (!prev) return prev;
+                const aggregated1RM = { ...(prev.aggregated1RM || {}) };
+                for (const action of studentActions) {
+                    if (!nextValueByStudentActionId.has(action.id)) continue;
+                    const value = nextValueByStudentActionId.get(action.id) ?? null;
+                    const aliases = [action.id, action.name, action.canonical_action_id]
+                        .filter((alias): alias is string => !!alias);
+                    for (const alias of aliases) {
+                        if (value === null) delete aggregated1RM[alias];
+                        else aggregated1RM[alias] = value;
+                    }
+                }
+                return { ...prev, aggregated1RM };
+            });
         }
 
         setPendingOneRmAdjustments(unresolved);
         setOriginalOneRmAdjustmentsBeforeAi(null);
-
-        const studentRes = await coachService.getStudent({
-            subscriptionId: params.id.toString(),
-            need1RM: true,
-        });
-        setStudentData(studentRes.student || null);
 
         return {
             applied: updates.length,
@@ -1708,22 +1733,24 @@ const StudentPlanPage = () => {
                         actions={actions}
                         studentData={studentData}
                         subscriptionId={params.id as string}
-                        onSave={() => {
-                            // 刷新学员数据以更新1RM显示
-                            const refreshStudent = async () => {
-                                try {
-                                    const studentRes = await coachService.getStudent({
-                                        subscriptionId: params.id.toString(),
-                                        need1RM: true,
-                                    });
-                                    if (studentRes) {
-                                        setStudentData(studentRes.student);
+                        onSave={(updates) => {
+                            setStudentData(prev => {
+                                if (!prev) return prev;
+                                const aggregated1RM = { ...(prev.aggregated1RM || {}) };
+                                for (const update of updates) {
+                                    const aliases = [
+                                        update.coachActionId,
+                                        update.studentActionId,
+                                        update.actionName,
+                                        update.canonicalActionId,
+                                    ].filter((alias): alias is string => !!alias);
+                                    for (const alias of aliases) {
+                                        if (update.reference_1rm === null) delete aggregated1RM[alias];
+                                        else aggregated1RM[alias] = update.reference_1rm;
                                     }
-                                } catch (error) {
-                                    console.error('刷新学员数据失败:', error);
                                 }
-                            };
-                            refreshStudent();
+                                return { ...prev, aggregated1RM };
+                            });
                         }}
                     />
                 )}

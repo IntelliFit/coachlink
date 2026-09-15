@@ -63,8 +63,14 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 提取所有动作ID
-    const actionIds = updates.map(u => u.actionId).filter(Boolean);
+    // 同一动作只保留请求中的最后一个值，并限制单次请求规模。
+    const requestedUpdateByActionId = new Map<string, number | null>();
+    for (const update of updates.slice(0, 200)) {
+        const actionId = String(update?.actionId || "").trim();
+        if (!actionId) continue;
+        requestedUpdateByActionId.set(actionId, update.reference_1rm);
+    }
+    const actionIds = Array.from(requestedUpdateByActionId.keys());
     if (actionIds.length === 0) {
         return NextResponse.json({
             success: false,
@@ -98,8 +104,8 @@ export async function POST(req: Request) {
     const actionMap = new Map(existingActions.map(a => [a.id, a]));
     const validUpdates: Array<{ id: string; reference_1rm: number | null }> = [];
 
-    for (const update of updates) {
-        const action = actionMap.get(update.actionId);
+    for (const [actionId, requestedValue] of requestedUpdateByActionId) {
+        const action = actionMap.get(actionId);
         if (!action) continue;
 
         // 检查动作是否符合1RM资格
@@ -112,21 +118,21 @@ export async function POST(req: Request) {
         if (!eligible) {
             // 非资格动作，强制置空
             validUpdates.push({
-                id: update.actionId,
+                id: actionId,
                 reference_1rm: null,
             });
         } else {
             // 资格动作，验证1RM值
-            const value = update.reference_1rm;
+            const value = requestedValue;
             if (value !== null && (!Number.isFinite(value) || value <= 0)) {
                 // 无效值，置空
                 validUpdates.push({
-                    id: update.actionId,
+                    id: actionId,
                     reference_1rm: null,
                 });
             } else {
                 validUpdates.push({
-                    id: update.actionId,
+                    id: actionId,
                     reference_1rm: value,
                 });
             }
@@ -140,34 +146,41 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 批量更新
-    const updatePromises = validUpdates.map(update =>
-        supabase
-            .from("student_actions")
-            .update({
-                reference_1rm: update.reference_1rm,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", update.id)
-            .eq("user_id", studentId)
+    // 单次 RPC 在一个 SQL statement 内完成所有写入，避免每个动作各发一次 PATCH。
+    const { data: updatedActions, error: updateError } = await (supabase as any).rpc(
+        "batch_update_student_action_reference_1rm",
+        {
+            p_student_id: studentId,
+            p_updates: validUpdates,
+        },
     );
 
-    const results = await Promise.all(updatePromises);
-    const errors = results.filter(r => r.error);
-
-    if (errors.length > 0) {
-        console.error("Error updating actions:", errors);
+    if (updateError) {
+        console.error("Error updating actions:", updateError);
         return NextResponse.json({
             success: false,
-            message: `部分更新失败：${errors.length}/${validUpdates.length}`,
+            message: "批量更新失败",
         }, { status: 500 });
     }
 
-    return NextResponse.json<ApiData<{ updated: number }>>({
+    const updatedRows = Array.isArray(updatedActions) ? updatedActions : [];
+    if (updatedRows.length !== validUpdates.length) {
+        console.error("Unexpected 1RM update count:", {
+            expected: validUpdates.length,
+            actual: updatedRows.length,
+        });
+        return NextResponse.json({
+            success: false,
+            message: "部分动作未能更新，请刷新后重试",
+        }, { status: 409 });
+    }
+
+    return NextResponse.json<ApiData<{ updated: number; actions: any[] }>>({
         success: true,
         message: "批量更新1RM成功",
         data: {
-            updated: validUpdates.length,
+            updated: updatedRows.length,
+            actions: updatedRows,
         },
     });
 }

@@ -24,21 +24,30 @@ export async function getCurrent1RMRecords(
         actionNames?: string[];
         targetUserId?: string;
         preferPR?: boolean;
-    }
+    },
+    internalOptions?: {
+        authorizationVerified?: boolean;
+    },
 ) {
     // 这里必须使用 service-role client：
     // 该函数会被多个服务端路由复用，并且需要在服务端完成显式权限校验后，
     // 读取目标学员的 student_actions / personal_records_history。
     // 若走匿名 client，服务端没有附带 Supabase auth context，会退化为只拿到问卷兜底数据，
     // 造成计划重量整体偏小并回落到旧值。
-    const { actionIds, actionNames, targetUserId, preferPR = true } = params;
+    const {
+        actionIds,
+        actionNames,
+        targetUserId,
+        preferPR = true,
+    } = params;
+    const authorizationVerified = internalOptions?.authorizationVerified === true;
     const hasActionIdFilter = Array.isArray(actionIds) && actionIds.length > 0;
     const hasActionNameFilter =
         Array.isArray(actionNames) && actionNames.length > 0;
     let queryUserId = currentUserId;
 
     // 1. 权限校验：如果是查询他人数据
-    if (targetUserId && targetUserId !== currentUserId) {
+    if (targetUserId && targetUserId !== currentUserId && !authorizationVerified) {
         // 联合查询：检查当前用户是否为该学员的教练
         const { data: isCoach } = await supabase
             .from("coach_subscriptions")
@@ -128,26 +137,19 @@ export async function getCurrent1RMRecords(
 
     const fetchStudentActionRows = async () => {
         if (hasActionIdFilter && hasActionNameFilter) {
-            const [byIdResult, byNameResult] = await Promise.all([
-                buildStudentActionsQuery().in("id", actionIds!),
-                buildStudentActionsQuery().in("name", actionNames!),
-            ]);
-            if (byIdResult.error) {
-                console.warn("[get-current-1rm] student_actions by id failed:", byIdResult.error);
+            // reference_1rm rows are small in practice. One filtered user query is
+            // faster and more stable than two cross-region requests joined in JS.
+            const result = await buildStudentActionsQuery();
+            if (result.error) {
+                console.warn("[get-current-1rm] student_actions lookup failed:", result.error);
+                return [];
             }
-            if (byNameResult.error) {
-                console.warn("[get-current-1rm] student_actions by name failed:", byNameResult.error);
-            }
-            const mergedMap = new Map<string, any>();
-            const byIdRows = (byIdResult.data || []) as any[];
-            const byNameRows = (byNameResult.data || []) as any[];
-            for (const row of [
-                ...byIdRows,
-                ...byNameRows,
-            ]) {
-                if (row?.id) mergedMap.set(row.id, row);
-            }
-            return Array.from(mergedMap.values());
+            const actionIdSet = new Set(actionIds || []);
+            const actionNameSet = new Set((actionNames || []).map(normalizeNameKey));
+            return (result.data || []).filter((row: any) =>
+                actionIdSet.has(String(row?.id || "")) ||
+                actionNameSet.has(normalizeNameKey(String(row?.name || "")))
+            );
         }
 
         if (hasActionIdFilter) {

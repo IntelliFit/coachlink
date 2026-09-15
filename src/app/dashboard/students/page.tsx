@@ -185,7 +185,6 @@ export default function StudentsPage() {
         if (status === 'loading') return;
         if (!session) return;
         setFirst(0);
-        setStudents([]);
         setSelectedStudents([]);
         loadStudents(0, rows);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -201,7 +200,6 @@ export default function StudentsPage() {
         setFirst(event.first);
         setRows(event.rows);
         setLoading(true);
-        setStudents([]);
         setSelectedStudents([]);
 
         loadStudents(event.page, event.rows);
@@ -1140,6 +1138,7 @@ export default function StudentsPage() {
                 <div className="pt-2">
                     <DataTable
                         value={[]}
+                        loading={loading}
                         paginator
                         rows={rows}
                         totalRecords={totalRecords}
@@ -1205,6 +1204,7 @@ export default function StudentsPage() {
                 </div>
                 <DataTable
                     value={students}
+                    loading={loading}
                     paginator
                     rows={rows}
                     totalRecords={totalRecords}

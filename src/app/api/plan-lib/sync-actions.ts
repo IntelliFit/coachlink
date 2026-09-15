@@ -47,49 +47,19 @@ export async function syncCoachActionsToStudentLibrary(
     if (candidates.length === 0) return;
 
     // 不依赖 DB 上的 unique(user_id,name) 约束，先查询已存在动作再插入缺失项。
-    const names = candidates.map((c) => c.name).filter(Boolean);
-    const canonicalIds = candidates
-        .map((c) => c.canonical_action_id)
-        .filter((v): v is string => typeof v === "string" && v.length > 0);
-
     let existing: Array<{ id: string; name: string; canonical_action_id: string | null }> = [];
     try {
-        const baseQuery = (supabase as any)
+        // A user's action-library identity columns are compact. Reading them once
+        // avoids the previous name + canonical-ID double request on every plan open.
+        const { data, error } = await (supabase as any)
             .from("student_actions")
             .select("id,name,canonical_action_id")
             .eq("user_id", targetStudentId);
-
-        const bucket: Array<{ id: string; name: string; canonical_action_id: string | null }> = [];
-
-        if (names.length > 0) {
-            const { data, error } = await baseQuery.in("name", names);
-            if (error) {
-                console.warn("[sync-actions] query existing by name failed:", error);
-            } else if (Array.isArray(data)) {
-                bucket.push(...data);
-            }
+        if (error) {
+            console.warn("[sync-actions] query existing actions failed:", error);
+        } else if (Array.isArray(data)) {
+            existing = data;
         }
-
-        if (canonicalIds.length > 0) {
-            const { data, error } = await (supabase as any)
-                .from("student_actions")
-                .select("id,name,canonical_action_id")
-                .eq("user_id", targetStudentId)
-                .in("canonical_action_id", canonicalIds);
-            if (error) {
-                console.warn("[sync-actions] query existing by canonical failed:", error);
-            } else if (Array.isArray(data)) {
-                bucket.push(...data);
-            }
-        }
-
-        // 去重
-        const seen = new Set<string>();
-        existing = bucket.filter((x) => {
-            if (seen.has(x.id)) return false;
-            seen.add(x.id);
-            return true;
-        });
     } catch (e) {
         console.warn("[sync-actions] query existing exception:", e);
     }

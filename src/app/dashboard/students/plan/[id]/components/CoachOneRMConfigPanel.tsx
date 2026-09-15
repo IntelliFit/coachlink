@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { ProgressSpinner } from 'primereact/progressspinner';
@@ -16,7 +16,15 @@ interface CoachOneRMConfigPanelProps {
     actions: CoachActionRow[];
     studentData: GetStudentResponseDto['student'] | null;
     subscriptionId: string;
-    onSave?: () => void;
+    onSave?: (updates: SavedOneRMUpdate[]) => void;
+}
+
+export interface SavedOneRMUpdate {
+    coachActionId: string;
+    studentActionId: string;
+    actionName: string;
+    canonicalActionId: string | null;
+    reference_1rm: number | null;
 }
 
 interface StudentActionWith1RM {
@@ -40,6 +48,8 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [oneRMValues, setOneRMValues] = useState<Record<string, number | null>>({});
+    const [savedOneRMValues, setSavedOneRMValues] = useState<Record<string, number | null>>({});
+    const loadedSignatureRef = useRef('');
 
     const normalizeName = (name?: string | null) => (name || '').trim().toLowerCase();
 
@@ -115,14 +125,44 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
         });
     }, [days, actions]);
 
+    const eligibleActionSignature = useMemo(
+        () => eligibleActions
+            .map(action => [action.id, action.canonical_action_id || '', normalizeName(action.name)].join(':'))
+            .sort()
+            .join('|'),
+        [eligibleActions],
+    );
+
+    const normalizeOneRMValue = (value: number | null | undefined) => {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+    };
+
+    const hasDirtyValues = useMemo(
+        () => eligibleActions.some(action =>
+            normalizeOneRMValue(oneRMValues[action.id]) !==
+            normalizeOneRMValue(savedOneRMValues[action.id])
+        ),
+        [eligibleActions, oneRMValues, savedOneRMValues],
+    );
+
     // 加载学员动作库
     useEffect(() => {
         if (!subscriptionId || eligibleActions.length === 0) {
             setStudentActions([]);
+            setOneRMValues({});
+            setSavedOneRMValues({});
+            setLoading(false);
+            loadedSignatureRef.current = '';
             return;
         }
 
+        const requestSignature = `${subscriptionId}:${eligibleActionSignature}`;
+        if (loadedSignatureRef.current === requestSignature) return;
+        loadedSignatureRef.current = requestSignature;
+
         const loadStudentActions = async () => {
+            let loadFailed = false;
             setLoading(true);
             try {
                 const res = await fetch('/api/coach/get-student-actions', {
@@ -132,14 +172,18 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
                 });
 
                 const data = await res.json();
-                if (data.success && data.data?.actions) {
-                    const actions = data.data.actions as any[];
-                    
-                    const matched = buildMatchedMap(eligibleActions, actions);
-                    setStudentActions(Object.values(matched.map));
-                    setOneRMValues(matched.values);
+                if (!res.ok || !data.success || !Array.isArray(data.data?.actions)) {
+                    throw new Error(data.message || '无法获取学员动作库数据');
                 }
+
+                const studentActionRows = data.data.actions as any[];
+                const matched = buildMatchedMap(eligibleActions, studentActionRows);
+                if (loadedSignatureRef.current !== requestSignature) return;
+                setStudentActions(Object.values(matched.map));
+                setOneRMValues(matched.values);
+                setSavedOneRMValues(matched.values);
             } catch (error) {
+                loadFailed = true;
                 console.error('加载学员动作库失败:', error);
                 showToast({
                     severity: 'error',
@@ -147,12 +191,15 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
                     detail: '无法获取学员动作库数据',
                 });
             } finally {
-                setLoading(false);
+                if (loadedSignatureRef.current === requestSignature) {
+                    if (loadFailed) loadedSignatureRef.current = '';
+                    setLoading(false);
+                }
             }
         };
 
         loadStudentActions();
-    }, [subscriptionId, eligibleActions, showToast]);
+    }, [subscriptionId, eligibleActionSignature]);
 
     const handleValueChange = (coachActionId: string, val: number | null) => {
         setOneRMValues(prev => ({
@@ -171,8 +218,9 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
             return;
         }
 
-        // 构建更新列表：只包含有学员动作ID的项
+        // 只提交相对已保存值真正发生变化、且已经同步到学员动作库的动作。
         const updates: Array<{ actionId: string; reference_1rm: number | null }> = [];
+        const savedUpdates: SavedOneRMUpdate[] = [];
         
         eligibleActions.forEach((coachAction) => {
             const studentAction = studentActions.find((s) =>
@@ -182,20 +230,32 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
                 normalizeName(s.name) === normalizeName(coachAction.name),
             );
             if (studentAction && studentAction.id) {
-                const value = oneRMValues[coachAction.id];
+                const value = normalizeOneRMValue(oneRMValues[coachAction.id]);
+                const savedValue = normalizeOneRMValue(savedOneRMValues[coachAction.id]);
+                if (value === savedValue) return;
+
                 updates.push({
                     actionId: studentAction.id,
-                    reference_1rm: value !== undefined ? value : null,
+                    reference_1rm: value,
+                });
+                savedUpdates.push({
+                    coachActionId: coachAction.id,
+                    studentActionId: studentAction.id,
+                    actionName: coachAction.name,
+                    canonicalActionId: coachAction.canonical_action_id || null,
+                    reference_1rm: value,
                 });
             }
         });
 
         if (updates.length === 0) {
-            showToast({
-                severity: 'warn',
-                summary: '无需更新',
-                detail: '所有动作尚未同步到学员动作库，请先保存计划',
-            });
+                showToast({
+                    severity: 'info',
+                    summary: '无需更新',
+                    detail: hasDirtyValues
+                        ? '改动的动作尚未同步到学员动作库，请先保存计划'
+                        : '1RM 数值没有变化',
+                });
             return;
         }
 
@@ -214,24 +274,17 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
                     summary: '保存成功',
                     detail: `已更新 ${data.data?.updated || 0} 个动作的1RM`,
                 });
-                
-                // 刷新学员动作数据
-                const refreshRes = await fetch('/api/coach/get-student-actions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ subscriptionId }),
-                });
-                const refreshData = await refreshRes.json();
-                if (refreshData.success && refreshData.data?.actions) {
-                    const actions = refreshData.data.actions as any[];
-                    const matched = buildMatchedMap(eligibleActions, actions);
-                    setStudentActions(Object.values(matched.map));
-                    setOneRMValues(matched.values);
-                }
-                
-                if (onSave) {
-                    onSave();
-                }
+
+                const savedValuePatch = Object.fromEntries(
+                    savedUpdates.map(update => [update.coachActionId, update.reference_1rm]),
+                );
+                setSavedOneRMValues(prev => ({ ...prev, ...savedValuePatch }));
+                setOneRMValues(prev => ({ ...prev, ...savedValuePatch }));
+                setStudentActions(prev => prev.map(action => {
+                    const update = savedUpdates.find(item => item.studentActionId === action.id);
+                    return update ? { ...action, reference_1rm: update.reference_1rm } : action;
+                }));
+                onSave?.(savedUpdates);
             } else {
                 throw new Error(data.message || '保存失败');
             }
@@ -240,7 +293,7 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
             showToast({
                 severity: 'error',
                 summary: '保存失败',
-                detail: '无法保存1RM设置',
+                detail: error instanceof Error ? error.message : '无法保存1RM设置',
             });
         } finally {
             setSaving(false);
@@ -273,6 +326,7 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
                     icon="pi pi-check"
                     onClick={handleSave}
                     loading={saving}
+                    disabled={saving || !hasDirtyValues}
                     className="p-button-sm"
                 />
             </div>
