@@ -1,3 +1,13 @@
+## 全量本地改动双分支同步、Web/API 重部署与小程序体验版上传 (`2026-09-15`)
+
+- Status: 已完成。当前本地功能提交、前后端、移动 App 与小程序代码已合并为发布代码版本 `7cb7c314`；GitHub/Gitee 的 `dev` 与 `main` 已同步。微信体验版 `2026.09.15.2354` 已上传成功，AppID `wx316e39eb71c0e834`，微信侧统计 9.6 MB；未提审、未正式发布。
+- Merge: `main` 独有的移动消息/推送/Bearer API 与 `dev` 的聊天成员修复、弱网缓存、计划更新、消息排序、教练端性能优化及状态记录已语义合并。冲突处理保留 `getApiUserId` Bearer/Cookie 统一鉴权、聊天视频引用权限校验、成员规范化与 `last_message_at` 排序。
+- Excluded generated files: `next-env.d.ts`、仅换行/时间戳导致工作区标记的 `next.config.ts`/`tsconfig.json`，以及 `supabase/.temp/linked-project.json` 属于自动生成或本机链接元数据，不纳入 Git。
+- Gates: `npm run lint` 提示脚本、根 typecheck、移动 App typecheck、Vitest 53 files / 274 tests、Next.js 543 路由生产构建、小程序 release 2,871 modules 均通过。首次 mobile typecheck 因本地未安装新合并的 Expo 依赖失败，执行锁文件一致的 `npm ci` 后通过，没有改业务代码或测试。
+- WeChat verification: 微信开发者工具 CLI 已用项目根目录/AppID/9420 成功启动，但 `mrc where/errors/warnings --port 9420` 均无法完成 WebSocket 握手，因此无法取得运行态截图；官方 CLI 28264 上传链路正常并完成体验版上传。
+- Deploy: 发布代码版本 `7cb7c314` 已构建并推送为 CCR `latest/main/dev/7cb7c31`，统一摘要 `sha256:4da92f3ca4c263be5c3316088d35a2f6f59cf1c9d6ed60b6bfc9299e609c9527`。`coachlink-main` 与 `coachlink-dev` 均已滚动完成，3/3 Pod Ready 且业务容器运行该摘要；生产公网、生产集群内和 dev 集群内 `/api/healthy` 均 healthy，最近 100 行 Pod 日志未命中 fatal/unhandled/panic/error。
+- Next: 无；用户刷新网页即可使用，微信体验版可直接扫码验收。
+
 ## Web 教练端列表、计划详情与 1RM 保存性能优化及生产发布 (`2026-09-15`)
 
 - Status: 已实现、验证并发布生产；数据库迁移、GitHub/Gitee `main`、CCR 镜像与生产 3 个 Web/API Pod 均已完成切换。
