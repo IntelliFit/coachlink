@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -10,8 +10,7 @@ import type {
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        const userId = session?.user?.id || null;
+        const userId = await getApiUserId(req);
         if (!userId) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "用户未登录", data: null },
@@ -26,6 +25,20 @@ export async function POST(req: Request) {
                 { success: false, message: "缺少 actionId", data: null },
                 { status: 400 },
             );
+        }
+
+        if (targetActionType === "coach") {
+            const { data: coachUser, error: coachUserError } = await supabase
+                .from("users")
+                .select("is_coach")
+                .eq("id", userId)
+                .maybeSingle();
+            if (coachUserError || !coachUser?.is_coach) {
+                return NextResponse.json<ApiData<null>>(
+                    { success: false, message: "仅教练可加入教练动作库", data: null },
+                    { status: 403 },
+                );
+            }
         }
 
         const { data: publicAction, error: fetchError } = await supabase

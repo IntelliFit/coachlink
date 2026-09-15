@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
@@ -17,8 +17,8 @@ import type {
  */
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const requesterId = await getApiUserId(req);
+    if (!requesterId) {
       return NextResponse.json<ApiData<DeletePRRecordResponseDto>>({
         success: false,
         message: "未登录",
@@ -58,7 +58,6 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    const requesterId = session.user.id;
     const targetUserId = record.user_id as string;
 
     // Owner can delete

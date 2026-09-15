@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type { ApiData } from "@/types/api";
 import type { ShareInfoResponseDto } from "./entity";
 import { buildShareInfo } from "../share-helper";
@@ -11,8 +11,8 @@ import { buildShareInfo } from "../share-helper";
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json<ApiData<ShareInfoResponseDto>>({
                 success: false,
                 message: "未登录",
@@ -20,7 +20,6 @@ export async function POST(req: Request) {
             }, { status: 401 });
         }
 
-        const userId = session.user.id;
         const body = await req.json() as { id: string };
         const { id: executionId } = body;
 

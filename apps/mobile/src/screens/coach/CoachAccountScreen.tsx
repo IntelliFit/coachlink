@@ -4,6 +4,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { InlineAvatar, Card, MenuRow, ScreenShell, SolidButton } from '../me/MeShared'
 import { useAuth } from '../../providers/AuthProvider'
+import { useMessageCenter } from '../../providers/MessageCenterProvider'
 import { colors, radius, spacing } from '../../theme'
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types'
 
@@ -12,6 +13,7 @@ type Props = BottomTabScreenProps<MainTabParamList, 'CoachProfileTab'>
 export function CoachAccountScreen({ navigation }: Props) {
   const rootNavigation = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>()
   const { user, switchRole } = useAuth()
+  const { unreadCount } = useMessageCenter()
   const [switching, setSwitching] = useState(false)
   const displayName = String(user?.nickname || user?.name || user?.phone || user?.email || 'CoachLink 教练')
   const contact = String(user?.phone || user?.email || '教练账号')
@@ -53,6 +55,7 @@ export function CoachAccountScreen({ navigation }: Props) {
       </Card>
 
       <Card>
+        <MenuRow label="消息中心" desc="联系学员并查看未读消息" icon="icon-messages" iconBg="#26A69A" badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : undefined} onPress={() => rootNavigation?.navigate('Messages')} />
         <MenuRow label="教练工作台" desc="业务概览与待处理事项" icon="icon-dashboard" iconBg="#CF6D4E" onPress={() => rootNavigation?.navigate('CoachDashboard')} />
         <MenuRow label="学员管理" desc="学员、计划和训练进展" icon="icon-friends-o" iconBg="#5C8DFF" onPress={() => rootNavigation?.navigate('CoachStudents')} />
         <MenuRow label="教练钱包" desc="余额、结算、开户与提现" icon="icon-goumaijilu" iconBg="#29C3A3" onPress={() => rootNavigation?.navigate('CoachWallet')} />

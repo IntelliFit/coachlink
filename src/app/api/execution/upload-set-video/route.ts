@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import { buildDatedKey, cosUpload } from "@/lib/cos";
 import type { ApiData } from "@/types/api";
 import type { UploadSetVideoResponseDto } from "./entity";
@@ -20,8 +20,8 @@ export const preferredRegion = "auto";
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
                 success: false,
                 message: "未登录",
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
         }
 
         const prepared = await prepareSetVideoUpload({
-            userId: session.user.id,
+            userId,
             executionId,
             actionId,
             setNumber,
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
         });
 
         const ext = file.name.split(".").pop() || "mp4";
-        const storagePath = buildDatedKey(ext, session.user.id, "executions");
+        const storagePath = buildDatedKey(ext, userId, "executions");
         const bytes = new Uint8Array(await file.arrayBuffer());
         const uploaded = await cosUpload("videos", storagePath, bytes, {
             contentType: file.type || "application/octet-stream",

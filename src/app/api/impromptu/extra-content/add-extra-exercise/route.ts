@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
@@ -10,15 +10,14 @@ import { computeExecutionProgress } from "@/lib/executionProgress";
 
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json<ApiData<AddImpromptuExtraExerciseResponseDto>>({
                 success: false,
                 message: "未登录",
                 data: null,
             }, { status: 401 });
         }
-        const userId = session.user.id;
         const body: AddImpromptuExtraExerciseDto = await request.json();
         const { executionId, actionId, actionName, sets } = body;
         if (!executionId || !actionId || !actionName) {
@@ -105,7 +104,8 @@ export async function POST(request: NextRequest) {
                 total_sets: progress.totalItems,
                 last_saved_at: new Date().toISOString(),
             })
-            .eq("id", executionId);
+            .eq("id", executionId)
+            .eq("student_id", userId);
         if (updateError) {
             return NextResponse.json<ApiData<AddImpromptuExtraExerciseResponseDto>>({
                 success: false,

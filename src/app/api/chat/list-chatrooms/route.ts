@@ -1,15 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import { getAuthUser } from '@/lib/auth';
+import { getApiUserId } from '@/lib/getApiUserId';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { GetChatroomsDto, GetChatroomsResponseDto, ChatroomItem } from './entity';
 
 async function resolveUserId(req: Request) {
-    const session = await getServerSession();
-    if (session?.user?.id) return session.user.id;
-    const authResult = await getAuthUser(req);
-    return authResult.isAuthenticated ? authResult.userId : null;
+    return getApiUserId(req);
 }
 
 async function handleListChatrooms(req: Request, body: GetChatroomsDto = {}) {

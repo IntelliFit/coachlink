@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import { buildDatedKey, cosUpload } from "@/lib/cos";
 import type { ApiData } from "@/types/api";
 import {
@@ -15,8 +15,8 @@ export const preferredRegion = "auto";
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json<ApiData<ImpromptuSetVideoResponse>>({
                 success: false,
                 message: "未登录",
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         }
 
         const prepared = await prepareImpromptuSetVideo({
-            userId: session.user.id,
+            userId,
             executionId: String(formData.get("executionId") || ""),
             actionId: String(formData.get("actionId") || "") || null,
             actionIndex: formData.get("actionIndex"),
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
             fileSizeBytes: file.size,
         });
         const ext = file.name.split(".").pop() || "mp4";
-        const storagePath = buildDatedKey(ext, session.user.id, "impromptu-executions");
+        const storagePath = buildDatedKey(ext, userId, "impromptu-executions");
         const uploaded = await cosUpload(
             "videos",
             storagePath,

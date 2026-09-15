@@ -1,21 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getApiUserId } from '@/lib/getApiUserId';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { GetUnreadCountResponseDto } from './entity';
 
-export async function POST() {
-    const session = await getServerSession();
-
-    if (!session?.user?.id) {
+async function handleUnreadCount(req: Request) {
+    const userId = await getApiUserId(req);
+    if (!userId) {
         return NextResponse.json({
             success: false,
             message: '用户未登录',
             data: null
         }, { status: 401 });
     }
-
-    const userId = session.user.id;
 
     // 直接从未读计数表聚合
     const { data, error } = await supabase
@@ -42,4 +39,12 @@ export async function POST() {
             totalUnread
         }
     });
+}
+
+export async function POST(req: Request) {
+    return handleUnreadCount(req);
+}
+
+export async function GET(req: Request) {
+    return handleUnreadCount(req);
 }

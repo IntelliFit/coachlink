@@ -1,6 +1,8 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { IconFont } from '../components/IconFont'
+import { useMessageCenter } from '../providers/MessageCenterProvider'
 import { colors, radius, spacing } from '../theme'
 
 const studentIconByRoute: Record<string, string> = {
@@ -24,8 +26,10 @@ function isCoachTab(name: string) {
 }
 
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { unreadCount } = useMessageCenter()
+  const insets = useSafeAreaInsets()
   return (
-    <View pointerEvents="box-none" style={styles.wrap}>
+    <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, spacing.sm) }]}>
       <View style={styles.bar}>
         {state.routes.map((route, index) => {
           const isFocused = state.index === index
@@ -33,6 +37,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           const label = typeof options?.title === 'string' ? options.title : route.name
           const iconMap = isCoachTab(route.name) ? coachIconByRoute : studentIconByRoute
           const iconName = iconMap[route.name] || 'icon-circle'
+          const showsUnread = route.name === 'ProfileTab' || route.name === 'CoachProfileTab'
+          const accessibilityLabel = showsUnread && unreadCount > 0 ? `${label}，${unreadCount} 条未读消息` : label
 
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true })
@@ -42,8 +48,15 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           }
 
           return (
-            <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: isFocused }} onPress={onPress} style={({ pressed }) => [styles.item, isFocused && styles.itemActive, pressed && styles.itemPressed]}>
-              <IconFont name={iconName as any} size={20} color={isFocused ? colors.brand : 'rgba(255,255,255,0.66)'} />
+            <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={accessibilityLabel} accessibilityState={{ selected: isFocused }} onPress={onPress} style={({ pressed }) => [styles.item, isFocused && styles.itemActive, pressed && styles.itemPressed]}>
+              <View>
+                <IconFont name={iconName as any} size={20} color={isFocused ? colors.brand : 'rgba(255,255,255,0.66)'} />
+                {showsUnread && unreadCount > 0 ? (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text numberOfLines={1} style={[styles.label, isFocused && styles.labelActive]}>{label}</Text>
             </Pressable>
           )
@@ -58,7 +71,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 24,
     alignItems: 'center',
   },
   bar: {
@@ -104,5 +116,24 @@ const styles = StyleSheet.create({
   labelActive: {
     color: '#111827',
     fontWeight: '700',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -16,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.danger,
+    borderWidth: 2,
+    borderColor: '#1F1F1F',
+  },
+  unreadBadgeText: {
+    color: colors.surface,
+    fontSize: 10,
+    fontWeight: '900',
   },
 })

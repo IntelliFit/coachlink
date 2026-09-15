@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -12,8 +12,7 @@ import type {
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        const userId = session?.user?.id || null;
+        const userId = await getApiUserId(req);
         // 允许未登录用户访问公共动作列表
 
         const { page = 1, limit = 12, search, type, viewerActionType = "student" } =

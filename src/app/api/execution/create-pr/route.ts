@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { CreatePRDto, CreatePRResponseDto } from "./entity";
@@ -15,8 +15,8 @@ import {
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json<ApiData<CreatePRResponseDto>>({
                 success: false,
                 message: "未登录",
@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
             }, { status: 401 });
         }
 
-        const userId = session.user.id;
         const body: CreatePRDto = await request.json();
         const {
             executionId,

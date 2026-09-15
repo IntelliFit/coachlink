@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { canSwitchCoachLinkAppRole, type AuthSession, type CoachLinkAppRole, type CoachLinkUser } from '@coachlink/core'
 import { apiClient, clearMobileAppCache, getStoredUser, hasStoredToken, persistStoredUser } from '../api'
 import { DEV_USERS, type DevUser } from '../../../../src/config/devUsers'
+import { unregisterMobilePush } from '../notifications/mobileNotifications'
 
 type AuthContextValue = {
   isBootstrapping: boolean
@@ -142,6 +143,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const clearLocalCache = useCallback(() => clearMobileAppCache(), [])
 
   const clearLocalSession = useCallback(async () => {
+    await unregisterMobilePush().catch(() => undefined)
     await Promise.all([apiClient.clearSession(), clearMobileAppCache()])
     setIsAuthenticated(false)
     setIsGuest(false)

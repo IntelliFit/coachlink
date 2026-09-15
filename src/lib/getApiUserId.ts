@@ -1,4 +1,3 @@
-import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { verifyToken } from "@/lib/jwt";
@@ -9,7 +8,7 @@ import { verifyToken } from "@/lib/jwt";
  * 否则从 NextAuth session 获取（网页端）。
  * @returns 用户 ID，未登录时返回 null
  */
-export async function getApiUserId(request: NextRequest): Promise<string | null> {
+export async function getApiUserId(request: Pick<Request, "headers">): Promise<string | null> {
     const authHeader = request.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
         const token = authHeader.slice(7).trim();
@@ -20,6 +19,10 @@ export async function getApiUserId(request: NextRequest): Promise<string | null>
                 if (typeof userId === "string") return userId;
             }
         }
+        // A request that explicitly presents a Bearer credential must not be
+        // silently downgraded to cookie authentication when that credential is
+        // invalid. This keeps mobile/API authentication behavior deterministic.
+        return null;
     }
     const session = await getServerSession(authOptions);
     return session?.user?.id ?? null;

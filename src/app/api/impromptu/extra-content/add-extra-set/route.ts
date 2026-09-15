@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
@@ -51,15 +51,14 @@ function findInheritedSetDefaults(sets: any[]) {
 
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json<ApiData<AddImpromptuExtraSetResponseDto>>({
                 success: false,
                 message: "未登录",
                 data: null,
             }, { status: 401 });
         }
-        const userId = session.user.id;
         const body: AddImpromptuExtraSetDto = await request.json();
         const { executionId, actionIndex, weight, reps, restSeconds } = body;
         if (!executionId || actionIndex === undefined) {
@@ -136,7 +135,8 @@ export async function POST(request: NextRequest) {
                 total_sets: progress.totalItems,
                 last_saved_at: new Date().toISOString(),
             })
-            .eq("id", executionId);
+            .eq("id", executionId)
+            .eq("student_id", userId);
 
         if (updateError) {
             return NextResponse.json<ApiData<AddImpromptuExtraSetResponseDto>>({

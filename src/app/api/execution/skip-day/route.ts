@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import { ApiData } from "@/types/api";
 import { filterTrainingDaysByAccessWindow } from "@/lib/subscriptionAccess";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
@@ -10,8 +10,7 @@ import { activatePendingPlanRevisionForSource } from "@/lib/planExecutionLifecyc
 // - Mark a training day as abandoned (treated as "skipped" for progress pointer)
 // - Does NOT count as completed (so it won't consume credits)
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const userId = await getApiUserId(req);
     if (!userId) {
         return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
@@ -37,7 +36,7 @@ export async function POST(req: Request) {
 
     let hasPermission = false;
     if (instance.student_id && instance.student_id === userId) hasPermission = true;
-    if (!hasPermission && session.user.is_coach && instance.coach_id) {
+    if (!hasPermission && instance.coach_id) {
         const { data: coach } = await supabase
             .from("coaches")
             .select("user_id")

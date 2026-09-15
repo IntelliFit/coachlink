@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { CompleteSetDto, CompleteSetResponseDto } from "./entity";
@@ -17,16 +17,14 @@ import { expireTimedOutPlanExecutions } from "@/lib/planExecutionLifecycle";
 export async function POST(request: NextRequest) {
     try {
         // 1. 验证用户身份
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json<ApiData<CompleteSetResponseDto>>({
                 success: false,
                 message: "未登录",
                 data: null,
             }, { status: 401 });
         }
-
-        const userId = session.user.id;
 
         // 2. 解析请求参数
         const body: CompleteSetDto = await request.json();

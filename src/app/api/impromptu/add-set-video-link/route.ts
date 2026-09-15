@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type { ApiData } from "@/types/api";
 import {
     ImpromptuSetVideoError,
@@ -27,8 +27,8 @@ function isHttpUrl(value: string) {
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json<ApiData<ImpromptuSetVideoResponse>>({
                 success: false,
                 message: "未登录",
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
         }
 
         const prepared = await prepareImpromptuSetVideo({
-            userId: session.user.id,
+            userId,
             executionId: String(body.executionId || ""),
             actionId: body.actionId,
             actionIndex: body.actionIndex,
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
         });
         const actionKey = prepared.actionId || `action-${prepared.actionIndex}`;
         const storagePath =
-            `external/${session.user.id}/impromptu-executions/${prepared.executionId}/${actionKey}/${prepared.setNumber}`;
+            `external/${userId}/impromptu-executions/${prepared.executionId}/${actionKey}/${prepared.setNumber}`;
         const data = await persistImpromptuSetVideo({
             prepared,
             videoUrl,

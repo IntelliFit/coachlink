@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
@@ -10,8 +10,8 @@ import { handleAutoE1RMCheck } from "@/lib/autoE1rmTracking";
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(req);
+        if (!userId) {
             return NextResponse.json<ApiData<CompleteImpromptuSetResponseDto>>({
                 success: false,
                 message: "用户未登录",
@@ -19,7 +19,6 @@ export async function POST(req: Request) {
             }, { status: 401 });
         }
 
-        const userId = session.user.id;
         const body = await req.json() as CompleteImpromptuSetDto;
         const { executionId, actionIndex, setIndex, actualWeight, actualReps, notes } =
             body;
@@ -156,6 +155,7 @@ export async function POST(req: Request) {
                 last_saved_at: nowIso,
             })
             .eq("id", executionId)
+            .eq("student_id", userId)
             .select("id, status, action_executions, total_sets, completed_sets")
             .single();
 

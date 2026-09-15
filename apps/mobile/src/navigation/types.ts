@@ -25,7 +25,7 @@ export type RootStackParamList = {
   ActionLibrary: undefined
   ActionDetail: { id?: string; action?: any; source?: 'mine' | 'coach' | 'public' } | undefined
   CopyCoachActions: undefined
-  ActionEdit: { id?: string } | undefined
+  ActionEdit: { id?: string; action?: any } | undefined
   PlanLibrary: undefined
   PlanEdit: { id?: string; autoGenerate?: boolean } | undefined
   PlanHistory: undefined
@@ -40,7 +40,7 @@ export type RootStackParamList = {
   Friends: { tab?: 'friends' | 'requests' } | undefined
   FriendActivity: undefined
   Messages: undefined
-  Chat: { roomId?: string } | undefined
+  Chat: { roomId?: string; peerName?: string } | undefined
   MyCoaches: undefined
   CoachDashboard: undefined
   CoachStudents: undefined

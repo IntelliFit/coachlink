@@ -17,6 +17,7 @@ const MOBILE_CACHE_KEYS = [
   'sl_calc_last_run',
   'knowledge_home_cache_v1',
 ] as const
+const MOBILE_CACHE_PREFIXES = ['coachlink_mobile_chat_messages_v1:'] as const
 
 function timeoutSignal(timeoutMs?: number): { signal: AbortSignal; cancel: () => void } | undefined {
   if (!timeoutMs || typeof AbortController === 'undefined') return undefined
@@ -138,7 +139,10 @@ export async function persistStoredUser(user: AuthSession['user']): Promise<void
 
 export async function clearMobileAppCache(): Promise<number> {
   const existingKeys = new Set(await AsyncStorage.getAllKeys())
-  const keys = MOBILE_CACHE_KEYS.filter((key) => existingKeys.has(key))
+  const keys = [...existingKeys].filter((key) => (
+    MOBILE_CACHE_KEYS.includes(key as (typeof MOBILE_CACHE_KEYS)[number])
+    || MOBILE_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix))
+  ))
   if (keys.length > 0) await AsyncStorage.multiRemove([...keys])
   return keys.length
 }
