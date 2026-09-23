@@ -47,23 +47,30 @@ export async function getCurrent1RMRecords(
     let queryUserId = currentUserId;
 
     // 1. 权限校验：如果是查询他人数据
-    if (targetUserId && targetUserId !== currentUserId && !authorizationVerified) {
-        // 联合查询：检查当前用户是否为该学员的教练
-        const { data: isCoach } = await supabase
-            .from("coach_subscriptions")
-            .select(`
+    if (targetUserId && targetUserId !== currentUserId) {
+        if (authorizationVerified) {
+            // 调用方已经完成权限校验时仍必须切换到目标学员。
+            // 不能只跳过校验而继续使用 currentUserId，否则教练查看学员计划时
+            // 会把教练自己的 1RM 当成学员基准。
+            queryUserId = targetUserId;
+        } else {
+            // 联合查询：检查当前用户是否为该学员的教练
+            const { data: isCoach } = await supabase
+                .from("coach_subscriptions")
+                .select(`
         id,
         coaches!inner(user_id)
       `)
-            .eq("coaches.user_id", currentUserId)
-            .eq("student_id", targetUserId)
-            .maybeSingle();
+                .eq("coaches.user_id", currentUserId)
+                .eq("student_id", targetUserId)
+                .maybeSingle();
 
-        if (isCoach) {
-            queryUserId = targetUserId;
-        } else {
-            console.warn(`Unauthorized access attempt by ${currentUserId} to ${targetUserId}`);
-            // 如果没有权限，默认查回自己，或者可以直接抛出错误
+            if (isCoach) {
+                queryUserId = targetUserId;
+            } else {
+                console.warn(`Unauthorized access attempt by ${currentUserId} to ${targetUserId}`);
+                // 如果没有权限，默认查回自己，或者可以直接抛出错误
+            }
         }
     }
 
