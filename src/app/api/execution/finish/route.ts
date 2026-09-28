@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiUserId } from "@/lib/getApiUserId";
-import supabase from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { FinishTrainingDto, FinishTrainingResponseDto } from "./entity";
 import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
@@ -8,9 +8,11 @@ import { computeExecutionProgress } from "@/lib/executionProgress";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 import { attachWorkoutEnergyEstimate } from "@/lib/workoutEnergyExecution";
 import type { WorkoutEnergyEstimate } from "@/lib/workoutEnergy";
+import { EXECUTION_WRITE_CONFLICT, updateExecutionIfUnchanged } from "../_helpers/conditionalUpdate";
 import {
     activatePendingPlanRevisionForSource,
     expireTimedOutPlanExecutions,
+    PLAN_EXECUTION_HARD_TIMEOUT_MS,
 } from "@/lib/planExecutionLifecycle";
 
 const parseMinNumber = (value: unknown): number | null => {
@@ -33,6 +35,23 @@ const parseMinWeight = (value: unknown): number | null => {
     if (!raw) return null;
     if (raw.includes("rm") || raw.includes("%") || raw.includes("rpe")) return null;
     return parseMinNumber(raw);
+};
+
+const getLateCompletionTimestamp = (execution: any): string => {
+    const startedAt = new Date(execution?.started_at || "").getTime();
+    if (!Number.isFinite(startedAt)) return new Date().toISOString();
+
+    const timeoutAt = startedAt + PLAN_EXECUTION_HARD_TIMEOUT_MS;
+    const lastSavedAt = new Date(execution?.last_saved_at || "").getTime();
+    const endedAt = new Date(execution?.ended_at || "").getTime();
+    const hasRecordedProgress = Number(execution?.completed_sets || 0) > 0;
+    const preferredAt = hasRecordedProgress && Number.isFinite(lastSavedAt) && lastSavedAt > startedAt
+        ? lastSavedAt
+        : Number.isFinite(endedAt) && endedAt > startedAt
+            ? endedAt
+            : timeoutAt;
+
+    return new Date(Math.min(Math.max(preferredAt, startedAt), timeoutAt)).toISOString();
 };
 
 /**
@@ -68,7 +87,7 @@ export async function POST(request: NextRequest) {
         const { data: execution } = await supabase
             .from("plan_instance_executions")
             .select(
-                "student_id, day_index, completed_sets, total_sets, instance_id, action_executions, started_at, status",
+                "id, student_id, day_index, completed_sets, total_sets, instance_id, action_executions, started_at, completed_at, ended_at, last_saved_at, session_notes, status, updated_at",
             )
             .eq("id", executionId)
             .single();
@@ -80,11 +99,27 @@ export async function POST(request: NextRequest) {
                 data: null,
             }, { status: 403 });
         }
-        if (String(execution.status || "").toLowerCase() === "timed_out") {
+        const executionStatus = String(execution.status || "").toLowerCase();
+        if (executionStatus === "completed") {
+            return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
+                success: true,
+                message: "训练已经完成",
+                data: {
+                    id: execution.id,
+                    status: execution.status,
+                    completed_at: execution.completed_at,
+                    completed_sets: execution.completed_sets,
+                    total_sets: execution.total_sets,
+                    action_executions: execution.action_executions as any[],
+                    energy_estimate: null,
+                },
+            });
+        }
+        if (executionStatus !== "in_progress" && executionStatus !== "timed_out") {
             return NextResponse.json({
                 success: false,
-                code: "EXECUTION_TIMED_OUT",
-                message: "本次训练已超过5小时，请返回今日训练重新训练这一天",
+                code: "EXECUTION_NOT_FINISHABLE",
+                message: "这次训练已经结束，不能再次完成",
             }, { status: 409 });
         }
 
@@ -101,11 +136,16 @@ export async function POST(request: NextRequest) {
             }, { status: accessDecision.status });
         }
 
-        const nowIso = new Date().toISOString();
+        const isLateCompletion = executionStatus === "timed_out";
+        const nowIso = isLateCompletion
+            ? getLateCompletionTimestamp(execution)
+            : new Date().toISOString();
         const updatePayload: Record<string, unknown> = {
             status: "completed",
             completed_at: nowIso,
-            session_notes: sessionNotes || null,
+            session_notes: sessionNotes === undefined
+                ? execution.session_notes
+                : sessionNotes || null,
         };
         const rawActions = execution.action_executions;
         let finalizedActions: any[] = [];
@@ -120,7 +160,9 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        if (mode === "quick") {
+        // Late confirmation preserves recorded content; quick mode cannot fill
+        // missing sets in an already timed-out workout.
+        if (mode === "quick" && !isLateCompletion) {
             const completedAt = nowIso;
             finalizedActions = finalizedActions.map((action) => {
                 const sets = Array.isArray(action?.sets) ? action.sets : null;
@@ -181,15 +223,73 @@ export async function POST(request: NextRequest) {
             console.warn("[execution/finish] calorie estimate skipped:", energyError);
         }
 
-        // 更新状态
-        const { data, error } = await supabase
-            .from("plan_instance_executions")
-            .update(updatePayload)
-            .eq("id", executionId)
-            .select()
-            .single();
+        let data: any = null;
+        let error: any = null;
+        if (isLateCompletion) {
+            // A late confirmation and any untouched replacement attempt must
+            // be reconciled atomically so the blank attempt cannot hide the
+            // student's real workout.
+            const rpcResult = await (serviceRoleSupabase as any).rpc(
+                "complete_plan_execution_atomic",
+                {
+                    p_execution_id: executionId,
+                    p_student_id: userId,
+                    p_completed_at: nowIso,
+                    p_session_notes: updatePayload.session_notes,
+                    p_action_executions: Object.prototype.hasOwnProperty.call(updatePayload, "action_executions")
+                        ? updatePayload.action_executions
+                        : null,
+                    p_completed_sets: Number(updatePayload.completed_sets ?? execution.completed_sets ?? 0),
+                    p_total_sets: Number(updatePayload.total_sets ?? execution.total_sets ?? 0),
+                    p_last_saved_at: Object.prototype.hasOwnProperty.call(updatePayload, "last_saved_at")
+                        ? updatePayload.last_saved_at
+                        : null,
+                },
+            );
+            error = rpcResult.error;
+            data = Array.isArray(rpcResult.data) ? rpcResult.data[0] : rpcResult.data;
+        } else {
+            // Normal in-progress completion stays independent from the new
+            // late-completion migration and keeps the existing fast path.
+            const updateResult = await updateExecutionIfUnchanged({
+                client: supabase,
+                execution,
+                patch: updatePayload,
+            });
+            error = updateResult.error;
+            data = updateResult.data;
+            if (!error && !data) {
+                const { data: current, error: currentError } = await supabase
+                    .from("plan_instance_executions")
+                    .select("*")
+                    .eq("id", executionId)
+                    .eq("student_id", userId)
+                    .maybeSingle();
+                if (!currentError && current?.status === "completed") {
+                    return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
+                        success: true,
+                        message: "训练已经完成",
+                        data: {
+                            id: current.id, status: current.status,
+                            completed_at: current.completed_at,
+                            completed_sets: current.completed_sets, total_sets: current.total_sets,
+                            action_executions: current.action_executions as any[], energy_estimate: null,
+                        },
+                    });
+                }
+                return NextResponse.json(EXECUTION_WRITE_CONFLICT, { status: 409 });
+            }
+        }
 
-        if (error) {
+        if (error || !data) {
+            const errorMessage = String(error?.message || "");
+            if (errorMessage.includes("ACTIVE_ATTEMPT_HAS_PROGRESS")) {
+                return NextResponse.json({
+                    success: false,
+                    code: "ACTIVE_ATTEMPT_HAS_PROGRESS",
+                    message: "这一天已有另一条训练记录了内容，请返回今日训练处理当前记录",
+                }, { status: 409 });
+            }
             console.error("完成训练失败:", error);
             return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
                 success: false,

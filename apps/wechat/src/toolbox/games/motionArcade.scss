@@ -476,6 +476,64 @@
     margin-top: 24rpx;
   }
 
+  .controls-grid .btn-wide {
+    grid-column: 1 / -1;
+  }
+
+  .replay-progress-card {
+    padding: 16rpx;
+    margin-top: 24rpx;
+    border: 1px solid #eadfce;
+    border-radius: 16rpx;
+    background: #faf7f2;
+  }
+
+  .replay-progress-card--failed {
+    border-color: #cf6d4e;
+    background: #fff7f3;
+  }
+
+  .replay-progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+    margin-bottom: 16rpx;
+  }
+
+  .replay-progress-label,
+  .replay-progress-value {
+    color: #374151;
+    font-size: 24rpx;
+    font-weight: 800;
+  }
+
+  .replay-progress-value {
+    color: #cf6d4e;
+  }
+
+  .replay-progress-track {
+    height: 16rpx;
+    overflow: hidden;
+    border-radius: 9999rpx;
+    background: #efe7dc;
+  }
+
+  .replay-progress-fill {
+    height: 100%;
+    border-radius: 9999rpx;
+    background: #cf6d4e;
+    transition: width 180ms ease;
+  }
+
+  .replay-progress-detail {
+    display: block;
+    margin-top: 16rpx;
+    color: #6b7280;
+    font-size: 22rpx;
+    line-height: 1.6;
+  }
+
   .btn-primary,
   .btn-secondary {
     min-height: 88rpx;

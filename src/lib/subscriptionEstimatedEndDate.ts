@@ -5,6 +5,7 @@ import {
   type ExecutionLike,
   type TrainingDayLike,
 } from "./subscriptionCredits";
+import { computeConsumedServiceWeeks, SERVICE_WEEK_EPSILON } from './subscriptionServiceWeeks';
 
 function parseOptionalDate(value?: string | null): Date | null {
   if (!value) return null;
@@ -112,5 +113,14 @@ export function deriveProjectedSubscriptionEndDate(params: {
   });
 
   projectedEndDate.setDate(projectedEndDate.getDate() + remainingDaysEstimate);
+  if (Math.abs(subscribedWeeks - Math.round(subscribedWeeks)) > SERVICE_WEEK_EPSILON) {
+    const usedServiceWeeks = computeConsumedServiceWeeks({ trainingDays,
+      executions: (params.executions || []).filter(e => scope.eligibleTrainingDayIndexSet.has(e.day_index)),
+      startExecutionDay: params.startExecutionDay });
+    const remainingServiceWeeks = Math.max(0, subscribedWeeks - usedServiceWeeks);
+    const serviceEnd = params.now ? new Date(params.now) : new Date();
+    serviceEnd.setDate(serviceEnd.getDate() + Math.ceil(remainingServiceWeeks * 7 - SERVICE_WEEK_EPSILON));
+    return serviceEnd.toISOString();
+  }
   return projectedEndDate.toISOString();
 }

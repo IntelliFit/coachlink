@@ -1,3 +1,4 @@
+import { buildPlanDayFacts } from '@/lib/planDayFacts';
 import { NextRequest, NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
@@ -49,6 +50,32 @@ function getSetPrescriptions(actionSet: any): any[] {
     const params = actionSet?.params || {};
     const value = params?.setPrescriptions ?? params?.set_prescriptions;
     return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") : [];
+}
+
+function hasMeaningfulExecutionProgress(execution: any): boolean {
+    if (Number(execution?.completed_sets || 0) > 0) return true;
+    if (String(execution?.session_notes || "").trim()) return true;
+    const actions = Array.isArray(execution?.action_executions)
+        ? execution.action_executions
+        : [];
+    return actions.some((action: any) => {
+        if (Number(action?.completed_sets || 0) > 0 || action?.completed === true) return true;
+        return (Array.isArray(action?.sets) ? action.sets : []).some((set: any) => {
+            if (String(set?.status || "pending").toLowerCase() !== "pending") return true;
+            return [
+                set?.actual_weight,
+                set?.actual_reps,
+                set?.rpe,
+                set?.actual_distance,
+                set?.actual_duration,
+                set?.diet_content,
+                set?.notes,
+                set?.video_url,
+            ].some((value) => value !== null && value !== undefined && String(value).trim() !== "") ||
+                !!set?.has_video ||
+                !!set?.is_pr;
+        });
+    });
 }
 
 function formatPrescriptionIntensity(prescription: any, fallback: unknown): string {
@@ -110,7 +137,7 @@ export async function POST(request: NextRequest) {
 
         // 2. 解析请求参数
         const body: StartExecutionDto = await request.json();
-        const { instanceId, dayIndex } = body;
+        const { instanceId, dayIndex, restartTimedOut = false } = body;
 
         if (!instanceId || !dayIndex) {
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
@@ -162,6 +189,27 @@ export async function POST(request: NextRequest) {
                 success: false,
                 message: "检查训练记录失败",
             }, { status: 500 });
+        }
+        let recoverableTimedOutExecution: any = null;
+        if (
+            existingExecution &&
+            String(existingExecution.status || "").toLowerCase() === "in_progress" &&
+            !hasMeaningfulExecutionProgress(existingExecution)
+        ) {
+            const { data: timedOutExecutions, error: timedOutExecutionError } = await serviceRoleSupabase
+                .from("plan_instance_executions")
+                .select("*")
+                .eq("instance_id", instanceId)
+                .eq("day_index", dayIndex)
+                .eq("student_id", userId)
+                .eq("status", "timed_out")
+                .order("started_at", { ascending: false })
+                .limit(20);
+            if (timedOutExecutionError) {
+                console.error("Error checking recoverable timed-out execution:", timedOutExecutionError);
+            } else {
+                recoverableTimedOutExecution = (timedOutExecutions || []).find(hasMeaningfulExecutionProgress) || null;
+            }
         }
 
         // 4. 获取计划实例和训练日
@@ -233,7 +281,7 @@ export async function POST(request: NextRequest) {
 
         const { data: sequenceExecutions, error: sequenceExecutionsError } = await serviceRoleSupabase
             .from("plan_instance_executions")
-            .select("id, day_index, status, started_at, completed_at, updated_at, action_executions")
+            .select("id, day_index, status, started_at, completed_at, updated_at, action_executions, close_reason")
             .eq("instance_id", instanceId)
             .eq("student_id", userId)
             .order("started_at", { ascending: true });
@@ -245,13 +293,7 @@ export async function POST(request: NextRequest) {
             }, { status: 500 });
         }
 
-        const executionsByDayIndex: Record<number, any> = {};
-        for (const execution of sequenceExecutions || []) {
-            const executionDayIndex = Number((execution as any)?.day_index || 0);
-            if (executionDayIndex > 0) {
-                executionsByDayIndex[executionDayIndex] = execution;
-            }
-        }
+        const executionsByDayIndex = buildPlanDayFacts(sequenceExecutions || []);
         const effectiveStartExecutionDay = deriveEffectiveStartExecutionDay({
             storedStartExecutionDay: Number((instance as any)?.start_execution_day || 1),
             planDays: trainingDays,
@@ -308,6 +350,21 @@ export async function POST(request: NextRequest) {
                 message: `请先完成当前第${recommendedDayIndex}天，再开始第${dayIndex}天`,
                 data: { recommendedDayIndex },
             }, { status: 409 });
+        }
+
+        const timedOutExecutionForRecovery = existingStatus === "timed_out"
+            ? existingExecution
+            : recoverableTimedOutExecution;
+        if (
+            timedOutExecutionForRecovery &&
+            !restartTimedOut &&
+            hasMeaningfulExecutionProgress(timedOutExecutionForRecovery)
+        ) {
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: true,
+                message: "上次训练已超时，可补记完成或重新训练这一天",
+                data: timedOutExecutionForRecovery,
+            });
         }
 
         if (existingExecution && existingStatus === "in_progress") {

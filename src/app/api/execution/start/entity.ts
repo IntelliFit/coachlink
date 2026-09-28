@@ -2,6 +2,7 @@
 export interface StartExecutionDto {
     instanceId: string;
     dayIndex: number;
+    restartTimedOut?: boolean;
 }
 
 // 返回参数的接口类型

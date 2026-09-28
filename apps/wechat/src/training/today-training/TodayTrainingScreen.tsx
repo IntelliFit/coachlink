@@ -1,3 +1,4 @@
+import { canViewPlanDay } from '@coachlink/core/src/planCalendar'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Image, ScrollView, Textarea } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
@@ -24,6 +25,7 @@ import {
 } from '@/utils/share'
 import TodayTrainingCard from './components/TodayTrainingCard'
 import RestDayCard from './components/RestDayCard'
+import RecordCompletionButton from '@/components/RecordCompletionButton'
 import ScheduleCalendarPanel from './components/ScheduleCalendarPanel'
 import LightweightTaskSheet from './components/LightweightTaskSheet'
 import LightweightActionPicker from './components/LightweightActionPicker'
@@ -427,8 +429,8 @@ function TodayTrainingScreen() {
     () => findTodayCompletedDayIndex(executionsByDayIndex),
     [executionsByDayIndex]
   )
-  const effectiveTodayCompleted = todayCompleted || !!todayCompletedDayIndex
-  const defaultSelectedDayIndex = todayCompletedDayIndex || progressDayIndex || 1
+  const effectiveTodayCompleted = todayCompleted
+  const defaultSelectedDayIndex = progressDayIndex || 1
 
   useEffect(() => {
     if (!instance?.id) return
@@ -485,14 +487,16 @@ function TodayTrainingScreen() {
   const scheduleModel = useMemo(
     () =>
       buildPlanScheduleModel({
+        dateBasis: 'plan-order',
         trainingDays,
         executionsByDayIndex,
+        completionDates,
         effectiveStartDate: effectiveCalendarStartDate,
         progressDayIndex,
         startExecutionDay: Number(instance?.start_execution_day || 1),
         fallbackAnchorDayIndex: progressDayIndex || 1
       }),
-    [trainingDays, executionsByDayIndex, effectiveCalendarStartDate, progressDayIndex, instance?.start_execution_day]
+    [trainingDays, executionsByDayIndex, completionDates, effectiveCalendarStartDate, progressDayIndex, instance?.start_execution_day]
   )
   const selectedSchedule = scheduleModel.scheduleByDayIndex.get(selectedDayIndex)
   const selectedDateLabel = useMemo(() => {
@@ -1160,7 +1164,7 @@ function TodayTrainingScreen() {
         scrollToScheduleCalendar()
         return
       }
-      if (!isDayUnlocked(cell.planDayIndex, unlockedWeekForStrip)) {
+      if (!canViewPlanDay(cell.planDayIndex, unlockedWeekForStrip, executionsByDayIndex[cell.planDayIndex])) {
         Taro.showToast({ title: '该日尚未解锁', icon: 'none' })
         return
       }
@@ -2205,6 +2209,20 @@ function TodayTrainingScreen() {
         <View className='page-content'>
           {renderDashboardIntro()}
           {renderScheduleCalendarCombined()}
+          {instance?.id && selectedDay?.type === 'training' && (
+            <RecordCompletionButton instanceId={instance.id} dayIndex={selectedDayIndex}
+              execution={selectedExec} earliestDate={instance.start_date || (instance as any).created_at}
+              onSaved={async saved => {
+                syncTrainingExecutionToStorage({
+                  userId: currentUserId || '', instanceId: instance.id, dayIndex: saved.day_index,
+                  scopeKey: trainingExecutionSnapshotKey({ isImpromptuMode: false, instanceId: instance.id, dayIndex: saved.day_index }),
+                  isImpromptuMode: false, execution: saved, planInstance: instance, actions
+                })
+                Taro.showToast({ title: '已按实际日期记录', icon: 'success' })
+                await loadData()
+                setSelectedDayIndex(saved.day_index)
+              }} />
+          )}
           {hasBothPlans && (
             <View className='plan-switcher'>
               <View className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`} onClick={() => updatePlanMode('coach')}>

@@ -29,9 +29,9 @@ export type CreditsScope = {
 };
 
 /**
- * B1: “4周计划”对外口径，但内部按“训练日次数”扣减。
- * 我们把 subscribedWeeks 转换为一个“训练日配额”，配额范围是计划前 N 周：
- *   [1, subscribedWeeks*7]
+ * 将可用服务周映射为当前计划的训练访问范围；次数只用于本计划展示和访问，
+ * 跨计划结转以服务周为准（见 subscriptionServiceWeeks）。整周覆盖计划前 N 周，
+ * 非整周按该原计划周的训练数分配，保留最后不足一次的服务份额。
  *
  * 迁移场景（线下已完成）：plan_instance.start_execution_day 表示学员已线下完成的进度起点，
  * credits 的“已消耗”会在 computeUsedCredits 里把 start_execution_day 之前的训练日计入 used。
@@ -61,7 +61,20 @@ export function computeCreditsScope(params: {
     0,
     ...(trainingDays || []).map((d) => getDayIndex(d)).filter((n) => n > 0),
   );
-  const scopeEndDayIndex = Math.min(rawScopeEnd, maxDayIndex || rawScopeEnd);
+  let scopeEndDayIndex = Math.min(rawScopeEnd, maxDayIndex || rawScopeEnd);
+  const wholeWeeks = Math.floor(weeks + 1e-9);
+  const partialWeek = weeks - wholeWeeks;
+  if (partialWeek > 1e-9) {
+    const weekStart = wholeWeeks * 7;
+    const partialTrainingDays = [...new Set(trainingDays.filter(isTrainingDay).map(getDayIndex)
+      .filter(index => index > weekStart && index <= weekStart + 7))].sort((a, b) => a - b);
+    // Keep the fractional service week. Sessions are indivisible, so the last
+    // partial session remains accessible; never floor away paid service time.
+    const sessions = Math.ceil(partialWeek * partialTrainingDays.length - 1e-9);
+    const nextUnpaidDay = partialTrainingDays[sessions];
+    scopeEndDayIndex = Math.min(maxDayIndex || weekStart + 7, nextUnpaidDay != null
+      ? nextUnpaidDay - 1 : weekStart + 7);
+  }
 
   const eligibleTrainingDayIndexSet = new Set<number>();
   for (const d of trainingDays || []) {

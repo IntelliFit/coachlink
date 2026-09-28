@@ -80,7 +80,7 @@ export default function MyCoaches() {
       return
     }
     Taro.navigateTo({
-      url: `/me/payment/webview/index?coachId=${encodeURIComponent(_coachId)}&renew=1`
+      url: `/discovery/coach-profile?id=${encodeURIComponent(_coachId)}&tab=1`
     })
   }
 

@@ -30,7 +30,7 @@ export function getMaxAccessibleDayIndex(
 ): number | null {
   const weeks = Number(subscribedWeeks ?? 0);
   if (!Number.isFinite(weeks) || weeks <= 0) return null;
-  return Math.floor(weeks) * 7;
+  return Math.ceil(weeks * 7 - 1e-9);
 }
 
 export function isSubscriptionExpired(

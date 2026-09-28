@@ -3,6 +3,12 @@
  */
 import { request } from '@/utils/request'
 import Taro from '@tarojs/taro'
+import {
+  isVirtualPaymentCancellation,
+  requestVirtualPaymentAndWait,
+  virtualPaymentErrorMessage,
+  type VirtualPaymentRequestOptions
+} from '@/utils/virtual-payment'
 
 const WEB_BASE = 'https://coachlink.fit'
 
@@ -84,7 +90,7 @@ export interface QueryPaymentOrderResponse {
   tradeStatus: string
 }
 
-export interface WechatPaymentParams {
+export interface CoachWechatPaymentParams {
   appId: string
   timeStamp: string
   nonceStr: string
@@ -93,18 +99,21 @@ export interface WechatPaymentParams {
   paySign: string
 }
 
+/** 平台自营虚拟商品（会员、加油包、动作特效）使用的 XPay 参数。 */
+export type WechatPaymentParams = VirtualPaymentRequestOptions
+
 export interface CreateCoachWechatPaymentResponse {
   orderId: string
   outTradeNo: string
   paymentProvider: 'wechat'
   amount: number
-  paymentParams: WechatPaymentParams
+  paymentParams: CoachWechatPaymentParams
 }
 
 export interface CreateMembershipWechatPaymentResponse {
   orderId: string
   outTradeNo: string
-  paymentProvider: 'wechat'
+  paymentProvider: 'wechat_xpay'
   amount: number
   paymentParams: WechatPaymentParams
 }
@@ -179,10 +188,14 @@ export async function createCoachWechatPayment(params: {
 export async function createMembershipWechatPayment(params: {
   productKey: string
 }): Promise<{ success: boolean; data?: CreateMembershipWechatPaymentResponse; message?: string }> {
+  const login = await Taro.login()
+  if (!login.code) {
+    return { success: false, message: '获取微信登录状态失败，请重试' }
+  }
   const res = await request<CreateMembershipWechatPaymentResponse>({
     url: '/api/payment/wechat/membership/create',
     method: 'POST',
-    data: params,
+    data: { ...params, loginCode: login.code },
   })
 
   if (!res.success || !res.data) {
@@ -219,7 +232,7 @@ export async function queryCoachPaymentOrder(orderId: string): Promise<{
   }
 }
 
-export async function requestCoachWechatPayment(params: WechatPaymentParams): Promise<{
+export async function requestCoachWechatPayment(params: CoachWechatPaymentParams): Promise<{
   success: boolean
   status: 'success' | 'cancelled' | 'failed'
   message?: string
@@ -235,21 +248,29 @@ export async function requestCoachWechatPayment(params: WechatPaymentParams): Pr
     return { success: true, status: 'success' }
   } catch (error: any) {
     const errMsg = String(error?.errMsg || error?.message || '')
-    const cancelled =
-      errMsg.includes('cancel') ||
-      errMsg.includes('cancelled') ||
-      errMsg.includes('鐢ㄦ埛鍙栨秷')
+    const cancelled = errMsg.toLowerCase().includes('cancel') || errMsg.includes('用户取消')
 
     return {
       success: false,
       status: cancelled ? 'cancelled' : 'failed',
-      message: errMsg || (cancelled ? '鐢ㄦ埛鍙栨秷鏀粯' : '鎷夎捣寰俊鏀粯澶辫触')
+      message: errMsg || (cancelled ? '用户取消支付' : '拉起微信支付失败')
     }
   }
 }
 
 export async function requestWechatPayment(params: WechatPaymentParams) {
-  return requestCoachWechatPayment(params)
+  try {
+    await requestVirtualPaymentAndWait((Taro as any).requestVirtualPayment, params)
+    return { success: true, status: 'success' as const }
+  } catch (error: any) {
+    const errMsg = virtualPaymentErrorMessage(error)
+    const cancelled = isVirtualPaymentCancellation(error)
+    return {
+      success: false,
+      status: cancelled ? 'cancelled' as const : 'failed' as const,
+      message: errMsg || (cancelled ? '用户取消支付' : '拉起微信虚拟支付失败')
+    }
+  }
 }
 
 export async function refundAlipayOrder(params: {

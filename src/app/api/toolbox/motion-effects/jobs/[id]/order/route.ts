@@ -3,10 +3,13 @@ import { createAlipaySdk } from "@/lib/alipaySdk";
 import { fenToYuan } from "@/lib/moneyUtils";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import {
-  createHuifuMiniProgramOrder,
-  formatHuifuReqDate,
-  parseHuifuPayInfo,
-} from "@/lib/huifuMiniProgramPay";
+  assertWechatOpenId,
+  createWechatXPayParams,
+  exchangeWechatXPaySession,
+  getWechatXPayConfig,
+} from "@/lib/wechatXPay";
+import { getMotionEffectXPayProduct } from "@/lib/wechatXPayProducts";
+import { randomUUID } from "node:crypto";
 import type { ApiData } from "@/types/api";
 import {
   calculateMotionEffectPrice,
@@ -33,14 +36,6 @@ function baseUrlFor(req: Request) {
   return `${proto}://${host}`;
 }
 
-function clientIpFor(req: Request) {
-  return String(
-    req.headers.get("x-forwarded-for")?.split(",")[0] ||
-      req.headers.get("x-real-ip") ||
-      "127.0.0.1",
-  ).trim();
-}
-
 export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> },
@@ -48,10 +43,12 @@ export async function POST(
   const requestBody = (await req.json().catch(() => ({}))) as {
     paymentProvider?: "alipay" | "wechat";
     returnUrlOnly?: boolean;
+    loginCode?: string;
   };
   const returnUrlOnly = requestBody?.returnUrlOnly === true;
   const paymentProvider =
     requestBody?.paymentProvider === "wechat" ? "wechat" : "alipay";
+  const storedPaymentProvider = paymentProvider === "wechat" ? "wechat_xpay" : "alipay";
   const identity = await getMotionEffectRequestIdentity(req);
   const { id } = await context.params;
   const job = await getAccessibleMotionEffectJob(id, identity);
@@ -99,7 +96,7 @@ export async function POST(
     }
     if (
       existingOrder?.status === "pending" &&
-      String(existingOrder.payment_provider || "alipay") === paymentProvider
+      String(existingOrder.payment_provider || "alipay") === storedPaymentProvider
     ) {
       reusableOrder = existingOrder;
     } else if (existingOrder?.status === "pending") {
@@ -210,22 +207,26 @@ export async function POST(
       );
     }
 
-    const notifyUrl = String(process.env.WECHAT_PAY_NOTIFY_URL || "").trim();
-    const miniAppId = String(process.env.WECHAT_MINIAPP_APPID || "").trim();
-    if (!notifyUrl || !miniAppId) {
+    if (!String(requestBody.loginCode || "").trim()) {
       return NextResponse.json<ApiData<null>>(
-        { success: false, message: "微信支付配置不完整，请联系管理员", data: null },
-        { status: 500 },
+        { success: false, message: "获取微信登录状态失败，请重试", data: null },
+        { status: 400 },
       );
     }
 
+    const session = await exchangeWechatXPaySession(String(requestBody.loginCode));
+    assertWechatOpenId(user.wechat_openid, session.openId);
+    const config = getWechatXPayConfig();
+    const xpayProduct = getMotionEffectXPayProduct(quote.totalCents);
     let order = reusableOrder;
-    let paymentParams = order?.order_data?.wechat_payment_params
-      ? parseHuifuPayInfo(order.order_data.wechat_payment_params)
-      : null;
     let createdNewOrder = false;
 
-    if (order && !paymentParams) {
+    if (
+      order &&
+      (Math.round(Number(order.total_amount || 0)) !== quote.totalCents ||
+        String(order.order_data?.xpay_product_id || "") !== xpayProduct.productId ||
+        !String(order.order_data?.xpay_out_trade_no || ""))
+    ) {
       await db
         .from("alipay_orders")
         .update({ status: "closed", updated_at: new Date().toISOString() })
@@ -235,18 +236,25 @@ export async function POST(
     }
 
     if (!order) {
-      const reqDate = formatHuifuReqDate();
+      const outTradeNo = randomUUID().replaceAll("-", "");
       const { data, error: orderError } = await db
         .from("alipay_orders")
         .insert({
           subject,
           total_amount: quote.totalCents,
           order_type: "motion_effect_export",
-          order_data: { ...orderData, huifu_req_date: reqDate },
+          order_data: {
+            ...orderData,
+            xpay_out_trade_no: outTradeNo,
+            xpay_product_id: xpayProduct.productId,
+            xpay_goods_price: quote.totalCents,
+            xpay_openid: session.openId,
+            xpay_env: config.env,
+          },
           user_id: identity.userId,
           status: "pending",
           qr_code: "",
-          payment_provider: "wechat",
+          payment_provider: "wechat_xpay",
         })
         .select("*")
         .single();
@@ -254,61 +262,21 @@ export async function POST(
       createdNewOrder = Boolean(data);
       if (orderError || !order) {
         return NextResponse.json<ApiData<null>>(
-          { success: false, message: orderError?.message || "创建微信支付订单失败", data: null },
+          { success: false, message: orderError?.message || "创建微信虚拟支付订单失败", data: null },
           { status: 500 },
         );
       }
 
-      try {
-        const payResult = await createHuifuMiniProgramOrder({
-          reqDate,
-          reqSeqId: String(order.id),
-          transAmtYuan: fenToYuan(quote.totalCents).toFixed(2),
-          goodsDesc: subject,
-          notifyUrl,
-          openid: String(user.wechat_openid),
-          appId: miniAppId,
-          attach: String(order.id),
-          remark: String(order.id),
-          body: subject,
-          clientIp: clientIpFor(req),
-        });
-        if (
-          payResult.resp_code !== "00000000" &&
-          payResult.resp_code !== "00000100"
-        ) {
-          throw new Error(payResult.resp_desc || "汇付微信下单失败");
-        }
-        paymentParams = parseHuifuPayInfo(payResult.pay_info);
-        await db
-          .from("alipay_orders")
-          .update({
-            order_data: {
-              ...orderData,
-              huifu_req_date: reqDate,
-              wechat_payment_params: paymentParams,
-            },
-            payment_provider: "wechat",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order.id);
-      } catch (error: any) {
-        await db
-          .from("alipay_orders")
-          .update({
-            status: "failed",
-            trade_status: error?.message || "CREATE_FAILED",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", order.id);
-        return NextResponse.json<ApiData<null>>(
-          { success: false, message: error?.message || "微信支付下单失败", data: null },
-          { status: 500 },
-        );
-      }
     }
 
     const checkoutCents = Math.round(Number(order.total_amount || quote.totalCents));
+    const { params: paymentParams } = createWechatXPayParams({
+      sessionKey: session.sessionKey,
+      productId: String(order.order_data.xpay_product_id),
+      goodsPrice: checkoutCents,
+      outTradeNo: String(order.order_data.xpay_out_trade_no),
+      attach: `motion:${id}`,
+    });
     const { data: updatedJob, error: updateError } = await bindOrderToJob(
       String(order.id),
       checkoutCents,
@@ -325,7 +293,7 @@ export async function POST(
 
     return NextResponse.json<ApiData<MotionEffectCheckoutDto>>({
       success: true,
-      message: "微信支付订单创建成功",
+      message: "微信虚拟支付订单创建成功",
       data: {
         job: mapMotionEffectJob(updatedJob),
         order: {
@@ -337,7 +305,7 @@ export async function POST(
         paymentInfo: {
           provider: "wechat",
           paymentParams,
-          description: "微信支付",
+          description: "微信虚拟支付",
         },
       },
     });

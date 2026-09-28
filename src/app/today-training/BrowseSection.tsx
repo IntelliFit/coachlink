@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from 'primereact/button';
 import { ChevronLeft, ChevronRight, Check, CalendarDays } from 'lucide-react';
+import { canViewPlanDay } from '@coachlink/core/src/planCalendar';
 import { getDayWeekNumber, isDayUnlocked } from '@/lib/weekUnlock';
 import {
     formatBeijingDate,
@@ -72,23 +73,6 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
         return Array.from({ length: 7 }, (_, i) => startDay + i).filter((dayIndex) => dayIndex <= trainingDays.length);
     }, [currentWeek, trainingDays.length]);
 
-    const dayDateEntries = useMemo(() => {
-        return trainingDays.map((day: any) => {
-            const scheduleInfo = scheduleModel.scheduleByDayIndex.get(day.dayIndex);
-            const date = scheduleInfo?.displayDate || resolvePlanDayDate({
-                dayIndex: day.dayIndex,
-                effectiveStartDate,
-                fallbackAnchorDayIndex: progressDayIndex || currentDayIndex || 1,
-            });
-            return {
-                dayIndex: day.dayIndex,
-                type: day.type,
-                date,
-                key: toDateKey(date),
-            };
-        });
-    }, [trainingDays, scheduleModel, effectiveStartDate, progressDayIndex, currentDayIndex]);
-
     const selectedSchedule = useMemo(() => {
         return scheduleModel.scheduleByDayIndex.get(selectedDayIndex || 1);
     }, [scheduleModel, selectedDayIndex]);
@@ -110,14 +94,6 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
         const parts = getBeijingDateParts(selectedDate);
         setMonthCursor({ year: parts.year, month: parts.month });
     }, [selectedDate]);
-
-    const dayIndexByDateKey = useMemo(() => {
-        const map = new Map<string, number>();
-        dayDateEntries.forEach((entry) => {
-            map.set(entry.key, entry.dayIndex);
-        });
-        return map;
-    }, [dayDateEntries]);
 
     const monthGrid = useMemo(() => {
         const leadingBlankCount = (getBeijingWeekday(monthCursor.year, monthCursor.month, 1) + 6) % 7;
@@ -143,7 +119,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     };
 
     const selectDay = (dayIndex: number) => {
-        if (!isDayUnlocked(dayIndex, unlockedWeek)) return;
+        if (!canViewPlanDay(dayIndex, unlockedWeek, getExec(dayIndex))) return;
         onSelectedDayChange(dayIndex);
     };
 
@@ -170,8 +146,9 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                     </h3>
                     <p className="mt-2 text-sm text-surface-600">
                         已选第{selectedDayIndex}天 · {formatPlanDayLabel(selectedDate)}
+                        {selectedSchedule?.dateEstimated ? ' · 推算安排日期' : ''}
                         {selectedSchedule?.totalDelayDays ? ` · 已顺延 ${selectedSchedule.totalDelayDays} 天` : ''}
-                        {selectedDayIndex === progressDayIndex ? ' · 今日推进' : ''}
+                        {selectedDayIndex === progressDayIndex ? ' · 当前推进' : ''}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -210,7 +187,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                         const isProgressToday = dayIndex === progressDayIndex;
                         const isRecommended = dayIndex === currentDayIndex;
                         const isStartDay = dayIndex === startExecutionDay && startExecutionDay > 1;
-                        const dayUnlocked = isDayUnlocked(dayIndex, unlockedWeek);
+                        const dayUnlocked = canViewPlanDay(dayIndex, unlockedWeek, getExec(dayIndex));
 
                         return (
                             <button
@@ -277,6 +254,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 <div className="mt-4 rounded-3xl border border-surface-100/70 bg-white p-4">
                     <div className="mb-4 flex items-center justify-between">
                         <Button
+                            aria-label="上个月"
                             icon={<ChevronLeft className="w-4 h-4" />}
                             className="p-button-text p-button-sm"
                             onClick={() => setMonthCursor((prev) => shiftBeijingMonth(prev.year, prev.month, -1))}
@@ -289,6 +267,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                             )}
                         </div>
                         <Button
+                            aria-label="下个月"
                             icon={<ChevronRight className="w-4 h-4" />}
                             className="p-button-text p-button-sm"
                             onClick={() => setMonthCursor((prev) => shiftBeijingMonth(prev.year, prev.month, 1))}
@@ -306,19 +285,26 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                 return <div key={`blank-${index}`} className="h-12 rounded-2xl bg-surface-50/60" />;
                             }
 
-                            const mappedDayIndex = dayIndexByDateKey.get(toDateKey(dateCell));
+                            const mappedDays = scheduleModel.dayIndexesByDateKey.get(toDateKey(dateCell)) || [];
+                            const accessibleDays = mappedDays.filter(di => canViewPlanDay(di, unlockedWeek, getExec(di)));
+                            const mappedDayIndex = accessibleDays.includes(selectedDayIndex)
+                                ? selectedDayIndex : accessibleDays[0] || mappedDays[0];
                             const postponedMarker = scheduleModel.postponedByDateKey.get(toDateKey(dateCell));
-                            const dayUnlocked = mappedDayIndex ? isDayUnlocked(mappedDayIndex, unlockedWeek) : false;
-                            const isSelected = mappedDayIndex === selectedDayIndex;
+                            const dayUnlocked = accessibleDays.length > 0;
+                            const isSelected = mappedDays.includes(selectedDayIndex);
                             const status = mappedDayIndex ? getDayStatus(mappedDayIndex) : 'calendar_only';
 
                             return (
                                 <button
                                     key={toDateKey(dateCell)}
                                     type="button"
-                                    onClick={() => mappedDayIndex && selectDay(mappedDayIndex)}
+                                    onClick={() => {
+                                        if (!accessibleDays.length) return;
+                                        const pos = accessibleDays.indexOf(selectedDayIndex);
+                                        selectDay(accessibleDays[(pos + 1) % accessibleDays.length]);
+                                    }}
                                     disabled={!mappedDayIndex || !dayUnlocked}
-                                    className={`h-14 rounded-2xl border text-sm transition-all active:scale-[0.98] ${
+                                    className={`min-h-16 rounded-2xl border text-sm transition-all active:scale-[0.98] ${
                                         isSelected
                                             ? 'border-primary-500 bg-primary-500 text-surface'
                                             : postponedMarker
@@ -337,8 +323,11 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     <div className="flex h-full flex-col items-center justify-center">
                                         <div className="font-bold">{getBeijingDateParts(dateCell).day}</div>
                                         <div className="text-[10px] opacity-80">
-                                            {mappedDayIndex ? `D${mappedDayIndex}` : postponedMarker ? '顺延' : ''}
+                                            {mappedDays.length ? mappedDays.map(di => `D${di}`).join(' · ') : postponedMarker ? '顺延' : ''}
                                         </div>
+                                        {mappedDays.some(di => scheduleModel.scheduleByDayIndex.get(di)?.dateEstimated) && (
+                                            <div className="text-[10px]">推算</div>
+                                        )}
                                         {!mappedDayIndex && postponedMarker && (
                                             <div className="text-[9px] opacity-70">→ D{postponedMarker.targetDayIndex}</div>
                                         )}
@@ -350,11 +339,16 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 </div>
             )}
 
+            {Array.from(scheduleModel.scheduleByDayIndex.values()).some(info => info.dateNeedsReview) && (
+                <p role="status" className="mt-4 text-sm text-amber-800">
+                    已按教练计划顺序恢复安排。“推算”日期结合训练记录与原计划间隔，不是已确认的实际训练日；原始提交时间保留，可选中对应 D 核对训练日期。
+                </p>
+            )}
             <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-surface-100/60 bg-surface-50 px-4 py-3 text-xs text-surface-600">
-                <span>点日期查看当天的力量训练、饮食、有氧和习惯模块。</span>
+                <span>周条和月历均按原计划 D 顺序安排；“推算”不代表已确认训练日，同日多条可再次点击切换。</span>
                 {scheduleModel.postponedDates.length > 0 && (
                     <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-800">
-                        浅橙色日期 = 顺延出来的额外休息日
+                        浅橙色日期 = 等待训练的顺延日期
                     </span>
                 )}
                 {currentWeek > unlockedWeek && (

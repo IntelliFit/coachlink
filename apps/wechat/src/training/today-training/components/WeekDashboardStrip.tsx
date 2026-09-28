@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import { resolvePlanDayDate, toDateKey } from '../lib/dayModules'
+import { addBeijingDays, getBeijingDayStart, getBeijingDateParts, getBeijingWeekday } from '@coachlink/core/src/beijingTime'
+import { canViewPlanDay } from '@coachlink/core/src/planCalendar'
 import './WeekDashboardStrip.scss'
 
 const SUN_FIRST_LABELS = ['日', '一', '二', '三', '四', '五', '六']
@@ -67,17 +69,12 @@ function WeekDashboardStrip({ cells, selectedDateKey, onCellPress }: WeekDashboa
 
 /** 当前周（周日为首日）7 天起点 0:00 */
 export function getSundayWeekStart(d: Date) {
-  const x = new Date(d)
-  x.setHours(0, 0, 0, 0)
-  const day = x.getDay()
-  x.setDate(x.getDate() - day)
-  return x
+  const parts = getBeijingDateParts(d)
+  return addBeijingDays(d, -getBeijingWeekday(parts.year, parts.month, parts.day))
 }
 
 function startOfDayTime(dateValue: Date | string) {
-  const date = new Date(dateValue)
-  date.setHours(0, 0, 0, 0)
-  return date
+  return getBeijingDayStart(dateValue)
 }
 
 export function buildWeekStripCells(params: {
@@ -136,10 +133,9 @@ export function buildWeekStripCells(params: {
 
   const cells: WeekStripCell[] = []
   for (let i = 0; i < 7; i += 1) {
-    const date = new Date(weekStart)
-    date.setDate(weekStart.getDate() + i)
+    const date = addBeijingDays(weekStart, i)
     const dateKey = toDateKey(startOfDayTime(date))
-    const weekdayLabel = SUN_FIRST_LABELS[date.getDay()]
+    const weekdayLabel = SUN_FIRST_LABELS[i]
     const planDayIndexes = dayIndexesByDateKey.get(dateKey) || []
     const getStatus = (planDayIndex: number): WeekStripCellStatus => {
       const ex = executionsByDayIndex[planDayIndex]
@@ -148,8 +144,7 @@ export function buildWeekStripCells(params: {
       }
       if (ex?.status === 'completed' || completionDates[planDayIndex]) return 'completed'
       if (ex?.status === 'in_progress') return 'in_progress'
-      const wk = Math.max(1, Math.ceil(planDayIndex / 7))
-      if (wk > unlockedWeek) return 'locked'
+      if (!canViewPlanDay(planDayIndex, unlockedWeek, ex)) return 'locked'
       const day = trainingDays.find((x: any) => x.dayIndex === planDayIndex)
       return day?.type === 'rest' ? 'rest' : 'pending'
     }
@@ -176,7 +171,7 @@ export function buildWeekStripCells(params: {
       date,
       dateKey,
       weekdayLabel,
-      dayNum: date.getDate(),
+      dayNum: getBeijingDateParts(date).day,
       planDayIndex,
       planDayIndexes,
       status,

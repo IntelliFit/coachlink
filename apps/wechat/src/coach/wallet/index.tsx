@@ -189,7 +189,7 @@ function CoachWallet() {
             {isHuifuOpened ? (
               <View className="huifu-status opened">
                 <Text className="huifu-status-text">已开通</Text>
-                <Text className="huifu-status-desc">学员订阅付款会按规则自动分账到您的账户</Text>
+                <Text className="huifu-status-desc">学员教练订阅付款会按规则分账到您的汇付账户</Text>
               </View>
             ) : walletData?.huifu_open_status === 'failed' ? (
               <View className="huifu-status failed">
@@ -201,7 +201,7 @@ function CoachWallet() {
             ) : walletData?.huifu_open_status === 'business_pending' ? (
               <View className="huifu-status pending">
                 <Text className="huifu-status-text">审核中</Text>
-                <Text className="huifu-status-desc">汇付审核通过并返回取现卡序列号后，才能收款分账和提现</Text>
+                <Text className="huifu-status-desc">汇付审核通过并返回取现卡序列号后，才能接收分账和提现</Text>
               </View>
             ) : (
               <View className="huifu-status pending">
@@ -218,7 +218,7 @@ function CoachWallet() {
 
           <View className="hint-card">
             <Text className="hint-text">
-              开户后，教练订阅和教练内容收入会按规则进入您的汇付收款账户；{walletData?.refund_protection_days ?? 7}天退款保护期内的收入会暂时冻结，待结算收入不会计入可提现余额。
+              开户后，教练订阅和教练内容收入会通过汇付按规则分账；{walletData?.refund_protection_days ?? 7}天退款保护期内的收入会暂时冻结，汇付分账成功后才会计入可提现余额。
             </Text>
           </View>
 

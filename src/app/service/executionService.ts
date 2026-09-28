@@ -70,6 +70,12 @@ import type {
 } from "../api/execution/extra-content/entity";
 
 class ExecutionService extends BaseService {
+    async recordCompletion(input: import('@coachlink/core/src/completionDate').RecordPlanCompletionInput) {
+        const res = await this.post<any>('record-completion', input);
+        if (!res.data?.success || !res.data.data) throw new Error(res.data?.message || '补记失败');
+        return res.data.data;
+    }
+
     /**
      * 开始或恢复训练
      */

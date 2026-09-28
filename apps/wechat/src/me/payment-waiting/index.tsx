@@ -3,7 +3,6 @@ import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import {
   queryCoachPaymentOrder,
-  queryPaymentOrder,
   type PaymentStatus
 } from '@/services/paymentService'
 import './index.scss'
@@ -23,7 +22,7 @@ export default function PaymentWaiting() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const coachId = (router.params.coachId ?? router.params.coach_id ?? '') as string
-  const provider = (router.params.provider ?? 'alipay') as string
+  const provider = (router.params.provider ?? 'huifu') as string
   const target = (router.params.target ?? '') as string
   const membershipTab = (router.params.membershipTab ?? 'membership') as string
 
@@ -32,9 +31,7 @@ export default function PaymentWaiting() {
     if (!oid) return
     if (!isSilent) setLoading(true)
     try {
-      const res = provider === 'wechat'
-        ? await queryCoachPaymentOrder(oid)
-        : await queryPaymentOrder(oid)
+      const res = await queryCoachPaymentOrder(oid)
       if (res.success && res.status) {
         setStatus(res.status)
         if (res.amount != null) setAmount(res.amount)
@@ -147,9 +144,9 @@ export default function PaymentWaiting() {
             </View>
             <Text className="payment-waiting-title">正在等待支付结果...</Text>
             <Text className="payment-waiting-hint">
-              {provider === 'wechat'
-                ? '微信支付已拉起，完成支付后请稍候，系统会自动同步结果'
-                : '请到浏览器中完成支付宝支付后返回本页，系统将自动同步结果'}
+              {provider === 'xpay'
+                ? '微信官方虚拟支付已拉起，完成支付后请稍候，系统会自动同步结果'
+                : '微信支付已拉起，完成支付后请稍候，汇付分账状态会自动同步'}
             </Text>
           </>
         ) : (

@@ -1,3 +1,4 @@
+import { buildPlanDayFacts } from '@/lib/planDayFacts';
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { GetInstanceDto, GetInstanceResponseDto } from "./entity";
@@ -265,6 +266,8 @@ export async function POST(req: Request) {
     }
 
     let maxAccessibleDayIndex: number | null = null;
+    let effectiveSubscribedWeeks: number | undefined;
+    const entitlementTrainingDays = Array.isArray(instance.training_days) ? instance.training_days : [];
     if (
         !shouldBypassSubscriptionGate &&
         !hasCoachPermission &&
@@ -316,6 +319,7 @@ export async function POST(req: Request) {
             startExecutionDay: Number((instance as any).start_execution_day || 1),
             effectiveSubscribedWeeks: carryover.remainingWeeks,
         });
+        effectiveSubscribedWeeks = carryover.remainingWeeks;
         if (!decision.allowed) {
             const code = decision.reason === "SUBSCRIPTION_EXPIRED"
                 ? "SUBSCRIPTION_EXPIRED"
@@ -613,19 +617,21 @@ export async function POST(req: Request) {
 
     let effectiveExecutions: any[] | null = executions as any[] | null;
     if (executionsError) {
-        // Fallback: get minimal fields we need for nextDayIndex/completionDates.
+        // JSONB-backed environments have no relational execution_sets table.
         let fallbackQuery = supabase
             .from("plan_instance_executions")
             .select(
-                "id, instance_id, student_id, day_index, status, started_at, completed_at, action_executions",
+                "*",
             )
             .eq("instance_id", instance.id);
         if (maxAccessibleDayIndex !== null) {
             fallbackQuery = fallbackQuery.lte("day_index", maxAccessibleDayIndex);
         }
-        const { data: fallbackExecs } = await fallbackQuery.order("day_index", {
+        const { data: fallbackExecs, error: fallbackError } = await fallbackQuery.order("day_index", {
             ascending: true,
         });
+        if (fallbackError) return NextResponse.json({ success: false,
+            message: '暂时无法读取训练历史，请稍后重试', code: 'EXECUTION_HISTORY_UNAVAILABLE' }, { status: 503 });
         effectiveExecutions = (fallbackExecs as any[]) || [];
     }
 
@@ -637,15 +643,25 @@ export async function POST(req: Request) {
                 ...ae,
                 sets: ae.sets?.map((s: any) => ({
                     ...s,
-                    has_video: !!s.video?.length,
-                    video_url: s.video?.[0]?.video_url,
+                    has_video: Array.isArray(s.video) ? !!s.video.length : !!s.has_video,
+                    video_url: s.video?.[0]?.video_url || s.video_url,
                 })),
             })),
         }));
     }
 
-    // Build executions map by dayIndex (pick the most recent started_at per day)
+    // Build executions map by dayIndex. An active attempt is always shown;
+    // otherwise a completed attempt must win over a newer empty/abandoned
+    // replacement created while confirming an older timed-out workout.
     const executionsByDayIndex: Record<number, any> = {};
+    const executionPriority = (execution: any) => {
+        const status = String(execution?.status || "").toLowerCase();
+        if (status === "in_progress") return 4;
+        if (status === "completed") return 3;
+        if (status === "abandoned") return 2;
+        if (status === "timed_out") return 1;
+        return 0;
+    };
     for (const exec of executionsList || []) {
         const di = Number(exec?.day_index ?? 0);
         if (!di) continue;
@@ -660,7 +676,9 @@ export async function POST(req: Request) {
         const curTime = exec?.started_at
             ? new Date(exec.started_at).getTime()
             : 0;
-        if (curTime >= prevTime) {
+        const prevPriority = executionPriority(prev);
+        const curPriority = executionPriority(exec);
+        if (curPriority > prevPriority || (curPriority === prevPriority && curTime >= prevTime)) {
             executionsByDayIndex[di] = exec;
         }
     }
@@ -684,12 +702,13 @@ export async function POST(req: Request) {
             subscriptionStartDateForProgress = subForProgress?.start_date || null;
         }
     }
+    const progressFacts = buildPlanDayFacts(executionsList);
     const startExecutionDay = deriveEffectiveStartExecutionDay({
         storedStartExecutionDay,
         planDays: Array.isArray(instance.training_days)
             ? (instance.training_days as any[])
             : [],
-        executionsByDayIndex,
+        executionsByDayIndex: progressFacts,
         planStartDate: (instance as any).start_date,
         subscriptionStartDate: subscriptionStartDateForProgress,
     });
@@ -799,7 +818,7 @@ export async function POST(req: Request) {
         {
             planDays,
             startExecutionDay,
-            executionsByDayIndex,
+            executionsByDayIndex: progressFacts,
             actionsMap,
             explicitStartDate:
                 (instance as any).start_date || (instance as any).created_at ||
@@ -823,19 +842,26 @@ export async function POST(req: Request) {
         ? "completed"
         : (instance as any).status;
 
+    if (effectiveSubscribedWeeks === undefined && subscriptionForStudentAccess && instance.coach_subscription_id) {
+        const carryover = await getSubscriptionCarryoverSummary({
+            subscriptionId: String(instance.coach_subscription_id),
+            subscribedWeeks: Number(subscriptionForStudentAccess.subscribed_weeks || 0),
+            excludeInstanceId: String(instance.id), createdBefore: instance.created_at || null,
+            subscriptionStartDate: subscriptionForStudentAccess.start_date || null,
+        });
+        effectiveSubscribedWeeks = carryover.remainingWeeks;
+    }
     const entitlement = subscriptionForStudentAccess && instance.coach_subscription_id
         ? deriveSubscriptionEntitlementState({
             subscription: subscriptionForStudentAccess,
-            planInstance: instance as any,
+            planInstance: { ...instance, training_days: entitlementTrainingDays } as any,
             executions: (executionsList || []).map((exec: any) => ({
                 day_index: Number(exec?.day_index ?? 0),
                 status: exec?.status || null,
                 completed_at: exec?.completed_at || null,
                 updated_at: exec?.updated_at || null,
             })),
-            effectiveSubscribedWeeks: maxAccessibleDayIndex !== null
-                ? Math.max(0, Math.floor(maxAccessibleDayIndex / 7))
-                : Number(subscriptionForStudentAccess?.subscribed_weeks || 0),
+            effectiveSubscribedWeeks: effectiveSubscribedWeeks ?? Number(subscriptionForStudentAccess?.subscribed_weeks || 0),
         })
         : null;
 

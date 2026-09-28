@@ -1,4 +1,5 @@
 import React from 'react'
+import RecordCompletionButton from '@/components/RecordCompletionButton'
 import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { trainingService } from '@/services/trainingService'
@@ -233,9 +234,13 @@ function getPlanActionNote(
 
 function formatTimerValue(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(Number(totalSeconds) || 0))
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
+  const hours = Math.floor(s / 3600)
+  const minutes = Math.floor((s % 3600) / 60)
+  const seconds = s % 60
+  if (hours > 0) {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
 function parseFirstNumber(value?: string | number | null): number | null {
@@ -384,6 +389,8 @@ function TrainingExecution() {
   const [loadError, setLoadError] = React.useState('')
   const [loadStage, setLoadStage] = React.useState('等待页面启动')
   const [execution, setExecution] = React.useState<any>(null)
+  const [cloudExecutionReady, setCloudExecutionReady] = React.useState(false)
+  const [restartingTimedOut, setRestartingTimedOut] = React.useState(false)
   const [actions, setActions] = React.useState<Record<string, any>>({})
   const [planInstance, setPlanInstance] = React.useState<any>(null)
   const [expandedAction, setExpandedAction] = React.useState<number>(0)
@@ -497,9 +504,11 @@ function TrainingExecution() {
     !isImpromptuMode && !isPreviewExecution && String(execution?.status || '').toLowerCase() === 'in_progress'
   const isCompletedExecution =
     String(execution?.status || '').toLowerCase() === 'completed' || !!execution?.completed_at
+  const isTimedOutExecution = String(execution?.status || '').toLowerCase() === 'timed_out'
   const canCorrectCompletedSets = isCompletedExecution && !routeRequestsReadOnly
   const isReadOnly =
-    isCompletedExecution || (routeRequestsReadOnly && !isPersistedInProgressExecution)
+    isCompletedExecution || isTimedOutExecution || (routeRequestsReadOnly && !isPersistedInProgressExecution)
+  const canLateCompleteTimedOut = isTimedOutExecution && !routeRequestsReadOnly
 
   React.useEffect(() => {
     executionRef.current = execution
@@ -510,10 +519,10 @@ function TrainingExecution() {
   }, [loading])
 
   const blockUntilExecutionReady = React.useCallback(() => {
-    if (!isPreviewExecution) return false
+    if (!isPreviewExecution && (isImpromptuMode || cloudExecutionReady)) return false
     Taro.showToast({ title: '正在同步训练记录，稍等几秒', icon: 'none' })
     return true
-  }, [isPreviewExecution])
+  }, [cloudExecutionReady, isImpromptuMode, isPreviewExecution])
 
   const clearPersistedRestTimer = React.useCallback(() => {
     restTimerDeadlineAtRef.current = 0
@@ -767,6 +776,7 @@ function TrainingExecution() {
   const startTraining = React.useCallback(async () => {
     setLoadError('')
     setLoadStage('启动训练页')
+    setCloudExecutionReady(false)
     if (!userId) {
       setExecution(null)
       setLoading(false)
@@ -824,6 +834,7 @@ function TrainingExecution() {
         }
         executionRef.current = data
         hasDisplayableExecution = true
+        setCloudExecutionReady(true)
         setExecution(data)
         syncExecutionToCaches(data)
         setPlanInstance({
@@ -918,6 +929,7 @@ function TrainingExecution() {
         if (data) {
           executionRef.current = data
           hasDisplayableExecution = true
+          setCloudExecutionReady(true)
           setLoadStage('已进入训练')
           setExecution(data)
           syncExecutionToCaches(data)
@@ -1055,6 +1067,9 @@ function TrainingExecution() {
 
     const executionStartedAt = parseTimestamp(execution?.started_at)
     const executionCompletedAt = parseTimestamp(execution?.completed_at)
+    const executionRecordedEndAt = parseTimestamp(
+      execution?.completed_at || execution?.last_saved_at || execution?.ended_at
+    )
 
     // Read-only previews are not workout sessions. Only a persisted execution
     // with both timestamps may show a historical duration; never start or
@@ -1065,8 +1080,8 @@ function TrainingExecution() {
       } catch {
         // Best effort only.
       }
-      if (executionStartedAt && executionCompletedAt) {
-        setElapsedTrainingSeconds(Math.max(0, Math.floor((executionCompletedAt - executionStartedAt) / 1000)))
+      if (executionStartedAt && executionRecordedEndAt) {
+        setElapsedTrainingSeconds(Math.max(0, Math.floor((executionRecordedEndAt - executionStartedAt) / 1000)))
       } else {
         setElapsedTrainingSeconds(0)
       }
@@ -1109,7 +1124,9 @@ function TrainingExecution() {
   }, [
     execution,
     execution?.completed_at,
+    execution?.ended_at,
     execution?.id,
+    execution?.last_saved_at,
     execution?.started_at,
     executionSnapshotScopeKey,
     isPreviewExecution,
@@ -1460,7 +1477,7 @@ function TrainingExecution() {
 
   // 完成训练
   const handleFinishTraining = async () => {
-    if (isReadOnly) {
+    if (isReadOnly && !canLateCompleteTimedOut) {
       Taro.showToast({ title: '只读模式不可修改', icon: 'none' })
       return
     }
@@ -1646,6 +1663,35 @@ function TrainingExecution() {
           } finally {
             setCompleting(false)
           }
+        }
+      }
+    })
+  }
+
+  const handleRestartTimedOutTraining = () => {
+    if (!canLateCompleteTimedOut || !instanceId || !userId || restartingTimedOut) return
+    Taro.showModal({
+      title: '重新训练这一天？',
+      content: '原来的训练内容会保留为超时记录，并从 0 开始一条新的训练。',
+      confirmText: '重新训练',
+      cancelText: '保留记录',
+      confirmColor: '#CF6D4E',
+      success: async (res) => {
+        if (!res.confirm) return
+        try {
+          setRestartingTimedOut(true)
+          setCloudExecutionReady(false)
+          const data = await executionService.startExecution(instanceId, dayIndex, { restartTimedOut: true })
+          if (!data) return
+          executionRef.current = data
+          setExecution(data)
+          setCloudExecutionReady(true)
+          syncExecutionToCaches(data)
+          focusFirstPendingSet(data)
+          setElapsedTrainingSeconds(0)
+          Taro.showToast({ title: '已开始新的训练', icon: 'success' })
+        } finally {
+          setRestartingTimedOut(false)
         }
       }
     })
@@ -2208,7 +2254,8 @@ function TrainingExecution() {
   const completedSets = actionExecutions.reduce((sum: number, a: ActionExecution) => sum + (a.completed_sets || 0), 0)
   const pendingSetsCount = Math.max(0, totalSets - completedSets)
   const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
-  const shouldShowQuickFinishButton = !isImpromptuMode && canFinishWholeDay && pendingSetsCount > 0
+  const shouldShowQuickFinishButton =
+    !isImpromptuMode && !isTimedOutExecution && canFinishWholeDay && pendingSetsCount > 0
   const canCancelTraining =
     !isImpromptuMode &&
     !isReadOnly &&
@@ -2264,7 +2311,11 @@ function TrainingExecution() {
   const planTitle = String(planInstance?.name || (isImpromptuMode ? '即兴锻炼' : '训练执行')).trim()
   const heroTimerValue = formatTimerValue(elapsedTrainingSeconds)
   const heroTimerFontSize = Math.max(16, Math.min(54, Math.floor(240 / Math.max(heroTimerValue.length, 1))))
-  const heroTimerLabel = execution?.completed_at ? '本次用时' : '训练总时长'
+  const heroTimerLabel = execution?.completed_at
+    ? '本次用时'
+    : isTimedOutExecution
+      ? '已记录时长'
+      : '训练总时长'
   const currentActionName = String(currentAction?.action_name || '').trim() || '等待选择动作'
   const currentActionType = String(actions?.[currentAction?.action_id]?.type || 'STRENGTH').toUpperCase()
   const currentActionMeta = getActionTypeMeta(currentActionType)
@@ -2630,7 +2681,11 @@ function TrainingExecution() {
                   <Text className="hero-chip">{currentActionMeta.label}</Text>
                   <Text className="hero-chip">{currentRestLabel}</Text>
                   {currentActualSummary ? <Text className="hero-chip success">{currentActualSummary}</Text> : null}
-                  {isReadOnly ? <Text className="hero-chip warning">只读模式</Text> : null}
+                  {isTimedOutExecution
+                    ? <Text className="hero-chip warning">已超过5小时</Text>
+                    : isReadOnly
+                      ? <Text className="hero-chip warning">只读模式</Text>
+                      : null}
                 </View>
               </View>
             </View>
@@ -3240,28 +3295,53 @@ function TrainingExecution() {
         )}
 
         {/* 完成训练按钮 */}
-        {!isReadOnly && (
+        {(!isReadOnly || canLateCompleteTimedOut) && (
           <View className="footer-section">
+            {canLateCompleteTimedOut && (
+              <Text className="finish-hint">这次训练已自动结束；可按已记录内容补记完成，或重新训练这一天</Text>
+            )}
             {!canFinishWholeDay && !isImpromptuMode && (
               <Text className="finish-hint">仍有 {lightweightProgress.pending} 个轻任务待完成</Text>
             )}
-            <Button
+            {canLateCompleteTimedOut && cloudExecutionReady && (
+              <RecordCompletionButton instanceId={instanceId} dayIndex={dayIndex} execution={execution}
+                earliestDate={planInstance?.start_date || planInstance?.created_at}
+                onSaved={(saved) => { setExecution(saved); syncExecutionToCaches(saved); handleBackToTodayTraining() }} />
+            )}
+            {!canLateCompleteTimedOut && <Button
               className={`finish-btn ${!canFinishWholeDay && !isImpromptuMode ? 'warning' : ''}`}
               onClick={
-                !canFinishWholeDay && !isImpromptuMode
+                canLateCompleteTimedOut
+                  ? handleFinishTraining
+                  : !canFinishWholeDay && !isImpromptuMode
                   ? handleBackToTodayTraining
                   : shouldShowQuickFinishButton
                     ? handleQuickFinishTraining
                     : handleFinishTraining
               }
               loading={completing}
+              disabled={!cloudExecutionReady || restartingTimedOut}
             >
-              {!canFinishWholeDay && !isImpromptuMode
+              {canLateCompleteTimedOut
+                ? '按已记录内容补记完成'
+                : !canFinishWholeDay && !isImpromptuMode
                 ? '返回今日安排继续轻任务'
                 : shouldShowQuickFinishButton
                   ? '一键完成训练'
                   : '完成训练'}
-            </Button>
+            </Button>}
+            {canLateCompleteTimedOut && (
+              <View className="cancel-training-wrap">
+                <Button
+                  className="cancel-training-btn"
+                  loading={restartingTimedOut}
+                  disabled={completing || restartingTimedOut || !cloudExecutionReady}
+                  onClick={handleRestartTimedOutTraining}
+                >
+                  重新训练这一天
+                </Button>
+              </View>
+            )}
             {canCancelTraining && (
               <View className="cancel-training-wrap">
                 <Text className="cancel-training-hint">误点进入且尚未完成任何内容时，可恢复为未开始</Text>

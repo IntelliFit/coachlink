@@ -195,12 +195,12 @@ function CoachPricing() {
         <View className={`receiving-card ${receivingAccountReady ? 'ready' : 'pending'}`}>
           <View className="receiving-main">
             <Text className="receiving-title">
-              {receivingAccountReady ? '收款账户已开通' : '先开通收款账户，学生才能完成付款'}
+              {receivingAccountReady ? '汇付收款账户已开通' : '先开通汇付收款账户，学生才能完成付款'}
             </Text>
             <Text className="receiving-desc">
               {receivingAccountReady
-                ? '套餐可正常通过平台收款，收入会按结算规则进入钱包。'
-                : '请先完成收款账户开通和银行卡绑定；未绑卡前不能新增、编辑或保存订阅套餐价格。'}
+                ? '套餐可正常通过汇付收款，收入会按结算规则分账并进入教练钱包。'
+                : '请先完成汇付收款账户开通和银行卡绑定；未绑卡前不能新增、编辑或保存订阅套餐价格。'}
             </Text>
             {!receivingAccountReady && walletStatus?.huifu_open_msg && (
               <Text className="receiving-msg">{walletStatus.huifu_open_msg}</Text>

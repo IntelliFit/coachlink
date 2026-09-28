@@ -95,12 +95,10 @@ export interface MotionEffectCheckoutDto {
     formHtml?: string;
     paymentUrl?: string;
     paymentParams?: {
-      appId: string;
-      timeStamp: string;
-      nonceStr: string;
-      package: string;
-      signType: "RSA";
-      paySign: string;
+      signData: string;
+      paySig: string;
+      signature: string;
+      mode: "short_series_goods";
     };
     description: string;
   };

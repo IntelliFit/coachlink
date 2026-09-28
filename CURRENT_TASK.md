@@ -1,3 +1,90 @@
+## 全部本地修复发布 (`2026-09-29`)
+
+- 用户已授权提交全部本地修复、部署Web/API、上传微信体验版（不提审、不正式发布小程序）。先核对XPay配置、待应用迁移和隔离回归；不得把提交或上传成功等同于生产可用。
+- 发布阻塞已证实：生产coachlink-main通过bootstrap读取的OfferID/AppKey/消息Token均未配置，而本地已切换会员/特效购买到XPay。已询问用户先排除支付上线其他修复还是配齐后全量上线；答复前不推镜像、不迁移、不上传。381测试及typecheck通过。预检报告 docs/work/release-preflight-2026-09-29.md。
+
+## 手机用户_6196：月历统一与实际训练日期补记 (`2026-09-26`)
+
+- Implemented (`2026-09-28`): 已实际修复安排月历，而非仅增加倒序提示。core 新增显式 plan-order 投影；双端按教练原 D 顺序及训练记录重建安排，迟补候选标记“推算”，原始提交时间保留。修复 D1 被订阅北京时间跨日错误排除，以及执行起点前已保存记录被原排期覆盖。
+- Real-account verification: Web 6196 / 刘三乐已展开6、7、8、9月；D1在7/6，8月D25→29→32→36→39→43正常，9月D46(9/4推算)→50(9/7)→53(9/11推算)→57(9/14推算)→60(9/17)→64(9/21)→67(9/23)→71(9/28)。点击D53仍显示9/24提交完成；刷新后会话和D71不变。证据 artifacts/plan-order-fix/。
+- Gates: 新增18项回归，60文件381测试及typecheck通过；Next545页构建重试通过（首次末尾复制EBUSY）；lint为未配置提示；小程序本地2884模块构建通过。微信9420可连接到pages/index/index，但两次截图均automator response超时，不能称小程序视觉验收通过。
+- Handoff: 本轮 `npm run dev` 按既有端口登记运行在3001，内置浏览器保留已登录6196的九月展开页，便于用户直接复核；不使用3000旧地址判断本轮结果。
+- Scope/next: 未修改该学员真实日期/组记录/权益，未迁移、提交、推送、部署或上传；安排推算不等于实际训练日确认。报告 docs/work/6196-plan-order-calendar-fix-2026-09-28.md。下面“仅提示未修”的段落是修复前历史。后续仍需隔离补记写入E2E、发布授权与小程序视觉验收。
+
+- User correction (`2026-09-28`): 用户再次强调可根据教练原计划确定正确顺序，不能把“待确认实际日期”当成不修计划顺序展示的理由。代码核查确认当前calendar仍以completed_at锚定历史、遇倒序仅提示；因此只是保护历史，没有实现按原计划顺序修复安排展示。后续应分离计划安排顺序、实际训练日和补录提交时间；推算日期须标为推算，不能伪装为已确认事实。
+
+- Historical audit (`2026-09-28`): 用户要求展开并检查上个月，已在6196账号逐月核查6/7/8/9月并只读核对全部记录。确认尚未全部修好：D1详情完成7/6却被日历放6/25（订阅北京时间跨日推断起点D2+起点前历史忽略完成事实）；8月无训练D倒序但D29保存8/10完成8/19、D36保存8/24完成8/28，迟补日期问题仍在；9月D53/D57倒序仍在。8/30 D39/D43可分别打开未覆盖。此次诊断未改业务代码/生产数据。详见 `docs/work/6196-history-calendar-audit-2026-09-28.md`；下一步优先修D1确定性逻辑错误及跨月回归，再核实历史实际日期。
+
+- Latest (`2026-09-28`): 用户确认按完成比例消耗服务周：4周每周3练，完成1次剩3又2/3周，未完成顺延；跨频率保留服务周而非固定11次。已本地实现原计划逐周比例结转、非整周访问范围及预计日期、get-instance 保留完整分母；skip-day 增加完成事实优先与条件写入。新增27项回归，全量59 files / 363 tests、typecheck、545页构建通过（首次打包EBUSY，重试成功）；lint仅提示。未部署、迁移或更改真实余额/日期。
+- Latest next: 结转和skip-day本地修复已落地；剩余为隔离环境完整写入E2E、历史日期由学员确认、日期RPC生产迁移及发布授权，legacy推进与CI门禁仍待收口。下方9/26的“11次结转待改”仅为历史，不代表当前跨频率规则。
+- Latest UI (`2026-09-28`): 临时npm run dev按port-manager既有3001启动；内置浏览器正常快速登录6196、展开月历、刷新会话通过，当前推进D71，同日多D与历史核对提示存在，未写训练。截图 `artifacts/plan-service-weeks/6196-calendar-20260928.png`；本轮报告与流程 `docs/work/plan-service-week-carryover-2026-09-28.md`。
+
+- Status: 用户授权继续修改，第二批本地实现已完成；未改生产学员数据、未迁移远端、未提交/推送/部署/上传。原计划训练顺序核对为 D50→D53→D57→D60→D64→D67→D71，不擅自猜测实际训练日期。
+- Changes: 双端共享北京时间月历、多D日期桶、历史查看解锁、倒序日期核对提示；推进区分已完成事实与当前attempt；新增双端明确日期补记/更正、service-role-only事务RPC、请求幂等、版本冲突保护、performed_on/首次提交时间与日期审计。部分组不自动补齐，已完成日期更正不重复扣权益。
+- Verification: 新增39项回归；全量57 files / 336 tests和根typecheck通过，lint仅提示。隔离PostgreSQL16实际迁移与两写者并发测试通过，测试库finally删除、专属--rm容器已停止清理；未对业务库执行写入E2E。最终Web545页、小程序2884模块构建均通过。
+- Web UI follow-up: 用户追问后重新核查，先看到内置浏览器为“热身研究员8254”，不是目标学员；随后通过 `/login` 的用户ID快速登录 `aaa90e01-7a53-444d-b374-9edfe438fa17`，页面明确显示“手机用户_6196”和教练刘三乐。实际月历加载成功，默认推进D71；展开月历、打开9/24的D53、打开/关闭“核对训练日期”弹窗、同日D53/D68切换均已实测。D53仍在9/24、D57仍在9/25，倒序历史提示存在；这只是读取及交互检查，不代表历史日期已修正或写入链路已验收。未点击确认日期、开始训练或完成按钮，保留已登录的月历标签。
+- Remaining UI blocker: 上轮Web会话/预览超时，本轮真实账号只读UI已可用；完整隔离写入E2E及微信9420实际截图仍未完成。小程序原始tsc有历史类型/noUnused/lib问题，Taro构建不等于全量类型检查通过。
+- Next: 先完成完整隔离环境UI/API验收，再经授权执行新日期迁移与部署；D53/D57由学员核对真实日期。12次完成1次保留11次的结转、旧skip-day、legacy推进和CI仍未收口。
+- Details: `docs/work/plan-calendar-backfill-2026-09-26.md`；复跑脚本 `scripts/test-plan-completion-dates.mjs`；新增AI验收Prompt `tests/ai/plan-completion-calendar-regression.md`。
+- Cleanup: 隔离组件预览进程已按PID/命令行核对后停止，3002临时端口登记已释放；用户3000进程未停止，未改小程序登录态或storage。
+
+## 微信小程序引体冲刺回放丢失与进度修复 (`2026-09-26`)
+
+- Status: 已完成本地代码修复和门禁验证，未提交、未推送、未上传体验版或正式版。
+- Root cause: 引体冲刺已改为无限生存，但合成录制仍硬限制 35 秒；底层到时自动停止后，页面结束本局时会再次调用 `stop()`，可能长期卡在生成中或拿不到文件。生成结果只保留微信临时路径，新开一局又会立即 `setRecordedVideo(null)`，因此回放容易在重进页面或再次试玩后消失。
+- Fix: 合成录制上限提升到 5 分钟，自动停止与手动停止统一为幂等收口，并为画面整理/最终封装分别增加 10 秒/45 秒超时；生成后的最新回放通过 `Taro.saveFile` 按账号保存到小程序本地，仅在新文件持久化成功后清理旧文件。新开一局不再清空上一段回放，页面重进会恢复最近回放，并在实际访问前校验文件是否仍存在。
+- UX: 新增录制时长/上限、生成三阶段百分比、保存到相册状态，以及“观看回放”和“保存到系统相册”入口；明确回放是在本机生成，不是服务器下载，生成期间需保持页面开启。
+- Verification: `npm run lint`、`npm run typecheck`、Vitest 55 files / 297 tests、Next 544 页生产构建和微信小程序本地构建（2,879 modules）全部通过。微信开发者工具实测进入 `/toolbox/pullup-rush/index`，缓存恢复状态下进度卡、进度条、观看回放和保存按钮均存在，error/warning 日志为 0；原生 Camera 导致自动化截图持续超时，验证用临时回放索引与文件已清理。
+
+## 计划推进与订阅一致性：现状流程与首批修复 (`2026-09-26`)
+
+- Latest follow-up: 用户再次询问手机用户_6196是否已修好、D顺序混乱，以及忘记点击训练/完成后隔天补记应归哪天。核对当前代码：普通 completed 编辑已保护原时间；timed_out 补记优先用最后保存时间，并限制在原开始后5小时内，缺证据时仍有 ended_at/超时点推测；finish DTO 没有“实际训练日期”字段，完全未开启记录的历史补记尚未覆盖。因此不能称该学员月历或任意迟补完成已经修好。应分离实际训练日与补记提交时间，已有证据提供候选、无证据由用户确认；不能把原排期日或开始点击日直接当事实。此次只核查与说明，未改业务代码或真实数据。
+- Status: 用户进一步要求先读懂当前体系、画实际流程并指出不合理处，再修改。已完成代码入口对应的主流程/状态图，并在本地实现第一批完成写入和订阅读取失败保护；尚未提交、推送、部署或改生产数据，不能称整套体系已经修好。
+- Implemented: complete-set、complete-item、finish 保护首次完成时间，普通内容补录不再重复触发推进/订阅日期刷新；保留请求未提供的组字段。三个入口增加 updated_at＋状态＋归属条件写入，拒绝旧请求覆盖新记录，finish 竞态返回已完成结果；超时补记不伪造未完成组。结转、执行权限、快照、预计日期和过期扫描区分查询失败与空历史，辅助快照失败不把已提交的主操作包装成失败。
+- Verification: 新增两个测试文件、23 项回归；先证明旧代码 7 项中 6 项失败。最终全量 Vitest 55 files / 297 tests 和 typecheck 通过；本轮 Next 544 页生产构建通过，lint 仅为提示脚本。没有修改已有测试或 CI 配置。接口测试用数据库替身，不等于真实 PostgreSQL 并发验收。
+- Verification blocker: Docker Linux 引擎未运行，本地 Apollo 指向远端业务 Supabase；未在真实用户库运行写入 E2E。发布前仍需隔离库验证条件更新、updated_at 触发器、补记 RPC 和清理。此次未改 Web/小程序页面，也未验证 UI，月历差异仍在后续范围。
+- Evidence: 相关 7 个测试文件共 37 项通过，但现有 `deriveStrictSequentialProgressDay` 在纯数据反例中，仅把 D1 的完成时间从 9/10 改为 9/25，就在固定 9/26 时钟下将推荐日从 D7 回退至 D3。说明目前缺乏历史补录后的连续行为不变量测试。
+- Gates: `.github/workflows/test.yml` 单测使用 `npm test || true`、E2E 使用 `continue-on-error: true`，且没有覆盖 `dev` 分支；当前 Vitest include 也不会发现 `packages/core` 下的测试。绿灯不能被视为推进/订阅正确性的保证。
+- Design proposal: 先保护首次完成事实并统一所有完成写入口，再统一服务端推进/日历快照与历史访问权限，最后在明确部分周和训练频率变化的换算算例后引入可对账权益流水。规则版本、计划日确认和 execution attempt 分离；不能直接取最大 Day 或猜测历史日期修数据。
+- Artifact: `docs/work/plan-subscription-current-flow-2026-09-26.md` 是实际流程、代码入口与本次修复边界；`docs/work/plan-subscription-consistency-2026-09-26.md` 保留完整验收矩阵和分阶段方案。方案不是已批准的新计费规则。
+- Confirmed requirement: 用户已选择“保留未完成的训练权益”。4周、每周3次、只完成1次即换阶段，应保留剩余11次，不能把所在整周计为已用；此规则已确认，但结转代码尚未切换。不同训练频率、旧计划修订与线下迁移仍需单独算例，不能仅把 remainingWeeks 改为小数（下游有整周截断）。
+- Next: 隔离库验证后，统一双端日历/历史访问和 attempt 与计划日事实，收口 skip-day 等旧状态写入口；按已确认的未完成权益保留规则设计次数结转与兼容迁移，不自动调整真实余额或猜测 D57 实际训练日期。
+
+## Fkj 计划错误使用教练 1RM 修复与生产发布 (`2026-09-24`)
+
+- Status: 已定位、修复、提交、同步 GitHub/Gitee `dev` 与 `main`，并完成 Web/API 生产发布；无需修改或重新上传微信小程序。
+- Root cause: `2026-09-15 08:08 +0800` 的性能重构 `f534e4b9` 为 `getCurrent1RMRecords` 新增 `authorizationVerified` 快路径，但在跳过重复权限查询时没有把 `queryUserId` 从 actor 教练切到 target 学员。教练打开学员计划后，`get-instance` 因而把教练自己的动作库/PR 当成学员 1RM。生产实测教练本人该动作恰为 132.5kg，Fkj 为 50kg；结合 Fkj 体重 78kg，错误的 132.5kg 计算 9RM 正好得到截图中的 86.8kg，正确结果为 22.2kg。
+- Fix: `getCurrent1RMRecords(..., { targetUserId }, { authorizationVerified: true })` 现在明确把查询 subject 切换为 `targetUserId`；`authorizationVerified` 只跳过重复权限校验，不再改变目标用户语义。修复提交为 `26e3b786`。
+- Data integrity: Fkj 旧计划 `91518ae6-aa7a-49b6-93dd-1537a3e17abc` 当前持久化仍是正确的 22.2kg，未发现 86.8kg 脏数据；旧计划有 36 个计体重动态 RM 动作条目曾处于潜在错误展示范围，其中截图动作 35 个、反手变式 1 个。
+- Verification: 修复后用生产数据库和真实教练/学员身份直接回归，同一动作 target Fkj 返回 50kg、coach own 返回 132.5kg，确认 actor/subject 已隔离。`npm run lint`、`npm run typecheck`、Vitest 53 files / 274 tests、`npx next build`（544 页）全部通过；干净 `main` Docker 构建再次通过（543 页）。没有改页面、组件、样式或交互，按 `USER.md` 长期偏好未运行人工浏览器验证。
+- Release: GitHub/Gitee `dev/main` 均为 `26e3b786`。CCR `latest/main/26e3b78` 统一摘要 `sha256:ddc8353351c64f95834617bbb4883fa54123bd6a03f0dde4fdb0c72a3e914269`；Keel 已完成 `coachlink-main` 滚动，3/3 Pod Ready、均运行该摘要，公网 `/api/healthy` 返回 200。首个 Pod 启动时 Apollo 拉取瞬时失败并自动重启一次，随后成功加载配置；三个当前容器均 Ready，无本次修复相关错误日志。
+- WeChat: 小程序教练计划页已优先使用学员 `student_actions.reference_1rm`，学员训练页又以学员本人身份调用后端；本次问题位于共享 Web/API 的教练代理查询快路径。服务器更新后小程序请求也会自动获得修复，无需重新构建、上传体验版或提审。
+
+## 微信小程序虚拟支付改造 (`2026-09-16`)
+
+- Status: 已按用户确认的资金边界完成本地收口：平台自营会员、AI/存储加油包与动作特效导出走微信官方 XPay；需要教练收入分账的教练订阅继续走汇付。尚未提交、推送、部署、执行数据库迁移、上传小程序或向微信发布商品。
+- Coach settlement: 教练订阅继续使用汇付小程序下单和 `Taro.requestPayment`。7 天保护期后仍由平台汇付现金户调用 `/v2/trade/acctpayment/pay` 真实划转到教练汇付子账户，只有远端成功后才记教练钱包，提现仍从教练汇付账户出金。
+- Removed unsafe path: 已移除教练 XPay 金额 SKU、`coach_p_*` 目录生成和 `xpay_platform_ledger` 本地记账分支，避免出现“数据库余额增加但教练汇付账户没有钱”的断链。
+- XPay scope: 仅允许 `student_membership` 和 `motion_effect_export` 两类平台订单。客户端用 `requestVirtualPayment(short_series_goods)`；后端用 fresh `wx.login` code 换 `session_key`、核对 openid、生成双 HMAC 签名，并通过发货回调与主动查单幂等发货。
+- Catalog: 清单只读取 4 个固定会员/加油包 SKU和动作特效运行时价格，不读取教练数据库价格。`npm run wechat:xpay:catalog` 默认干跑；只有显式 `--apply` 才会写微信商品目录。
+- Review finding (`2026-09-25`): 微信最新运营指南明确把在线教育、技能提升、课程视频和辅导服务列为典型虚拟服务，且混合套餐含虚拟内容会整体按虚拟支付认定，建议拆单；明确豁免仅列持证线上问诊与法律咨询。CoachLink 当前教练套餐包含训练计划、课程咨询、动作/视频反馈、图文或视频教学，因此“线上教练订阅走汇付”的原方案审核风险高，不宜原样提审。若保留汇付，必须限定为可证明的线下/实体履约并把虚拟权益拆成 XPay 独立订单；纯线上教练服务需改为 XPay 后另行结算教练，或先取得微信书面确认。
+- Verification: 最终收口后 `npm run lint`、`npm run typecheck`、`npm test`（53 files / 274 tests）、`npx next build`（544 页）和小程序构建（2,879 modules）均通过；`npm run wechat:xpay:catalog` 干跑仅生成 8 个平台商品、无 `coach_p_*`。微信开发者工具已实际显示会员、加油包和教练汇付等待页，0 error / 0 warning，最终截图为 `artifacts/wechat-xpay/platform-membership-final-retry.png`、`platform-addon-final.png`、`coach-huifu-waiting-final.png`。
+- Rollout blockers: 正式跑通仍需开通 CoachLink XPay，配置 `WECHAT_XPAY_OFFER_ID` / `WECHAT_XPAY_APP_KEY` / `WECHAT_XPAY_MESSAGE_TOKEN` 和回调 `/api/payment/wechat/xpay/notify`，应用 `20260916020000_wechat_xpay_orders.sql`，审核干跑清单后再执行 `npm run wechat:xpay:catalog -- --apply`。iOS 虚拟支付只能现网验证，不支持沙箱。
+- Backoffice status (`2026-09-23`): 微信后台的开发/沙箱道具（`env=1`）与正式/现网道具（`env=0`）尚未实际上传或发布；此前只完成 8 个平台道具的本地清单干跑。同步脚本已按两套环境分别传递 `env`，并串行调用上传、查询、发布、查询接口；微信商户开通、OfferID/AppKey 获取、发货订阅回调配置及真实支付验证仍待执行。
+
+## 微信小程序超时训练补记失败修复（双人余） (`2026-09-16`)
+
+- Status: 双人余生产数据已即时修复；通用 Web/API 与小程序代码已在本地实现并验证，尚未提交、推送、部署数据库迁移或上传小程序。
+- User correction: 截图中的 `2332:18` 表示 2332 分 18 秒（约 38 小时 52 分），不是 2332 小时。该数字是计时器跨天持续累计造成的显示异常，不是训练处理耗时。
+- Root cause: 双人余原 execution `06e0c02f-d5d5-4534-86f1-c97248e9b84c` 已由 5 小时生命周期转为 `timed_out`，但小程序先显示本地旧快照，同时 `/api/execution/start` 又创建了空白 attempt `68b03bf4-e35a-432d-b951-c5ebdb4d2c09`；用户点击旧记录“完成”时服务端按旧规则返回 409。生产 Nginx 对应为 `2026-09-16 09:17:06` start 200、`09:17:31` finish 409。
+- Immediate remediation: 原 execution 已改为 `completed`，仍保持 13/14，不伪造最后一组；完成时间按最后一次真实保存时间 `2026-09-14T11:56:27.489Z` 记录。6 个视频、3 条 PR 完整保留；新生成且无任何进度/视频/反馈/PR 的空 attempt 已精确删除并回读确认不存在。
+- General fix: 超时且有内容的 execution 再进入时恢复原记录，不再默认创建空记录；页面把本地快照视为预览，云端 execution 未确认前禁止写操作；`timed_out` 页面只提供“按已记录内容补记完成”和“重新训练这一天”。补记不会自动补齐未完成组，会原子完成旧记录并关闭同日完全空白替代 attempt；若替代 attempt 已有真实进度则拒绝隐式覆盖。重新训练显式创建/复用新的 0 进度 attempt，旧超时记录保留。
+- Timer: 超过 1 小时改为 `HH:MM:SS`；超时历史显示 `started_at` 到 `last_saved_at/completed_at/ended_at` 的已记录时长，不再用当前时间让计时器跨天累加。
+- Scope: 生产 74 条 `timed_out` 中有 15 条存在真实进度、59 条为零进度；除双人余外未擅自批量改成 completed，仍需每个用户主动确认。
+- Verification: lint 提示脚本通过；typecheck 通过；Vitest 53 files / 274 tests 通过；小程序 build 2,884 modules 通过；普通计划 start+finish Playwright 定向 E2E 通过。新原子 SQL 在隔离 PostgreSQL 16 验证“13/14 超时 + 空 sibling”成功完成/收口，以及“sibling 已有进度”整体回滚，函数仅 service_role 可执行。微信开发者工具实际渲染超时页，检测到“已超过5小时”“按已记录内容补记完成”“重新训练这一天”且 0 error；工具的截图 API 持续超时，Windows PrintWindow 也只得到空白画面，无法留下有效截图。临时验证计划、execution 与临时登录态均已删除/清除。
+- Build caveat: Next 编译和 544 个页面生成均成功，但 Windows 在 standalone 最终复制阶段两次分别因 manifest 文件 `EBUSY` 失败；属于本机文件锁，不是编译错误。
+- Next: 发布前先应用 `20260916010000_complete_timed_out_execution.sql`，再部署 Web/API，最后经用户单独授权后提交/上传小程序；当前不得声称通用修复已经上线。
+
 ## 全量本地改动双分支同步、Web/API 重部署与小程序体验版上传 (`2026-09-15`)
 
 - Status: 已完成。当前本地功能提交、前后端、移动 App 与小程序代码已合并为发布代码版本 `7cb7c314`；GitHub/Gitee 的 `dev` 与 `main` 已同步。微信体验版 `2026.09.15.2354` 已上传成功，AppID `wx316e39eb71c0e834`，微信侧统计 9.6 MB；未提审、未正式发布。
@@ -9763,3 +9850,22 @@
 - Data repair migration: 新增 `supabase/migrations/20260915000000_repair_chat_room_members.sql`，会把错误房间消息与未读数合并到真实双方规范房间、保留消息主键/时间/媒体/预览并归档源房间；同时增加 active 私聊成员触发器与无序成员对唯一索引，阻止同类脏房间和重复房间再次产生。迁移已在临时 PostgreSQL 16 中执行两轮场景验证，但因服务端兼容代码必须先上线，未直接对生产执行。
 - Verification: 根 `npm run typecheck`、`npx next build`、`npm test`（45 files / 214 tests）通过；小程序完整本地构建 2,884 modules 通过。微信开发者工具以“双人余”身份从“我的教练”打开“枭马葛”时进入正确房间 `e70a4ce4-aae5-4831-816b-0a2495e07afd`；用旧错误房间 `0b279dcd-7928-43f3-9748-84bb226fab35` 重放也自动切换到该房间并显示“枭马葛”，错误日志 0 条。截图：`screenshots/weapp/chat-coach-id-fix-correct-room-2026-09-15.png`、`screenshots/weapp/chat-coach-id-fix-legacy-redirect-final-2026-09-15.png`。
 - Release order: 必须先部署 Web/API 兼容代码，再执行聊天数据迁移，最后上传/发布小程序；不能先加数据库约束，否则旧线上小程序仍可能发送 `coaches.id` 而被阻止。
+## 刘三乐学员“手机用户_6196”网站反馈访谈分析 (`2026-09-26`)
+
+- Status: 已完成访谈转录、生产只读数据核查、相关 Web/小程序代码与生产 Nginx 日志核对；本轮只做诊断与方案建议，未改业务代码、未提交、未部署。
+- Interview findings: 学员明确反馈三类主问题：① 近期下午“今日训练/训练页”偶发一直加载，其他页面正常；② 训练完成并保存后，再返回时偶发显示空白，需要重新录入；③ 在个人资料页修改一次后，计划日期变灰，已完成日期虽显示完成但不能查看/继续下一天。另有一个相关困惑：顺延后未来周/下一天何时可见的规则不稳定、不可理解。用户还表示手机网页操作麻烦，此前不知道小程序已经上线。
+- Data evidence: 学员 `手机用户_6196` 的教练计划仍为 active，计划实例从创建至今未被个人资料更新改写；已完成 execution 的动作/组数据仍在。多个训练日存在“较早的有进度 timed_out execution + 较新的 0 进度空 execution + 后续 completed execution”的组合，符合旧逻辑选中较新空 attempt 后让用户误以为数据丢失、被迫重录的表现。
+- Causality: `POST /api/user/update-profile` 只更新个人资料相关表，生产日志中资料保存后计划本身没有变化；“改资料后变灰”更像返回训练页触发重新加载、请求被导航取消/失败或 execution 映射选错后，页面用灰色锁定态表现出来，不能认定为资料编辑直接删除/锁定计划。
+- Web finding: 今日训练页在全局 loading 期间串联两批请求，并等待每个订阅的完整 `get-instance` 返回后才结束骨架屏；没有 Web 端旧数据兜底、请求超时或局部渲染，单个慢/挂请求会让用户感知为“训练页打不开”。未来周按“当前逻辑周 + 1”解锁并直接禁用日期按钮，顺延会改变逻辑进度，因此用户难以预测下一周何时出现。
+- WeChat scope: 小程序与 Web 共用 `get-instance`、`execution/start/finish` 后端，因此旧 execution 选择/超时恢复问题属于双端共同风险；未来周解锁规则也相近。小程序本地代码已有 60 天缓存、失败回退和超时记录恢复，但通用超时修复仍是本地未发布状态，不能声称线上小程序已解决。生产日志确认该用户已进入小程序并成功加载计划；一次 `execution/start` 返回 400，但现有日志没有响应体，无法把这次 400 确认成访谈中的同一故障。
+- Recommended priority: P0 先发布共享后端的超时恢复/有效 execution 选择修复，并保证资料刷新失败时保留最后一次成功计划；P1 把 Web 今日训练改为聚合接口 + 旧数据立即展示 + 后台刷新 + 超时/重试，未来计划允许只读预览、只锁“开始训练”动作并展示明确解锁条件；P2 在移动网页显著提示小程序入口。
+- Artifact: 转录位于 `artifacts/interviews/phone-user-6196-2026-09-26/transcript_review.md`。
+- Handoff (`2026-09-26`): 用户将用 Web 快速登录输入学员 user ID `aaa90e01-7a53-444d-b374-9edfe438fa17`，在本地直接检查该学员的计划状态与更多未在访谈中完整展开的问题；等待用户补充现场现象后，继续按计划状态机、执行记录选择、顺延/解锁和双端一致性归类诊断。
+- Calendar audit (`2026-09-26`): 已用用户补充的 Web/微信截图、生产数据库和 Nginx 日志完整复现月历异常。计划实例仍 active，84 日中 24 个训练日、当前 20 个完成，严格顺序推进为 D56；截图的 9/17 D60、9/21 D64、9/23 D67、9/24 D53、9/25 D57 来自真实 execution，但 D53/D57 原本早已 completed，用户后来补组时生产 `complete-set` 再次把顶层 `completed_at` 改成补录当日，月历又以 `completed_at` 作为排期锚点，遂制造倒序和虚假顺延。
+- Calendar root causes: ① `complete-set` 与 `complete-item` 对已 completed execution 不幂等，会重写首次完成时间；本地未上线的 `/finish` 幂等修复尚未覆盖这两个入口。② Web 与小程序都混用了排期日、实际训练日和确认完成日。③ 小程序把“今天完成的任意历史 Day”优先当作今日卡片，所以补填 D57 后错误显示“今日安排 D57 已完成”。④ Web 每个日期只保留一个 Day，发生碰撞时后写覆盖；双端排期算法已分叉，同一数据在 9/26 分别显示 Web D55、小程序 D68。⑤ 已完成但超出当前解锁周的历史仍被置灰并禁止回看。⑥ Web 把逻辑推进日标作“今日推进”，即使其排期是次日。
+- Calendar recommended priority: P0 让所有 execution 写入口对 terminal 状态与首次 `completed_at` 幂等，并上线 timed_out 恢复；P0 将历史查看权限与未来开始权限分开；P0 修复小程序“任意今日补录覆盖今日卡片”。随后增加不可变 `performed_on/workout_date`、统一双端共享排期模型及同日多 Day 事件桶。修复该用户历史数据前需确认 D57 实际归属 9/14 还是 9/17，不能按当前已被改写的 `completed_at` 自动猜测。
+## 微信小程序海外用户可用性只读核查 (`2026-09-26`)
+
+- 结论：微信/WeChat 小程序在海外可以使用；CoachLink 当前代码允许仅微信 openid 登录，也提供邮箱验证码入口，但未做海外用户的端到端验收，不能承诺完整付费闭环。
+- 已确认风险：手机号/验证码输入只接受中国大陆 `1[3-9]` 十一位号码，微信手机号登录服务端只剥离 `+86`；境外号码的跨端账号绑定/同步未统一。今日训练客户端按设备本地日期判断，服务端计划日逻辑按北京时间，跨时区可能出现“今天”与日历归属不一致。登录和注册界面为中文。
+- 支付边界：平台虚拟支付 XPay 仍仅在本地实现，商户开通、商品发布、真实支付与海外钱包/国际卡验证未完成；教练订阅汇付链路也未做海外身份与资金工具的实测。后续若面向海外用户运营，应按目标国家、手机系统与钱包类型做真机注册、训练、付款/退款回归，并评估当地隐私要求。本次未改业务代码或发布。

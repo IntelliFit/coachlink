@@ -228,7 +228,7 @@ function CoachOverview() {
             </View>
             <View className="config-body">
               <Text className="config-title">收款账户</Text>
-              <Text className="config-desc">用于平台分账和银行卡提现</Text>
+              <Text className="config-desc">用于汇付分账和银行卡提现</Text>
             </View>
             <View className="config-right">
               <Text className="config-value">{data.receivingAccountReady ? '已开通' : '待绑定'}</Text>
@@ -357,7 +357,7 @@ function CoachOverview() {
             </View>
             <View className="config-body">
               <Text className="config-title">收款账户</Text>
-              <Text className="config-desc">开通汇付账户并绑定银行卡</Text>
+              <Text className="config-desc">开通汇付收款账户并绑定银行卡</Text>
             </View>
             <View className="config-right">
               <Icon component={ChevronRight} size={16} color="#d1d5db" />

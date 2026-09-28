@@ -7,6 +7,8 @@ import { computeExecutionProgress } from "@/lib/executionProgress";
 import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 import { expireTimedOutPlanExecutions } from "@/lib/planExecutionLifecycle";
+import { deriveAutomaticExecutionCompletion, retainItemCompletionTime } from "@/lib/executionCompletion";
+import { EXECUTION_WRITE_CONFLICT, updateExecutionIfUnchanged } from "../_helpers/conditionalUpdate";
 
 /**
  * POST /api/execution/complete-item
@@ -39,7 +41,8 @@ export async function POST(request: NextRequest) {
             notes,
         } = body;
 
-        if (!executionId || actionIndex === undefined || !itemType) {
+        if (!executionId || !Number.isInteger(actionIndex) || actionIndex < 0 ||
+            !["DIET", "CARDIO", "HABIT"].includes(itemType) || typeof completed !== "boolean") {
             return NextResponse.json<ApiData<CompleteItemResponseDto>>({
                 success: false,
                 message: "缺少必填参数",
@@ -79,6 +82,14 @@ export async function POST(request: NextRequest) {
                 message: "本次训练已超过5小时，请返回今日训练重新开始这一天",
             }, { status: 409 });
         }
+        if (!["in_progress", "completed"].includes(execution.status)) {
+            return NextResponse.json({
+                success: false,
+                code: "EXECUTION_NOT_EDITABLE",
+                message: "这次训练已经结束，不能通过补记项目重新完成",
+                data: null,
+            }, { status: 409 });
+        }
 
         const accessDecision = await validateExecutionSubscriptionAccess({
             instanceId: execution.instance_id,
@@ -94,9 +105,9 @@ export async function POST(request: NextRequest) {
         }
 
         // 5. 更新 JSONB 数据
-        const actionExecutions = execution.action_executions as any[];
+        const actionExecutions = structuredClone(execution.action_executions) as any[];
 
-        if (!actionExecutions[actionIndex]) {
+        if (!Array.isArray(actionExecutions) || !actionExecutions[actionIndex]) {
             return NextResponse.json<ApiData<CompleteItemResponseDto>>({
                 success: false,
                 message: "项目不存在",
@@ -105,23 +116,24 @@ export async function POST(request: NextRequest) {
         }
 
         // 更新项目数据 - 根据类型保存不同字段
+        const nowIso = new Date().toISOString();
         const itemExecution: Record<string, unknown> = {
             status: completed ? "completed" : "pending",
             completed,
-            completed_at: completed ? new Date().toISOString() : null,
-            notes: notes || "",
+            completed_at: retainItemCompletionTime(actionExecutions[actionIndex], completed, nowIso),
+            ...(notes !== undefined ? { notes } : {}),
         };
 
         // DIET 特有字段
         if (itemType === "DIET") {
-            itemExecution.photo_url = photoUrl || null;
-            itemExecution.actual_content = actualContent || null;
+            if (photoUrl !== undefined) itemExecution.photo_url = photoUrl || null;
+            if (actualContent !== undefined) itemExecution.actual_content = actualContent || null;
         }
 
         // CARDIO 特有字段
         if (itemType === "CARDIO") {
-            itemExecution.actual_distance = actualDistance || null;
-            itemExecution.actual_duration = actualDuration || null;
+            if (actualDistance !== undefined) itemExecution.actual_distance = actualDistance;
+            if (actualDuration !== undefined) itemExecution.actual_duration = actualDuration;
         }
 
         // 合并到 actionExecutions
@@ -132,18 +144,18 @@ export async function POST(request: NextRequest) {
             currentSets[0] = {
                 ...currentSets[0],
                 status: completed ? "completed" : "pending",
-                completed_at: completed ? new Date().toISOString() : null,
-                notes: notes || "",
+                completed_at: retainItemCompletionTime(currentSets[0], completed, nowIso),
+                ...(notes !== undefined ? { notes } : {}),
                 ...(itemType === "DIET"
                     ? {
-                        diet_content: actualContent || null,
-                        photo_url: photoUrl || null,
+                        ...(actualContent !== undefined ? { diet_content: actualContent || null } : {}),
+                        ...(photoUrl !== undefined ? { photo_url: photoUrl || null } : {}),
                     }
                     : {}),
                 ...(itemType === "CARDIO"
                     ? {
-                        actual_distance: actualDistance || null,
-                        actual_duration: actualDuration || null,
+                        ...(actualDistance !== undefined ? { actual_distance: actualDistance } : {}),
+                        ...(actualDuration !== undefined ? { actual_duration: actualDuration } : {}),
                     }
                     : {}),
             };
@@ -160,23 +172,22 @@ export async function POST(request: NextRequest) {
         const totalItems = progress.totalItems;
 
         // 6. 保存到数据库
-        const nowIso = new Date().toISOString();
         const shouldAutoComplete = totalItems > 0 &&
             totalCompletedItems >= totalItems;
+        const completion = deriveAutomaticExecutionCompletion(execution, shouldAutoComplete, nowIso);
 
-        const { error: updateError } = await supabase
-            .from("plan_instance_executions")
-            .update({
+        const { data: savedExecution, error: updateError } = await updateExecutionIfUnchanged({
+            client: supabase,
+            execution,
+            patch: {
                 action_executions: actionExecutions,
                 completed_sets: totalCompletedItems,
                 total_sets: totalItems,
-                status: shouldAutoComplete ? "completed" : execution.status,
-                completed_at: shouldAutoComplete
-                    ? nowIso
-                    : execution.completed_at,
+                status: completion.status,
+                completed_at: completion.completed_at,
                 last_saved_at: nowIso,
-            })
-            .eq("id", executionId);
+            },
+        });
 
         if (updateError) {
             console.error("更新失败:", updateError);
@@ -186,9 +197,11 @@ export async function POST(request: NextRequest) {
                 data: null,
             }, { status: 500 });
         }
+        if (!savedExecution) {
+            return NextResponse.json(EXECUTION_WRITE_CONFLICT, { status: 409 });
+        }
 
-        // If we auto-completed the execution, refresh subscription estimated end date (B1 credits-driven).
-        if (shouldAutoComplete && execution.instance_id) {
+        if (completion.didComplete && execution.instance_id) {
             updateEstimatedEndDateForInstance(execution.instance_id);
         }
 

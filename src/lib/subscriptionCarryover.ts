@@ -1,10 +1,13 @@
 import supabase from "@/lib/supabaseClient";
+import type { TrainingDayLike } from './subscriptionCredits';
+import { computeConsumedServiceWeeks, SERVICE_WEEK_EPSILON } from './subscriptionServiceWeeks';
 import {
   shouldCountExecutionBeforeSubscriptionStart,
   shouldCountPlanInstanceForSubscriptionEntitlement,
 } from "@/lib/subscriptionEntitlement";
 
 type CarryoverInstanceLike = {
+  training_days?: TrainingDayLike[] | null;
   id?: string | null;
   start_execution_day?: number | null;
   created_at?: string | null;
@@ -61,148 +64,41 @@ export function deriveSubscriptionCarryoverSummaryFromHistory(params: {
   subscriptionStartDate?: string | null;
 }): SubscriptionCarryoverSummary {
   const purchasedWeeks = Math.max(0, Number(params.subscribedWeeks || 0));
-  if (purchasedWeeks <= 0) {
-    return {
-      purchasedWeeks,
-      progressedDayIndex: 0,
-      progressedWeeks: 0,
-      remainingWeeks: 0,
-      sourceInstanceId: null,
-      exhausted: true,
-    };
-  }
-
   const createdBeforeTime = parseFiniteTime(params.createdBefore);
   const subscriptionStartTime = parseFiniteTime(params.subscriptionStartDate);
-
-  const instances = (params.instances || [])
-    .filter((instance) => {
-      const instanceId = String(instance?.id || "").trim();
-      if (!instanceId) return false;
-      if (params.excludeInstanceId && instanceId === params.excludeInstanceId) {
-        return false;
-      }
-
-      const status = String(instance?.status || "").trim().toLowerCase();
-      if (status && !CARRYOVER_INSTANCE_STATUSES.has(status)) {
-        return false;
-      }
-
-      if (createdBeforeTime !== null) {
-        const createdAtTime = parseFiniteTime(instance?.created_at);
-        if (createdAtTime === null || createdAtTime >= createdBeforeTime) {
-          return false;
-        }
-      }
-
-      return shouldCountPlanInstanceForSubscriptionEntitlement(instance);
-    })
-    .sort((a, b) => {
-      const aTime = parseFiniteTime(a.created_at) ?? 0;
-      const bTime = parseFiniteTime(b.created_at) ?? 0;
-      return aTime - bTime;
-    });
-
-  if (instances.length === 0) {
-    return {
-      purchasedWeeks,
-      progressedDayIndex: 0,
-      progressedWeeks: 0,
-      remainingWeeks: purchasedWeeks,
-      sourceInstanceId: null,
-      exhausted: false,
-    };
-  }
-
-  const instanceById = new Map<string, CarryoverInstanceLike>();
-  for (const instance of instances) {
-    const instanceId = String(instance?.id || "").trim();
-    if (instanceId) {
-      instanceById.set(instanceId, instance);
-    }
-  }
-
-  const completedWeekRangeByInstance = new Map<
-    string,
-    { minWeek: number; maxWeek: number }
-  >();
-
-  for (const execution of params.executions || []) {
-    if (execution?.status && execution.status !== "completed") continue;
-
-    const instanceId = String(execution?.instance_id || "").trim();
-    if (!instanceId) continue;
-
-    const instance = instanceById.get(instanceId);
-    if (!instance) continue;
-
-    const dayIndex = Number(execution?.day_index || 0);
-    if (!Number.isFinite(dayIndex) || dayIndex <= 0) continue;
-
-    if (
-      subscriptionStartTime !== null &&
-      !shouldCountExecutionBeforeSubscriptionStart(instance)
-    ) {
-      const occurredAtTime = parseFiniteTime(
-        execution.completed_at || execution.started_at || execution.created_at,
-      );
-      if (occurredAtTime !== null && occurredAtTime < subscriptionStartTime) {
-        continue;
-      }
-    }
-
-    const weekIndex = Math.ceil(dayIndex / 7);
-    const current = completedWeekRangeByInstance.get(instanceId);
-    if (!current) {
-      completedWeekRangeByInstance.set(instanceId, {
-        minWeek: weekIndex,
-        maxWeek: weekIndex,
-      });
-      continue;
-    }
-
-    current.minWeek = Math.min(current.minWeek, weekIndex);
-    current.maxWeek = Math.max(current.maxWeek, weekIndex);
-  }
+  const instances = (params.instances || []).filter(instance => {
+    const id = String(instance.id || "").trim();
+    const status = String(instance.status || "").trim().toLowerCase();
+    return id && id !== params.excludeInstanceId
+      && (!status || CARRYOVER_INSTANCE_STATUSES.has(status))
+      && shouldCountPlanInstanceForSubscriptionEntitlement(instance)
+      && (createdBeforeTime === null || (parseFiniteTime(instance.created_at) ?? Infinity) < createdBeforeTime);
+  }).sort((a, b) => (parseFiniteTime(a.created_at) ?? 0) - (parseFiniteTime(b.created_at) ?? 0));
 
   let consumedWeeks = 0;
   let sourceInstanceId: string | null = null;
-
-  for (const instance of instances) {
-    const instanceId = String(instance?.id || "").trim();
-    if (!instanceId) continue;
-
-    const startExecutionDay = Math.max(
-      1,
-      Number(instance?.start_execution_day || 1),
-    );
-    const carriedWeeks = Math.ceil(Math.max(0, startExecutionDay - 1) / 7);
-
-    const completedWeekRange = completedWeekRangeByInstance.get(instanceId);
-    const completedWeeks = completedWeekRange
-      ? Math.max(
-        0,
-        completedWeekRange.maxWeek - completedWeekRange.minWeek + 1,
-      )
-      : 0;
-
-    const instanceConsumedWeeks = Math.max(carriedWeeks, completedWeeks);
-    if (instanceConsumedWeeks > 0) {
-      consumedWeeks += instanceConsumedWeeks;
-      sourceInstanceId = instanceId;
+  if (purchasedWeeks > 0) for (const instance of instances) {
+    if (!Array.isArray(instance.training_days) || instance.training_days.length === 0) {
+      throw new Error("历史计划内容缺失，无法按完成比例核对服务周");
     }
+    const executions = (params.executions || []).filter(execution => {
+      if (execution.instance_id !== instance.id || execution.status !== "completed") return false;
+      const occurred = parseFiniteTime(execution.completed_at || execution.started_at || execution.created_at);
+      return subscriptionStartTime === null || shouldCountExecutionBeforeSubscriptionStart(instance)
+        || occurred === null || occurred >= subscriptionStartTime;
+    }).map(execution => ({ ...execution, day_index: Number(execution.day_index || 0) }));
+    const used = computeConsumedServiceWeeks({
+      trainingDays: instance.training_days, executions, startExecutionDay: instance.start_execution_day,
+    });
+    consumedWeeks += used;
+    if (used > SERVICE_WEEK_EPSILON) sourceInstanceId = instance.id || null;
   }
-
   const progressedWeeks = Math.min(purchasedWeeks, consumedWeeks);
-  const remainingWeeks = Math.max(0, purchasedWeeks - progressedWeeks);
-
+  const rawRemaining = Math.max(0, purchasedWeeks - progressedWeeks);
+  const remainingWeeks = rawRemaining < SERVICE_WEEK_EPSILON ? 0 : rawRemaining;
   return {
-    purchasedWeeks,
-    progressedDayIndex: progressedWeeks * 7,
-    progressedWeeks,
-    remainingWeeks,
-    sourceInstanceId,
-    exhausted: remainingWeeks <= 0,
+    purchasedWeeks, progressedDayIndex: progressedWeeks * 7, progressedWeeks,
+    remainingWeeks, sourceInstanceId, exhausted: remainingWeeks === 0,
   };
 }
 
@@ -261,25 +157,31 @@ export async function getSubscriptionCarryoverSummariesBatch(
   const { data: instances, error: instancesError } = await supabase
     .from("coach_plan_instances")
     .select(
-      "id, coach_subscription_id, start_execution_day, created_at, status, entitlement_consumption_policy",
+      "id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy",
     )
     .in("coach_subscription_id", subscriptionIds)
     .in("status", Array.from(CARRYOVER_INSTANCE_STATUSES));
 
-  if (instancesError || !instances || instances.length === 0) {
+  if (instancesError) {
+    throw new Error(`读取订阅历史计划失败: ${instancesError.message}`);
+  }
+  if (!instances || instances.length === 0) {
     return summaries;
   }
 
   const instanceIds = instances
     .map((instance) => String(instance?.id || "").trim())
     .filter(Boolean);
-  const { data: executions } = instanceIds.length > 0
+  const { data: executions, error: executionsError } = instanceIds.length > 0
     ? await supabase
       .from("plan_instance_executions")
       .select("instance_id, day_index, status, started_at, completed_at, created_at")
       .in("instance_id", instanceIds)
       .eq("status", "completed")
-    : { data: [] as CarryoverExecutionLike[] };
+    : { data: [] as CarryoverExecutionLike[], error: null };
+  if (executionsError) {
+    throw new Error(`读取订阅历史训练失败: ${executionsError.message}`);
+  }
 
   const instancesBySubscription = new Map<string, CarryoverInstanceLike[]>();
   const subscriptionByInstance = new Map<string, string>();

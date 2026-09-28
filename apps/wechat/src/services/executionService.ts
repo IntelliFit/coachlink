@@ -86,6 +86,12 @@ function normalizeFileReadData(data: any): ArrayBuffer | null {
 }
 
 class ExecutionService {
+  async recordCompletion(input: import('@coachlink/core/src/completionDate').RecordPlanCompletionInput) {
+    const res = await request({ url: '/api/execution/record-completion', method: 'POST', data: input })
+    if (!res?.success || !res.data) throw new Error(res?.message || '补记失败')
+    return res.data
+  }
+
   private readonly baseUrl = '/api/execution'
 
   private getAuthHeader() {
@@ -206,11 +212,15 @@ class ExecutionService {
   /**
    * 开始或恢复训练
    */
-  async startExecution(instanceId: string, dayIndex: number): Promise<any> {
+  async startExecution(
+    instanceId: string,
+    dayIndex: number,
+    options?: { restartTimedOut?: boolean }
+  ): Promise<any> {
     const res = await request({
       url: `${this.baseUrl}/start`,
       method: 'POST',
-      data: { instanceId, dayIndex }
+      data: { instanceId, dayIndex, restartTimedOut: !!options?.restartTimedOut }
     })
     if (res.success && res.data) return res.data
     return null

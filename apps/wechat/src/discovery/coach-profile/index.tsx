@@ -197,7 +197,7 @@ export default function CoachProfile() {
       `orderId=${encodeURIComponent(params.orderId)}`,
       `amount=${encodeURIComponent(String(params.amount))}`,
       coachId ? `coachId=${encodeURIComponent(coachId)}` : '',
-      'provider=wechat',
+      'provider=huifu',
       params.initialStatus ? `initialStatus=${encodeURIComponent(params.initialStatus)}` : ''
     ].filter(Boolean).join('&')
 
@@ -338,7 +338,7 @@ export default function CoachProfile() {
 
     if (!receivingAccountReady) {
       Taro.showToast({
-        title: '教练收款账户尚未开通，暂时不能购买/续费',
+        title: '教练汇付收款账户尚未开通，暂时不能购买/续费',
         icon: 'none',
         duration: 2500
       })

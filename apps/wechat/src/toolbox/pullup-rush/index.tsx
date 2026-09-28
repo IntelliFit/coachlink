@@ -9,7 +9,11 @@ import {
   createTimelinePayload,
   openCoachLinkShareMenu
 } from '@/utils/share'
-import { MotionArcadeReplayRecorder, type ArcadeReplayItem } from '../games/arcadeReplayRecorder'
+import {
+  MotionArcadeReplayRecorder,
+  type ArcadeReplayFinalizeProgress,
+  type ArcadeReplayItem
+} from '../games/arcadeReplayRecorder'
 import {
   type ArcadeFeedback,
   vibrateForArcadeFeedback
@@ -47,6 +51,17 @@ type RecordedVideo = {
   tempVideoPath: string
 }
 
+type CachedRecordedVideo = RecordedVideo & {
+  savedAt: number
+}
+
+type ReplayProgress = {
+  detail: string
+  label: string
+  percent: number
+  status: 'failed' | 'recording' | 'processing' | 'ready' | 'saving'
+}
+
 type HeadLockState = {
   estimated: boolean
   radiusX: number
@@ -66,9 +81,10 @@ type PipePair = {
 }
 
 const GAME_TICK_MS = 32
-const REPLAY_DURATION_SECONDS = 35
+const REPLAY_DURATION_SECONDS = 300
 const REPLAY_FPS = 12
 const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
+const PULLUP_REPLAY_CACHE_KEY_PREFIX = 'pullup_rush_latest_replay_v1'
 const PIPE_SPEED = 0.012
 const PIPE_SPAWN_MS = 1180
 const PULL_TRIGGER_COOLDOWN_MS = 260
@@ -85,6 +101,67 @@ function formatSeconds(ms: number) {
 
 function formatPercent(value: number) {
   return Math.round(clamp(value, 0, 1) * 100)
+}
+
+function getReplayCacheKey() {
+  try {
+    const userId = String(Taro.getStorageSync('user')?.id || '').trim()
+    return `${PULLUP_REPLAY_CACHE_KEY_PREFIX}:${userId || 'guest'}`
+  } catch {
+    return `${PULLUP_REPLAY_CACHE_KEY_PREFIX}:guest`
+  }
+}
+
+function readCachedReplay() {
+  try {
+    const cached = Taro.getStorageSync(getReplayCacheKey()) as CachedRecordedVideo | undefined
+    if (!cached?.tempVideoPath || !cached.savedAt) return null
+    return cached
+  } catch {
+    return null
+  }
+}
+
+function fileExists(filePath: string) {
+  return new Promise<boolean>((resolve) => {
+    try {
+      Taro.getFileSystemManager().access({
+        path: filePath,
+        success: () => resolve(true),
+        fail: () => resolve(false)
+      })
+    } catch {
+      resolve(false)
+    }
+  })
+}
+
+function persistReplayFile(video: RecordedVideo) {
+  return new Promise<RecordedVideo>((resolve, reject) => {
+    Taro.saveFile({
+      tempFilePath: video.tempVideoPath,
+      success: (result) => {
+        const savedVideo = {
+          ...video,
+          tempVideoPath: result.savedFilePath
+        }
+        try {
+          const previous = readCachedReplay()
+          Taro.setStorageSync(getReplayCacheKey(), {
+            ...savedVideo,
+            savedAt: Date.now()
+          } satisfies CachedRecordedVideo)
+          if (previous?.tempVideoPath && previous.tempVideoPath !== result.savedFilePath) {
+            void Taro.removeSavedFile({ filePath: previous.tempVideoPath }).catch(() => undefined)
+          }
+        } catch (error) {
+          console.warn('引体冲刺回放索引保存失败:', error)
+        }
+        resolve(savedVideo)
+      },
+      fail: (error) => reject(new Error(error?.errMsg || '回放保存到本地失败'))
+    })
+  })
 }
 
 function buildPipePair(id: number): PipePair {
@@ -144,6 +221,7 @@ export default function PullupRushPage() {
   const [replayProcessing, setReplayProcessing] = useState(false)
   const [videoSaving, setVideoSaving] = useState(false)
   const [recordedVideo, setRecordedVideo] = useState<RecordedVideo | null>(null)
+  const [replayProgress, setReplayProgress] = useState<ReplayProgress | null>(null)
   const [pipes, setPipes] = useState<PipePair[]>([])
   const [lives, setLives] = useState(MAX_LIVES)
   const [pullCount, setPullCount] = useState(0)
@@ -177,6 +255,30 @@ export default function PullupRushPage() {
 
   useEffect(() => {
     openCoachLinkShareMenu()
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    const restoreLatestReplay = async () => {
+      const cached = readCachedReplay()
+      if (!cached) return
+      if (!(await fileExists(cached.tempVideoPath))) {
+        Taro.removeStorageSync(getReplayCacheKey())
+        return
+      }
+      if (!active) return
+      setRecordedVideo(cached)
+      setReplayProgress({
+        detail: '已保存在小程序本地，可查看或另存到系统相册。',
+        label: '上次回放可用',
+        percent: 100,
+        status: 'ready'
+      })
+    }
+    void restoreLatestReplay()
+    return () => {
+      active = false
+    }
   }, [])
 
   useEffect(() => {
@@ -562,6 +664,36 @@ export default function PullupRushPage() {
     return () => clearInterval(timer)
   }, [gameStatus])
 
+  const storeGeneratedReplay = async (video: RecordedVideo) => {
+    setReplayProgress({
+      detail: '第 3/3 步：正在把回放保存到小程序本地。',
+      label: '正在保存回放',
+      percent: 92,
+      status: 'processing'
+    })
+    try {
+      const savedVideo = await persistReplayFile(video)
+      setRecordedVideo(savedVideo)
+      setReplayProgress({
+        detail: '已保存在小程序本地，重新进入页面后仍可查看。',
+        label: '回放已就绪',
+        percent: 100,
+        status: 'ready'
+      })
+      return savedVideo
+    } catch (error: any) {
+      setRecordedVideo(video)
+      setReplayProgress({
+        detail: '回放已生成，但长期保存失败；请立即保存到系统相册。',
+        label: '仅临时可用',
+        percent: 100,
+        status: 'ready'
+      })
+      Taro.showToast({ title: error?.message || '回放长期保存失败', icon: 'none' })
+      return video
+    }
+  }
+
   const beginCameraFallbackRecording = () => {
     if (!cameraContextRef.current) {
       Taro.showToast({ title: '相机还没准备好', icon: 'none' })
@@ -575,6 +707,12 @@ export default function PullupRushPage() {
           setRecording(true)
           isRecordingRef.current = true
           recordingModeRef.current = 'camera'
+          setReplayProgress({
+            detail: '当前设备使用原相机录像，结束后会自动保存本地。',
+            label: '正在录制原视频',
+            percent: 0,
+            status: 'recording'
+          })
           Taro.showToast({ title: '已退回原视频录制', icon: 'none' })
         },
         fail: (error: any) => {
@@ -588,9 +726,12 @@ export default function PullupRushPage() {
           isRecordingRef.current = false
           recordingModeRef.current = null
           if (res?.tempVideoPath) {
-            setRecordedVideo({
+            setReplayProcessing(true)
+            void storeGeneratedReplay({
               ...res,
               kind: 'camera'
+            }).finally(() => {
+              setReplayProcessing(false)
             })
           }
         }
@@ -610,6 +751,12 @@ export default function PullupRushPage() {
     setRecording(true)
     isRecordingRef.current = true
     recordingModeRef.current = 'composite'
+    setReplayProgress({
+      detail: '正在同步录制相机、角色和障碍，最多录制 5 分钟。',
+      label: '正在录制回放',
+      percent: 0,
+      status: 'recording'
+    })
   }
 
   const beginRecording = async () => {
@@ -639,9 +786,12 @@ export default function PullupRushPage() {
     cameraContextRef.current.stopRecord({
       compressed: true,
       success: (res: RecordedVideo) => {
-        setRecordedVideo({
+        setReplayProcessing(true)
+        void storeGeneratedReplay({
           ...res,
           kind: 'camera'
+        }).finally(() => {
+          setReplayProcessing(false)
         })
       },
       fail: (error: any) => {
@@ -670,14 +820,43 @@ export default function PullupRushPage() {
     isRecordingRef.current = false
     recordingModeRef.current = null
     setReplayProcessing(true)
+    setReplayProgress({
+      detail: '第 1/3 步：正在整理最后画面，请保持当前页面开启。',
+      label: '正在生成回放',
+      percent: 12,
+      status: 'processing'
+    })
     try {
-      const res = await recorder.stop()
+      const res = await recorder.stop((progress: ArcadeReplayFinalizeProgress) => {
+        setReplayProgress({
+          detail: `${progress.percent < 70 ? '第 1/3 步' : '第 2/3 步'}：${progress.label}。`,
+          label: '正在生成回放',
+          percent: progress.percent,
+          status: 'processing'
+        })
+      })
       if (res?.tempVideoPath) {
-        setRecordedVideo(res)
+        await storeGeneratedReplay(res)
       } else {
+        setReplayProgress({
+          detail: recordedVideo
+            ? '本次回放没有生成成功，上一次回放仍然可用。'
+            : '本次回放没有生成成功，请重新录制。',
+          label: '回放生成失败',
+          percent: 0,
+          status: 'failed'
+        })
         Taro.showToast({ title: '回放生成失败，已尝试停止录制', icon: 'none' })
       }
     } catch (error: any) {
+      setReplayProgress({
+        detail: recordedVideo
+          ? '本次生成超时或中断，上一次回放仍然可用。'
+          : '生成超时或中断，请重新录制并保持当前页面开启。',
+        label: '回放生成失败',
+        percent: 0,
+        status: 'failed'
+      })
       Taro.showToast({ title: error?.message || '停止回放录制失败', icon: 'none' })
     } finally {
       await recorder.destroy()
@@ -718,7 +897,7 @@ export default function PullupRushPage() {
       Taro.showToast({ title: '请先让头部进入画面并保持稳定', icon: 'none' })
       return
     }
-    if (replayProcessing) {
+    if (replayProcessing || replayRecorderRef.current) {
       Taro.showToast({ title: '回放还在生成中，请稍等', icon: 'none' })
       return
     }
@@ -726,7 +905,6 @@ export default function PullupRushPage() {
     gameStartingRef.current = true
     gameRoundRef.current += 1
     resetForNewGame()
-    setRecordedVideo(null)
     gameSessionIdRef.current = null
     try {
       const session = await motionGameLeaderboardService.startSession('pullup-rush')
@@ -751,12 +929,57 @@ export default function PullupRushPage() {
     }
   }
 
+  const ensureReplayAvailable = async () => {
+    if (!recordedVideo?.tempVideoPath) return false
+    if (await fileExists(recordedVideo.tempVideoPath)) return true
+
+    const cached = readCachedReplay()
+    if (cached?.tempVideoPath === recordedVideo.tempVideoPath) {
+      Taro.removeStorageSync(getReplayCacheKey())
+    }
+    setRecordedVideo(null)
+    setReplayProgress({
+      detail: '本地回放文件已失效，请重新录制。',
+      label: '回放不可用',
+      percent: 0,
+      status: 'failed'
+    })
+    Taro.showToast({ title: '回放文件已失效，请重新录制', icon: 'none' })
+    return false
+  }
+
+  const handlePreviewVideo = async () => {
+    if (recording || replayProcessing || videoSaving) return
+    if (!(await ensureReplayAvailable()) || !recordedVideo) return
+    try {
+      await Taro.previewMedia({
+        current: 0,
+        sources: [{ type: 'video', url: recordedVideo.tempVideoPath }]
+      })
+    } catch (error: any) {
+      Taro.showToast({ title: error?.errMsg || '打开回放失败', icon: 'none' })
+    }
+  }
+
   const handleSaveVideo = async () => {
-    if (!recordedVideo?.tempVideoPath || videoSaving) return
+    if (!recordedVideo?.tempVideoPath || recording || replayProcessing || videoSaving) return
+    if (!(await ensureReplayAvailable())) return
     try {
       setVideoSaving(true)
+      setReplayProgress({
+        detail: '正在写入系统相册，微信会在完成后返回结果。',
+        label: '正在保存到相册',
+        percent: 90,
+        status: 'saving'
+      })
       await Taro.saveVideoToPhotosAlbum({
         filePath: recordedVideo.tempVideoPath
+      })
+      setReplayProgress({
+        detail: '已保存到系统相册，小程序本地回放也会继续保留。',
+        label: '回放已保存',
+        percent: 100,
+        status: 'ready'
       })
       Taro.showToast({
         title: recordedVideo.kind === 'composite' ? '回放视频已存到相册' : '原视频已存到相册',
@@ -769,6 +992,12 @@ export default function PullupRushPage() {
       } else {
         Taro.showToast({ title: error?.errMsg || '保存失败', icon: 'none' })
       }
+      setReplayProgress({
+        detail: '保存到系统相册未完成，本地回放仍可查看，可稍后重试。',
+        label: '回放仍在本地',
+        percent: 100,
+        status: 'ready'
+      })
     } finally {
       setVideoSaving(false)
     }
@@ -784,10 +1013,27 @@ export default function PullupRushPage() {
   const recordingText = replayProcessing
     ? '生成回放中'
     : recording
-      ? '引体回放录制中'
-      : recordedVideo?.kind === 'composite'
-        ? '回放已生成'
+      ? elapsedMs >= REPLAY_DURATION_SECONDS * 1000
+        ? `回放已录满 ${REPLAY_DURATION_SECONDS / 60} 分钟`
+        : '引体回放录制中'
+      : recordedVideo
+        ? '回放已就绪'
         : '未录像'
+
+  const visibleReplayProgress = replayProgress?.status === 'recording'
+    ? elapsedMs >= REPLAY_DURATION_SECONDS * 1000
+      ? {
+          ...replayProgress,
+          detail: `已保留本局前 ${REPLAY_DURATION_SECONDS / 60} 分钟，游戏可继续；结束本局后会自动生成。`,
+          label: `已录满 ${REPLAY_DURATION_SECONDS / 60} 分钟`,
+          percent: 100
+        }
+      : {
+        ...replayProgress,
+        detail: `已录制 ${formatSeconds(elapsedMs)} 秒，最多保留前 ${REPLAY_DURATION_SECONDS / 60} 分钟。`,
+        percent: Math.min(100, Math.round((elapsedMs / (REPLAY_DURATION_SECONDS * 1000)) * 100))
+      }
+    : replayProgress
 
   return (
     <PageThemeRoot>
@@ -1025,18 +1271,18 @@ export default function PullupRushPage() {
 
               <View className='controls-grid'>
                 <View
-                  className={`btn-primary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
+                  className={`btn-primary ${cameraError || recording || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) void startGame(false)
+                    if (!cameraError && !recording && !replayProcessing && trackingActive) void startGame(false)
                   }}
                 >
                   <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
                 </View>
 
                 <View
-                  className={`btn-secondary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
+                  className={`btn-secondary ${cameraError || recording || replayProcessing || !trackingActive ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) void startGame(true)
+                    if (!cameraError && !recording && !replayProcessing && trackingActive) void startGame(true)
                   }}
                 >
                   <Text className='btn-secondary-text'>开始试玩并录回放</Text>
@@ -1054,18 +1300,45 @@ export default function PullupRushPage() {
                 </View>
 
                 <View
-                  className={`btn-primary ${recordedVideo?.tempVideoPath && !replayProcessing ? '' : 'disabled'}`}
+                  className={`btn-secondary ${recordedVideo?.tempVideoPath && !recording && !replayProcessing && !videoSaving ? '' : 'disabled'}`}
                   onClick={() => {
-                    if (recordedVideo?.tempVideoPath && !replayProcessing) {
+                    if (recordedVideo?.tempVideoPath && !recording && !replayProcessing && !videoSaving) {
+                      void handlePreviewVideo()
+                    }
+                  }}
+                >
+                  <Text className='btn-secondary-text'>观看回放</Text>
+                </View>
+
+                <View
+                  className={`btn-primary btn-wide ${recordedVideo?.tempVideoPath && !recording && !replayProcessing && !videoSaving ? '' : 'disabled'}`}
+                  onClick={() => {
+                    if (recordedVideo?.tempVideoPath && !recording && !replayProcessing && !videoSaving) {
                       void handleSaveVideo()
                     }
                   }}
                 >
-                  <Text className='btn-primary-text'>{videoSaving ? '正在保存' : '保存回放视频'}</Text>
+                  <Text className='btn-primary-text'>{videoSaving ? '正在保存到相册' : '保存到系统相册'}</Text>
                 </View>
               </View>
 
-              <Text className='direction-note'>前置摄像头、头部跟踪和最终回放始终使用同一方向；合成回放为 360 × 480、12 fps 的流畅压缩画质。</Text>
+              {visibleReplayProgress ? (
+                <View className={`replay-progress-card replay-progress-card--${visibleReplayProgress.status}`}>
+                  <View className='replay-progress-header'>
+                    <Text className='replay-progress-label'>{visibleReplayProgress.label}</Text>
+                    <Text className='replay-progress-value'>{visibleReplayProgress.percent}%</Text>
+                  </View>
+                  <View className='replay-progress-track'>
+                    <View
+                      className='replay-progress-fill'
+                      style={{ width: `${visibleReplayProgress.percent}%` }}
+                    />
+                  </View>
+                  <Text className='replay-progress-detail'>{visibleReplayProgress.detail}</Text>
+                </View>
+              ) : null}
+
+              <Text className='direction-note'>回放在本机生成，不需要从服务器下载；生成期间请保持当前页面开启。前置摄像头、头部跟踪和最终回放始终使用同一方向；合成回放为 360 × 480、12 fps 的流畅压缩画质。</Text>
             </View>
           </View>
         </ScrollView>

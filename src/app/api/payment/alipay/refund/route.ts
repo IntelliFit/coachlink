@@ -255,6 +255,17 @@ export async function POST(req: Request) {
         );
     }
 
+    if (String(order.payment_provider || "") === "wechat_xpay") {
+        return NextResponse.json<ApiData<RefundAlipayOrderResponseDto>>(
+            {
+                success: false,
+                message: "该订单为微信虚拟支付，请在小程序虚拟支付商户后台发起退款；退款结果会通过回调自动同步。",
+                data: null,
+            },
+            { status: 409 },
+        );
+    }
+
     const isAdmin = Boolean((session.user as { is_admin?: boolean })?.is_admin);
     const orderData = asObject(order.order_data);
     let orderCoachId = String(orderData.coachId || "").trim();

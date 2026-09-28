@@ -15,6 +15,7 @@ import {
   type SubscriptionLifecycleStatus,
 } from "./subscriptionLifecycle";
 import { summarizePlanCompletion } from "./planInstanceCompletion";
+import { computeConsumedServiceWeeks, SERVICE_WEEK_EPSILON } from './subscriptionServiceWeeks';
 
 export type SubscriptionRelationStatus =
   | "active"
@@ -53,6 +54,7 @@ export type SubscriptionEntitlementDecision = {
   totalCredits: number;
   usedCredits: number;
   remainingCredits: number;
+  remainingServiceWeeks: number;
   completedTrainingDays: number;
   resolvedTrainingDays: number;
   totalTrainingDays: number;
@@ -215,7 +217,12 @@ export function deriveSubscriptionEntitlementState(params: {
   const totalCredits = currentPlanTotalCredits + futureUnassignedCredits;
   const usedCredits = usedCurrentPlanCredits;
   const remainingCredits = currentPlanRemainingCredits + futureUnassignedCredits;
-  const maxAccessibleDayIndex = getMaxAccessibleDayIndex(effectiveWeeks);
+  const consumedServiceWeeks = computeConsumedServiceWeeks({ trainingDays, startExecutionDay,
+    executions: executions.filter(e => scope.eligibleTrainingDayIndexSet.has(e.day_index)) });
+  const remainingServiceWeeks = Math.max(0, effectiveWeeks - consumedServiceWeeks);
+  const isPartialServiceWeek = Math.abs(effectiveWeeks - Math.round(effectiveWeeks)) > SERVICE_WEEK_EPSILON;
+  const maxAccessibleDayIndex = hasPlan && isPartialServiceWeek
+    ? scope.scopeEndDayIndex : getMaxAccessibleDayIndex(effectiveWeeks);
 
   let displayEndDate: string | null = null;
   if (
@@ -311,6 +318,7 @@ export function deriveSubscriptionEntitlementState(params: {
     totalCredits,
     usedCredits,
     remainingCredits,
+    remainingServiceWeeks,
     completedTrainingDays: completion.completedTrainingDays,
     resolvedTrainingDays: completion.resolvedTrainingDays,
     totalTrainingDays: completion.totalTrainingDays,

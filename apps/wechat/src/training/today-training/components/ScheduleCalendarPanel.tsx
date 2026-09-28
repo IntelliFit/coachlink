@@ -1,8 +1,9 @@
+import { canViewPlanDay } from '@coachlink/core/src/planCalendar'
+import { getBeijingDateParts, getBeijingDateFromParts, getBeijingMonthDays, getBeijingWeekday, formatBeijingDate, getBeijingDayStart } from '@coachlink/core/src/beijingTime'
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import { Check } from '@nutui/icons-react-taro'
-import { getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
-import { formatMonthDayWeekday, formatYearMonth } from '@/utils/dateFormat'
+import { getDayWeekNumber } from '@/utils/weekUnlock'
 import { resolvePlanDayDate, toDateKey, type PlanScheduleModel } from '../lib/dayModules'
 import './ScheduleCalendarPanel.scss'
 
@@ -26,19 +27,9 @@ interface ScheduleCalendarPanelProps {
 
 const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日']
 
-const startOfDay = (dateValue: Date | string) => {
-  const date = new Date(dateValue)
-  date.setHours(0, 0, 0, 0)
-  return date
-}
-
-const getMonthDays = (year: number, month: number) => {
-  return new Date(year, month, 0).getDate()
-}
-
-const getWeekday = (year: number, month: number, day: number) => {
-  return new Date(year, month - 1, day).getDay()
-}
+const startOfDay = getBeijingDayStart
+const getMonthDays = getBeijingMonthDays
+const getWeekday = getBeijingWeekday
 
 function ScheduleCalendarPanel({
   trainingDays,
@@ -93,14 +84,14 @@ function ScheduleCalendarPanel({
   }, [selectedSchedule, selectedDayIndex, planStartDate, progressDayIndex, currentDayIndex])
 
   const [monthCursor, setMonthCursor] = useState(() => ({
-    year: selectedDate.getFullYear(),
-    month: selectedDate.getMonth() + 1
+    year: getBeijingDateParts(selectedDate).year,
+    month: getBeijingDateParts(selectedDate).month
   }))
 
   useEffect(() => {
     setMonthCursor({
-      year: selectedDate.getFullYear(),
-      month: selectedDate.getMonth() + 1
+      year: getBeijingDateParts(selectedDate).year,
+      month: getBeijingDateParts(selectedDate).month
     })
   }, [selectedDate])
 
@@ -109,7 +100,7 @@ function ScheduleCalendarPanel({
     const totalDays = getMonthDays(monthCursor.year, monthCursor.month)
     const cells: Array<Date | null> = Array.from({ length: leadingBlankCount }, () => null)
     for (let day = 1; day <= totalDays; day += 1) {
-      cells.push(startOfDay(new Date(monthCursor.year, monthCursor.month - 1, day)))
+      cells.push(getBeijingDateFromParts(monthCursor.year, monthCursor.month, day))
     }
     while (cells.length % 7 !== 0) cells.push(null)
     return cells
@@ -133,19 +124,12 @@ function ScheduleCalendarPanel({
     return statuses[0] || 'calendar_only'
   }
 
-  const pickBucketDayIndex = (dayIndexes: number[]) => {
-    return dayIndexes.find((dayIndex) => getDayStatus(dayIndex) === 'in_progress')
-      || dayIndexes.find((dayIndex) => getDayStatus(dayIndex) === 'pending' && trainingDays.find((day: any) => day.dayIndex === dayIndex)?.type !== 'rest')
-      || dayIndexes.find((dayIndex) => getDayStatus(dayIndex) === 'completed')
-      || dayIndexes[0]
-  }
-
   const selectDay = (dayIndex: number) => {
-    if (!isDayUnlocked(dayIndex, unlockedWeek)) return
+    if (!canViewPlanDay(dayIndex, unlockedWeek, executionsByDayIndex[dayIndex], !!completionDates[dayIndex])) return
     onSelectedDayChange(dayIndex)
   }
 
-  const formatDayLabel = (date: Date) => formatMonthDayWeekday(date)
+  const formatDayLabel = (date: Date) => formatBeijingDate(date, 'zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
   const monthGridVisible =
     typeof showMonthGrid === 'boolean' ? showMonthGrid : monthOnly || isMonthExpanded
 
@@ -177,7 +161,7 @@ function ScheduleCalendarPanel({
                 <Text>{'>'}</Text>
               </View>
               <View className='expand-btn' onClick={() => setIsMonthExpanded((prev) => !prev)}>
-                <Text>{isMonthExpanded ? '??' : '??'}</Text>
+                <Text>{isMonthExpanded ? '收起' : '展开'}</Text>
               </View>
             </View>
           </View>
@@ -190,7 +174,7 @@ function ScheduleCalendarPanel({
               const isSelected = selectedDayIndex === dayIndex
               const isProgressDay = dayIndex === progressDayIndex
               const isRecommended = dayIndex === currentDayIndex
-              const isUnlocked = isDayUnlocked(dayIndex, unlockedWeek)
+              const isUnlocked = canViewPlanDay(dayIndex, unlockedWeek, executionsByDayIndex[dayIndex], !!completionDates[dayIndex])
 
               return (
                 <View
@@ -251,7 +235,7 @@ function ScheduleCalendarPanel({
               <Text>{'<'}</Text>
             </View>
             <Text className='month-title'>
-              {formatYearMonth(new Date(monthCursor.year, monthCursor.month - 1, 1))}
+              {`${monthCursor.year}年${monthCursor.month}月`}
             </Text>
             <View
               className='month-nav-btn'
@@ -284,9 +268,9 @@ function ScheduleCalendarPanel({
 
               const dateKey = toDateKey(dateCell)
               const mappedDayIndexes = scheduleModel.dayIndexesByDateKey.get(dateKey) || []
-              const mappedDayIndex = pickBucketDayIndex(mappedDayIndexes)
+              const accessibleDays = mappedDayIndexes.filter(di => canViewPlanDay(di, unlockedWeek, executionsByDayIndex[di], !!completionDates[di]))
               const postponedMarker = scheduleModel.postponedByDateKey.get(dateKey)
-              const unlocked = mappedDayIndexes.some((dayIndex) => isDayUnlocked(dayIndex, unlockedWeek))
+              const unlocked = accessibleDays.length > 0
               const isSelected = mappedDayIndexes.includes(selectedDayIndex)
               const status = mappedDayIndexes.length > 0 ? getBucketStatus(mappedDayIndexes) : 'calendar_only'
               const isToday = toDateKey(dateCell) === toDateKey(startOfDay(new Date()))
@@ -301,14 +285,20 @@ function ScheduleCalendarPanel({
                   className={`date-cell ${mappedDayIndexes.length > 0 ? 'plan' : 'outside'} ${postponedMarker ? 'postponed' : ''} ${isSelected ? 'selected' : ''} ${
                     status
                   } ${isToday ? 'today' : ''} ${mappedDayIndexes.length > 0 && !unlocked ? 'locked' : ''}`}
-                  onClick={() => mappedDayIndex && selectDay(mappedDayIndex)}
+                  onClick={() => {
+                    if (!accessibleDays.length) return
+                    const pos = accessibleDays.indexOf(selectedDayIndex)
+                    selectDay(accessibleDays[(pos + 1) % accessibleDays.length])
+                  }}
                 >
-                  <Text className='date-num'>{dateCell.getDate()}</Text>
+                  <Text className='date-num'>{getBeijingDateParts(dateCell).day}</Text>
                   <Text className={`date-day-index ${mappedDayIndexes.length > 1 ? 'multiple' : ''}`}>
                     {mappedDayIndexes.length > 0 ? dayIndexLabel : postponedMarker ? '顺延' : '-'}
                   </Text>
                   <Text className='date-type'>
-                    {mappedDayIndexes.length > 0
+                    {mappedDayIndexes.some(di => scheduleModel.scheduleByDayIndex.get(di)?.dateEstimated)
+                      ? '推算'
+                      : mappedDayIndexes.length > 0
                       ? status === 'completed' || status === 'before_start'
                         ? <Check size={10} />
                         : status === 'in_progress'
@@ -327,6 +317,9 @@ function ScheduleCalendarPanel({
             })}
           </View>
         </View>
+      )}
+      {Array.from(scheduleModel.scheduleByDayIndex.values()).some(info => info.dateNeedsReview) && (
+        <Text className='selected-meta'>已按教练计划顺序恢复安排。「推算」日期不是已确认的实际训练日，原始提交时间保留；选中记录可核对训练日期。同日多条可再次点击切换。</Text>
       )}
     </View>
   )

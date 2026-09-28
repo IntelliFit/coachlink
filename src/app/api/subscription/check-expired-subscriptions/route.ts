@@ -77,12 +77,16 @@ export async function POST(req: Request) {
     // 3. 查询计划实例
     const instancesStart = performance.now();
     // Load latest plan instance per subscription (needed for credit scope)
-    const { data: instances } = await supabase
+    const { data: instances, error: instancesError } = await supabase
         .from("coach_plan_instances")
         .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy")
         .in("coach_subscription_id", candidateIds)
         .in("status", ["active", "paused", "completed", "scheduled", "archived"])
         .order("created_at", { ascending: false });
+    if (instancesError) {
+        console.error("检查订阅计划失败，未调整订阅", instancesError);
+        return NextResponse.json({ success: false, message: "暂时无法核对计划，未调整订阅", data: null }, { status: 503 });
+    }
     timings['3_query_instances'] = performance.now() - instancesStart;
 
     // 4. 处理实例映射
@@ -99,13 +103,17 @@ export async function POST(req: Request) {
     // 5. 查询执行记录
     const executionsStart = performance.now();
     const instanceIds = ((instances || []) as any[]).map((i: any) => i.id).filter(Boolean);
-    const { data: completedExecs } = instanceIds.length > 0
+    const { data: completedExecs, error: executionsError } = instanceIds.length > 0
         ? await supabase
             .from("plan_instance_executions")
             .select("instance_id, day_index, status, started_at, completed_at, created_at")
             .in("instance_id", instanceIds)
             .eq("status", "completed")
-        : { data: [] as any[] };
+        : { data: [] as any[], error: null };
+    if (executionsError) {
+        console.error("检查已用权益失败，未调整订阅", executionsError);
+        return NextResponse.json({ success: false, message: "暂时无法核对训练记录，未调整订阅", data: null }, { status: 503 });
+    }
     timings['5_query_executions'] = performance.now() - executionsStart;
 
     // 6. 处理执行记录映射

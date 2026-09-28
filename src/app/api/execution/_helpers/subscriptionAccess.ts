@@ -23,7 +23,14 @@ export async function validateExecutionSubscriptionAccess(params: {
         .eq("id", instanceId)
         .maybeSingle();
 
-    if (instanceError || !instance) {
+    if (instanceError) {
+        return {
+            allowed: false, status: 503,
+            message: "暂时无法核对计划权限，请稍后重试",
+            maxAccessibleDayIndex: null,
+        };
+    }
+    if (!instance) {
         return {
             allowed: false,
             status: 404,
@@ -43,13 +50,20 @@ export async function validateExecutionSubscriptionAccess(params: {
         };
     }
 
-    const { data: subscription } = await supabase
+    const { data: subscription, error: subscriptionError } = await supabase
         .from("coach_subscriptions")
         .select("id, student_id, status, start_date, end_date, subscribed_weeks")
         .eq("id", subscriptionId)
         .eq("student_id", studentId)
         .maybeSingle();
 
+    if (subscriptionError) {
+        return {
+            allowed: false, status: 503,
+            message: "暂时无法核对订阅权益，请稍后重试",
+            maxAccessibleDayIndex: null,
+        };
+    }
     if (!subscription) {
         return {
             allowed: false,
@@ -59,19 +73,36 @@ export async function validateExecutionSubscriptionAccess(params: {
         };
     }
 
-    const { data: completedExecutions } = await supabase
+    const { data: completedExecutions, error: completedExecutionsError } = await supabase
         .from("plan_instance_executions")
         .select("day_index, status")
         .eq("instance_id", instanceId)
         .eq("status", "completed");
+    if (completedExecutionsError) {
+        return {
+            allowed: false, status: 503,
+            message: "暂时无法核对已用权益，请稍后重试",
+            maxAccessibleDayIndex: null,
+        };
+    }
 
-    const carryover = await getSubscriptionCarryoverSummary({
-        subscriptionId,
-        subscribedWeeks: Number(subscription.subscribed_weeks || 0),
-        excludeInstanceId: instanceId,
-        createdBefore: (instance as any)?.created_at || null,
-        subscriptionStartDate: (subscription as any)?.start_date || null,
-    });
+    let carryover;
+    try {
+        carryover = await getSubscriptionCarryoverSummary({
+            subscriptionId,
+            subscribedWeeks: Number(subscription.subscribed_weeks || 0),
+            excludeInstanceId: instanceId,
+            createdBefore: (instance as any)?.created_at || null,
+            subscriptionStartDate: (subscription as any)?.start_date || null,
+        });
+    } catch (error) {
+        console.error("[execution-access] cannot verify carryover", error);
+        return {
+            allowed: false, status: 503,
+            message: "暂时无法核对历史权益，请稍后重试",
+            maxAccessibleDayIndex: null,
+        };
+    }
 
     const decision = evaluateSubscriptionPlanAccess({
         subscription,

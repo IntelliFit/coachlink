@@ -260,7 +260,7 @@ function CoachMyProfile() {
     {
       key: 'payment-settings',
       title: '收款账户',
-      description: '开通汇付账户并绑定银行卡',
+      description: '开通汇付收款账户并绑定银行卡',
       icon: Wallet,
       tone: 'emerald',
       path: '/coach/wallet/merchant'

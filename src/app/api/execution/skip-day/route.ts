@@ -5,6 +5,7 @@ import { ApiData } from "@/types/api";
 import { filterTrainingDaysByAccessWindow } from "@/lib/subscriptionAccess";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 import { activatePendingPlanRevisionForSource } from "@/lib/planExecutionLifecycle";
+import { updateExecutionIfUnchanged, EXECUTION_WRITE_CONFLICT } from '../_helpers/conditionalUpdate';
 
 // Minimal "skip" endpoint (spec v1):
 // - Mark a training day as abandoned (treated as "skipped" for progress pointer)
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
     const instanceId = String(body?.instanceId || "");
     const dayIndex = Number(body?.dayIndex || 0);
 
-    if (!instanceId || !dayIndex || dayIndex < 1) {
+    if (!instanceId || !Number.isInteger(dayIndex) || dayIndex < 1) {
         return NextResponse.json({ success: false, message: "Invalid parameters" }, { status: 400 });
     }
 
@@ -82,29 +83,45 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "Only training days can be skipped" }, { status: 400 });
     }
 
-    // If there's any existing execution for that day, update the latest one; else create a minimal record.
-    const { data: existing } = await supabase
+    // A newer empty attempt is not allowed to erase an earlier completion.
+    // Read every attempt before choosing the editable row.
+    const { data: existing, error: historyError } = await supabase
         .from("plan_instance_executions")
-        .select("id, started_at")
+        .select("id, student_id, status, updated_at, started_at, close_reason")
         .eq("instance_id", instanceId)
         .eq("student_id", instance.student_id)
         .eq("day_index", dayIndex)
-        .order("started_at", { ascending: false })
-        .limit(1);
+        .order("started_at", { ascending: false });
+
+    if (historyError) {
+        return NextResponse.json({ success: false, message: '暂时无法核对训练记录，请稍后重试' }, { status: 503 });
+    }
+    if (existing?.some(row => row.status === 'completed')) {
+        return NextResponse.json({ success: false, message: '这一天已经完成，不能再标记跳过' }, { status: 409 });
+    }
+    if (existing?.some(row => row.status === 'abandoned' && row.close_reason !== 'superseded_by_late_completion')) {
+        return NextResponse.json({ success: true, message: '这一天已跳过', data: { instanceId, dayIndex } });
+    }
 
     if (existing && existing.length > 0) {
-        const { error: updErr } = await supabase
-            .from("plan_instance_executions")
-            .update({
+        const target = existing[0];
+        if (!target.updated_at || !['in_progress', 'timed_out'].includes(target.status)) {
+            return NextResponse.json(EXECUTION_WRITE_CONFLICT, { status: 409 });
+        }
+        const { data: updated, error: updErr } = await updateExecutionIfUnchanged({
+            client: supabase,
+            execution: target,
+            patch: {
                 status: "abandoned",
                 completed_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
-            })
-            .eq("id", existing[0].id);
+            },
+        });
 
         if (updErr) {
             return NextResponse.json({ success: false, message: "Failed to update execution" }, { status: 500 });
         }
+        if (!updated) return NextResponse.json(EXECUTION_WRITE_CONFLICT, { status: 409 });
     } else {
         const nowIso = new Date().toISOString();
         const { error: insErr } = await supabase

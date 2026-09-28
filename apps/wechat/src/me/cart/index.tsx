@@ -81,14 +81,8 @@ function CartPage() {
       return
     }
 
-    const query = [
-      `coachId=${encodeURIComponent(item.coachId)}`,
-      item.productId ? `productId=${encodeURIComponent(item.productId)}` : '',
-      item.durationMonths > 0 ? `months=${item.durationMonths}` : ''
-    ].filter(Boolean).join('&')
-
     Taro.navigateTo({
-      url: `/me/payment/webview/index?${query}`
+      url: `/discovery/coach-profile?id=${encodeURIComponent(item.coachId)}&tab=1`
     })
   }
 
@@ -129,7 +123,7 @@ function CartPage() {
           <View className='page-header'>
             <Text className='page-title'>待结算订阅</Text>
             <Text className='page-subtitle'>
-              {items.length > 0 ? `共 ${items.length} 项待结算订阅，将在小程序内打开与网站一致的购买页` : '这里只保留待结算订阅，已支付订单请看购买记录'}
+              {items.length > 0 ? `共 ${items.length} 项待结算订阅，请进入教练主页选择套餐并完成支付` : '这里只保留待结算订阅，已支付订单请看购买记录'}
             </Text>
           </View>
 
@@ -198,7 +192,7 @@ function CartPage() {
                   <Text className='summary-total'>总计：¥{getTotalPrice().toFixed(2)}</Text>
                 </View>
                 <View className='summary-notice'>
-                  <View className='summary-notice-text'><Notice /> 点击购买后会在小程序内打开与网站一致的购买页，继续完成问卷、订阅与支付宝支付。</View>
+                  <View className='summary-notice-text'><Notice /> 点击立即订阅后将进入教练主页，请确认套餐并通过汇付微信支付完成教练服务订阅。</View>
                 </View>
               </View>
             </>

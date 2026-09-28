@@ -13,7 +13,7 @@ function CoachPaymentSettings() {
         <View className="settings-card">
           <Text className="card-title">个人收款码已停用</Text>
           <Text className="card-desc">
-            学员给教练的订阅付款统一走汇付平台通道，不再支持上传或展示微信、支付宝个人收款码。
+            学员购买教练服务统一通过汇付平台支付并按规则分账，不再支持上传或展示微信、支付宝个人收款码。
           </Text>
           <Button
             className="upload-btn"

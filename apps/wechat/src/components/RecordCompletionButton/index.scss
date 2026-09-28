@@ -1,0 +1,29 @@
+.record-completion-trigger {
+  margin: 16rpx 0;
+  padding: 8rpx 16rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #CF6D4E;
+  border-radius: 16rpx;
+  color: #CF6D4E;
+  font-size: 24rpx;
+}
+.record-completion-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  padding: 32rpx 32rpx 48rpx;
+  font-size: 28rpx;
+  color: #26313b;
+  background: #FFFFFF;
+}
+.record-completion-title { font-weight: 600; }
+.record-completion-date { padding: 24rpx; border: 1rpx solid #CF6D4E; border-radius: 16rpx; }
+.record-completion-error { color: #a12b22; }
+.record-completion-confirm {
+  margin: 0;
+  padding: 8rpx 16rpx;
+  background: #CF6D4E;
+  color: #FFFFFF;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+}

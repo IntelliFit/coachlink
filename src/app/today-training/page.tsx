@@ -23,6 +23,7 @@ import RestDayCard from './RestDayCard';
 import BrowseSection from './BrowseSection';
 import LightweightTaskSheet from './components/LightweightTaskSheet';
 import ActionPicker from './ActionPicker';
+import RecordCompletionButton from './components/RecordCompletionButton';
 import {
     buildPlanScheduleModel,
     buildDayModuleModel,
@@ -239,14 +240,16 @@ const TodayTrainingPage: React.FC = () => {
         : instance?.start_date || null;
     const scheduleModel = useMemo(() => {
         return buildPlanScheduleModel({
+            dateBasis: 'plan-order',
             trainingDays,
             executionsByDayIndex,
+            completionDates,
             effectiveStartDate: effectiveCalendarStartDate,
             progressDayIndex,
             startExecutionDay: Number(instance?.start_execution_day || 1),
             fallbackAnchorDayIndex: progressDayIndex,
         });
-    }, [trainingDays, executionsByDayIndex, effectiveCalendarStartDate, progressDayIndex, instance?.start_execution_day]);
+    }, [trainingDays, executionsByDayIndex, completionDates, effectiveCalendarStartDate, progressDayIndex, instance?.start_execution_day]);
     const selectedSchedule = scheduleModel.scheduleByDayIndex.get(selectedDayIndex);
     const selectedDateLabel = useMemo(() => {
         if (!selectedDayIndex) return '';
@@ -273,10 +276,13 @@ const TodayTrainingPage: React.FC = () => {
             return `（开始于 ${startedLabel}）`;
         }
         if (selectedExecutionStatus === 'completed' && selectedExec?.completed_at) {
+            if (selectedSchedule?.dateEstimated) {
+                return `（安排日期为推算；提交完成于 ${formatShortDate(selectedExec.completed_at)}）`;
+            }
             return `（完成于 ${formatShortDate(selectedExec.completed_at)}）`;
         }
         return '';
-    }, [selectedExecutionStatus, selectedExec?.started_at, selectedExec?.completed_at, selectedDateMeta?.delayDays, selectedDateLabel]);
+    }, [selectedExecutionStatus, selectedExec?.started_at, selectedExec?.completed_at, selectedDateMeta?.delayDays, selectedDateLabel, selectedSchedule?.dateEstimated]);
 
     const openTrainingExecution = (targetDayIndex: number, suffix = '') => {
         if (!instance?.id) return;
@@ -1639,6 +1645,14 @@ const TodayTrainingPage: React.FC = () => {
                             progressDayIndex={progressDayIndex}
                             effectiveStartDate={effectiveCalendarStartDate}
                         />
+                        {selectedDay?.type === 'training' && (
+                            <div className="my-4">
+                                <RecordCompletionButton instanceId={instance.id} dayIndex={selectedDayIndex}
+                                    execution={selectedExec} earliestDate={instance.start_date || instance.created_at}
+                                    onSaved={async saved => { await loadData(); setSelectedDayIndex(saved.day_index); }} />
+                            </div>
+                        )}
+
 
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 px-2">
                             <div className="rounded-2xl border border-surface-100/60 bg-surface-50 px-4 py-3">

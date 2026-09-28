@@ -299,14 +299,8 @@ function Market() {
       return
     }
 
-    const queryString = [
-      `coachId=${encodeURIComponent(item.coach.id)}`,
-      `productId=${encodeURIComponent(item.product.id)}`,
-      `months=${option.months}`
-    ].join('&')
-
     Taro.navigateTo({
-      url: `/me/payment/webview/index?${queryString}`
+      url: `/discovery/coach-profile?id=${encodeURIComponent(item.coach.id)}&tab=1`
     })
   }, [ensureLogin])
 

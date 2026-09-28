@@ -71,7 +71,8 @@
         "weapp:release:auto": "npm --workspace apps/wechat run release:auto",
         "weapp:release:full": "npm --workspace apps/wechat run release:full",
         "weapp:release:categories": "npm --workspace apps/wechat run release:categories",
-        "weapp:release:pages": "npm --workspace apps/wechat run release:pages"
+        "weapp:release:pages": "npm --workspace apps/wechat run release:pages",
+        "wechat:xpay:catalog": "node scripts/sync-wechat-xpay-goods.mjs"
     },
     "dependencies": {
         "@coachlink/core": "0.0.0",

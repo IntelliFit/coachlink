@@ -8,6 +8,8 @@ import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 import { handleAutoE1RMCheck } from "@/lib/autoE1rmTracking";
 import { expireTimedOutPlanExecutions } from "@/lib/planExecutionLifecycle";
+import { deriveAutomaticExecutionCompletion, retainItemCompletionTime } from "@/lib/executionCompletion";
+import { EXECUTION_WRITE_CONFLICT, updateExecutionIfUnchanged } from "../_helpers/conditionalUpdate";
 
 /**
  * POST /api/execution/complete-set
@@ -42,7 +44,8 @@ export async function POST(request: NextRequest) {
         } = body;
 
         if (
-            !executionId || actionIndex === undefined || setIndex === undefined
+            !executionId || !Number.isInteger(actionIndex) || actionIndex < 0 ||
+            !Number.isInteger(setIndex) || setIndex < 0
         ) {
             return NextResponse.json<ApiData<CompleteSetResponseDto>>({
                 success: false,
@@ -83,6 +86,14 @@ export async function POST(request: NextRequest) {
                 message: "本次训练已超过5小时，请返回今日训练重新开始这一天",
             }, { status: 409 });
         }
+        if (!["in_progress", "completed"].includes(execution.status)) {
+            return NextResponse.json({
+                success: false,
+                code: "EXECUTION_NOT_EDITABLE",
+                message: "这次训练已经结束，不能通过补组重新完成",
+                data: null,
+            }, { status: 409 });
+        }
 
         const accessDecision = await validateExecutionSubscriptionAccess({
             instanceId: execution.instance_id,
@@ -99,13 +110,6 @@ export async function POST(request: NextRequest) {
 
         // 4.5 查询视频URL（如果has_video为true）
         let video_url: string | null = null;
-        console.log("[complete-set] Input:", {
-            actionId,
-            has_video,
-            is_pr,
-            setIndex,
-        });
-
         if (has_video && actionId) {
             const { data: videoRecord } = await supabase
                 .from("execution_set_videos")
@@ -121,11 +125,11 @@ export async function POST(request: NextRequest) {
         }
 
         // 5. 更新 JSONB 数据
-        const actionExecutions = execution.action_executions as any[];
+        const actionExecutions = structuredClone(execution.action_executions) as any[];
 
         if (
-            !actionExecutions[actionIndex] ||
-            !actionExecutions[actionIndex].sets[setIndex]
+            !Array.isArray(actionExecutions) ||
+            !actionExecutions[actionIndex]?.sets?.[setIndex]
         ) {
             return NextResponse.json<ApiData<CompleteSetResponseDto>>({
                 success: false,
@@ -139,49 +143,26 @@ export async function POST(request: NextRequest) {
             actionExecutions[actionIndex].name ||
             "未知动作";
 
-        // 5.5 Auto e1RM calculation and PR detection
-        let autoE1RMResult:
-            | { isPR: boolean; e1rm: number; previousPR?: number }
-            | null = null;
-        let isCoachSubscriptionPlan = false;
-        if (execution.instance_id) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: instanceRow } = await (supabase as any)
-                .from("plan_instances")
-                .select("coach_subscription_id")
-                .eq("id", execution.instance_id)
-                .maybeSingle();
-            isCoachSubscriptionPlan = !!instanceRow?.coach_subscription_id;
-        }
-
-        if (actualWeight && actualReps && actionId) {
-            autoE1RMResult = await handleAutoE1RMCheck({
-                userId,
-                actionId,
-                actionName,
-                weight: actualWeight,
-                reps: actualReps,
-                executionId,
-                setNumber: setIndex + 1,
-                isCoachSubscriptionPlan,
-            });
-        }
-
         // 更新组数据 - 包含is_pr, has_video, video_url, and e1RM info
+        const nowIso = new Date().toISOString();
+        const originalSet = actionExecutions[actionIndex].sets[setIndex];
+        const measurementsChanged =
+            (actualWeight !== undefined && actualWeight !== originalSet.actual_weight) ||
+            (actualReps !== undefined && actualReps !== originalSet.actual_reps);
         actionExecutions[actionIndex].sets[setIndex] = {
-            ...actionExecutions[actionIndex].sets[setIndex],
+            ...originalSet,
             status: "completed",
-            actual_weight: actualWeight,
-            actual_reps: actualReps,
-            rpe,
-            notes: notes || "",
-            is_pr: is_pr || false,
-            has_video: has_video || false,
-            video_url: video_url,
-            completed_at: new Date().toISOString(),
-            // Add e1RM info for reference
-            e1rm: autoE1RMResult?.e1rm,
-            is_auto_pr: autoE1RMResult?.isPR || false,
+            ...(actualWeight !== undefined ? { actual_weight: actualWeight } : {}),
+            ...(actualReps !== undefined ? { actual_reps: actualReps } : {}),
+            ...(rpe !== undefined ? { rpe } : {}),
+            ...(notes !== undefined ? { notes } : {}),
+            ...(is_pr !== undefined ? { is_pr } : {}),
+            ...(has_video !== undefined ? {
+                has_video,
+                video_url: has_video ? video_url || originalSet.video_url || null : null,
+            } : {}),
+            completed_at: retainItemCompletionTime(originalSet, true, nowIso),
+            ...(measurementsChanged ? { e1rm: null, is_auto_pr: false } : {}),
         };
 
         // 更新动作已完成组数
@@ -196,23 +177,22 @@ export async function POST(request: NextRequest) {
         const totalSets = progress.totalItems;
 
         // 6. 保存到数据库
-        const nowIso = new Date().toISOString();
         const shouldAutoComplete = totalSets > 0 &&
             totalCompletedSets >= totalSets;
+        const completion = deriveAutomaticExecutionCompletion(execution, shouldAutoComplete, nowIso);
 
-        const { error: updateError } = await supabase
-            .from("plan_instance_executions")
-            .update({
+        const { data: savedExecution, error: updateError } = await updateExecutionIfUnchanged({
+            client: supabase,
+            execution,
+            patch: {
                 action_executions: actionExecutions,
                 completed_sets: totalCompletedSets,
                 total_sets: totalSets,
-                status: shouldAutoComplete ? "completed" : execution.status,
-                completed_at: shouldAutoComplete
-                    ? nowIso
-                    : execution.completed_at,
-                last_saved_at: new Date().toISOString(),
-            })
-            .eq("id", executionId);
+                status: completion.status,
+                completed_at: completion.completed_at,
+                last_saved_at: nowIso,
+            },
+        });
 
         if (updateError) {
             console.error("更新失败:", updateError);
@@ -222,10 +202,44 @@ export async function POST(request: NextRequest) {
                 data: null,
             }, { status: 500 });
         }
+        if (!savedExecution) {
+            return NextResponse.json(EXECUTION_WRITE_CONFLICT, { status: 409 });
+        }
 
-        // If we auto-completed the execution, refresh subscription estimated end date (B1 credits-driven).
-        if (shouldAutoComplete && execution.instance_id) {
+        // Only a new completion changes progression/entitlement, not historical edits.
+        if (completion.didComplete && execution.instance_id) {
             updateEstimatedEndDateForInstance(execution.instance_id);
+        }
+
+        // PR side effects must follow a successful save, never a rejected stale write.
+        let autoE1RMResult: { isPR: boolean; e1rm: number; previousPR?: number } | null = null;
+        if (actualWeight !== undefined && actualReps && actionId) {
+            try {
+                const { data: instanceRow } = await supabase
+                    .from("coach_plan_instances")
+                    .select("coach_subscription_id")
+                    .eq("id", execution.instance_id)
+                    .maybeSingle();
+                autoE1RMResult = await handleAutoE1RMCheck({
+                    userId, actionId, actionName, weight: actualWeight, reps: actualReps,
+                    executionId, setNumber: setIndex + 1,
+                    isCoachSubscriptionPlan: !!instanceRow?.coach_subscription_id,
+                });
+                if (autoE1RMResult) {
+                    const enriched = structuredClone(savedExecution.action_executions) as any[];
+                    Object.assign(enriched[actionIndex].sets[setIndex], {
+                        e1rm: autoE1RMResult.e1rm, is_auto_pr: autoE1RMResult.isPR,
+                    });
+                    // Optional enrichment must not overwrite a newer save or finish.
+                    const enrichment = await updateExecutionIfUnchanged({
+                        client: supabase, execution: savedExecution,
+                        patch: { action_executions: enriched },
+                    });
+                    if (enrichment.error) console.warn("[complete-set] e1RM enrichment failed", enrichment.error);
+                }
+            } catch (error) {
+                console.warn("[complete-set] saved successfully; e1RM enrichment skipped", error);
+            }
         }
 
         return NextResponse.json<ApiData<CompleteSetResponseDto>>({

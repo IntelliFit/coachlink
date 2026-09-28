@@ -215,12 +215,12 @@ function CoachPricingEdit() {
           <View className={`receiving-warning-card ${receivingAccountReady ? 'ready' : 'pending'}`}>
             <View className="receiving-warning-main">
               <Text className="receiving-warning-title">
-                {receivingAccountReady ? '收款账户已开通' : '先开通收款账户，学生才能完成付款'}
+                {receivingAccountReady ? '汇付收款账户已开通' : '先开通汇付收款账户，学生才能完成付款'}
               </Text>
               <Text className="receiving-warning-desc">
                 {receivingAccountReady
-                  ? '当前套餐保存后可正常通过平台收款。'
-                  : '请先完成收款账户开通和银行卡绑定；未绑卡前不能保存订阅套餐价格。'}
+                  ? '当前套餐保存后可通过汇付收款并按规则分账。'
+                  : '请先完成汇付收款账户开通和银行卡绑定；未绑卡前不能保存订阅套餐价格。'}
               </Text>
               {!receivingAccountReady && walletStatus?.huifu_open_msg && (
                 <Text className="receiving-warning-msg">{walletStatus.huifu_open_msg}</Text>

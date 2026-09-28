@@ -32,6 +32,11 @@ export type ArcadeReplayResult = {
   tempVideoPath: string
 }
 
+export type ArcadeReplayFinalizeProgress = {
+  label: string
+  percent: number
+}
+
 type RecorderOptions = {
   durationSeconds?: number
   fps?: number
@@ -298,6 +303,8 @@ export class MotionArcadeReplayRecorder {
   private destroyed = false
   private rendering = false
   private started = false
+  private stopped = false
+  private stopRequested = false
   private stopPromise: Promise<ArcadeReplayResult | null>
   private resolveStop!: (value: ArcadeReplayResult | null) => void
 
@@ -349,6 +356,8 @@ export class MotionArcadeReplayRecorder {
 
     void this.recorder.on('stop', (res?: { tempFilePath?: string }) => {
       const tempVideoPath = res?.tempFilePath || ''
+      this.started = false
+      this.stopped = true
       this.resolveStop(tempVideoPath ? { kind: 'composite', tempVideoPath } : null)
     })
   }
@@ -379,11 +388,25 @@ export class MotionArcadeReplayRecorder {
     }
   }
 
-  async stop() {
-    if (!this.started || this.destroyed) return null
+  async stop(onProgress?: (progress: ArcadeReplayFinalizeProgress) => void) {
+    if (this.destroyed) return null
+    if (this.stopped) return this.stopPromise
+    if (!this.started) return null
+
+    onProgress?.({ label: '正在整理最后画面', percent: 20 })
     await this.waitForIdle()
-    await this.recorder.stop()
-    return this.stopPromise
+    onProgress?.({ label: '画面整理完成', percent: 55 })
+
+    let stopFailure: Promise<never> | undefined
+    if (!this.stopped && !this.stopRequested) {
+      this.stopRequested = true
+      stopFailure = this.requestRecorderStop()
+    }
+
+    onProgress?.({ label: '正在生成视频文件', percent: 75 })
+    const result = await this.waitForStopResult(45000, stopFailure)
+    onProgress?.({ label: '视频文件已生成', percent: 88 })
+    return result
   }
 
   async destroy() {
@@ -423,12 +446,45 @@ export class MotionArcadeReplayRecorder {
     }
   }
 
-  private async waitForIdle() {
+  private async waitForIdle(timeoutMs = 10000) {
+    const startedAt = Date.now()
     while ((this.rendering || this.captureQueue.length) && !this.destroyed) {
+      if (Date.now() - startedAt >= timeoutMs) {
+        throw new Error('回放画面整理超时，请重新录制并保持当前页面开启。')
+      }
       if (!this.rendering && this.captureQueue.length) {
         void this.flushQueue()
       }
       await wait(16)
+    }
+  }
+
+  private requestRecorderStop() {
+    return new Promise<never>((_, reject) => {
+      try {
+        void Promise.resolve(this.recorder.stop()).catch((error) => {
+          if (!this.stopped) reject(error)
+        })
+      } catch (error) {
+        if (!this.stopped) reject(error)
+      }
+    })
+  }
+
+  private async waitForStopResult(timeoutMs = 45000, stopFailure?: Promise<never>) {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    try {
+      return await Promise.race([
+        this.stopPromise,
+        ...(stopFailure ? [stopFailure] : []),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error('回放生成超时，请重新录制并保持当前页面开启。'))
+          }, timeoutMs)
+        })
+      ])
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId)
     }
   }
 

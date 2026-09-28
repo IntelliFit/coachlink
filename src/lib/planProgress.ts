@@ -71,7 +71,7 @@ export const deriveEffectiveStartExecutionDay = (params: {
             if (status !== "completed" && status !== "abandoned") return 0;
             return Number(execution?.day_index ?? key);
         })
-        .filter((dayIndex) => dayIndex > 1 && planDayIndexSet.has(dayIndex))
+        .filter((dayIndex) => dayIndex >= 1 && planDayIndexSet.has(dayIndex))
         .sort((a, b) => a - b);
 
     if (resolvedDayIndexes.length === 0) return storedStartExecutionDay;
@@ -188,7 +188,7 @@ export const deriveStrictSequentialProgressDay = (params: {
         const executionStatus = normalizeExecutionStatus(execution);
         const executionResolvedDate = getExecutionResolvedDate(execution);
         const isTerminalExecution = executionStatus === "completed" ||
-            executionStatus === "abandoned";
+            (executionStatus === "abandoned" && execution?.close_reason !== "superseded_by_late_completion");
 
         const dayType = String(day?.type || "training");
         let isResolved = false;
@@ -197,10 +197,7 @@ export const deriveStrictSequentialProgressDay = (params: {
         if (dayType === "training") {
             isResolved = isTerminalExecution;
             if (isResolved) {
-                resolvedAt = executionResolvedDate &&
-                        executionResolvedDate.getTime() >= activationDate.getTime()
-                    ? executionResolvedDate
-                    : activationDate;
+                resolvedAt = executionResolvedDate || activationDate;
             }
         } else {
             const hasRestTasks = dayHasRestTasks(day, execution, actionsMap);
@@ -214,9 +211,21 @@ export const deriveStrictSequentialProgressDay = (params: {
                         : activationDate;
                 }
             } else {
-                // Rest day without tasks auto-resolves on the next day.
-                isResolved = todayStart.getTime() > activationDate.getTime();
+                // A later resolved training proves that these intervening pure
+                // recovery days were already crossed. Never rewind into them
+                // because an earlier workout was confirmed/edited afterwards.
+                // Do not cross an unresolved training or a rest day with tasks.
+                const nextActionable = sortedPlanDays.slice(idx + 1).find(next =>
+                    String(next?.type || 'training') === 'training' ||
+                    dayHasRestTasks(next, executionsByDayIndex[getDayIndex(next)], actionsMap));
+                const nextExecution = nextActionable ? executionsByDayIndex[getDayIndex(nextActionable)] : null;
+                const nextStatus = normalizeExecutionStatus(nextExecution);
+                const crossed = nextStatus === 'completed' ||
+                    (nextStatus === 'abandoned' && nextExecution?.close_reason !== 'superseded_by_late_completion');
+                isResolved = crossed || todayStart.getTime() > activationDate.getTime();
+                const nextResolvedDate = crossed ? getExecutionResolvedDate(nextExecution) : null;
                 resolvedAt = isResolved ? addBeijingDays(activationDate, 1) : null;
+                if (resolvedAt && nextResolvedDate && nextResolvedDate < resolvedAt) resolvedAt = nextResolvedDate;
             }
         }
 

@@ -9,22 +9,24 @@ import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlemen
 export async function updateEstimatedEndDateForInstance(instanceId: string) {
   try {
     // 1. 获取计划实例信息
-    const { data: instance } = await supabase
+    const { data: instance, error: instanceError } = await supabase
       .from("coach_plan_instances")
       .select("id, coach_subscription_id, training_days, start_execution_day, created_at")
       .eq("id", instanceId)
       .single();
+    if (instanceError) throw instanceError;
 
     if (!instance?.coach_subscription_id || !instance.training_days) {
       return;
     }
 
     // 2. 读取订阅信息（subscribed_weeks 决定 credits 作用范围）
-    const { data: subscription } = await supabase
+    const { data: subscription, error: subscriptionError } = await supabase
       .from("coach_subscriptions")
       .select("id, start_date, end_date, subscribed_weeks, status")
       .eq("id", instance.coach_subscription_id)
       .maybeSingle();
+    if (subscriptionError) throw subscriptionError;
 
     const subscribedWeeks = Number((subscription as any)?.subscribed_weeks || 0);
     if (!Number.isFinite(subscribedWeeks) || subscribedWeeks <= 0) {
@@ -40,11 +42,12 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
     });
 
     // 3. 获取已完成的训练天数
-    const { data: completedExecutions } = await supabase
+    const { data: completedExecutions, error: executionsError } = await supabase
       .from("plan_instance_executions")
-      .select("day_index, status")
+      .select("day_index, status, completed_at, started_at, updated_at, created_at")
       .eq("instance_id", instanceId)
       .eq("status", "completed");
+    if (executionsError) throw executionsError;
 
     const model = deriveSubscriptionEntitlementState({
       subscription: subscription as any,
@@ -61,10 +64,11 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
       return;
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("coach_subscriptions")
       .update({ end_date: nextEndDate } as any)
       .eq("id", instance.coach_subscription_id);
+    if (updateError) throw updateError;
 
     console.log(
       `Updated subscription ${instance.coach_subscription_id}: ` +

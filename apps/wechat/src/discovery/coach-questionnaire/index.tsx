@@ -188,7 +188,7 @@ export default function CoachQuestionnairePage() {
       `orderId=${encodeURIComponent(params.orderId)}`,
       `amount=${encodeURIComponent(String(params.amount))}`,
       coachId ? `coachId=${encodeURIComponent(coachId)}` : '',
-      'provider=wechat',
+      'provider=huifu',
       params.initialStatus ? `initialStatus=${encodeURIComponent(params.initialStatus)}` : ''
     ].filter(Boolean).join('&')
 

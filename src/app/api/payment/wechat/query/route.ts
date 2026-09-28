@@ -12,6 +12,13 @@ import {
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 import { fulfillContentPurchasePaid } from "@/app/api/payment/alipay/contentPurchaseFulfillment";
+import { queryWechatXPayOrder } from "@/lib/wechatXPay";
+import {
+    fulfillPaidXPayOrder,
+    markXPayOrderPaid,
+    markXPayOrderRefunded,
+    validateXPayOrderMatch,
+} from "@/app/api/payment/wechat/xpayOrder";
 
 export const runtime = "nodejs";
 
@@ -129,6 +136,67 @@ export async function POST(request: NextRequest) {
                   : order.status === "failed" || order.status === "refunded"
                     ? "failed"
                     : "pending";
+
+        if (String(order.payment_provider || "") === "wechat_xpay") {
+            const orderData = (order.order_data || {}) as Record<string, any>;
+            if (paymentStatus === "pending") {
+                const xpayOrder = await queryWechatXPayOrder({
+                    openId: String(orderData.xpay_openid || ""),
+                    outTradeNo: String(orderData.xpay_out_trade_no || ""),
+                });
+                const xpayStatus = Number(xpayOrder?.status ?? 0);
+                if ([2, 3, 4].includes(xpayStatus)) {
+                    validateXPayOrderMatch(order as any, {
+                        outTradeNo: String(orderData.xpay_out_trade_no || ""),
+                        openId: String(orderData.xpay_openid || ""),
+                        env: Number(orderData.xpay_env),
+                        actualPrice: Math.round(Number(xpayOrder?.paid_fee || 0)),
+                    });
+                    latestOrder = await markXPayOrderPaid(order as any, {
+                        paidAt: Number(xpayOrder?.paid_time) > 0
+                            ? new Date(Number(xpayOrder?.paid_time) * 1000)
+                            : new Date(),
+                        transactionId: String(xpayOrder?.wxpay_order_id || xpayOrder?.wx_order_id || ""),
+                    });
+                    paymentStatus = "success";
+                } else if ([5, 8].includes(xpayStatus)) {
+                    const refundResult = await markXPayOrderRefunded(order as any, {
+                        refundFee: Math.round(Number(xpayOrder?.refund_fee || order.total_amount || 0)),
+                        transactionId: String(xpayOrder?.wxpay_order_id || ""),
+                    });
+                    paymentStatus = refundResult.fullyRefunded ? "failed" : "success";
+                    latestOrder = {
+                        ...order,
+                        status: refundResult.fullyRefunded ? "refunded" : "paid",
+                    };
+                } else if (xpayStatus === 6) {
+                    await (serviceRoleSupabase.from("alipay_orders") as any)
+                        .update({ status: "closed", trade_status: "XPAY_CLOSED", updated_at: new Date().toISOString() })
+                        .eq("id", order.id)
+                        .eq("status", "pending");
+                    paymentStatus = "cancelled";
+                    latestOrder = { ...order, status: "closed" };
+                } else if (xpayStatus === 7) {
+                    paymentStatus = "failed";
+                }
+            } else if (paymentStatus === "success") {
+                await fulfillPaidXPayOrder(order as any);
+            }
+
+            return NextResponse.json<ApiData<QueryWechatPaymentResponse>>({
+                success: true,
+                message: "虚拟支付状态",
+                data: {
+                    status: paymentStatus,
+                    amount: fenToYuan(latestOrder.total_amount ?? 0),
+                    order: {
+                        id: latestOrder.id,
+                        total_amount: fenToYuan(latestOrder.total_amount ?? 0),
+                        status: latestOrder.status,
+                    },
+                },
+            });
+        }
 
         if (paymentStatus === "pending") {
             const orderData = (order.order_data || {}) as Record<string, any>;

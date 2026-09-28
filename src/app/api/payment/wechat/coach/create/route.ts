@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 查询教练汇付账户状态（分账必需）
+        // 教练订阅必须保留汇付真实分账闭环。
         const { data: coachRecord } = await serviceRoleSupabase
             .from("coaches")
             .select("huifu_id, huifu_open_status, huifu_card_token")

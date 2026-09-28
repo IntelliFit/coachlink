@@ -1,4 +1,5 @@
 'use client';
+import RecordCompletionButton from '@/app/today-training/components/RecordCompletionButton';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -2782,6 +2783,11 @@ function TrainingExecutionContent() {
             {/* Finish Section */}
             {/* Finish Section */}
             <div className="p-4 border-t border-surface-200 bg-white">
+                {!isImpromptuMode && execution?.status === 'timed_out' && (
+                    <RecordCompletionButton instanceId={instanceId} dayIndex={dayIndex} execution={execution}
+                        earliestDate={planInstance?.start_date || planInstance?.created_at}
+                        onSaved={(saved) => { setExecution(saved); setFeedbackDialogVisible(true); }} />
+                )}
                 {execution?.status === 'completed' ? (
                     <>
                         <div className="text-center mb-4 text-green-600 font-medium flex items-center justify-center gap-2">
@@ -2817,6 +2823,7 @@ function TrainingExecutionContent() {
                                 label="完成训练"
                                 onClick={handleFinishTraining}
                                 id="guide-finish-training"
+                                disabled={execution?.status === 'timed_out'}
                                 className="w-full"
                                 severity="success"
                                 size="large"
@@ -2825,7 +2832,7 @@ function TrainingExecutionContent() {
                                 <Button
                                     label={quickFinishLoading ? '快速完成中...' : '一键快速完成'}
                                     onClick={handleQuickFinishTraining}
-                                    disabled={quickFinishLoading}
+                                    disabled={quickFinishLoading || execution?.status === 'timed_out'}
                                     severity="secondary"
                                     outlined
                                     className="w-full"

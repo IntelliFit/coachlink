@@ -19,7 +19,6 @@ const MAX_QUERY_LENGTH = 160
 const HIDDEN_ROUTE_PREFIXES = [
   '/auth',
   '/common/common/video-player',
-  '/me/payment/webview',
   '/toolbox/motion-bean',
   '/toolbox/motion-effects',
   '/toolbox/pullup-rush',

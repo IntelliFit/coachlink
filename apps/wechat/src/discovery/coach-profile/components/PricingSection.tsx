@@ -60,11 +60,11 @@ export default function PricingSection({
       )}
       <View className='pricing-header'>
         <Text className='section-title'>订阅价格</Text>
-        <Text className='pricing-hint'>点击套餐后将在小程序内打开与网站一致的购买页，优先使用支付宝完成支付</Text>
+        <Text className='pricing-hint'>选择套餐后，将通过汇付微信支付完成教练服务订阅，收入按规则分账给教练</Text>
       </View>
       {!receivingAccountReady && (
         <View className='pricing-receiving-warning'>
-          <Text className='pricing-receiving-title'>教练收款账户尚未开通</Text>
+          <Text className='pricing-receiving-title'>教练汇付收款账户尚未开通</Text>
           <Text className='pricing-receiving-desc'>暂时不能通过平台购买或续费，请稍后再试或联系教练。</Text>
         </View>
       )}

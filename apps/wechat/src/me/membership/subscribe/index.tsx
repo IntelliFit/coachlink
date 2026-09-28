@@ -147,11 +147,11 @@ function MembershipSubscribe() {
       const paymentResult = await requestWechatPayment(payment.data.paymentParams)
 
       Taro.navigateTo({
-        url: `/me/payment-waiting/index?orderId=${encodeURIComponent(payment.data.orderId)}&amount=${encodeURIComponent(String(payment.data.amount))}&provider=wechat&target=membership&membershipTab=${encodeURIComponent(activeTab)}&initialStatus=${encodeURIComponent(paymentResult.status)}`
+        url: `/me/payment-waiting/index?orderId=${encodeURIComponent(payment.data.orderId)}&amount=${encodeURIComponent(String(payment.data.amount))}&provider=xpay&target=membership&membershipTab=${encodeURIComponent(activeTab)}&initialStatus=${encodeURIComponent(paymentResult.status)}`
       })
     } catch (error: any) {
       Taro.showToast({
-        title: error?.message || '拉起微信支付失败',
+        title: error?.message || '拉起微信官方虚拟支付失败',
         icon: 'none'
       })
     } finally {
@@ -234,7 +234,7 @@ function MembershipSubscribe() {
 
           <View className='notice-box'>
             <View className='notice-text'>
-              <Notice /> 提示：会员升级现在会直接拉起小程序微信支付，请确认当前微信账号已完成小程序登录。
+              <Notice /> 提示：购买将通过微信官方小程序虚拟支付完成，请确认当前微信账号已完成小程序登录。
             </View>
           </View>
         </View>

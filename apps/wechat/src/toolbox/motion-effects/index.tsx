@@ -1022,7 +1022,7 @@ export default function FingerMotionEffectsPage() {
 
   const openWechatPayment = async (created: CheckoutResponse) => {
     const paymentParams = created.paymentInfo?.paymentParams
-    if (!paymentParams) throw new Error('微信支付参数缺失，请稍后重试')
+    if (!paymentParams) throw new Error('微信官方虚拟支付参数缺失，请稍后重试')
 
     const result = await requestWechatPayment(paymentParams)
     if (result.status === 'cancelled') {
@@ -1030,7 +1030,7 @@ export default function FingerMotionEffectsPage() {
       return
     }
     if (!result.success) {
-      throw new Error(result.message || '微信支付调起失败')
+      throw new Error(result.message || '微信官方虚拟支付调起失败')
     }
 
     const confirmed = await confirmWechatPayment(created.order.id, created.job.id)
@@ -1042,10 +1042,12 @@ export default function FingerMotionEffectsPage() {
   const createCheckout = async (jobId: string) => {
     setPaying(true)
     try {
+      const login = await Taro.login()
+      if (!login.code) throw new Error('获取微信登录状态失败，请重试')
       const created = await callApi<CheckoutResponse>({
         url: `/api/toolbox/motion-effects/jobs/${jobId}/order`,
         method: 'POST',
-        data: { paymentProvider: 'wechat' }
+        data: { paymentProvider: 'wechat', loginCode: login.code }
       })
       setCheckout(created)
       setJob(created.job)
@@ -1071,13 +1073,10 @@ export default function FingerMotionEffectsPage() {
 
   const handleRetryPayment = async () => {
     if (!checkout || paying) return
-    setPaying(true)
     try {
-      await openWechatPayment(checkout)
+      await createCheckout(checkout.job.id)
     } catch (error: any) {
-      Taro.showToast({ title: error?.message || '微信支付调起失败', icon: 'none' })
-    } finally {
-      setPaying(false)
+      Taro.showToast({ title: error?.message || '微信官方虚拟支付调起失败', icon: 'none' })
     }
   }
 
@@ -1498,7 +1497,7 @@ export default function FingerMotionEffectsPage() {
             {formatPrice(checkout.order.totalAmountCents)}
           </Text>
           <Text className='motion-hint'>
-            支付成功后才会占用服务器算力开始生成。付款将在当前小程序内直接调起微信支付。
+            支付成功后才会占用服务器算力开始生成。付款将在当前小程序内直接调起微信官方虚拟支付。
           </Text>
           <View className='motion-payment-actions'>
             <View className='motion-button motion-button-secondary' onClick={handleRetryPayment}>

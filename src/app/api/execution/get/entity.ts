@@ -6,6 +6,10 @@ export interface GetExecutionDto {
 
 // 返回参数的接口类型
 export interface GetExecutionResponseDto {
+    performed_on?: string | null;
+    completion_recorded_at?: string | null;
+    updated_at?: string;
+    last_saved_at?: string | null;
     id: string;
     instance_id: string;
     student_id: string;

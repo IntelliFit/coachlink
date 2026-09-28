@@ -73,8 +73,6 @@ export default {
         'messages/index',
         'messages/chat/index',
         'my-coaches/index',
-        'payment/webview/index',
-        'payment/wechat/index',
         'payment-waiting/index',
         'user/index',
       ],
