@@ -7,6 +7,12 @@
 - UI verification tool: `web-devtools`
 - Memory rule: durable project facts must be written to `CURRENT_TASK.md`, `DECISIONS.md`, or `memory/YYYY-MM-DD.md` instead of living only in chat history
 
+## 全量免费体验版发布 (`2026-10-02`)
+
+- 用户已授权全量提交、Web/API更新及新免费体验版上传（不含提审/正式发布）。代码8608e830已同步GitHub/Gitee dev/main；生产三项历史迁移已应用并核对service_role-only RPC。
+- 65文件413测试、根typecheck、Next545页、生产小程序2877模块/124页、隔离E2E4项与真实Redis并发/故障均通过；隔离数据0残留。CCR摘要1ef19b88已推送latest/main/dev/8608e83，main/dev全部6个主容器该摘要且均Ready；线上health/login/公开教练200及免费新订单403。
+- 免费体验版2026.10.02.0714已于北京时间07:16:48由官方DevTools CLI上传成功，9.4MB/主包1.9MB，源码8608e830；未提审/正式发布。新免费页本轮自动截图等待后terminated，视觉排版需真机验收。详见docs/work/release-2026-10-02.md。
+
 ## 微信小程序临时免费候选版 (`2026-10-02`)
 
 - 最新文案（用户截图核验后）：免费版旧会员入口/深链源码与包标题均“功能与用量”，删除内部迁移与原会员记录展示，个人资料会员徽章仅收费策略显示；真实历史数据及订单/分账保留。typecheck/413测试、Next545页和小程序2890模块重新通过，124页产物完整。工具实读新版卡片并可从个人菜单点击进入，但个人菜单仍旧“免费权益”与新包不一致，正常刷新一次后仍在；不称新菜单/全部页面已验收。原截图已检查，自动截图仍超时，新排版待用户截图。当前本地包API3001，health200，免费额度因Redis主机redis无法解析而失败；未发布，不保证微信审核。
