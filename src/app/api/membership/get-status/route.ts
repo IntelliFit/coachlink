@@ -3,6 +3,7 @@ import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
 import { StudentMembership } from "@/app/service/studentMembershipService";
+import { isWechatFreeRequest } from '@/lib/wechatFreeRelease';
 
 async function handle(request: NextRequest) {
     const requestUserId = await getApiUserId(request);
@@ -10,7 +11,7 @@ async function handle(request: NextRequest) {
     const { userId: bodyUserId } = request.method === "GET"
         ? { userId: undefined }
         : await request.json().catch(() => ({}));
-    const targetUserId = bodyUserId || requestUserId;
+    const targetUserId = await isWechatFreeRequest(request) ? requestUserId : bodyUserId || requestUserId;
 
     if (!targetUserId) {
         return NextResponse.json({

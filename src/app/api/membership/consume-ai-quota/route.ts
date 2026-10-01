@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from '@/lib/getApiUserId';
 import { checkAndConsumeAiQuota } from "@/lib/membershipLimit";
 
 export async function POST(request: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const userId = await getApiUserId(request);
+    if (!userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -13,7 +13,6 @@ export async function POST(request: Request) {
     }
 
     const { count = 1 } = await request.json();
-    const userId = session.user.id;
 
     const result = await checkAndConsumeAiQuota(userId, count);
 

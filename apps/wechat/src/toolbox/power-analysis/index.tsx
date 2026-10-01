@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { WECHAT_FREE_RELEASE, WECHAT_FREE_LIMITS, wechatReleaseHeaders } from '@coachlink/core'
 import { Input, Text, View, Video } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
@@ -177,11 +178,11 @@ const POWER_CHALLENGE_TEMPLATE_IDS = {
 } as const
 const DEFAULT_ENTITLEMENTS: PowerAnalysisEntitlements = {
   tier: 'free',
-  canUseOriginalQuality: false,
-  availableQualities: ['compressed'],
-  maxVideoSizeMb: 100,
-  maxDurationSeconds: 30,
-  dailyLimit: 5
+  canUseOriginalQuality: WECHAT_FREE_RELEASE,
+  availableQualities: WECHAT_FREE_RELEASE ? ['compressed', 'original'] : ['compressed'],
+  maxVideoSizeMb: WECHAT_FREE_RELEASE ? WECHAT_FREE_LIMITS.powerVideoMb : 100,
+  maxDurationSeconds: WECHAT_FREE_RELEASE ? WECHAT_FREE_LIMITS.powerDurationSeconds : 30,
+  dailyLimit: WECHAT_FREE_RELEASE ? WECHAT_FREE_LIMITS.powerDaily : 5
 }
 function formatMetric(value: number | undefined, digits = 1) {
   const n = Number(value || 0)
@@ -432,6 +433,7 @@ async function uploadPowerAnalysisChunk(url: string, chunk: ArrayBuffer, token: 
         method: 'POST',
         data: chunk,
         header: {
+          ...wechatReleaseHeaders(),
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/octet-stream'
         },
@@ -769,6 +771,10 @@ export default function WechatPowerAnalysisPage() {
   const handleQualityChange = (nextQuality: PowerAnalysisQuality) => {
     if (settingsLocked) return
     if (nextQuality === 'original' && !entitlements.canUseOriginalQuality) {
+      if (WECHAT_FREE_RELEASE) {
+        Taro.showToast({ title: '原画质服务暂不可用，请稍后重试', icon: 'none' })
+        return
+      }
       Taro.showModal({
         title: '会员原画质',
         content: '开通会员后可上传原画质视频，并获得更大的视频与分析额度。',
@@ -1260,7 +1266,7 @@ export default function WechatPowerAnalysisPage() {
               <View className='option-heading-row'>
                 <Text className='option-heading'>视频画质</Text>
                 <Text className='option-entitlement'>
-                  {membershipLabel(entitlements.tier)} · 最大 {entitlements.maxVideoSizeMb}MB
+                  {WECHAT_FREE_RELEASE ? '' : `${membershipLabel(entitlements.tier)} · `}最大 {entitlements.maxVideoSizeMb}MB
                 </Text>
               </View>
               <View className='quality-options'>
@@ -1276,7 +1282,7 @@ export default function WechatPowerAnalysisPage() {
                   onClick={() => handleQualityChange('original')}
                 >
                   <Text className='analysis-option-title'>原画质</Text>
-                  <Text className='analysis-option-desc'>会员权益 · 保留分辨率与帧率</Text>
+                  <Text className='analysis-option-desc'>{WECHAT_FREE_RELEASE ? '保留分辨率与帧率' : '会员权益 · 保留分辨率与帧率'}</Text>
                 </View>
               </View>
             </View>

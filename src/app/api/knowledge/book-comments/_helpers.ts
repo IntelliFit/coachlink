@@ -1,4 +1,5 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { isWechatFreeRequest } from '@/lib/wechatFreeRelease';
 import type { KnowledgeBookCommentRow } from "@/types";
 import type { KnowledgeBookDiscussionComment } from "@/types/knowledgeBookDiscussion";
 
@@ -21,7 +22,7 @@ export async function userCanReadBook(userId: string, bookId: string) {
     .maybeSingle();
   if (error) throw error;
   if (!book || !book.is_published) return false;
-  if (book.is_free) return true;
+  if (book.is_free || await isWechatFreeRequest()) return true;
 
   const { data: subscription, error: subscriptionError } = await serviceRoleSupabase
     .from("knowledge_subscriptions")

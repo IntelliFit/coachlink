@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -225,7 +226,7 @@ function PlanCurrent() {
               </View>
               <Text className="empty-title">开启您的训练旅程</Text>
               <Text className="empty-desc">
-                订阅教练获取专业计划，或在计划库中创建专属训练
+                {WECHAT_FREE_RELEASE ? '可在计划库中免费创建专属训练；已有教练服务继续提供计划' : '订阅教练获取专业计划，或在计划库中创建专属训练'}
               </Text>
               <View className="empty-actions">
                 <View className="action-btn primary" onClick={goToDiscovery}>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { View, Text, Image } from '@tarojs/components'
 import { Lock } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
@@ -135,7 +136,7 @@ export default function ArticlesPage() {
                   {!article.free ? (
                     <View className='article-badge article-badge-locked'>
                       <Lock size={12} color='#99a2b3' style={{ marginRight: '4rpx' }} />
-                      <Text>订阅内容</Text>
+                      <Text>{WECHAT_FREE_RELEASE ? '教练学员内容' : '订阅内容'}</Text>
                     </View>
                   ) : article.free ? (
                     <View className='article-badge article-badge-free'>

@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import FreeMembershipPage from '@/components/FreeMembershipPage'
 import { View, Text, ScrollView, Button } from '@tarojs/components'
 import Taro, {
   useDidShow,
@@ -268,4 +270,6 @@ function MembershipReferral() {
   )
 }
 
-export default MembershipReferral
+export default function MembershipReferralPage() {
+  return WECHAT_FREE_RELEASE ? <FreeMembershipPage /> : <MembershipReferral />
+}

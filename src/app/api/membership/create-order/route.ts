@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { yuanToFen, fenToYuan } from "@/lib/moneyUtils";
@@ -38,6 +39,8 @@ const TEST_PRICING_ENABLED =
 const PRODUCTS = TEST_PRICING_ENABLED ? TEST_PRODUCTS : REAL_PRODUCTS;
 
 export async function POST(request: Request) {
+    const paused = rejectWechatPurchase(request);
+    if (paused) return paused;
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({

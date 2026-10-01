@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro'
+import { wechatReleaseHeaders } from '@coachlink/core'
 import { request, API_BASE_URL } from '../utils/request'
 
 interface PRRecord {
@@ -97,6 +98,7 @@ class ExecutionService {
   private getAuthHeader() {
     const token = Taro.getStorageSync('token') || ''
     return {
+      ...wechatReleaseHeaders(),
       Authorization: token ? `Bearer ${token}` : ''
     }
   }

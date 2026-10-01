@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { createAlipaySdk } from "@/lib/alipaySdk";
 import { fenToYuan } from "@/lib/moneyUtils";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
@@ -40,6 +41,8 @@ export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const paused = rejectWechatPurchase(req);
+  if (paused) return paused;
   const requestBody = (await req.json().catch(() => ({}))) as {
     paymentProvider?: "alipay" | "wechat";
     returnUrlOnly?: boolean;
@@ -48,6 +51,10 @@ export async function POST(
   const returnUrlOnly = requestBody?.returnUrlOnly === true;
   const paymentProvider =
     requestBody?.paymentProvider === "wechat" ? "wechat" : "alipay";
+  if (paymentProvider === 'wechat') {
+    const wechatPaused = rejectWechatPurchase(req, { wechatOnly: true });
+    if (wechatPaused) return wechatPaused;
+  }
   const storedPaymentProvider = paymentProvider === "wechat" ? "wechat_xpay" : "alipay";
   const identity = await getMotionEffectRequestIdentity(req);
   const { id } = await context.params;

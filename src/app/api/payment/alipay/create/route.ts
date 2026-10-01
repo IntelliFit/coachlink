@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -59,6 +60,8 @@ function extractHuifuPayInfo(payResult: Record<string, any>) {
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
 // 流程和博客：https://kirigaya.cn/blog/article?seq=361
 export async function POST(req: Request) {
+    const paused = rejectWechatPurchase(req);
+    if (paused) return paused;
     const session = await getServerSession();
 
     // 构建回调地址：优先使用环境变量（本地开发时可指向线上），否则从请求头推断

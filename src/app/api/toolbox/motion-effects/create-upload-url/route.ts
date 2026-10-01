@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { NextResponse } from "next/server";
 import presets from "../../../../../../config/motion-effects-presets.json";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
@@ -38,6 +39,8 @@ function option<T extends string>(value: unknown, allowed: readonly T[], fallbac
 }
 
 export async function POST(req: Request) {
+    const paused = rejectWechatPurchase(req);
+    if (paused) return paused;
   const identity = await getMotionEffectRequestIdentity(req);
 
   let body: CreateMotionEffectUploadDto;

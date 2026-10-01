@@ -2,6 +2,7 @@
  * 鏀粯鐩稿叧锛氬悓鏃朵繚鐣欐棫鏀粯瀹濊烦杞兘鍔涳紝骞舵柊澧炲皬绋嬪簭鍐呭師鐢熷井淇℃敮浠樿兘鍔涖€?
  */
 import { request } from '@/utils/request'
+import { WECHAT_FREE_RELEASE, WECHAT_PURCHASE_PAUSED_MESSAGE } from '@coachlink/core'
 import Taro from '@tarojs/taro'
 import {
   isVirtualPaymentCancellation,
@@ -60,6 +61,7 @@ export function buildCoachSubscriptionPaymentStartUrl(params: {
 export async function createAlipayOrder(
   params: CreateAlipayOrderParams & { showErrorToast?: boolean }
 ): Promise<{ success: boolean; paymentUrl?: string; orderId?: string; message?: string }> {
+  if (WECHAT_FREE_RELEASE) return { success: false, message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   const { showErrorToast = true, ...rest } = params
   const res = await request<CreateAlipayOrderResponse>({
     url: '/api/payment/alipay/create',
@@ -169,6 +171,7 @@ export async function createCoachWechatPayment(params: {
   subject?: string
   testAmountFen?: number
 }): Promise<{ success: boolean; data?: CreateCoachWechatPaymentResponse; message?: string }> {
+  if (WECHAT_FREE_RELEASE) return { success: false, message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   const res = await request<CreateCoachWechatPaymentResponse>({
     url: '/api/payment/wechat/coach/create',
     method: 'POST',
@@ -188,6 +191,7 @@ export async function createCoachWechatPayment(params: {
 export async function createMembershipWechatPayment(params: {
   productKey: string
 }): Promise<{ success: boolean; data?: CreateMembershipWechatPaymentResponse; message?: string }> {
+  if (WECHAT_FREE_RELEASE) return { success: false, message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   const login = await Taro.login()
   if (!login.code) {
     return { success: false, message: '获取微信登录状态失败，请重试' }
@@ -237,6 +241,7 @@ export async function requestCoachWechatPayment(params: CoachWechatPaymentParams
   status: 'success' | 'cancelled' | 'failed'
   message?: string
 }> {
+  if (WECHAT_FREE_RELEASE) return { success: false, status: 'failed', message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   try {
     await Taro.requestPayment({
       timeStamp: params.timeStamp,
@@ -259,6 +264,7 @@ export async function requestCoachWechatPayment(params: CoachWechatPaymentParams
 }
 
 export async function requestWechatPayment(params: WechatPaymentParams) {
+  if (WECHAT_FREE_RELEASE) return { success: false, status: 'failed' as const, message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   try {
     await requestVirtualPaymentAndWait((Taro as any).requestVirtualPayment, params)
     return { success: true, status: 'success' as const }

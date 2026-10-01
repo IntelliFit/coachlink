@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import FreeReleaseInfo from '@/components/FreeReleaseInfo'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { Button, Checkbox, Radio, Skeleton } from '@nutui/nutui-react-taro'
@@ -102,7 +104,7 @@ function isQuestionAnswered(item: TrainingItem): boolean {
   return item.userSelection !== undefined && item.userSelection !== null && String(item.userSelection).trim() !== ''
 }
 
-export default function CoachQuestionnairePage() {
+function CoachQuestionnaireForm() {
   const { effectiveTheme } = useTheme()
   const router = useRouter()
   const [answers, setAnswers] = useState<TrainingItem[]>([])
@@ -507,4 +509,11 @@ export default function CoachQuestionnairePage() {
       </View>
     </View>
   )
+}
+
+export default function CoachQuestionnairePage() {
+  const router = useRouter()
+  return WECHAT_FREE_RELEASE && router.params.mode !== 'edit'
+    ? <FreeReleaseInfo title='服务暂未开放' description='已有学员可以从“我的教练”进入并修改问卷。' />
+    : <CoachQuestionnaireForm />
 }

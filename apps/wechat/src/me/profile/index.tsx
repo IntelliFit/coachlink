@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -201,7 +202,7 @@ function Profile() {
     : '未登录'
   const displaySubtitle = isAuthenticated
     ? String(user?.phone || '训练、服务和消息会在这里持续沉淀')
-    : '登录后同步训练记录、会员、订单和消息'
+    : WECHAT_FREE_RELEASE ? '登录后同步训练记录、计划和消息' : '登录后同步训练记录、会员、订单和消息'
   const roleBadgeText = isAuthenticated ? (primaryRole === 'coach' ? '教练身份' : '学员身份') : '游客模式'
   const statusBadgeText = isAuthenticated ? `${points}积分` : '点击登录'
 
@@ -316,8 +317,8 @@ function Profile() {
     },
     {
       key: 'my-membership',
-      label: '我的会员',
-      icon: 'icon-vips',
+      label: WECHAT_FREE_RELEASE ? '功能与用量' : '我的会员',
+      icon: WECHAT_FREE_RELEASE ? 'icon-account-settings-variant' : 'icon-vips',
       iconBg: '#FFA940',
       path: '/me/membership/index',
       requiresAuth: true
@@ -599,7 +600,7 @@ function Profile() {
           <View className='guest-notice-card'>
             <Text className='guest-notice-title'>登录后解锁你的训练资产</Text>
             <Text className='guest-notice-desc'>
-              计划、会员、消息、购买记录和训练历史都会在登录后自动同步到这里。
+              {WECHAT_FREE_RELEASE ? '计划、消息和训练历史都会在登录后自动同步到这里。' : '计划、会员、消息、购买记录和训练历史都会在登录后自动同步到这里。'}
             </Text>
           </View>
         )}

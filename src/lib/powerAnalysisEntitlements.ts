@@ -1,4 +1,6 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { WECHAT_FREE_LIMITS } from '@coachlink/core';
+import { isWechatFreeRequest } from '@/lib/wechatFreeRelease';
 
 export type PowerAnalysisQuality = "compressed" | "original";
 export type PowerAnalysisOverlayLanguage = "zh" | "en";
@@ -82,6 +84,7 @@ export function buildPowerAnalysisEntitlements(
 export async function getPowerAnalysisEntitlements(
   userId: string,
 ): Promise<PowerAnalysisEntitlements> {
+  const freeRelease = await isWechatFreeRequest();
   const { data, error } = await db
     .from("student_memberships")
     .select("tier,status,end_date")
@@ -90,10 +93,24 @@ export async function getPowerAnalysisEntitlements(
 
   if (error) {
     console.warn("[power-analysis/entitlements] membership lookup failed:", error.message);
-    return buildPowerAnalysisEntitlements("free");
+    return applyWechatFreePowerEntitlements(buildPowerAnalysisEntitlements("free"), freeRelease);
   }
 
-  return buildPowerAnalysisEntitlements(isActiveMembership(data) ? data?.tier : "free");
+  return applyWechatFreePowerEntitlements(
+    buildPowerAnalysisEntitlements(isActiveMembership(data) ? data?.tier : "free"), freeRelease,
+  );
+}
+
+export function applyWechatFreePowerEntitlements(entitlements: PowerAnalysisEntitlements, freeRelease: boolean) {
+  if (!freeRelease) return entitlements;
+  return {
+    ...entitlements,
+    canUseOriginalQuality: true,
+    availableQualities: ['compressed', 'original'] as PowerAnalysisQuality[],
+    maxVideoSizeMb: Math.max(entitlements.maxVideoSizeMb, WECHAT_FREE_LIMITS.powerVideoMb),
+    maxDurationSeconds: Math.max(entitlements.maxDurationSeconds, WECHAT_FREE_LIMITS.powerDurationSeconds),
+    dailyLimit: Math.max(entitlements.dailyLimit, WECHAT_FREE_LIMITS.powerDaily),
+  };
 }
 
 export function normalizePowerAnalysisQuality(

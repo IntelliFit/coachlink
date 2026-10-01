@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { CreateAlipayOrderResponseDto } from "../entity";
@@ -7,6 +8,8 @@ import { yuanToFen, fenToYuan } from "@/lib/moneyUtils";
 
 // 访客支付：独立于登录支付，仅用于创建订单与展示二维码
 export async function POST(req: Request) {
+    const paused = rejectWechatPurchase(req);
+    if (paused) return paused;
     // 构建回调地址：优先使用环境变量，否则从请求头推断
     const envNotifyUrl = process.env.ALIPAY_NOTIFY_URL;
     const envReturnUrl = process.env.ALIPAY_RETURN_URL;

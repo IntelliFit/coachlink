@@ -1,0 +1,28 @@
+.free-release-page {
+  min-height: 100vh;
+  padding: 32rpx;
+  box-sizing: border-box;
+  background: #f6f2ec;
+  color: #2f241f;
+  .free-release-card {
+    padding: 32rpx;
+    border-radius: 24rpx;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 24rpx;
+  }
+  .free-release-title { font-size: 36rpx; font-weight: 600; }
+  .free-release-copy { font-size: 28rpx; line-height: 1.6; }
+  .free-release-button {
+    padding: 24rpx;
+    border-radius: 16rpx;
+    background: #CF6D4E;
+    color: #fff;
+    text-align: center;
+    font-size: 28rpx;
+    &:active { opacity: .85; }
+  }
+  &.theme-dark { background: #151718; color: #eee; }
+  &.theme-dark .free-release-card { background: #242627; }
+}

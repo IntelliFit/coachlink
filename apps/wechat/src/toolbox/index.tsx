@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { Image, ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import motionBeanCover from '@/assets/images/toolbox-games/motion-bean-game-v2.webp'
@@ -39,11 +40,11 @@ const MINI_GAMES: ToolboxEntry[] = [
   {
     badge: '手指互动',
     cover: motionEffectsCover,
-    description: '伸出几根手指，光膜就跟着变化，生成可分享的特效视频。',
+    description: WECHAT_FREE_RELEASE ? '特效视频暂未开放，其他训练工具可继续使用。' : '伸出几根手指，光膜就跟着变化，生成可分享的特效视频。',
     iconClass: 'icon-star',
     key: 'motion-effects',
     label: '手指光膜',
-    tags: ['动态指尖', '可分享'],
+    tags: WECHAT_FREE_RELEASE ? ['暂未开放'] : ['动态指尖', '可分享'],
     url: '/toolbox/motion-effects/index'
   },
   {

@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { listCoachActions, copyCoachAction, handleApiError } from '@/services/actionLibPageService'
@@ -95,10 +96,10 @@ export default function CopyFromCoachPage() {
   if (actions.length === 0) {
     return (
       <View className={`copy-from-coach-page theme-${effectiveTheme}`}>
-        <Text className="header-hint">选择您订阅的教练分享的动作，一键复制到我的动作库</Text>
+        <Text className="header-hint">选择现有教练分享的动作，一键复制到我的动作库</Text>
         <View className="empty-wrap">
           <Text className="empty-title">暂无教练动作</Text>
-          <Text className="empty-desc">订阅教练后，可在此处添加教练分享的动作</Text>
+          <Text className="empty-desc">{WECHAT_FREE_RELEASE ? '此处仅提供现有教练服务内的共享动作，新购服务暂未开放' : '订阅教练后，可在此处添加教练分享的动作'}</Text>
         </View>
       </View>
     )
@@ -106,7 +107,7 @@ export default function CopyFromCoachPage() {
 
   return (
     <View className={`copy-from-coach-page theme-${effectiveTheme}`}>
-      <Text className="header-hint">选择您订阅的教练分享的动作，一键复制到我的动作库</Text>
+      <Text className="header-hint">选择现有教练分享的动作，一键复制到我的动作库</Text>
       {coachName && <Text className="coach-name">教练：{coachName}</Text>}
       {actions.map(a => {
         const meta = TYPE_META[typeKey(a.type)] || TYPE_META.STRENGTH

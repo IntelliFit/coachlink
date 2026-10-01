@@ -1,6 +1,9 @@
 import { serviceRoleSupabase as supabase } from "./supabaseClient";
 import { MEMBER_BENEFITS } from "@/app/service/studentMembershipService";
 import { isBefore, startOfMonth } from "date-fns";
+import { WECHAT_FREE_LIMITS } from '@coachlink/core';
+import { isWechatFreeRequest } from '@/lib/wechatFreeRelease';
+import { consumeWechatFreeAiQuota } from '@/lib/wechatFreeQuota';
 import {
     COACH_SUBSCRIPTION_TRAINING_VIDEO_STORAGE_MB,
     DEFAULT_TRAINING_VIDEO_STORAGE_MB,
@@ -76,7 +79,10 @@ export async function getOrInitStudentQuota(userId: string) {
         }
         // ai_import_balance: only repair null/undefined (0 may mean used up)
         if (existing.ai_import_balance === null || existing.ai_import_balance === undefined) {
-            patch.ai_import_balance = tierBenefits.ai_limit_monthly;
+            const { data: membership } = await supabase.from('student_memberships')
+                .select('tier').eq('user_id', userId).maybeSingle();
+            const tier = (membership?.tier || 'free') as keyof typeof MEMBER_BENEFITS;
+            patch.ai_import_balance = (MEMBER_BENEFITS[tier] || MEMBER_BENEFITS.free).ai_limit_monthly;
             patch.last_reset_date = new Date().toISOString();
         }
 
@@ -153,6 +159,10 @@ export async function checkAndConsumeAiQuota(
     userId: string,
     count: number = 1,
 ): Promise<QuotaCheckResult> {
+    if (await isWechatFreeRequest()) return consumeWechatFreeAiQuota(userId, count);
+    if (!Number.isSafeInteger(count) || count <= 0) {
+        return { success: false, remaining: 0, message: '使用次数必须是正整数' };
+    }
     // 1. Get or init quota row
     let quota: any;
     try {
@@ -272,12 +282,15 @@ export async function checkStorageAvailable(
 
     const fileSizeMB = fileSizeBytes / (1024 * 1024);
     const newUsage = quota.storage_used_mb + fileSizeMB;
+    const totalMb = await isWechatFreeRequest()
+        ? Math.max(Number(quota.storage_total_mb || 0), WECHAT_FREE_LIMITS.storageMb)
+        : quota.storage_total_mb;
 
-    if (newUsage > quota.storage_total_mb) {
+    if (newUsage > totalMb) {
         return {
             success: false,
             message: `存储空间不足 (剩余 ${
-                (quota.storage_total_mb - quota.storage_used_mb).toFixed(1)
+                Math.max(0, totalMb - quota.storage_used_mb).toFixed(1)
             } MB, 需要 ${fileSizeMB.toFixed(1)} MB)`,
         };
     }

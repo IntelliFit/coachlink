@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
+import { isWechatFreeRequest } from '@/lib/wechatFreeRelease';
 import supabase from "@/lib/supabaseClient";
 import { sanitizeBookRowForClient } from "../../_helpers/bookSanitizer";
 
@@ -54,7 +55,7 @@ export async function GET(
     }
 
     // 检查用户是否有访问权限
-    let hasAccess = book.is_free; // 免费内容直接有权限
+    let hasAccess = Boolean(book.is_free || (book.is_published && await isWechatFreeRequest(req)));
 
     if (!hasAccess) {
         // 检查用户是否订阅了知识库

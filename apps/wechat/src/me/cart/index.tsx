@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import FreeReleaseInfo from '@/components/FreeReleaseInfo'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -204,4 +206,8 @@ function CartPage() {
   )
 }
 
-export default CartPage
+export default function CartReleasePage() {
+  return WECHAT_FREE_RELEASE
+    ? <FreeReleaseInfo title='暂未开放' description='你可以继续使用训练记录、计划管理和训练工具。' />
+    : <CartPage />
+}

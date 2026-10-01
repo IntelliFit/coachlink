@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { getAuthUser } from '@/lib/auth';
+import { isWechatFreeRequest } from '@/lib/wechatFreeRelease';
 import supabase from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
@@ -19,8 +20,8 @@ function getCollectionSlug(content: unknown) {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const auth = await getAuthUser(req);
+    if (!auth.isAuthenticated || !auth.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -29,15 +30,16 @@ export async function POST(req: Request) {
     }
 
     // 重点！通过 session 获取用户 ID
-    const userId = session.user.id;
+    const userId = auth.userId;
     const { id } = await req.json() as GetKnowledgeBookDto;
 
     // 获取书籍信息
-    const { data: book, error } = await supabase
+    let query = supabase
         .from("knowledge_books")
         .select("*")
-        .eq("id", id)
-        .single();
+        .eq("id", id);
+    if (await isWechatFreeRequest(req) && !auth.user?.is_admin) query = query.eq('is_published', true);
+    const { data: book, error } = await query.single();
 
     if (error) {
         console.error("获取知识库书籍失败:", error);
@@ -57,9 +59,9 @@ export async function POST(req: Request) {
     }
 
     // 检查用户是否有访问权限
-    let hasAccess = book.is_free; // 免费内容直接有权限
+    let hasAccess = Boolean(book.is_free || (book.is_published && await isWechatFreeRequest(req)));
 
-    if (!hasAccess && session.user) {
+    if (!hasAccess && auth.user) {
         // 检查用户是否订阅了知识库
         const { data: subscription, error: subError } = await supabase
             .from("knowledge_subscriptions")
@@ -98,7 +100,7 @@ export async function POST(req: Request) {
         message: "获取知识库书籍成功",
         // GetKnowledgeBookResponseDto 反映的就是这个地方 data 的数据结构
         data: {
-            book: sanitizeBookRowForClient(book, { includeBody: true }),
+            book: sanitizeBookRowForClient(book, { includeBody: hasAccess }),
             hasAccess: hasAccess,
             collectionBooks,
         },

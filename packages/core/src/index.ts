@@ -41,3 +41,4 @@ export type AuthSession = {
 export type MainTabKey = 'training' | 'coaches' | 'knowledge' | 'toolbox' | 'profile'
 
 export * from './aiNavigator'
+export * from './wechatReleasePolicy'

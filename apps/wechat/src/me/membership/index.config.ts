@@ -1,4 +1,5 @@
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 export default {
-  navigationBarTitleText: '我的会员',
+  navigationBarTitleText: WECHAT_FREE_RELEASE ? '功能与用量' : '我的会员',
   animationType: 'none'
 }

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { NextRequest, NextResponse } from "next/server";
 import type { ApiData } from "@/types/api";
 import { getApiUserId } from "@/lib/getApiUserId";
@@ -47,6 +48,8 @@ const TEST_PRICING_ENABLED =
     process.env.PAYMENT_TEST_PRICING === "true";
 
 export async function POST(request: NextRequest) {
+    const paused = rejectWechatPurchase(request, { wechatOnly: true });
+    if (paused) return paused;
     try {
         const userId = await getApiUserId(request);
         if (!userId) {

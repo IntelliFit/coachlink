@@ -1,4 +1,5 @@
 import { View, Text, Image } from '@tarojs/components'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import type { QueryCoachSubscription, GetAggregatedInfoResponseDto, StatusThemeKey, StatusTheme } from '../types'
 import './CoachCard.scss'
 import { Message } from '@nutui/icons-react-taro'
@@ -10,7 +11,7 @@ const STATUS_THEME: Record<StatusThemeKey, StatusTheme> = {
   expired: { bg: '#e5e7eb', text: '#6b7280', label: '已过期' },
   expiring: { bg: '#fef3c7', text: '#d97706', label: '即将到期' },
   waiting: { bg: '#fef3c7', text: '#d97706', label: '待确认' },
-  inactive: { bg: '#fee2e2', text: '#dc2626', label: '待支付' }
+  inactive: { bg: '#fee2e2', text: '#dc2626', label: WECHAT_FREE_RELEASE ? '未激活' : '待支付' }
 }
 
 function getStatusKey(sub: QueryCoachSubscription): StatusThemeKey {
@@ -137,7 +138,7 @@ export default function CoachCard({ subscription, aggregated, onDetail, onRenew,
         </View>
       </View>
 
-      {isExpiring && daysLeft !== null && (
+      {!WECHAT_FREE_RELEASE && isExpiring && daysLeft !== null && (
         <View className='expiring-tip'>
           <Text className='expiring-tip-text'>即将于 {daysLeft} 天后到期，续费可继续享受专业指导。</Text>
           <Text className='expiring-tip-link' onClick={() => onRenew(subscription.coach_id)}>立即续费</Text>

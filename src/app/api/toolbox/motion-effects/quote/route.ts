@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import type { ApiData } from "@/types/api";
 import {
   getMotionEffectPrices,
@@ -9,6 +10,8 @@ import {
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+  const paused = rejectWechatPurchase(req, { message: '免费版暂不提供新的特效视频生成与导出' });
+  if (paused) return paused;
   const identity = await getMotionEffectRequestIdentity(req);
   return NextResponse.json<
     ApiData<{

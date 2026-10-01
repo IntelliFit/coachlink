@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { getServerSession } from "../../auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 
@@ -52,6 +53,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+    const paused = rejectWechatPurchase(req);
+    if (paused) return paused;
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({
@@ -140,6 +143,8 @@ export async function POST(req: Request) {
 
 // PUT route for updating a subscription
 export async function PUT(req: Request) {
+    const paused = rejectWechatPurchase(req);
+    if (paused) return paused;
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json({

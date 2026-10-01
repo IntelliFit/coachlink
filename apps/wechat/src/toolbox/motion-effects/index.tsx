@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import FreeReleaseInfo from '@/components/FreeReleaseInfo'
 import { Camera, Canvas, Text, View, Video } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
@@ -399,7 +401,7 @@ function uploadVideo(params: {
   })
 }
 
-export default function FingerMotionEffectsPage() {
+function PaidFingerMotionEffectsPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const cameraContextRef = useRef<any>(null)
   const frameListenerRef = useRef<any>(null)
@@ -1571,4 +1573,10 @@ export default function FingerMotionEffectsPage() {
       )}
     </View>
   )
+}
+
+export default function FingerMotionEffectsPage() {
+  return WECHAT_FREE_RELEASE
+    ? <FreeReleaseInfo title='特效视频暂未开放' description='你可以继续使用功率分析及其他训练工具。' />
+    : <PaidFingerMotionEffectsPage />
 }

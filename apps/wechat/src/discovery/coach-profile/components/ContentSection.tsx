@@ -1,4 +1,5 @@
 import React from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { View, Text, Image } from '@tarojs/components'
 import { Lock } from '@nutui/icons-react-taro'
 import type { CoachContentRow } from '../types'
@@ -52,7 +53,7 @@ export default function ContentSection({ contents, total, onItemClick }: Content
                   <Text className='content-title'>{c.title || '未命名'}</Text>
                   <Text className='content-meta'>
                     {c.content_type === 'video' ? '视频' : '图文'}
-                    {locked ? ' · 订阅后可见' : ''}
+                    {locked ? (WECHAT_FREE_RELEASE ? ' · 仅现有学员可见' : ' · 订阅后可见') : ''}
                   </Text>
                 </View>
               </View>

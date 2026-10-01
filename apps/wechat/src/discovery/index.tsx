@@ -1,4 +1,5 @@
 import React from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { View, Text, Input, Image, ScrollView } from '@tarojs/components'
 import { Star, Search, Eye } from '@nutui/icons-react-taro'
 import Taro, { useReachBottom } from '@tarojs/taro'
@@ -270,7 +271,7 @@ function Discovery() {
               )}
             </View>
 
-            {typeof coach.subscription_price_tier1 === 'number' && (
+            {!WECHAT_FREE_RELEASE && typeof coach.subscription_price_tier1 === 'number' && (
               <View className='price-section'>
                 <Text className='price-label'>起价</Text>
                 <Text className='price-value'>¥{coach.subscription_price_tier1}</Text>

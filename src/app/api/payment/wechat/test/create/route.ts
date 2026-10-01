@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { getApiUserId } from "@/lib/getApiUserId";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -26,6 +27,8 @@ interface CreateWechatTestPaymentResponse {
 }
 
 export async function POST(request: NextRequest) {
+    const paused = rejectWechatPurchase(request, { wechatOnly: true });
+    if (paused) return paused;
     try {
         const userId = await getApiUserId(request);
         if (!userId) {

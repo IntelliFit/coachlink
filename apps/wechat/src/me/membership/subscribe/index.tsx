@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import FreeMembershipPage from '@/components/FreeMembershipPage'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -244,4 +246,6 @@ function MembershipSubscribe() {
   )
 }
 
-export default MembershipSubscribe
+export default function MembershipSubscribePage() {
+  return WECHAT_FREE_RELEASE ? <FreeMembershipPage /> : <MembershipSubscribe />
+}

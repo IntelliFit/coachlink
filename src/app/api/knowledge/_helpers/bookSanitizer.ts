@@ -13,7 +13,8 @@ export function sanitizeBookContent(
   content: unknown,
   options: { includeBody: boolean }
 ) {
-  if (!isJsonObject(content)) return content;
+  // Legacy books can store their entire body as a plain string, not JSON.
+  if (!isJsonObject(content)) return options.includeBody ? content : null;
 
   const source = sanitizeSource(content.source);
   if (!options.includeBody) {

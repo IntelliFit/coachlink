@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { Image, Input, ScrollView, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Search } from '@nutui/icons-react-taro'
@@ -108,7 +109,7 @@ export default function KnowledgeBooksPage() {
                       <Text className='books-summary' numberOfLines={2}>{collection.summary}</Text>
                       <View className='books-meta'>
                         <Text>{collection.chapterCount > 0 ? `${collection.chapterCount} 篇章节` : '单篇解读'}</Text>
-                        <Text>{collection.representativeBook.is_free ? '免费' : '订阅'}</Text>
+                        <Text>{WECHAT_FREE_RELEASE || collection.representativeBook.is_free ? '免费' : '订阅'}</Text>
                       </View>
                     </View>
                     <Text className='books-arrow'>›</Text>

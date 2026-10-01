@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import { yuanToFen } from "@/lib/moneyUtils";
@@ -12,6 +13,8 @@ import type {
 import { Json } from "@/types/database.types";
 
 export async function POST(req: NextRequest) {
+    const paused = rejectWechatPurchase(req);
+    if (paused) return paused;
     const userId = await getApiUserId(req);
     if (!userId) {
         return NextResponse.json({

@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
+import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { AddToCartDto, AddToCartResponseDto } from './entity';
 
 export async function POST(req: Request) {
+    const paused = rejectWechatPurchase(req);
+    if (paused) return paused;
     const session = await getServerSession();
     if (!session?.user?.id) {
         return NextResponse.json<ApiData<null>>({

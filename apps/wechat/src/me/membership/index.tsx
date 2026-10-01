@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import FreeMembershipPage from '@/components/FreeMembershipPage'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -42,7 +44,7 @@ const TIER_TONE_CLASS: Record<MembershipTier, string> = {
   trial: 'tier-pill-trial'
 }
 
-export default function MembershipPage() {
+function PaidMembershipPage() {
   const { effectiveTheme } = useTheme()
   const [membership, setMembership] = useState<MembershipData | null>(null)
   const [quota, setQuota] = useState<QuotaData | null>(null)
@@ -214,4 +216,8 @@ export default function MembershipPage() {
       <BottomNav />
     </View>
   )
+}
+
+export default function MembershipPage() {
+  return WECHAT_FREE_RELEASE ? <FreeMembershipPage /> : <PaidMembershipPage />
 }

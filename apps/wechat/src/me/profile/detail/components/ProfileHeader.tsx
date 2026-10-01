@@ -1,4 +1,5 @@
 import React from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { View, Text, Image } from '@tarojs/components'
 import { Button } from '@nutui/nutui-react-taro'
 import { Icon } from '@/components/Icon'
@@ -93,7 +94,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ data, onUpdate, onEditCli
               <Text className="user-name">
                 {profile?.nickname || `用户 ${user.phone?.slice(-4)}`}
               </Text>
-              {subscriptionLevel === 'premium' && (
+              {!WECHAT_FREE_RELEASE && subscriptionLevel === 'premium' && (
                 <View className="crown-badge">
                   <Icon component={Crown} size={12} color="#CF6D4E" />
                 </View>
@@ -109,10 +110,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ data, onUpdate, onEditCli
                 <Icon component={Users} size={10} />
                 <Text className="badge-text">学员</Text>
               </View>
-              <View className={`badge badge-membership ${getLevelColor(subscriptionLevel)}`}>
-                <Icon component={Crown} size={10} />
-                <Text className="badge-text">{getLevelLabel(subscriptionLevel)}</Text>
-              </View>
+              {!WECHAT_FREE_RELEASE && (
+                <View className={`badge badge-membership ${getLevelColor(subscriptionLevel)}`}>
+                  <Icon component={Crown} size={10} />
+                  <Text className="badge-text">{getLevelLabel(subscriptionLevel)}</Text>
+                </View>
+              )}
             </View>
           </View>
 

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { View, Text, ScrollView, Image, RichText, Textarea } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import MarkdownIt from 'markdown-it'
@@ -364,8 +365,8 @@ export default function BookDetail() {
       <View className={`book-detail-page theme-${effectiveTheme}`}>
         <View className='paywall-wrap'>
           <View className='paywall-icon'><Lock size={48} color='#CF6D4E' /></View>
-          <Text className='paywall-title'>订阅后可读</Text>
-          <Text className='paywall-desc'>这本书需要订阅知识库会员后才能查看完整内容。</Text>
+          <Text className='paywall-title'>{WECHAT_FREE_RELEASE ? '内容暂不可读' : '订阅后可读'}</Text>
+          <Text className='paywall-desc'>{WECHAT_FREE_RELEASE ? '当前平台知识库免费开放，若仍无法阅读，请确认已登录或稍后重试。' : '这本书需要订阅知识库会员后才能查看完整内容。'}</Text>
           <View className='paywall-btn' onClick={() => Taro.navigateBack()}>
             <Text>返回</Text>
           </View>
@@ -402,7 +403,7 @@ export default function BookDetail() {
 
           <View className='book-badges'>
             <Text className={`book-badge ${book.is_free ? 'free' : 'paid'}`}>
-              {book.is_free ? '免费内容' : '付费内容'}
+              {WECHAT_FREE_RELEASE || book.is_free ? '免费内容' : '付费内容'}
             </Text>
             {source?.noteType === 'overview' && (
               <Text className='book-badge overview'>专题总览</Text>

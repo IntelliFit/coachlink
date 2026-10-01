@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
 import { getAuthUser } from '@/lib/auth';
+import { isWechatFreeRequest } from '@/lib/wechatFreeRelease';
 
 /**
  * GET /api/knowledge/nodes/[id]
@@ -35,7 +36,8 @@ export async function GET(
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 
-        let hasAccess = Boolean(node.is_free || auth.user?.is_admin);
+        let hasAccess = Boolean(node.is_free || auth.user?.is_admin ||
+            (auth.userId && node.is_published && await isWechatFreeRequest(request)));
         if (!hasAccess && auth.userId) {
             const { data: subscription } = await supabase
                 .from('knowledge_subscriptions')

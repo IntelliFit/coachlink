@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import {
@@ -97,6 +98,10 @@ export default function PaymentWaiting() {
   }
 
   const handleRetry = () => {
+    if (WECHAT_FREE_RELEASE) {
+      Taro.redirectTo({ url: target === 'membership' ? '/me/membership/index' : '/me/my-coaches/index' })
+      return
+    }
     if (target === 'membership') {
       Taro.redirectTo({ url: `/me/membership/subscribe/index?tab=${encodeURIComponent(membershipTab === 'addon' ? 'addon' : 'membership')}` })
       return
@@ -128,7 +133,7 @@ export default function PaymentWaiting() {
   return (
     <View className={`payment-waiting-page theme-${effectiveTheme}`}>
       <View className="payment-waiting-header">
-        <Text className="label">支付确认中</Text>
+        <Text className="label">{WECHAT_FREE_RELEASE ? '历史订单状态' : '支付确认中'}</Text>
         <View className="amount-wrap">
           <Text className="amount-symbol">¥</Text>
           <Text className="amount-value">{amount.toFixed(2)}</Text>
@@ -142,9 +147,9 @@ export default function PaymentWaiting() {
             <View className="payment-waiting-spinner">
               <View className="icon"><ArrowRight /></View>
             </View>
-            <Text className="payment-waiting-title">正在等待支付结果...</Text>
+            <Text className="payment-waiting-title">{WECHAT_FREE_RELEASE ? '正在查询历史订单状态…' : '正在等待支付结果...'}</Text>
             <Text className="payment-waiting-hint">
-              {provider === 'xpay'
+              {WECHAT_FREE_RELEASE ? '正在同步订单记录，请稍候。' : provider === 'xpay'
                 ? '微信官方虚拟支付已拉起，完成支付后请稍候，系统会自动同步结果'
                 : '微信支付已拉起，完成支付后请稍候，汇付分账状态会自动同步'}
             </Text>
@@ -177,7 +182,7 @@ export default function PaymentWaiting() {
           <View>
             <Text className="tip-label">安全提醒</Text>
             <Text className="tip-text">
-              支付过程中请勿关闭本页，返回小程序后保持在本页，系统会每 5 秒自动同步支付结果。
+              {WECHAT_FREE_RELEASE ? '系统每 5 秒同步既有订单结果，也可手动刷新查询。' : '支付过程中请勿关闭本页，返回小程序后保持在本页，系统会每 5 秒自动同步支付结果。'}
             </Text>
           </View>
         </View>
@@ -189,7 +194,7 @@ export default function PaymentWaiting() {
             className="payment-waiting-btn primary"
             onClick={handleManualCheck}
           >
-            <Text>我已完成支付</Text>
+            <Text>{WECHAT_FREE_RELEASE ? '刷新订单状态' : '我已完成支付'}</Text>
           </View>
         )}
 
@@ -201,7 +206,7 @@ export default function PaymentWaiting() {
 
         {(status === 'failed' || status === 'cancelled') && (
           <View className="payment-waiting-btn warn" onClick={handleRetry}>
-            <Text>{status === 'cancelled' ? '重新订阅' : '重新尝试'}</Text>
+            <Text>{WECHAT_FREE_RELEASE ? (target === 'membership' ? '功能与用量' : '查看已有教练服务') : status === 'cancelled' ? '重新订阅' : '重新尝试'}</Text>
           </View>
         )}
 
