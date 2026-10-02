@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { rebuildStreetliftingLocationContributorStats } from "../contributorStats";
+import { validateLocationInput } from '../locationInput';
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -23,6 +24,8 @@ export async function POST(req: Request) {
         }
 
         const db = serviceRoleSupabase;
+        const inputError = validateLocationInput(body);
+        if (inputError) return NextResponse.json({ success: false, message: inputError, data: null }, { status: 400 });
         const profile = (session as any)?.profile || null;
         const contributorUserId = session?.user?.id || null;
         const contributorNameSnapshot = String(
@@ -38,6 +41,8 @@ export async function POST(req: Request) {
             .from("streetlifting_locations")
             .insert([{
                 name: body.name.trim(),
+                ...(body.country !== undefined ? { country: body.country?.trim() || null } : {}),
+                ...(body.coordinate_system !== undefined ? { coordinate_system: body.coordinate_system } : {}),
                 description: body.description || null,
                 address: body.address || null,
                 city: body.city || null,

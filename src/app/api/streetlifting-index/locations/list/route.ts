@@ -20,6 +20,7 @@ export async function POST(req: Request) {
 
         const search = (body?.search || "").trim();
         const province = (body?.province || "").trim();
+        const country = (body?.country || "").trim();
         const city = (body?.city || "").trim();
         const county = (body?.county || "").trim();
 
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
         if (province && province !== "all") {
             q = q.eq("province", province);
         }
+        if (country && country !== 'all') q = q.eq('country', country);
         if (city) {
             q = q.eq("city", city);
         }
@@ -43,6 +45,7 @@ export async function POST(req: Request) {
             q = q.or(
                 [
                     `name.ilike.${pattern}`,
+                    `country.ilike.${pattern}`,
                     `province.ilike.${pattern}`,
                     `city.ilike.${pattern}`,
                     `address.ilike.${pattern}`,
@@ -69,6 +72,8 @@ export async function POST(req: Request) {
             .not("province", "is", null)
             .limit(2000);
         const provinces = Array.from(new Set((provData || []).map((x: any) => String(x.province)).filter(Boolean))).sort();
+        const { data: countryData } = await db.from('streetlifting_locations').select('country').not('country', 'is', null).limit(2000);
+        const countries = Array.from(new Set((countryData || []).map((x: any) => String(x.country)).filter(Boolean))).sort();
 
         return NextResponse.json<ApiData<StreetliftingListLocationsResponseDto>>({
             success: true,
@@ -81,6 +86,7 @@ export async function POST(req: Request) {
                     total: Number(count || 0),
                 },
                 provinces,
+                countries,
             },
         });
     } catch (error) {

@@ -32,9 +32,12 @@ import {
   type StreetliftingLocationPosterData
 } from './poster'
 import { useTheme } from '@/hooks/useTheme'
+import { isValidLocationCoordinates, parseLocationCoordinates, toWeChatCoordinates, type LocationCoordinateSystem, type LocationSelection } from '@coachlink/core'
+import { readLocationCache, writeLocationCache, type LocationDraft, type LocationListCache } from '@/utils/streetliftingLocationCache'
 
 const MAX_IMAGES = 4
 const PAGE_SIZE = 20
+const COUNTRY_OPTIONS = ['中国', '日本', '韩国', '新加坡', '马来西亚', '泰国', '印度尼西亚', '菲律宾', '越南', '印度', '阿联酋', '美国', '加拿大', '墨西哥', '巴西', '英国', '法国', '德国', '西班牙', '意大利', '荷兰', '瑞士', '瑞典', '挪威', '俄罗斯', '土耳其', '澳大利亚', '新西兰', '南非', '其他（自行填写）']
 
 type UserLocation = {
   latitude: number
@@ -228,6 +231,8 @@ export default function StreetliftingLocations() {
   const [provinces, setProvinces] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [province, setProvince] = useState('all')
+  const [country, setCountry] = useState('all')
+  const [countries, setCountries] = useState<string[]>([])
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null)
   const [locating, setLocating] = useState(false)
   const [mapPins, setMapPins] = useState<StreetliftingLocationMapPin[]>([])
@@ -259,10 +264,15 @@ export default function StreetliftingLocations() {
     city: '',
     province: '',
     county: '',
+    country: '中国',
+    coordinate_system: null as LocationCoordinateSystem | null,
     latitude: null as number | null,
     longitude: null as number | null
   })
   const [imageUrls, setImageUrls] = useState<string[]>([])
+  const [manualCoordinates, setManualCoordinates] = useState(false)
+  const [latitudeInput, setLatitudeInput] = useState('')
+  const [longitudeInput, setLongitudeInput] = useState('')
   const posterLoadResultRef = useRef<{ coverLoaded: boolean; qrLoaded: boolean }>({ coverLoaded: false, qrLoaded: false })
 
   const {
@@ -295,22 +305,30 @@ export default function StreetliftingLocations() {
 
   const fetchLocations = async (targetPage = 1, append = false) => {
     const currentRequestId = ++requestIdRef.current
+    const params = { page: targetPage, limit: PAGE_SIZE, search: search.trim() || undefined, country: country === 'all' ? undefined : country, province: province === 'all' ? undefined : province }
+    const cacheKey = `list:${JSON.stringify(params)}`
+    if (!append) {
+      const cached = readLocationCache<LocationListCache>(cacheKey)
+      if (cached && Array.isArray(cached.locations) && cached.pagination) {
+        setLocations(sortLocations(cached.locations))
+        setTotal(cached.pagination.total)
+        setPage(targetPage)
+        setCountries(cached.countries || [])
+      }
+    }
     setLoading(true)
     try {
-      const data = await streetliftingIndexService.listLocations({
-        page: targetPage,
-        limit: PAGE_SIZE,
-        search: search.trim() || undefined,
-        province: province === 'all' ? undefined : province
-      })
+      const data = await streetliftingIndexService.listLocations(params)
 
       if (currentRequestId !== requestIdRef.current) return
+      writeLocationCache(cacheKey, data)
 
       const nextLocations = sortLocations(data?.locations || [])
       setLocations((prev) => (append ? [...prev, ...nextLocations] : nextLocations))
       setTotal(data?.pagination?.total ?? nextLocations.length)
       setPage(targetPage)
       if (data?.provinces?.length) setProvinces(data.provinces)
+      setCountries(data?.countries || [])
     } catch (e) {
       if (currentRequestId === requestIdRef.current) {
         Taro.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
@@ -377,11 +395,14 @@ export default function StreetliftingLocations() {
       fetchLocations(1, false)
     }, 300)
     return () => clearTimeout(t)
-  }, [search, province])
+  }, [search, province, country])
 
   const resetForm = () => {
     setEditing(null)
-    setForm({ name: '', description: '', address: '', city: '', province: '', county: '', latitude: null, longitude: null })
+    setForm({ name: '', description: '', address: '', city: '', province: '', county: '', country: '中国', coordinate_system: null, latitude: null, longitude: null })
+    setManualCoordinates(false)
+    setLatitudeInput('')
+    setLongitudeInput('')
     setImageUrls([])
   }
 
@@ -391,6 +412,14 @@ export default function StreetliftingLocations() {
       return
     }
     resetForm()
+    const draft = readLocationCache<LocationDraft>(`draft:${authService.getCurrentUser()?.id || ''}`)
+    if (draft && draft.id === null && typeof draft.name === 'string') {
+      setForm({ name: draft.name, description: draft.description, address: draft.address, city: draft.city, province: draft.province, county: draft.county, country: draft.country, latitude: draft.latitude, longitude: draft.longitude, coordinate_system: draft.coordinate_system })
+      setImageUrls(draft.image_urls || [])
+      setManualCoordinates(false)
+      setLatitudeInput(draft.latitude == null ? '' : String(draft.latitude))
+      setLongitudeInput(draft.longitude == null ? '' : String(draft.longitude))
+    }
     setDialogOpen(true)
   }
 
@@ -400,34 +429,82 @@ export default function StreetliftingLocations() {
       return
     }
     const imgs = getLocationImages(loc)
+    const pending = readLocationCache<LocationDraft>(`draft:${authService.getCurrentUser()?.id || ''}`)
+    const source = pending?.id === loc.id ? { ...loc, ...pending } : loc
     setEditing(loc)
     setForm({
-      name: loc.name,
-      description: loc.description || '',
-      address: loc.address || '',
-      city: loc.city || '',
-      province: loc.province || '',
-      county: loc.county || '',
-      latitude: loc.latitude ?? null,
-      longitude: loc.longitude ?? null
+      name: source.name,
+      description: source.description || '',
+      address: source.address || '',
+      city: source.city || '',
+      province: source.province || '',
+      county: source.county || '',
+      country: source.country || '',
+      coordinate_system: source.coordinate_system || null,
+      latitude: source.latitude ?? null,
+      longitude: source.longitude ?? null
     })
-    setImageUrls(imgs)
+    setImageUrls(pending?.id === loc.id ? pending.image_urls : imgs)
+    setManualCoordinates(false)
+    setLatitudeInput(source.latitude == null ? '' : String(source.latitude))
+    setLongitudeInput(source.longitude == null ? '' : String(source.longitude))
     setDialogOpen(true)
+  }
+
+  const openMapPicker = () => {
+    const coordinates = manualCoordinates ? parseLocationCoordinates(latitudeInput, longitudeInput) : form
+    const params = [`mode=pick`, `country=${encodeURIComponent(form.country)}`, `name=${encodeURIComponent(form.name)}`, `query=${encodeURIComponent(form.city || form.address || form.name)}`]
+    if (coordinates && isValidLocationCoordinates(coordinates.latitude, coordinates.longitude)) {
+      params.push(`latitude=${coordinates.latitude}`, `longitude=${coordinates.longitude}`, `coordinate_system=${manualCoordinates ? 'wgs84' : form.coordinate_system || 'gcj02'}`)
+    }
+    void Taro.navigateTo({
+      url: `/streetlifting/index/locations-map?${params.join('&')}`,
+      success: ({ eventChannel }) => {
+        eventChannel.on('streetliftingLocationSelected', (position: LocationSelection) => {
+          if (!position || !isValidLocationCoordinates(position.latitude, position.longitude)) return
+          const next = { ...form, latitude: position.latitude, longitude: position.longitude, coordinate_system: position.coordinate_system, name: form.name || position.name, address: position.address || form.address, country: position.country || form.country, province: position.province || form.province, city: position.city || form.city, county: position.county || form.county }
+          writeLocationCache(`draft:${authService.getCurrentUser()?.id || ''}`, { ...next, id: editing?.id || null, image_urls: imageUrls })
+          setForm(next)
+          setLatitudeInput(String(position.latitude))
+          setLongitudeInput(String(position.longitude))
+          setManualCoordinates(false)
+        })
+      },
+      fail: () => Taro.showToast({ title: '地图打开失败，请重试', icon: 'none' })
+    })
   }
 
   const chooseLocation = async () => {
     try {
-      const result = await Taro.chooseLocation()
+      const current = form.latitude != null && form.longitude != null ? toWeChatCoordinates({ ...form, latitude: form.latitude, longitude: form.longitude }) : null
+      const result = await Taro.chooseLocation(current ? { latitude: current.latitude, longitude: current.longitude } : {})
       setForm((prev) => ({
         ...prev,
         name: prev.name || result.name || '',
         address: result.address || prev.address,
         latitude: typeof result.latitude === 'number' ? result.latitude : prev.latitude,
-        longitude: typeof result.longitude === 'number' ? result.longitude : prev.longitude
+        longitude: typeof result.longitude === 'number' ? result.longitude : prev.longitude,
+        coordinate_system: 'gcj02'
       }))
+      setManualCoordinates(false)
+      setLatitudeInput(String(result.latitude))
+      setLongitudeInput(String(result.longitude))
     } catch (e) {
-      Taro.showToast({ title: (e as Error)?.message || '选点失败', icon: 'none' })
+      const message = String((e as { errMsg?: string; message?: string })?.errMsg || (e as Error)?.message || '')
+      if (!message.includes('cancel')) {
+        openMapPicker()
+      }
     }
+  }
+
+  const previewCoordinates = () => {
+    const coordinates = manualCoordinates ? parseLocationCoordinates(latitudeInput, longitudeInput) : form
+    if (!coordinates || !isValidLocationCoordinates(coordinates.latitude, coordinates.longitude)) {
+      Taro.showToast({ title: '请填写有效经纬度', icon: 'none' })
+      return
+    }
+    const location = toWeChatCoordinates({ ...coordinates, latitude: coordinates.latitude as number, longitude: coordinates.longitude as number, country: form.country, coordinate_system: manualCoordinates ? 'wgs84' as const : form.coordinate_system })
+    Taro.navigateTo({ url: `/streetlifting/index/locations-map?latitude=${location.latitude}&longitude=${location.longitude}&name=${encodeURIComponent(form.name || '所选位置')}&country=${encodeURIComponent(form.country)}` })
   }
 
   const removeImage = (index: number) => {
@@ -462,38 +539,52 @@ export default function StreetliftingLocations() {
       Taro.showToast({ title: '请填写地点名称', icon: 'none' })
       return
     }
+    const importedCoordinates = manualCoordinates ? parseLocationCoordinates(latitudeInput, longitudeInput) : null
+    if (manualCoordinates && !importedCoordinates) {
+      Taro.showToast({ title: '纬度 -90～90，经度 -180～180', icon: 'none' })
+      return
+    }
+    if (!form.country.trim()) {
+      Taro.showToast({ title: '请填写国家/地区', icon: 'none' })
+      return
+    }
+    const coordinateFields = importedCoordinates ? { ...importedCoordinates, coordinate_system: 'wgs84' as const } : { latitude: form.latitude, longitude: form.longitude, coordinate_system: form.coordinate_system }
+    const draftKey = `draft:${authService.getCurrentUser()?.id || ''}`
+    // Persist the mutation before starting cloud sync; failed submissions keep a recoverable draft.
+    writeLocationCache(draftKey, { ...form, ...coordinateFields, id: editing?.id || null, image_urls: imageUrls })
     setSubmitting(true)
     try {
       if (editing) {
         await streetliftingIndexService.updateLocation({
           id: editing.id,
           name: form.name.trim(),
+          country: form.country.trim(),
+          ...coordinateFields,
           description: form.description || null,
           address: form.address || null,
           city: form.city || null,
           province: form.province || null,
           county: form.county || null,
-          latitude: form.latitude,
-          longitude: form.longitude,
           image_urls: imageUrls.length ? imageUrls : null
         })
         Taro.showToast({ title: '保存成功', icon: 'success' })
       } else {
         await streetliftingIndexService.createLocation({
           name: form.name.trim(),
+          country: form.country.trim(),
+          ...coordinateFields,
           description: form.description || null,
           address: form.address || null,
           city: form.city || null,
           province: form.province || null,
           county: form.county || null,
-          latitude: form.latitude,
-          longitude: form.longitude,
           image_urls: imageUrls.length ? imageUrls : null,
           user_contact: getCurrentContributorContact()
         })
         Taro.showToast({ title: '提交成功', icon: 'success' })
       }
       setDialogOpen(false)
+      writeLocationCache(draftKey, null)
       resetForm()
       void fetchLocations(page, false)
       void loadOverview()
@@ -513,8 +604,8 @@ export default function StreetliftingLocations() {
       })
     }
 
-    const areaName = [loc.city, loc.province].filter(Boolean).join(' ')
-    const posterArea = [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
+    const areaName = [loc.country, loc.city, loc.province].filter(Boolean).join(' ')
+    const posterArea = [loc.country, loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
     return createSharePayload({
       title: getStreetliftingLocationShareTitle(loc.name, areaName),
       path: buildLocationSharePath(loc),
@@ -555,7 +646,7 @@ export default function StreetliftingLocations() {
   }, [shareSheetLocation])
 
   const buildPosterData = useCallback((loc: StreetliftingLocation): StreetliftingLocationPosterData => {
-    const area = [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
+    const area = [loc.country, loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
     return {
       name: loc.name,
       area: area || '打开 CoachLink 查看这个单杠点位',
@@ -730,24 +821,21 @@ export default function StreetliftingLocations() {
     })
   }, [posterImageUrl])
 
-  const openLocationInMap = (loc: { name: string; latitude: number; longitude: number; address?: string | null }) => {
-    Taro.openLocation({
-      latitude: loc.latitude,
-      longitude: loc.longitude,
-      name: loc.name,
-      address: loc.address || ''
-    }).catch(() => {
-      Taro.showToast({ title: '打开地图失败', icon: 'none' })
-    })
+  const openLocationInMap = (loc: { id?: string; name: string; latitude: number; longitude: number; country?: string | null; coordinate_system?: LocationCoordinateSystem | null }) => {
+    const position = toWeChatCoordinates(loc)
+    Taro.navigateTo({ url: `/streetlifting/index/locations-map?latitude=${position.latitude}&longitude=${position.longitude}&name=${encodeURIComponent(loc.name)}&country=${encodeURIComponent(loc.country || '')}${loc.id ? `&id=${encodeURIComponent(loc.id)}` : ''}` })
   }
 
   const ensureMapPins = async () => {
-    if (mapPins.length > 0) return mapPins
+    const cached = mapPins.length > 0 ? mapPins : readLocationCache<StreetliftingLocationMapPin[]>('map-pins')
+    if (Array.isArray(cached)) setMapPins(cached.filter((pin) => isValidLocationCoordinates(pin.latitude, pin.longitude)).map(toWeChatCoordinates))
     setLoadingMapPins(true)
     try {
       const pins = await streetliftingIndexService.listLocationMapPins()
-      setMapPins(pins)
-      return pins
+      writeLocationCache('map-pins', pins)
+      const displayPins = pins.filter((pin) => isValidLocationCoordinates(pin.latitude, pin.longitude)).map(toWeChatCoordinates)
+      setMapPins(displayPins)
+      return displayPins
     } finally {
       setLoadingMapPins(false)
     }
@@ -771,7 +859,7 @@ export default function StreetliftingLocations() {
       if (isLocationPermissionError(e)) {
         Taro.showModal({
           title: '定位权限未开启',
-          content: '需要允许定位后才能计算附近单杠点位。你也可以先继续浏览全国地图。',
+          content: '需要允许定位后才能计算附近单杠点位。你也可以先继续浏览世界地图。',
           cancelText: '先浏览',
           confirmText: '去设置',
           success: (res) => {
@@ -783,7 +871,7 @@ export default function StreetliftingLocations() {
           }
         })
       } else {
-        Taro.showToast({ title: (e as Error)?.message || '定位暂不可用，可先浏览全国地图', icon: 'none' })
+        Taro.showToast({ title: (e as Error)?.message || '定位暂不可用，可先浏览世界地图', icon: 'none' })
       }
     } finally {
       setLocating(false)
@@ -1001,7 +1089,7 @@ export default function StreetliftingLocations() {
                 <View className='loc-header-actions'>
                   <View className='loc-summary-secondary loc-summary-half' onClick={handleOpenMapMode}>
                     <Text className='iconfont icon-location' />
-                    <Text>全国地图</Text>
+                  <Text>世界地图</Text>
                   </View>
                   <View className='loc-summary-action loc-summary-half' onClick={handleLocateNearby}>
                     <Text>{locating ? '定位中…' : '定位我附近'}</Text>
@@ -1040,22 +1128,26 @@ export default function StreetliftingLocations() {
               <View className='loc-toolbar'>
                 <Input
                   className='search-input'
-                  placeholder='搜索名称/省市/地址'
+                  placeholder='搜索名称/国家/城市/地址'
                   value={search}
                   onInput={(e) => setSearch(e.detail.value)}
                 />
                 <Picker
                   mode='selector'
-                  range={['全部省份', ...provinces]}
+                  range={['全部省/州', ...provinces]}
                   value={province === 'all' ? 0 : Math.max(0, provinces.indexOf(province) + 1)}
                   onChange={(e) => {
                     const i = Number(e.detail.value)
                     setProvince(i === 0 ? 'all' : (provinces[i - 1] || 'all'))
                   }}
                 >
-                  <View className='picker-province'>{province === 'all' ? '全部省份' : province}</View>
+                  <View className='picker-province'>{province === 'all' ? '全部省/州' : province}</View>
                 </Picker>
               </View>
+
+              <Picker mode='selector' range={['全部国家/地区', ...countries]} value={country === 'all' ? 0 : Math.max(0, countries.indexOf(country) + 1)} onChange={(e) => { setCountry(Number(e.detail.value) === 0 ? 'all' : countries[Number(e.detail.value) - 1]); setProvince('all') }}>
+                <View className='country-filter'>{country === 'all' ? '全部国家/地区' : country}</View>
+              </Picker>
 
               {loading && locations.length === 0 ? (
                 renderSkeleton()
@@ -1104,10 +1196,12 @@ export default function StreetliftingLocations() {
                             <View
                               className='loc-card-map-btn'
                               onClick={() => openLocationInMap({
+                                id: loc.id,
                                 name: loc.name,
+                                country: loc.country,
+                                coordinate_system: loc.coordinate_system,
                                 latitude: loc.latitude as number,
                                 longitude: loc.longitude as number,
-                                address: [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
                               })}
                             >
                               <Text className='iconfont icon-location' />
@@ -1117,7 +1211,7 @@ export default function StreetliftingLocations() {
                         </View>
                         <View className='loc-card-meta-list'>
                           <Text className='loc-card-meta-item'>
-                            {[loc.province, loc.city, loc.county].filter(Boolean).join(' · ')}
+                            {[loc.country, loc.province, loc.city, loc.county].filter(Boolean).join(' · ')}
                           </Text>
                           {(loc.contributor_name_snapshot || loc.user_contact) && loc.contributor_user_id ? (
                             <Text
@@ -1485,6 +1579,16 @@ export default function StreetliftingLocations() {
             <Text className='dialog-title'>{editing ? '编辑单杠位置' : '分享单杠位置'}</Text>
             <ScrollView scrollY className='dialog-scroll'>
               <View className='form-row'>
+                <Text className='label'>国家/地区 *</Text>
+                <View className='location-picker-row'>
+                  <Input className='input country-input' placeholder='可填写任意国家/地区' maxlength={100} value={form.country} onInput={(e) => setForm((p) => ({ ...p, country: e.detail.value }))} />
+                  <Picker mode='selector' range={COUNTRY_OPTIONS} value={Math.max(0, COUNTRY_OPTIONS.indexOf(form.country))} onChange={(e) => { const selected = COUNTRY_OPTIONS[Number(e.detail.value)]; setForm((p) => ({ ...p, country: selected === '其他（自行填写）' ? '' : selected })) }}>
+                    <View className='location-picker-btn'>选择国家</View>
+                  </Picker>
+                </View>
+                {form.country && form.country !== '中国' && <Text className='coordinate-help country-help'>支持搜索城市、公园或地址，也可直接在地图上点击选点。</Text>}
+              </View>
+              <View className='form-row'>
                 <Text className='label'>地点名称 *</Text>
                 <Input
                   className='input'
@@ -1494,15 +1598,15 @@ export default function StreetliftingLocations() {
                 />
               </View>
               <View className='form-row'>
-                <Text className='label'>省份</Text>
-                <Input className='input' placeholder='例如：北京市' value={form.province} onInput={(e) => setForm((p) => ({ ...p, province: e.detail.value }))} />
+                <Text className='label'>省 / 州 / 地区（选填）</Text>
+                <Input className='input' placeholder='例如：北京市、California' value={form.province} onInput={(e) => setForm((p) => ({ ...p, province: e.detail.value }))} />
               </View>
               <View className='form-row'>
-                <Text className='label'>城市/区</Text>
-                <Input className='input' placeholder='例如：朝阳区' value={form.city} onInput={(e) => setForm((p) => ({ ...p, city: e.detail.value }))} />
+                <Text className='label'>城市</Text>
+                <Input className='input' placeholder='例如：北京、London' value={form.city} onInput={(e) => setForm((p) => ({ ...p, city: e.detail.value }))} />
               </View>
               <View className='form-row'>
-                <Text className='label'>区县</Text>
+                <Text className='label'>区县（选填）</Text>
                 <Input className='input' placeholder='例如：望京街道' value={form.county} onInput={(e) => setForm((p) => ({ ...p, county: e.detail.value }))} />
               </View>
               <View className='form-row'>
@@ -1513,12 +1617,24 @@ export default function StreetliftingLocations() {
                 <Text className='label'>地图位置</Text>
                 <View className='location-picker-row'>
                   <View className='location-picker-value'>
-                    <Text>{form.latitude != null && form.longitude != null ? '已选地图位置' : '未选择地图位置'}</Text>
+                    <Text>{manualCoordinates ? '填写经纬度' : form.latitude != null && form.longitude != null ? '已选地图位置' : '未选择地图位置'}</Text>
                   </View>
-                  <View className='location-picker-btn' onClick={chooseLocation}>
-                    <Text>选择位置</Text>
+                  <View className='location-picker-btn map-picker-entry' onClick={openMapPicker}>
+                    <Text>搜索 / 地图选点</Text>
                   </View>
                 </View>
+                <View className='coordinate-actions'>
+                  <View className='coordinate-action' onClick={chooseLocation}><Text>微信选点</Text></View>
+                  <View className='coordinate-action' onClick={previewCoordinates}><Text>查看位置</Text></View>
+                  <View className='coordinate-action manual-coordinate-toggle' onClick={() => { if (!manualCoordinates && form.coordinate_system !== 'wgs84') { setLatitudeInput(''); setLongitudeInput('') } setManualCoordinates((value) => !value) }}><Text>{manualCoordinates ? '收起备用输入' : '经纬度备用输入'}</Text></View>
+                </View>
+                {manualCoordinates && <View className='manual-coordinates'>
+                  <Text className='coordinate-help'>海外地点搜不到时，可从 Google Maps 或 GPS 复制经纬度。先填纬度，再填经度；南纬、西经使用负数。</Text>
+                  <Text className='label'>纬度（-90～90）</Text>
+                  <Input className='input latitude-input' type='text' placeholder='例如：51.5074 或 -33.8688' value={latitudeInput} onInput={(e) => setLatitudeInput(e.detail.value)} />
+                  <Text className='label longitude-label'>经度（-180～180）</Text>
+                  <Input className='input longitude-input' type='text' placeholder='例如：-0.1278 或 151.2093' value={longitudeInput} onInput={(e) => setLongitudeInput(e.detail.value)} />
+                </View>}
               </View>
               <View className='form-row'>
                 <Text className='label'>描述</Text>

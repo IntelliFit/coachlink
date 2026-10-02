@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { rebuildStreetliftingLocationContributorStats } from "../contributorStats";
+import { validateLocationInput } from '../locationInput';
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -23,6 +24,8 @@ export async function POST(req: Request) {
         }
 
         const db = serviceRoleSupabase;
+        const inputError = validateLocationInput(body);
+        if (inputError) return NextResponse.json({ success: false, message: inputError, data: null }, { status: 400 });
         const { data: existingLocation, error: existingError } = await db
             .from("streetlifting_locations")
             .select("id, user_contact, contributor_user_id, contributor_name_snapshot")
@@ -65,6 +68,8 @@ export async function POST(req: Request) {
             .from("streetlifting_locations")
             .update({
                 name: body.name,
+                ...(body.country !== undefined ? { country: body.country?.trim() || null } : {}),
+                ...(body.coordinate_system !== undefined ? { coordinate_system: body.coordinate_system } : {}),
                 description: body.description ?? null,
                 address: body.address ?? null,
                 city: body.city ?? null,

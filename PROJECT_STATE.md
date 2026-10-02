@@ -1,11 +1,28 @@
 # PROJECT_STATE
 
+## CoachLink 正式/体验版白屏（2026-10-03）
+
+- 正式版完整退出微信仍白屏，体验版也相同，食探正常。UTC20:02–20:03 main/dev3/3及配套Ready，两域health/公开数据200，44.6GiB余量无压力，未见磁盘事故复发。微信官方错误统计暂无堆栈，不能称手机恢复。
+- 已复现并本地修复首页异常缓存未校验导致同步渲染崩溃；10项缓存探针、443测试/根类型/Next与小程序构建通过，三种异常缓存DevTools真实首页截图正常（模拟请求，全部触碰缓存/登录状态恢复）。尚未证明与该手机同因；未提交或上传。实际包版本、入口、真机启动错误仍待确认。详见docs/work/weapp-white-screen-2026-10-03.md。
+
+## UI/UX全软件审查（2026-10-03，进行中）
+
+- 用户优先微信小程序，要求全自动真实浏览与截图，按大页面→小页面提出修改意见与设计稿；不能以截图流程跑通作为审查结束。
+- 已有5个一级页面真实审查及3张独立首页方案，详见docs/work/uiux-redesign-roadmap-2026-10-03.md。全量124注册路由的深层页未完成，当前新会话仍出现自动化超时/页面销毁；新构建尚未完成本轮视觉验收。没有业务UI改版、提交或发布。
+
+
 - Project: `coachlink`
 - Workspace: `D:\projects\coachlink`
 - Ownership: dedicated coding agent for `coachlink`
 - Surface: monorepo（Web、微信小程序、Expo/React Native 移动 App）
 - UI verification tool: `web-devtools`
 - Memory rule: durable project facts must be written to `CURRENT_TASK.md`, `DECISIONS.md`, or `memory/YYYY-MM-DD.md` instead of living only in chat history
+
+## 线上故障恢复 (`2026-10-02` 晚)
+
+- **21:23当前复核正常**：两环境各3/3、配套全部Ready、Redis PONG、五Kafka组Stable/各1消费者；两域轻量公网验证均通过，恢复后无新增重启，剩35.25GiB，无磁盘/内存压力。证据artifacts/incident-2026-10-02/status-followup.json。
+- **21:14–21:15已恢复并复验**：main/dev各3/3、Apollo/MySQL/Redis与五个处理worker全部Ready、Kafka五组消费者Stable；公网两域health/login/公开教练200、免费新购403，Redis PONG，分析任务queued/processing均0。原kubelet配置已恢复、imagefs15%与GC85/80实读一致，Node无压力/taint，可用约36GiB，没有遗留暂停实例或降低保护。
+- 20:42正式health502、main/dev0/3；09:40起磁盘余量不足15%保护导致驱逐与NoSchedule，Apollo/Redis/任务队列连带故障。当天约82GiB模型备份与共用根盘占用时段吻合；本代理保留备份并清旧安装缓存6.08GB，另观察到备份外部变为约66GiB（来源未知，非本轮操作）。Kafka无持久卷导致CoachLink主题丢失，按既有配置补建五项并恢复处理服务。长期治理备份占用/队列持久化/独立告警待安排。详见docs/work/incident-2026-10-02.md。
 
 ## 全量免费体验版发布 (`2026-10-02`)
 

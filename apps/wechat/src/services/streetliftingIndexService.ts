@@ -4,6 +4,7 @@
 import Taro from '@tarojs/taro'
 import { API_BASE_URL, BaseService } from '@/utils/request'
 import type { CalcMode, ExerciseType, Gender } from '@/utils/streetliftingCalc'
+import type { LocationSearchResult } from '@coachlink/core'
 
 export interface StreetliftingFormula {
   id: number
@@ -21,6 +22,8 @@ export interface StreetliftingFormula {
 
 export interface StreetliftingLocation {
   id: string
+  country?: string | null
+  coordinate_system?: 'wgs84' | 'gcj02' | null
   name: string
   description: string | null
   address: string | null
@@ -39,6 +42,8 @@ export interface StreetliftingLocation {
 
 export interface StreetliftingLocationMapPin {
   id: string
+  country?: string | null
+  coordinate_system?: 'wgs84' | 'gcj02' | null
   name: string
   latitude: number
   longitude: number
@@ -204,11 +209,12 @@ class StreetliftingIndexService extends BaseService {
     throw new Error((res as any)?.message || '获取公式失败')
   }
 
-  async listLocations(params?: { page?: number; limit?: number; search?: string; province?: string; city?: string; county?: string }) {
+  async listLocations(params?: { page?: number; limit?: number; search?: string; country?: string; province?: string; city?: string; county?: string }) {
     const res = await this.post<{
       locations: StreetliftingLocation[]
       pagination: { page: number; limit: number; total: number }
       provinces: string[]
+      countries?: string[]
     }>('locations/list', params || {})
     if (res.success && res.data) return res.data
     throw new Error((res as any)?.message || '加载失败')
@@ -222,6 +228,8 @@ class StreetliftingIndexService extends BaseService {
 
   async createLocation(dto: {
     name: string
+    country?: string | null
+    coordinate_system?: 'wgs84' | 'gcj02' | null
     description?: string | null
     address?: string | null
     city?: string | null
@@ -239,6 +247,8 @@ class StreetliftingIndexService extends BaseService {
 
   async updateLocation(dto: {
     id: string
+    country?: string | null
+    coordinate_system?: 'wgs84' | 'gcj02' | null
     name?: string
     description?: string | null
     address?: string | null
@@ -259,6 +269,12 @@ class StreetliftingIndexService extends BaseService {
     const res = await this.post<StreetliftingLocationMapPin[]>('locations/map-pins', {})
     if (res.success && res.data) return res.data
     throw new Error((res as any)?.message || '地图点位加载失败')
+  }
+
+  async searchPlaces(query: string): Promise<LocationSearchResult[]> {
+    const res = await this.post<LocationSearchResult[]>('locations/search-places', { query }, { showErrorToast: false })
+    if (res.success && Array.isArray(res.data)) return res.data
+    throw new Error(res.message || '地点搜索失败，可直接在地图上选点')
   }
 
   async listLocationContributors(params?: { limit?: number }) {

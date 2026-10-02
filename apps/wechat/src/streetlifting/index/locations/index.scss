@@ -978,6 +978,37 @@
 }
 
 /* ===== 表单弹窗 ===== */
+.country-filter {
+  display: inline-flex;
+  margin: 0 24rpx 16rpx;
+  padding: 16rpx 24rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #CF6D4E;
+  border-radius: 16rpx;
+  color: #CF6D4E;
+  font-size: 24rpx;
+}
+
+.dialog-box {
+  .country-input { flex: 1; min-width: 0; }
+  .coordinate-actions { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; }
+  .coordinate-action {
+    flex: 1;
+    padding: 16rpx;
+    border: 1rpx solid #CF6D4E;
+    border-radius: 16rpx;
+    color: #CF6D4E;
+    background: #FFFFFF;
+    font-size: 24rpx;
+    text-align: center;
+    &:active { opacity: 0.8; }
+  }
+  .manual-coordinates { margin-top: 16rpx; padding: 16rpx; background: #FAFAFA; border-radius: 16rpx; }
+  .coordinate-help { display: block; margin-bottom: 16rpx; font-size: 24rpx; line-height: 1.6; color: #6B7280; }
+  .country-help { margin-top: 8rpx; margin-bottom: 0; }
+  .longitude-label { margin-top: 16rpx; }
+}
+
 .dialog-mask {
   position: fixed;
   inset: 0;
@@ -1060,8 +1091,8 @@
     height: 72rpx;
     line-height: 72rpx;
     text-align: center;
-    background: #FDF2EC;
-    border: 1rpx solid #FDF2EC;
+    background: #FFFFFF;
+    border: 1rpx solid #CF6D4E;
     border-radius: 16rpx;
     font-size: 24rpx;
     font-weight: 600;

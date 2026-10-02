@@ -3175,6 +3175,8 @@ export type Database = {
       }
       streetlifting_locations: {
         Row: {
+          country: string | null
+          coordinate_system: 'wgs84' | 'gcj02' | null
           address: string | null
           city: string | null
           county: string | null
@@ -3192,6 +3194,8 @@ export type Database = {
           user_contact: string | null
         }
         Insert: {
+          country?: string | null
+          coordinate_system?: 'wgs84' | 'gcj02' | null
           address?: string | null
           city?: string | null
           county?: string | null
@@ -3209,6 +3213,8 @@ export type Database = {
           user_contact?: string | null
         }
         Update: {
+          country?: string | null
+          coordinate_system?: 'wgs84' | 'gcj02' | null
           address?: string | null
           city?: string | null
           county?: string | null

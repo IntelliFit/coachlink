@@ -2,6 +2,8 @@ import type { StreetliftingLocation } from "../list/entity";
 
 export interface StreetliftingUpdateLocationDto {
     id: string;
+    country?: string | null;
+    coordinate_system?: 'wgs84' | 'gcj02' | null;
     name?: string;
     description?: string | null;
     address?: string | null;

@@ -24,15 +24,52 @@ export type TodayTrainingPageCacheV1 = {
   selectedDayIndex: number
 }
 
+function isRecord(value: unknown): value is Record<string, any> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isRenderablePlan(value: unknown): boolean {
+  if (value == null) return true
+  if (!isRecord(value)) return false
+  if (value.training_days == null) return true
+  return Array.isArray(value.training_days) && value.training_days.every((day: unknown) =>
+    isRecord(day) && (day.actionSets == null || (
+      Array.isArray(day.actionSets) && day.actionSets.every(isRecord)
+    ))
+  )
+}
+
+function isRenderablePlanBlock(value: unknown): boolean {
+  if (!isRecord(value) || !isRenderablePlan(value.instance)) return false
+  for (const key of ['actions', 'completionDates', 'executionsByDayIndex']) {
+    if (value[key] != null && !isRecord(value[key])) return false
+  }
+  return value.missingDays == null || Array.isArray(value.missingDays)
+}
+
+/** Storage is untyped at runtime; reject unsafe snapshots before React's first render. */
+function isRenderablePageCache(value: Record<string, any>): boolean {
+  if (value.coachSubscriptions != null && (
+    !Array.isArray(value.coachSubscriptions) || !value.coachSubscriptions.every(isRecord)
+  )) return false
+  if (!isRenderablePlan(value.selfInstance)) return false
+  if (value.selfMissingDays != null && !Array.isArray(value.selfMissingDays)) return false
+  for (const key of ['coachPlanDataBySubId', 'selfActions', 'selfCompletionDates', 'selfExecutionsByDayIndex']) {
+    if (value[key] != null && !isRecord(value[key])) return false
+  }
+  return Object.values(value.coachPlanDataBySubId || {}).every(isRenderablePlanBlock)
+}
+
 export function readTodayTrainingPageCache(userId: string): TodayTrainingPageCacheV1 | null {
   if (!userId) return null
   try {
     const raw = Taro.getStorageSync(TODAY_TRAINING_PAGE_CACHE_KEY) as any
-    if (!raw || typeof raw !== 'object') return null
+    if (!isRecord(raw)) return null
     if (raw.v !== 1) return null
     if (String(raw.userId || '') !== String(userId)) return null
     const savedAt = Number(raw.savedAt || 0)
-    if (!savedAt || Date.now() - savedAt > TODAY_TRAINING_CACHE_MAX_AGE_MS) return null
+    if (!Number.isFinite(savedAt) || !savedAt || Date.now() - savedAt > TODAY_TRAINING_CACHE_MAX_AGE_MS) return null
+    if (!isRenderablePageCache(raw)) return null
     return raw as TodayTrainingPageCacheV1
   } catch {
     return null
