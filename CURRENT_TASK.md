@@ -9981,3 +9981,10 @@
 - 用户新增明确授权当前所有本地修改一起提交、更新前后端并上传体验版，由用户在手机复测白屏。本次覆盖首页缓存防护、海外地图源码与配套nullable元数据迁移，以及当前文档/自动化脚本；先前本地-only限制在本次发布范围内被新授权覆盖。不提审或发布微信正式版。
 - 顺序：提交前门禁/范围核验→代码提交及GitHub/Gitee dev/main同步→核验并仅应用海外地图迁移→本机Docker构建推CCR并核验两环境→生产小程序包地址/完整性检查→官方CLI上传体验版→记录版本与手机日志步骤。已有443测试/构建和缓存DevTools证据保留，上传包真机由用户复测。
 - Supabase连接器提示无项目权限，不等待额外确认；改用此前已配置且发布验证过的linked DB连接，输出禁止凭据，严格核对项目uhlqribpagvklpqmcqvo与线上一致。不得全量推历史迁移或改其他项目。
+## 紧急全量发布 / Intl 真机白屏修复（2026-10-03，当前任务）
+
+- 用户授权全部本地改动提交/推送、Web/API更新、新体验版上传；用户自行真机复测并提审。手机两张日志已明确 `ReferenceError: Intl is not defined`，TodayTrainingScreen同步日期格式化崩溃；下方早期“根因待确认”被本节覆盖。
+- 源码094440bd已推GitHub/Gitee dev/main，根typecheck与443测试通过，旧错误复现和修复19项断言通过；生产小程序2880模块/124路由构建成功，包内纯Date降级与生产域名验证通过。海外地图迁移20261002175648已精确应用并核验。
+- 上传2026.10.03.0534由官方wechatide返回pending：taskId=confirmation_upload_04d974ba-d531-45fa-b4f3-1e14e5b1a5b8，tool=upload，project=D:/files/coachlink/apps/wechat/dist-release，desc=Intl-startup-fix-094440bd-global-map。已提醒用户确认；遵循skill不主动轮询/重发，用户继续后查询同一任务。
+- Web/API更新完成：Next546页生产构建、CCR094440b/dev/main/latest推送通过，UTC20:38两环境各3/3且6个主容器实际摘要b4494f5d；公网health/login/公开教练200、免费新购403，根盘44.1GiB/无压力。Node直连超时，按主机既有代理用curl复验全部通过。
+- 剩余依赖用户在DevTools确认本次上传，再查询上述旧任务；上传成功后用户真机复测/提审。清缓存不能修复缺Intl，正式版须新代码审核发布，不承诺明早审批。
