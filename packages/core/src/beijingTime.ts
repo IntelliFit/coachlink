@@ -60,15 +60,46 @@ const getBeijingPartsByUtcShift = (date: Date) => {
 const createBeijingFormatter = (
     locales: string | string[],
     options: Intl.DateTimeFormatOptions,
+    timeZone = BEIJING_TIME_ZONE,
 ) => {
     try {
+        if (typeof Intl === "undefined" || typeof Intl.DateTimeFormat !== "function") return null;
         return new Intl.DateTimeFormat(locales, {
             ...options,
-            timeZone: BEIJING_TIME_ZONE,
+            timeZone,
         });
     } catch {
         return null;
     }
+};
+
+// Some mini-program JS engines have no Intl at all. Keep calendar labels usable
+// using UTC fields shifted to Beijing time, independent of the device timezone.
+const formatBeijingWithoutIntl = (date: Date, locales: string | string[], options: Intl.DateTimeFormatOptions) => {
+    const parts = getBeijingPartsByUtcShift(date);
+    const zh = /^zh/i.test(Array.isArray(locales) ? locales[0] || "" : locales);
+    const pad = (value: number, style?: string) => style === "2-digit" ? String(value).padStart(2, "0") : String(value);
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const weekdayIndex = new Date(date.getTime() + BEIJING_UTC_OFFSET_MS).getUTCDay();
+    const year = options.year ? pad(options.year === "2-digit" ? parts.year % 100 : parts.year, options.year) : "";
+    const month = options.month ? (options.month === "long" || options.month === "short" || options.month === "narrow"
+        ? zh ? `${parts.month}月` : options.month === "long" ? months[parts.month - 1] : months[parts.month - 1].slice(0, options.month === "narrow" ? 1 : 3)
+        : pad(parts.month, options.month)) : "";
+    const day = options.day ? pad(parts.day, options.day) : "";
+    const weekday = options.weekday ? zh ? `${options.weekday === "long" ? "星期" : options.weekday === "short" ? "周" : ""}${"日一二三四五六"[weekdayIndex]}`
+        : options.weekday === "long" ? weekdays[weekdayIndex] : weekdays[weekdayIndex].slice(0, options.weekday === "narrow" ? 1 : 3) : "";
+    const dateLabel = zh && (options.month === "long" || options.month === "short" || options.month === "narrow")
+        ? `${year ? year + "年" : ""}${month}${day ? day + "日" : ""}`
+        : [year, month, day].filter(Boolean).join("/");
+    const hour12 = options.hour12 ?? (options.hourCycle ? options.hourCycle === "h11" || options.hourCycle === "h12" : !zh);
+    const hour = hour12 ? (options.hourCycle === "h11" ? parts.hour % 12 : parts.hour % 12 || 12)
+        : options.hourCycle === "h24" && parts.hour === 0 ? 24 : parts.hour;
+    const time = [options.hour ? pad(hour, options.hour) : "", options.minute ? pad(parts.minute, options.minute) : "", options.second ? pad(parts.second, options.second) : ""].filter(Boolean).join(":");
+    const period = time && options.hour && hour12 ? zh ? parts.hour < 12 ? "上午" : "下午" : parts.hour < 12 ? "AM" : "PM" : "";
+    const timeLabel = period ? zh ? period + time : `${time} ${period}` : time;
+    const label = [dateLabel, weekday, timeLabel].filter(Boolean).join(" ");
+    return label || `${parts.year}/${pad(parts.month, "2-digit")}/${pad(parts.day, "2-digit")}`;
 };
 
 export const getBeijingDateParts = (input?: DateInput | null) => {
@@ -136,12 +167,13 @@ export const formatBeijingDate = (
         }
     }
 
-    // Fallback path for runtimes missing IANA timezone support.
+    // Engines with Intl but without IANA zones may still support UTC.
     const beijingWallTime = new Date(date.getTime() + BEIJING_UTC_OFFSET_MS);
-    return new Intl.DateTimeFormat(locales, {
-        ...options,
-        timeZone: "UTC",
-    }).format(beijingWallTime);
+    const utcFormatter = createBeijingFormatter(locales, options, "UTC");
+    if (utcFormatter) {
+        try { return utcFormatter.format(beijingWallTime); } catch { /* fallback below */ }
+    }
+    return formatBeijingWithoutIntl(date, locales, options);
 };
 
 export const toBeijingISOStringFromWallTime = (input: DateInput) => {
