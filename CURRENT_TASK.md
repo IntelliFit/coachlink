@@ -9985,6 +9985,6 @@
 
 - 用户授权全部本地改动提交/推送、Web/API更新、新体验版上传；用户自行真机复测并提审。手机两张日志已明确 `ReferenceError: Intl is not defined`，TodayTrainingScreen同步日期格式化崩溃；下方早期“根因待确认”被本节覆盖。
 - 源码094440bd已推GitHub/Gitee dev/main，根typecheck与443测试通过，旧错误复现和修复19项断言通过；生产小程序2880模块/124路由构建成功，包内纯Date降级与生产域名验证通过。海外地图迁移20261002175648已精确应用并核验。
-- 上传2026.10.03.0534由官方wechatide返回pending：taskId=confirmation_upload_04d974ba-d531-45fa-b4f3-1e14e5b1a5b8，tool=upload，project=D:/files/coachlink/apps/wechat/dist-release，desc=Intl-startup-fix-094440bd-global-map。已提醒用户确认；遵循skill不主动轮询/重发，用户继续后查询同一任务。
+- 体验版2026.10.03.0534已成功上传：用户回来追问后查询原taskId=confirmation_upload_04d974ba-d531-45fa-b4f3-1e14e5b1a5b8返回status=success/execution_success及upload success=true；未重发上传。包体9,897,466字节/主包1,950,704字节，源码094440bd；发布元数据已更新。
 - Web/API更新完成：Next546页生产构建、CCR094440b/dev/main/latest推送通过，UTC20:38两环境各3/3且6个主容器实际摘要b4494f5d；公网health/login/公开教练200、免费新购403，根盘44.1GiB/无压力。Node直连超时，按主机既有代理用curl复验全部通过。
-- 剩余依赖用户在DevTools确认本次上传，再查询上述旧任务；上传成功后用户真机复测/提审。清缓存不能修复缺Intl，正式版须新代码审核发布，不承诺明早审批。
+- 剩余用户真机复测体验版并自行提审/发布正式包。清缓存不能修复缺Intl，正式版须新代码审核发布，不承诺明早审批。本轮仅开发者工具临时异常缓存/空计划模拟已恢复，并未删除手机或云端训练记录。

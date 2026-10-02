@@ -3,7 +3,7 @@
 ## CoachLink 正式/体验版白屏（2026-10-03）
 
 - 用户随后提供手机vConsole堆栈：`ReferenceError: Intl is not defined`，TodayTrainingScreen/useMemo。共享北京时间格式化的降级分支再次调用缺失Intl，是本次明确可复现的首页崩溃原因；清缓存无法解决。用户确认所有设备均异常，食探正常；未见前晚磁盘驱逐复发。
-- 纯Date降级修复094440bd已推GitHub/Gitee dev/main；typecheck/443测试、19项Intl针对性断言、最终生产小程序2880模块/124路由通过。用户授权所有本地修改发布，海外地图迁移已精确应用且未改真实点位。Web/API已更新为CCR摘要b4494f5d，main/dev各3/3、6主容器新摘要Ready，公网health/login/公开教练200与免费新购403；根盘约44.1GiB且无压力。体验版2026.10.03.0534上传任务待DevTools用户确认，尚未成功。正式包审核发布由用户进行；真机验收待新体验包。详见docs/work/release-2026-10-03.md。
+- 纯Date降级修复094440bd已推GitHub/Gitee dev/main；typecheck/443测试、19项Intl针对性断言、最终生产小程序2880模块/124路由通过。用户授权所有本地修改发布，海外地图迁移已精确应用且未改真实点位。Web/API已更新为CCR摘要b4494f5d，main/dev各3/3、6主容器新摘要Ready，公网health/login/公开教练200与免费新购403；根盘约44.1GiB且无压力。体验版2026.10.03.0534已查询原上传任务success，包体9.9MB/主包1.95MB，用户可真机复测。正式包审核发布由用户进行；尚未宣称手机已验收。详见docs/work/release-2026-10-03.md。
 
 ## UI/UX全软件审查（2026-10-03，进行中）
 
