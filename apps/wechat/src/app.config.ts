@@ -189,10 +189,14 @@ export default {
   ],
   requiredPrivateInfos: [
     'getFuzzyLocation',
+    'chooseLocation',
   ],
   permission: {
+    'scope.userLocation': {
+      desc: '用于在地图上选择你分享的单杠位置，方便其他用户查找和导航',
+    },
     'scope.userFuzzyLocation': {
-      desc: '用于查找你附近的单杠训练点位',
+      desc: '用于显示你附近的单杠训练点位，具体位置由你在地图上确认',
     },
   },
   window: {

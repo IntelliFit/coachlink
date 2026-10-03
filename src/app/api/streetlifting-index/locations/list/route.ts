@@ -5,6 +5,7 @@ import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { StreetliftingListLocationsDto } from "./entity";
 import type { StreetliftingListLocationsResponseDto } from "./entity";
+import { CHINA_PROVINCE_NAMES, getLocationCountry } from '@coachlink/core';
 
 export async function POST(req: Request) {
     try {
@@ -32,7 +33,9 @@ export async function POST(req: Request) {
         if (province && province !== "all") {
             q = q.eq("province", province);
         }
-        if (country && country !== 'all') q = q.eq('country', country);
+        const legacyChina = `country.eq.中国,country.in.(CN,China,中国大陆),and(or(country.is.null,country.eq.\"\"),province.in.(${CHINA_PROVINCE_NAMES.join(',')}))`;
+        const chinaFilter = country === '中国';
+        if (country && country !== 'all' && !chinaFilter) q = q.eq('country', country);
         if (city) {
             q = q.eq("city", city);
         }
@@ -41,17 +44,20 @@ export async function POST(req: Request) {
         }
 
         if (search) {
-            const pattern = `%${search.replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
-            q = q.or(
-                [
+            const pattern = `"%${search.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, "\\%").replace(/_/g, "\\_")}%"`;
+            const searchTerms = [
                     `name.ilike.${pattern}`,
                     `country.ilike.${pattern}`,
                     `province.ilike.${pattern}`,
                     `city.ilike.${pattern}`,
                     `address.ilike.${pattern}`,
                     `description.ilike.${pattern}`,
-                ].join(","),
-            );
+                ];
+            if (['中国', 'China', 'CN'].includes(search)) searchTerms.push(`and(or(country.is.null,country.eq.\"\"),province.in.(${CHINA_PROVINCE_NAMES.join(',')}))`);
+            const searchFilter = searchTerms.join(',');
+            q = q.or(chinaFilter ? `and(or(${legacyChina}),or(${searchFilter}))` : searchFilter);
+        } else if (chinaFilter) {
+            q = q.or(legacyChina);
         }
 
         const { data, error, count } = await q.range(from, to);
@@ -65,21 +71,15 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
-        // Provinces facet (global list, capped for safety)
-        const { data: provData } = await db
-            .from("streetlifting_locations")
-            .select("province")
-            .not("province", "is", null)
-            .limit(2000);
-        const provinces = Array.from(new Set((provData || []).map((x: any) => String(x.province)).filter(Boolean))).sort();
-        const { data: countryData } = await db.from('streetlifting_locations').select('country').not('country', 'is', null).limit(2000);
-        const countries = Array.from(new Set((countryData || []).map((x: any) => String(x.country)).filter(Boolean))).sort();
+        const { data: countryData } = await db.from('streetlifting_locations').select('country,province').limit(2000);
+        const provinces = Array.from(new Set((countryData || []).filter(item => !country || country === 'all' || getLocationCountry(item) === country).map(item => String(item.province || '').trim()).filter(Boolean))).sort();
+        const countries = Array.from(new Set((countryData || []).map(getLocationCountry).filter(Boolean))).sort((a, b) => a === '中国' ? -1 : b === '中国' ? 1 : a.localeCompare(b));
 
         return NextResponse.json<ApiData<StreetliftingListLocationsResponseDto>>({
             success: true,
             message: "获取地点成功",
             data: {
-                locations: data || [],
+                locations: (data || []).map(item => ({ ...item, country: getLocationCountry(item) || null })),
                 pagination: {
                     page,
                     limit,

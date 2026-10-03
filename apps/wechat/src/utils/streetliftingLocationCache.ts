@@ -25,6 +25,7 @@ export type LocationDraft = {
   longitude: number | null
   coordinate_system: 'wgs84' | 'gcj02' | null
   image_urls: string[]
+  auto_filled?: Partial<Record<'name' | 'address' | 'province' | 'city' | 'county', string>>
 }
 
 function readEntries(): Record<string, Entry> {

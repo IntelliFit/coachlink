@@ -2,8 +2,8 @@
  * 单杠位置 - 小程序原生实现（列表、筛选、新增/编辑、图片上传）
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, ScrollView, Input, Picker, Button, Image } from '@tarojs/components'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import { View, Text, ScrollView, Input, Textarea, Picker, Button, Image } from '@tarojs/components'
+import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import {
   streetliftingIndexService,
   type StreetliftingLocationContributor,
@@ -32,8 +32,10 @@ import {
   type StreetliftingLocationPosterData
 } from './poster'
 import { useTheme } from '@/hooks/useTheme'
-import { isValidLocationCoordinates, parseLocationCoordinates, toWeChatCoordinates, type LocationCoordinateSystem, type LocationSelection } from '@coachlink/core'
+import { isValidLocationCoordinates, getLocationCountry, toWeChatCoordinates, type LocationCoordinateSystem, type LocationSelection } from '@coachlink/core'
 import { readLocationCache, writeLocationCache, type LocationDraft, type LocationListCache } from '@/utils/streetliftingLocationCache'
+import { getApproxUserLocation } from '@/utils/approxLocation'
+import { parseNativeLocation, mergePickedLocation, usableSearchSelection, getPickerStart, type PickerAutoFields } from '@/utils/locationPicker'
 
 const MAX_IMAGES = 4
 const PAGE_SIZE = 20
@@ -42,6 +44,16 @@ const COUNTRY_OPTIONS = ['中国', '日本', '韩国', '新加坡', '马来西�
 type UserLocation = {
   latitude: number
   longitude: number
+}
+
+function requestPickerNearby(): Promise<UserLocation> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('附近定位超时')), 8000)
+    void getApproxUserLocation().then(
+      position => { clearTimeout(timer); resolve(position) },
+      error => { clearTimeout(timer); reject(error) }
+    )
+  })
 }
 
 type NearbyLocation = StreetliftingLocationMapPin & {
@@ -206,19 +218,6 @@ function isLocationPermissionError(error: unknown): boolean {
   ].some((keyword) => message.includes(keyword))
 }
 
-async function getApproxUserLocation(): Promise<UserLocation> {
-  const taroWithFuzzyLocation = Taro as typeof Taro & {
-    getFuzzyLocation?: (options?: { type?: string }) => Promise<UserLocation>
-  }
-  if (typeof taroWithFuzzyLocation.getFuzzyLocation === 'function') {
-    const location = await taroWithFuzzyLocation.getFuzzyLocation({ type: 'gcj02' })
-    return { latitude: location.latitude, longitude: location.longitude }
-  }
-
-  const location = await Taro.getLocation({ type: 'gcj02' })
-  return { latitude: location.latitude, longitude: location.longitude }
-}
-
 export default function StreetliftingLocations() {
   const { effectiveTheme } = useTheme()
   const routerParams = (Taro.getCurrentInstance().router?.params || {}) as Record<string, unknown>
@@ -232,7 +231,7 @@ export default function StreetliftingLocations() {
   const [search, setSearch] = useState('')
   const [province, setProvince] = useState('all')
   const [country, setCountry] = useState('all')
-  const [countries, setCountries] = useState<string[]>([])
+  const [countries, setCountries] = useState<string[]>(['中国'])
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null)
   const [locating, setLocating] = useState(false)
   const [mapPins, setMapPins] = useState<StreetliftingLocationMapPin[]>([])
@@ -270,9 +269,37 @@ export default function StreetliftingLocations() {
     longitude: null as number | null
   })
   const [imageUrls, setImageUrls] = useState<string[]>([])
-  const [manualCoordinates, setManualCoordinates] = useState(false)
-  const [latitudeInput, setLatitudeInput] = useState('')
-  const [longitudeInput, setLongitudeInput] = useState('')
+  const [overseasLocation, setOverseasLocation] = useState(false)
+  const [manualDetailsOpen, setManualDetailsOpen] = useState(false)
+  const [regionDetailsOpen, setRegionDetailsOpen] = useState(false)
+  const [openingPicker, setOpeningPicker] = useState(false)
+  const autoFilledRef = useRef<PickerAutoFields>({})
+  const pickerRequestRef = useRef<{ key: string; userId: string; form: typeof form; id: string | null; imageUrls: string[] } | null>(null)
+  const hasSelectedPosition = isValidLocationCoordinates(form.latitude, form.longitude)
+  const countryOptions = useMemo(() => Array.from(new Set(['中国', ...countries])), [countries])
+
+  useDidShow(() => {
+    const request = pickerRequestRef.current
+    if (!request) return
+    pickerRequestRef.current = null
+    const result = readLocationCache<{ userId: string; position: LocationSelection }>(request.key)
+    writeLocationCache(request.key, null)
+    setOpeningPicker(false)
+    setDialogOpen(true)
+    if (result?.userId !== request.userId || authService.getCurrentUser()?.id !== request.userId || !isValidLocationCoordinates(result?.position?.latitude, result?.position?.longitude)) return
+    const position = result.position
+    const merged = mergePickedLocation(request.form, usableSearchSelection(position), autoFilledRef.current)
+    const next = merged.form
+    autoFilledRef.current = merged.autoFilled
+    writeLocationCache(`draft:${request.userId}`, { ...next, id: request.id, image_urls: request.imageUrls, auto_filled: merged.autoFilled })
+    setForm(next)
+    setManualDetailsOpen(true)
+    void Taro.showToast({ title: next.address ? '位置和地址已带回，请核对' : '位置已记录，请补充地址', icon: 'none' })
+  })
+  useEffect(() => {
+    const userId = authService.getCurrentUser()?.id
+    if (dialogOpen && userId) writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, auto_filled: autoFilledRef.current })
+  }, [dialogOpen, form, editing, imageUrls])
   const posterLoadResultRef = useRef<{ coverLoaded: boolean; qrLoaded: boolean }>({ coverLoaded: false, qrLoaded: false })
 
   const {
@@ -327,7 +354,7 @@ export default function StreetliftingLocations() {
       setLocations((prev) => (append ? [...prev, ...nextLocations] : nextLocations))
       setTotal(data?.pagination?.total ?? nextLocations.length)
       setPage(targetPage)
-      if (data?.provinces?.length) setProvinces(data.provinces)
+      setProvinces(data?.provinces || [])
       setCountries(data?.countries || [])
     } catch (e) {
       if (currentRequestId === requestIdRef.current) {
@@ -400,9 +427,10 @@ export default function StreetliftingLocations() {
   const resetForm = () => {
     setEditing(null)
     setForm({ name: '', description: '', address: '', city: '', province: '', county: '', country: '中国', coordinate_system: null, latitude: null, longitude: null })
-    setManualCoordinates(false)
-    setLatitudeInput('')
-    setLongitudeInput('')
+    setOverseasLocation(false)
+    setManualDetailsOpen(false)
+    setRegionDetailsOpen(false)
+    autoFilledRef.current = {}
     setImageUrls([])
   }
 
@@ -414,11 +442,11 @@ export default function StreetliftingLocations() {
     resetForm()
     const draft = readLocationCache<LocationDraft>(`draft:${authService.getCurrentUser()?.id || ''}`)
     if (draft && draft.id === null && typeof draft.name === 'string') {
-      setForm({ name: draft.name, description: draft.description, address: draft.address, city: draft.city, province: draft.province, county: draft.county, country: draft.country, latitude: draft.latitude, longitude: draft.longitude, coordinate_system: draft.coordinate_system })
+      setForm({ name: draft.name, description: draft.description, address: draft.address, city: draft.city, province: draft.province, county: draft.county, country: draft.country || '中国', latitude: draft.latitude, longitude: draft.longitude, coordinate_system: draft.coordinate_system })
       setImageUrls(draft.image_urls || [])
-      setManualCoordinates(false)
-      setLatitudeInput(draft.latitude == null ? '' : String(draft.latitude))
-      setLongitudeInput(draft.longitude == null ? '' : String(draft.longitude))
+      setOverseasLocation(Boolean(draft.country && draft.country !== '中国'))
+      autoFilledRef.current = draft.auto_filled || {}
+      setManualDetailsOpen(Boolean(draft.name || draft.address || isValidLocationCoordinates(draft.latitude, draft.longitude)))
     }
     setDialogOpen(true)
   }
@@ -439,72 +467,117 @@ export default function StreetliftingLocations() {
       city: source.city || '',
       province: source.province || '',
       county: source.county || '',
-      country: source.country || '',
+      country: getLocationCountry(source),
       coordinate_system: source.coordinate_system || null,
       latitude: source.latitude ?? null,
       longitude: source.longitude ?? null
     })
     setImageUrls(pending?.id === loc.id ? pending.image_urls : imgs)
-    setManualCoordinates(false)
-    setLatitudeInput(source.latitude == null ? '' : String(source.latitude))
-    setLongitudeInput(source.longitude == null ? '' : String(source.longitude))
+    setOverseasLocation(getLocationCountry(source) !== '中国')
+    autoFilledRef.current = pending?.id === loc.id ? pending.auto_filled || {} : {}
+    setManualDetailsOpen(true)
+    setRegionDetailsOpen(false)
     setDialogOpen(true)
   }
 
-  const openMapPicker = () => {
-    const coordinates = manualCoordinates ? parseLocationCoordinates(latitudeInput, longitudeInput) : form
-    const params = [`mode=pick`, `country=${encodeURIComponent(form.country)}`, `name=${encodeURIComponent(form.name)}`, `query=${encodeURIComponent(form.city || form.address || form.name)}`]
-    if (coordinates && isValidLocationCoordinates(coordinates.latitude, coordinates.longitude)) {
-      params.push(`latitude=${coordinates.latitude}`, `longitude=${coordinates.longitude}`, `coordinate_system=${manualCoordinates ? 'wgs84' : form.coordinate_system || 'gcj02'}`)
+  const openMapPicker = async (previousNearby?: UserLocation | null) => {
+    if (openingPicker) return
+    const userId = authService.getCurrentUser()?.id || ''
+    if (!userId) { requireLoginForLocationsAction('登录后可选择并分享单杠位置。'); return }
+    setOpeningPicker(true)
+    const key = `picker:${userId}:${Date.now()}`
+    pickerRequestRef.current = { key, userId, form, id: editing?.id || null, imageUrls }
+    writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, auto_filled: autoFilledRef.current })
+    // New locations start at a fresh, explicitly requested nearby position.
+    let nearby = previousNearby || null
+    if (!hasSelectedPosition && previousNearby === undefined) {
+      try { nearby = await requestPickerNearby() } catch { /* The map shows the locate action and search fallback. */ }
     }
-    void Taro.navigateTo({
-      url: `/streetlifting/index/locations-map?${params.join('&')}`,
-      success: ({ eventChannel }) => {
-        eventChannel.on('streetliftingLocationSelected', (position: LocationSelection) => {
-          if (!position || !isValidLocationCoordinates(position.latitude, position.longitude)) return
-          const next = { ...form, latitude: position.latitude, longitude: position.longitude, coordinate_system: position.coordinate_system, name: form.name || position.name, address: position.address || form.address, country: position.country || form.country, province: position.province || form.province, city: position.city || form.city, county: position.county || form.county }
-          writeLocationCache(`draft:${authService.getCurrentUser()?.id || ''}`, { ...next, id: editing?.id || null, image_urls: imageUrls })
-          setForm(next)
-          setLatitudeInput(String(position.latitude))
-          setLongitudeInput(String(position.longitude))
-          setManualCoordinates(false)
-        })
-      },
-      fail: () => Taro.showToast({ title: '地图打开失败，请重试', icon: 'none' })
-    })
+    if (authService.getCurrentUser()?.id !== userId) { pickerRequestRef.current = null; setOpeningPicker(false); return }
+    writeLocationCache(key, { userId, initial: { ...form, id: editing?.id || null, image_urls: imageUrls }, nearby })
+    if (!readLocationCache(key)) { pickerRequestRef.current = null; setOpeningPicker(false); Taro.showToast({ title: '暂时无法保存选点草稿，请重试', icon: 'none' }); return }
+    const params = ['mode=pick', `selectionKey=${encodeURIComponent(key)}`]
+    // Unmount the modal before navigating: native scroll/input overlays must not
+    // cover the new page. Return via useDidShow and a scoped local result.
+    setDialogOpen(false)
+    try {
+      await Taro.navigateTo({ url: `/streetlifting/index/locations-map?${params.join('&')}` })
+    } catch {
+      pickerRequestRef.current = null
+      writeLocationCache(key, null)
+      setDialogOpen(true)
+      void Taro.showToast({ title: '地图打开失败，请重试', icon: 'none' })
+    } finally { setOpeningPicker(false) }
+  }
+
+  const changeLocationCountry = (country: string) => {
+    setForm(previous => country === previous.country ? previous : { ...previous, country, latitude: null, longitude: null, coordinate_system: null })
+    if (country === '中国') setOverseasLocation(false)
   }
 
   const chooseLocation = async () => {
+    if (openingPicker) return
+    if (!form.country.trim()) { void Taro.showToast({ title: '请先填写地点所在国家 / 地区', icon: 'none' }); return }
+    if (form.country !== '中国') { await openMapPicker(); return }
+    const userId = authService.getCurrentUser()?.id
+    if (!userId) { requireLoginForLocationsAction('登录后可选择并分享单杠位置。'); return }
+    writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, auto_filled: autoFilledRef.current })
+    setOpeningPicker(true)
+    let nearby: UserLocation | null = null
     try {
-      const current = form.latitude != null && form.longitude != null ? toWeChatCoordinates({ ...form, latitude: form.latitude, longitude: form.longitude }) : null
-      const result = await Taro.chooseLocation(current ? { latitude: current.latitude, longitude: current.longitude } : {})
-      setForm((prev) => ({
-        ...prev,
-        name: prev.name || result.name || '',
-        address: result.address || prev.address,
-        latitude: typeof result.latitude === 'number' ? result.latitude : prev.latitude,
-        longitude: typeof result.longitude === 'number' ? result.longitude : prev.longitude,
-        coordinate_system: 'gcj02'
-      }))
-      setManualCoordinates(false)
-      setLatitudeInput(String(result.latitude))
-      setLongitudeInput(String(result.longitude))
-    } catch (e) {
-      const message = String((e as { errMsg?: string; message?: string })?.errMsg || (e as Error)?.message || '')
-      if (!message.includes('cancel')) {
-        openMapPicker()
+      if (!hasSelectedPosition) {
+        try {
+          nearby = await requestPickerNearby()
+          writeLocationCache(`last-user-location:${userId}`, { ...nearby, locatedAt: Date.now() })
+        } catch {
+          const answer = await Taro.showModal({ title: '暂时无法定位到你附近', content: '可以继续打开地图搜索地点，也可以取消后重试定位。', confirmText: '搜索地点', cancelText: '取消' })
+          if (!answer.confirm) return
+        }
       }
-    }
-  }
-
-  const previewCoordinates = () => {
-    const coordinates = manualCoordinates ? parseLocationCoordinates(latitudeInput, longitudeInput) : form
-    if (!coordinates || !isValidLocationCoordinates(coordinates.latitude, coordinates.longitude)) {
-      Taro.showToast({ title: '请填写有效经纬度', icon: 'none' })
-      return
-    }
-    const location = toWeChatCoordinates({ ...coordinates, latitude: coordinates.latitude as number, longitude: coordinates.longitude as number, country: form.country, coordinate_system: manualCoordinates ? 'wgs84' as const : form.coordinate_system })
-    Taro.navigateTo({ url: `/streetlifting/index/locations-map?latitude=${location.latitude}&longitude=${location.longitude}&name=${encodeURIComponent(form.name || '所选位置')}&country=${encodeURIComponent(form.country)}` })
+      if (authService.getCurrentUser()?.id !== userId) return
+      const initial = getPickerStart(hasSelectedPosition ? form : null, nearby)
+      // Local DevTools diagnosis: retain the real callback and Promise payloads
+      // separately. Production builds do not record this trace.
+      const nativeTrace: Record<string, unknown> = { startedAt: Date.now(), initial }
+      const traceNative = (stage: 'callback' | 'promise' | 'fail', payload: unknown) => {
+        if (process.env.NODE_ENV !== 'development') return
+        const response = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
+        nativeTrace[stage] = { keys: Object.keys(response), name: response.name, address: response.address, latitude: response.latitude, longitude: response.longitude, errMsg: response.errMsg }
+        writeLocationCache(`native-picker-diagnostic:${userId}`, nativeTrace)
+      }
+      if (process.env.NODE_ENV === 'development') writeLocationCache(`native-picker-diagnostic:${userId}`, nativeTrace)
+      const result = await Taro.chooseLocation({
+        ...(initial ? { latitude: initial.latitude, longitude: initial.longitude } : {}),
+        success: response => traceNative('callback', response),
+        fail: error => traceNative('fail', error)
+      })
+      traceNative('promise', result)
+      if (!isValidLocationCoordinates(result.latitude, result.longitude)) throw new Error('无效地图位置')
+      // DevTools can report success with no POI text and the unchanged opening
+      // position. Keep the draft, but do not accept it as a new selection.
+      if (initial && !result.name?.trim() && !result.address?.trim()
+        && Math.abs(result.latitude - initial.latitude) < 0.000001
+        && Math.abs(result.longitude - initial.longitude) < 0.000001) {
+        throw new Error('未返回所选地点')
+      }
+      if (authService.getCurrentUser()?.id !== userId) return
+      const merged = mergePickedLocation(form, parseNativeLocation(result), autoFilledRef.current)
+      autoFilledRef.current = merged.autoFilled
+      setForm(merged.form)
+      setManualDetailsOpen(true)
+      void Taro.showToast({ title: merged.form.address ? '位置和地址已带回，请核对' : '位置已记录，请补充地址', icon: 'none' })
+    } catch (error) {
+      const message = String((error as { errMsg?: string; message?: string })?.errMsg || (error as Error)?.message || '')
+      if (!/cancel/i.test(message) && authService.getCurrentUser()?.id === userId) {
+        await Taro.showModal({
+          title: message === '未返回所选地点' ? '没有收到所选地点' : '微信选点暂不可用',
+          content: '可以继续在地图上搜索或标记位置。能获取的名称和地址会自动带回；缺少或不准确的信息请修改补充。',
+          showCancel: false,
+          confirmText: '继续选点'
+        })
+        await openMapPicker(nearby)
+      }
+    } finally { setOpeningPicker(false) }
   }
 
   const removeImage = (index: number) => {
@@ -539,19 +612,16 @@ export default function StreetliftingLocations() {
       Taro.showToast({ title: '请填写地点名称', icon: 'none' })
       return
     }
-    const importedCoordinates = manualCoordinates ? parseLocationCoordinates(latitudeInput, longitudeInput) : null
-    if (manualCoordinates && !importedCoordinates) {
-      Taro.showToast({ title: '纬度 -90～90，经度 -180～180', icon: 'none' })
-      return
-    }
     if (!form.country.trim()) {
       Taro.showToast({ title: '请填写国家/地区', icon: 'none' })
       return
     }
-    const coordinateFields = importedCoordinates ? { ...importedCoordinates, coordinate_system: 'wgs84' as const } : { latitude: form.latitude, longitude: form.longitude, coordinate_system: form.coordinate_system }
+    const coordinateFields = hasSelectedPosition
+      ? { latitude: form.latitude, longitude: form.longitude, coordinate_system: form.coordinate_system }
+      : { latitude: null, longitude: null, coordinate_system: null }
     const draftKey = `draft:${authService.getCurrentUser()?.id || ''}`
     // Persist the mutation before starting cloud sync; failed submissions keep a recoverable draft.
-    writeLocationCache(draftKey, { ...form, ...coordinateFields, id: editing?.id || null, image_urls: imageUrls })
+    writeLocationCache(draftKey, { ...form, ...coordinateFields, id: editing?.id || null, image_urls: imageUrls, auto_filled: autoFilledRef.current })
     setSubmitting(true)
     try {
       if (editing) {
@@ -842,9 +912,11 @@ export default function StreetliftingLocations() {
   }
 
   const handleLocateNearby = async () => {
+    if (locating) return
     setLocating(true)
     try {
       const location = await getApproxUserLocation()
+      writeLocationCache(`last-user-location:${authService.getCurrentUser()?.id || 'guest'}`, { ...location, locatedAt: Date.now() })
       setUserLocation({
         latitude: location.latitude,
         longitude: location.longitude
@@ -859,7 +931,7 @@ export default function StreetliftingLocations() {
       if (isLocationPermissionError(e)) {
         Taro.showModal({
           title: '定位权限未开启',
-          content: '需要允许定位后才能计算附近单杠点位。你也可以先继续浏览世界地图。',
+          content: '需要允许定位后才能查看附近单杠。你也可以继续浏览单杠地图。',
           cancelText: '先浏览',
           confirmText: '去设置',
           success: (res) => {
@@ -1089,7 +1161,7 @@ export default function StreetliftingLocations() {
                 <View className='loc-header-actions'>
                   <View className='loc-summary-secondary loc-summary-half' onClick={handleOpenMapMode}>
                     <Text className='iconfont icon-location' />
-                  <Text>世界地图</Text>
+                  <Text>查看单杠地图</Text>
                   </View>
                   <View className='loc-summary-action loc-summary-half' onClick={handleLocateNearby}>
                     <Text>{locating ? '定位中…' : '定位我附近'}</Text>
@@ -1145,7 +1217,7 @@ export default function StreetliftingLocations() {
                 </Picker>
               </View>
 
-              <Picker mode='selector' range={['全部国家/地区', ...countries]} value={country === 'all' ? 0 : Math.max(0, countries.indexOf(country) + 1)} onChange={(e) => { setCountry(Number(e.detail.value) === 0 ? 'all' : countries[Number(e.detail.value) - 1]); setProvince('all') }}>
+              <Picker mode='selector' range={['全部国家/地区', ...countryOptions]} value={country === 'all' ? 0 : Math.max(0, countryOptions.indexOf(country) + 1)} onChange={(e) => { setCountry(Number(e.detail.value) === 0 ? 'all' : countryOptions[Number(e.detail.value) - 1]); setProvince('all') }}>
                 <View className='country-filter'>{country === 'all' ? '全部国家/地区' : country}</View>
               </Picker>
 
@@ -1577,69 +1649,49 @@ export default function StreetliftingLocations() {
         <View className='dialog-mask' onClick={() => { setDialogOpen(false); resetForm() }}>
           <View className='dialog-box' onClick={(e) => e.stopPropagation()}>
             <Text className='dialog-title'>{editing ? '编辑单杠位置' : '分享单杠位置'}</Text>
+            <Text className='location-step'>{hasSelectedPosition || manualDetailsOpen ? '核对地址，补充单杠信息' : '先选地图位置，地址自动带回'}</Text>
             <ScrollView scrollY className='dialog-scroll'>
-              <View className='form-row'>
-                <Text className='label'>国家/地区 *</Text>
-                <View className='location-picker-row'>
-                  <Input className='input country-input' placeholder='可填写任意国家/地区' maxlength={100} value={form.country} onInput={(e) => setForm((p) => ({ ...p, country: e.detail.value }))} />
-                  <Picker mode='selector' range={COUNTRY_OPTIONS} value={Math.max(0, COUNTRY_OPTIONS.indexOf(form.country))} onChange={(e) => { const selected = COUNTRY_OPTIONS[Number(e.detail.value)]; setForm((p) => ({ ...p, country: selected === '其他（自行填写）' ? '' : selected })) }}>
-                    <View className='location-picker-btn'>选择国家</View>
-                  </Picker>
+              <View className='location-country-row'>
+                <Text>{overseasLocation ? '海外地点' : '地点在中国（默认）'}</Text>
+                <Button className='location-secondary country-switch' onClick={() => { setOverseasLocation(!overseasLocation); changeLocationCountry(overseasLocation ? '中国' : '') }}>{overseasLocation ? '切回中国' : '海外地点'}</Button>
+              </View>
+              {overseasLocation && <View className='form-row'>
+                      <Text className='label'>国家 / 地区 *</Text>
+                      <View className='location-picker-row'>
+                      <Input className='input country-input' placeholder='例如：日本、英国' maxlength={100} value={form.country} onInput={(e) => changeLocationCountry(e.detail.value)} />
+                      <Picker mode='selector' range={COUNTRY_OPTIONS} value={Math.max(0, COUNTRY_OPTIONS.indexOf(form.country))} onChange={(e) => { const selected = COUNTRY_OPTIONS[Number(e.detail.value)]; changeLocationCountry(selected === '其他（自行填写）' ? '' : selected) }}><View className='location-picker-btn'>选择</View></Picker>
+                      </View>
+              </View>}
+              <View className='location-selection-summary'>
+                <Text className='location-start-title'>{hasSelectedPosition ? '已选地图位置' : '选择单杠位置'}</Text>
+                <Text className='location-selected-address'>{hasSelectedPosition ? form.address || '位置已记录，地图未返回详细地址，请在下面补充。' : '默认打开你附近的位置。搜索公园或地址，确认单杠位置后自动带回名称和地址。'}</Text>
+                <Button className='map-picker-entry location-primary' onClick={chooseLocation} disabled={openingPicker}>{openingPicker ? '正在定位 / 打开地图…' : hasSelectedPosition ? '重新选择位置' : '搜索地点 / 选择位置'}</Button>
+                {hasSelectedPosition && <Text className='location-form-help'>请核对下面的名称和地址；不准确的直接修改，如何找到单杠可另外补充。</Text>}
+                {!hasSelectedPosition && !manualDetailsOpen && <Button className='location-secondary manual-location-entry' onClick={() => setManualDetailsOpen(true)}>地图不可用？手动填写</Button>}
+                {manualDetailsOpen && !hasSelectedPosition && <Text className='location-form-help'>可以先保存文字信息。未选择地图位置时，只在列表显示，暂不能地图导航。</Text>}
+              </View>
+              {(hasSelectedPosition || manualDetailsOpen) && <>
+                <View className='form-row'>
+                  <Text className='label'>单杠名称 *</Text>
+                  <Input className='input location-name-input' placeholder='例如：学知园北门单杠' value={form.name} onInput={e => setForm(p => ({ ...p, name: e.detail.value }))} />
                 </View>
-                {form.country && form.country !== '中国' && <Text className='coordinate-help country-help'>支持搜索城市、公园或地址，也可直接在地图上点击选点。</Text>}
-              </View>
-              <View className='form-row'>
-                <Text className='label'>地点名称 *</Text>
-                <Input
-                  className='input'
-                  placeholder='例如：朝阳公园健身区'
-                  value={form.name}
-                  onInput={(e) => setForm((p) => ({ ...p, name: e.detail.value }))}
-                />
-              </View>
-              <View className='form-row'>
-                <Text className='label'>省 / 州 / 地区（选填）</Text>
-                <Input className='input' placeholder='例如：北京市、California' value={form.province} onInput={(e) => setForm((p) => ({ ...p, province: e.detail.value }))} />
-              </View>
-              <View className='form-row'>
-                <Text className='label'>城市</Text>
-                <Input className='input' placeholder='例如：北京、London' value={form.city} onInput={(e) => setForm((p) => ({ ...p, city: e.detail.value }))} />
-              </View>
-              <View className='form-row'>
-                <Text className='label'>区县（选填）</Text>
-                <Input className='input' placeholder='例如：望京街道' value={form.county} onInput={(e) => setForm((p) => ({ ...p, county: e.detail.value }))} />
-              </View>
-              <View className='form-row'>
-                <Text className='label'>详细地址</Text>
-                <Input className='input' placeholder='例如：东门进来右手边' value={form.address} onInput={(e) => setForm((p) => ({ ...p, address: e.detail.value }))} />
-              </View>
-              <View className='form-row'>
-                <Text className='label'>地图位置</Text>
-                <View className='location-picker-row'>
-                  <View className='location-picker-value'>
-                    <Text>{manualCoordinates ? '填写经纬度' : form.latitude != null && form.longitude != null ? '已选地图位置' : '未选择地图位置'}</Text>
-                  </View>
-                  <View className='location-picker-btn map-picker-entry' onClick={openMapPicker}>
-                    <Text>搜索 / 地图选点</Text>
-                  </View>
+                <View className='location-country-row'>
+                  <Text>{Array.from(new Set([form.country, form.province, form.city, form.county].filter(Boolean))).join(' · ')}</Text>
+                  <Button className='location-secondary' onClick={() => setRegionDetailsOpen(value => !value)}>{regionDetailsOpen ? '收起地区' : '修改地区'}</Button>
                 </View>
-                <View className='coordinate-actions'>
-                  <View className='coordinate-action' onClick={chooseLocation}><Text>微信选点</Text></View>
-                  <View className='coordinate-action' onClick={previewCoordinates}><Text>查看位置</Text></View>
-                  <View className='coordinate-action manual-coordinate-toggle' onClick={() => { if (!manualCoordinates && form.coordinate_system !== 'wgs84') { setLatitudeInput(''); setLongitudeInput('') } setManualCoordinates((value) => !value) }}><Text>{manualCoordinates ? '收起备用输入' : '经纬度备用输入'}</Text></View>
+                {regionDetailsOpen && <>
+                  <View className='form-row'><Text className='label'>{overseasLocation ? '省 / 州（选填）' : '省 / 直辖市（选填）'}</Text><Input className='input location-province-input' placeholder='例如：北京市' value={form.province} onInput={e => setForm(p => ({ ...p, province: e.detail.value }))} /></View>
+                  <View className='form-row'><Text className='label'>城市（选填）</Text><Input className='input location-city-input' placeholder='例如：北京市' value={form.city} onInput={e => setForm(p => ({ ...p, city: e.detail.value }))} /></View>
+                  <View className='form-row'><Text className='label'>区县（选填）</Text><Input className='input location-county-input' placeholder='例如：海淀区' value={form.county} onInput={e => setForm(p => ({ ...p, county: e.detail.value }))} /></View>
+                </>}
+                <View className='form-row'>
+                  <Text className='label'>地点地址（可修改，未获取时补充）</Text>
+                  <Textarea className='input location-address-input' placeholder='例如：北京市海淀区海淀路46号附近' maxlength={500} value={form.address} onInput={e => setForm(p => ({ ...p, address: e.detail.value }))} />
                 </View>
-                {manualCoordinates && <View className='manual-coordinates'>
-                  <Text className='coordinate-help'>海外地点搜不到时，可从 Google Maps 或 GPS 复制经纬度。先填纬度，再填经度；南纬、西经使用负数。</Text>
-                  <Text className='label'>纬度（-90～90）</Text>
-                  <Input className='input latitude-input' type='text' placeholder='例如：51.5074 或 -33.8688' value={latitudeInput} onInput={(e) => setLatitudeInput(e.detail.value)} />
-                  <Text className='label longitude-label'>经度（-180～180）</Text>
-                  <Input className='input longitude-input' type='text' placeholder='例如：-0.1278 或 151.2093' value={longitudeInput} onInput={(e) => setLongitudeInput(e.detail.value)} />
-                </View>}
-              </View>
-              <View className='form-row'>
-                <Text className='label'>描述</Text>
-                <Input className='input' placeholder='单杠高度/数量/手感…' value={form.description} onInput={(e) => setForm((p) => ({ ...p, description: e.detail.value }))} />
-              </View>
+                <View className='form-row'>
+                  <Text className='label'>补充说明（选填）</Text>
+                  <Input className='input' placeholder='例如：北门进入后右转，篮球场旁边' value={form.description} onInput={e => setForm(p => ({ ...p, description: e.detail.value }))} />
+                </View>
               <View className='form-row'>
                 <Text className='label'>图片（最多{MAX_IMAGES}张）</Text>
                 <View className='img-list'>
@@ -1656,10 +1708,11 @@ export default function StreetliftingLocations() {
                   )}
                 </View>
               </View>
+              </>}
             </ScrollView>
             <View className='dialog-actions'>
               <Button className='btn-cancel' onClick={() => { setDialogOpen(false); resetForm() }}>取消</Button>
-              <Button className='btn-ok' onClick={handleSubmit} disabled={submitting}>{editing ? '保存' : '提交'}</Button>
+              {(hasSelectedPosition || manualDetailsOpen) && <Button className='btn-ok' onClick={handleSubmit} disabled={submitting || uploading || openingPicker}>{submitting ? '保存中…' : editing ? '保存修改' : '分享单杠'}</Button>}
             </View>
           </View>
         </View>

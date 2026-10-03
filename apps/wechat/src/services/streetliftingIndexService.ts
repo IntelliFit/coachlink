@@ -277,6 +277,12 @@ class StreetliftingIndexService extends BaseService {
     throw new Error(res.message || '地点搜索失败，可直接在地图上选点')
   }
 
+  async reversePlace(latitude: number, longitude: number): Promise<LocationSearchResult | null> {
+    const res = await this.post<LocationSearchResult[]>('locations/search-places', { mode: 'reverse', latitude, longitude }, { showErrorToast: false })
+    if (res.success && Array.isArray(res.data)) return res.data[0] || null
+    throw new Error(res.message || '地址识别暂不可用')
+  }
+
   async listLocationContributors(params?: { limit?: number }) {
     const res = await this.post<{ contributors: StreetliftingLocationContributor[] }>('locations/contributors', params || {})
     if (res.success && res.data) return res.data

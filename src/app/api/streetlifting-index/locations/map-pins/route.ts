@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
+import { getLocationCountry } from '@coachlink/core';
 
 export interface MapPin {
     id: string;
@@ -48,7 +49,7 @@ export async function POST(): Promise<Response> {
         return NextResponse.json<ApiData<MapPin[]>>({
             success: true,
             message: "ok",
-            data: (data ?? []) as MapPin[],
+            data: (data ?? []).map(item => ({ ...item, country: getLocationCountry(item) || null })) as MapPin[],
         });
     } catch (error) {
         console.error("[streetlifting-index][map-pins] error:", error);

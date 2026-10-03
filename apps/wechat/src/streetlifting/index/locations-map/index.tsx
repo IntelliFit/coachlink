@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Input, Map as TaroMap } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useLoad } from '@tarojs/taro'
 
 import {
   streetliftingIndexService,
@@ -12,8 +12,11 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
-import { isValidLocationCoordinates, toWeChatCoordinates, type LocationSelection, type LocationSearchResult } from '@coachlink/core'
-import { readLocationCache, writeLocationCache } from '@/utils/streetliftingLocationCache'
+import { isValidLocationCoordinates, toWeChatCoordinates, DEFAULT_LOCATION_MAP_VIEW, getInitialLocationMapView, getGestureMapScale, type LocationSelection, type LocationSearchResult, type LocationMapView } from '@coachlink/core'
+import { readLocationCache, writeLocationCache, type LocationDraft } from '@/utils/streetliftingLocationCache'
+import { getApproxUserLocation } from '@/utils/approxLocation'
+import { usableSearchSelection } from '@/utils/locationPicker'
+import { authService } from '@/services/authService'
 
 type ClusterMarkerMeta =
   | {
@@ -54,25 +57,12 @@ type UserLocation = {
   longitude: number
 }
 
-async function getApproxUserLocation(): Promise<UserLocation> {
-  const taroWithFuzzyLocation = Taro as typeof Taro & {
-    getFuzzyLocation?: (options?: { type?: string }) => Promise<UserLocation>
-  }
-  if (typeof taroWithFuzzyLocation.getFuzzyLocation === 'function') {
-    const location = await taroWithFuzzyLocation.getFuzzyLocation({ type: 'gcj02' })
-    return { latitude: location.latitude, longitude: location.longitude }
-  }
-
-  const location = await Taro.getLocation({ type: 'gcj02' })
-  return { latitude: location.latitude, longitude: location.longitude }
-}
-
 const DEFAULT_CENTER = {
-  latitude: 20,
-  longitude: 0
+  latitude: DEFAULT_LOCATION_MAP_VIEW.latitude,
+  longitude: DEFAULT_LOCATION_MAP_VIEW.longitude
 }
 
-const DEFAULT_SCALE = 3
+const DEFAULT_SCALE = DEFAULT_LOCATION_MAP_VIEW.scale
 const MAX_CLUSTER_LABEL_COUNT = 99
 const CLUSTER_ID_BASE = 100000
 
@@ -188,12 +178,12 @@ function getMapContext(mapId: string) {
   return Taro.createMapContext(mapId)
 }
 
-function getCurrentScale(mapId: string): Promise<number> {
+function getCurrentScale(mapId: string): Promise<number | null> {
   const ctx = getMapContext(mapId)
   return new Promise((resolve) => {
     ctx.getScale({
-      success: (res: any) => resolve(Number(res?.scale || DEFAULT_SCALE)),
-      fail: () => resolve(DEFAULT_SCALE)
+      success: (res: any) => resolve(typeof res?.scale === 'number' && Number.isFinite(res.scale) ? res.scale : null),
+      fail: () => resolve(null)
     })
   })
 }
@@ -218,7 +208,11 @@ export default function StreetliftingLocationsMapPage() {
   const { effectiveTheme } = useTheme()
   const mapIdRef = useRef(`streetlifting-map-${Date.now()}`)
   const markerMetaRef = useRef(new globalThis.Map<number, ClusterMarkerMeta>())
-  const paramsRef = useRef(Taro.getCurrentInstance().router?.params || {})
+  const [params, setParams] = useState<Record<string, string>>({})
+  const [ready, setReady] = useState(false)
+  const paramsRef = useRef(params)
+  paramsRef.current = params
+  useLoad((options) => { setParams(options || {}); setReady(true) })
   const pickMode = paramsRef.current.mode === 'pick'
   const decodeParam = (value?: string) => { try { return decodeURIComponent(value || '') } catch { return value || '' } }
   const [pickedPosition, setPickedPosition] = useState<LocationSelection | null>(null)
@@ -228,8 +222,20 @@ export default function StreetliftingLocationsMapPage() {
   const [searchMessage, setSearchMessage] = useState('')
   const searchInFlightRef = useRef(false)
   const searchVersionRef = useRef(0)
+  const cameraVersionRef = useRef(0)
+  const touchedViewRef = useRef(false)
+  const [locating, setLocating] = useState(false)
+  const locatingRef = useRef(false)
+  const locationCacheKey = `last-user-location:${authService.getCurrentUser()?.id || 'guest'}`
+  const cachedUserLocation = () => {
+    const cached = readLocationCache<UserLocation & { locatedAt: number }>(locationCacheKey)
+    return cached && Date.now() - cached.locatedAt < 24 * 60 * 60 * 1000 ? cached : null
+  }
 
-  useEffect(() => () => { searchVersionRef.current += 1 }, [])
+  useEffect(() => () => {
+    searchVersionRef.current += 1
+    cameraVersionRef.current += 1
+  }, [])
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -237,21 +243,39 @@ export default function StreetliftingLocationsMapPage() {
   const [selectedPin, setSelectedPin] = useState<StreetliftingLocationMapPin | null>(null)
   const [center, setCenter] = useState<UserLocation>(DEFAULT_CENTER)
   const [scale, setScale] = useState(DEFAULT_SCALE)
+  const [observedScale, setObservedScale] = useState(DEFAULT_SCALE)
   const [hint, setHint] = useState('点一下聚合点可继续放大，点单个点位可查看详情并直接导航。')
+  const moveMap = (view: LocationMapView, userAction = true) => {
+    cameraVersionRef.current += 1
+    if (userAction) touchedViewRef.current = true
+    setCenter({ latitude: view.latitude, longitude: view.longitude })
+    setScale(view.scale)
+    setObservedScale(view.scale)
+  }
 
   useEffect(() => {
+    if (!ready) return
     const params = paramsRef.current
-    const latitude = params.latitude === undefined ? NaN : Number(params.latitude)
-    const longitude = params.longitude === undefined ? NaN : Number(params.longitude)
+    void Taro.setNavigationBarTitle({ title: pickMode ? '选择单杠位置' : '单杠地图' })
+    const request = pickMode ? readLocationCache<{ userId: string; initial: LocationDraft; nearby?: UserLocation | null }>(decodeParam(params.selectionKey)) : null
+    const draft = request?.userId === authService.getCurrentUser()?.id ? request?.initial : null
+    const latitude = params.latitude === undefined ? draft?.latitude ?? NaN : Number(params.latitude)
+    const longitude = params.longitude === undefined ? draft?.longitude ?? NaN : Number(params.longitude)
     if (pickMode) {
       setLoading(false)
-      setHint('搜索城市、公园或地址后，在地图上点到单杠的具体位置，再确认。也可直接拖动地图选点。')
+      setHint('搜索地点后，点击单杠的实际位置。确认后带回可获取的名称和地址，你可以修改或补充。')
       if (isValidLocationCoordinates(latitude, longitude)) {
-        const initial: LocationSelection = { name: decodeParam(params.name), country: decodeParam(params.country), address: '', province: '', city: '', county: '', latitude, longitude, coordinate_system: params.coordinate_system === 'wgs84' ? 'wgs84' : 'gcj02' }
+        const initial: LocationSelection = { name: draft?.name || decodeParam(params.name), country: draft?.country || decodeParam(params.country), address: draft?.address || '', province: draft?.province || '', city: draft?.city || '', county: draft?.county || '', latitude, longitude, coordinate_system: (draft?.coordinate_system || params.coordinate_system) === 'wgs84' ? 'wgs84' : 'gcj02' }
         setPickedPosition(initial)
         const position = toWeChatCoordinates(initial)
-        setCenter({ latitude: position.latitude, longitude: position.longitude })
-        setScale(16)
+        moveMap({ ...position, scale: 16 }, false)
+      } else {
+        const nearby = draft && request?.nearby
+        if (nearby && isValidLocationCoordinates(nearby.latitude, nearby.longitude)) moveMap({ ...nearby, scale: 16 }, false)
+        else {
+          moveMap(DEFAULT_LOCATION_MAP_VIEW, false)
+          setHint('未能定位到你附近。可点击“定位我附近”重试，或搜索城市、公园和地址继续选点。')
+        }
       }
       return
     }
@@ -260,8 +284,7 @@ export default function StreetliftingLocationsMapPage() {
       ? { id: params.id || '__preview__', name: decode(params.name) || '所选位置', country: decode(params.country), latitude, longitude, coordinate_system: 'gcj02' }
       : null
     if (focus) {
-      setCenter({ latitude, longitude })
-      setScale(16)
+      moveMap({ latitude, longitude, scale: 16 }, false)
       setSelectedPin(focus)
       setPins([focus])
       setHint(params.id ? '已定位到所选点位，可继续缩放查看附近。' : '这是经纬度位置预览，返回后可继续填写并保存。')
@@ -270,6 +293,7 @@ export default function StreetliftingLocationsMapPage() {
       const displayPins = data.filter((pin) => isValidLocationCoordinates(pin.latitude, pin.longitude)).map(toWeChatCoordinates)
       setPins(focus && !displayPins.some((pin) => pin.id === focus.id) ? [...displayPins, focus] : displayPins)
       if (focus) setSelectedPin(displayPins.find((pin) => pin.id === focus.id) || focus)
+      else if (!touchedViewRef.current) moveMap(getInitialLocationMapView(displayPins, cachedUserLocation()), false)
     }
     const cached = readLocationCache<StreetliftingLocationMapPin[]>('map-pins')
     if (Array.isArray(cached)) applyPins(cached)
@@ -288,9 +312,31 @@ export default function StreetliftingLocationsMapPage() {
     }
 
     void load()
-  }, [])
+  }, [ready, params])
 
-  const clustered = useMemo(() => createClusterMarkers(pins, scale), [pins, scale])
+  useEffect(() => {
+    if (!ready || pickMode || cachedUserLocation()) return
+    let cancelled = false
+    // Use only an existing permission. Opening the map never triggers a new
+    // location prompt; the explicit locate button handles a first authorization.
+    void (async () => {
+      try {
+        const setting = await Taro.getSetting()
+        const scopes = setting.authSetting as Record<string, boolean | undefined>
+        const res = scopes['scope.userFuzzyLocation']
+          ? await getApproxUserLocation()
+          : null
+        if (!res || !isValidLocationCoordinates(res.latitude, res.longitude) || cancelled) return
+        writeLocationCache(locationCacheKey, { latitude: res.latitude, longitude: res.longitude, locatedAt: Date.now() })
+        const request = pickMode ? readLocationCache<{ initial: LocationDraft }>(decodeParam(params.selectionKey)) : null
+        const hasInitialPoint = isValidLocationCoordinates(request?.initial?.latitude, request?.initial?.longitude)
+        if (!touchedViewRef.current && params.latitude === undefined && !hasInitialPoint) moveMap({ latitude: res.latitude, longitude: res.longitude, scale: pickMode ? 16 : 13 }, false)
+      } catch { /* No permission or provider failure: use populated regions. */ }
+    })()
+    return () => { cancelled = true }
+  }, [ready, params])
+
+  const clustered = useMemo(() => createClusterMarkers(pins, observedScale), [pins, observedScale])
 
   useEffect(() => {
     markerMetaRef.current = clustered.metaMap
@@ -302,45 +348,68 @@ export default function StreetliftingLocationsMapPage() {
     if (!meta) return
 
     if (meta.kind === 'cluster') {
-      const nextScale = Math.min(scale + 2, 16)
-      setCenter({ latitude: meta.latitude, longitude: meta.longitude })
-      setScale(nextScale)
+      const nextScale = Math.min(observedScale + 2, 16)
+      moveMap({ latitude: meta.latitude, longitude: meta.longitude, scale: nextScale })
       setSelectedPin(null)
       setHint(`已聚焦 ${meta.pins.length} 个点位，继续放大可以看到更细的分布。`)
       return
     }
 
     setSelectedPin(meta.pin)
-    setCenter({ latitude: meta.pin.latitude, longitude: meta.pin.longitude })
+    // Keep the user's current zoom when opening a point's details.
     setHint(`已选中 ${meta.pin.name}，可以直接打开系统地图导航。`)
   }
 
   const handleRegionChange = async (event: any) => {
-    if (event?.type !== 'end' && event?.detail?.type !== 'end') return
-    const [nextScale, nextCenter] = await Promise.all([
-      getCurrentScale(mapIdRef.current),
+    const detail = event?.detail || event
+    const causedBy = detail?.causedBy || event?.causedBy
+    if (!['gesture', 'drag', 'scale'].includes(causedBy)) return
+    touchedViewRef.current = true
+    const version = ++cameraVersionRef.current
+    if ((detail?.type || event?.type) !== 'end') return
+    const [nextScale, actualCenter] = await Promise.all([
+      getGestureMapScale(event) ?? getCurrentScale(mapIdRef.current),
       getCurrentCenter(mapIdRef.current)
     ])
-    setScale(nextScale)
-    if (nextCenter) setCenter(nextCenter)
+    // Only actual user gestures synchronize zoom. Programmatic callbacks and stale
+    // readings are ignored, so a locate/search command cannot be undone by them.
+    if (version === cameraVersionRef.current) {
+      if (nextScale != null) {
+        setObservedScale(nextScale)
+        setScale(nextScale)
+      }
+      // Keep the controlled center aligned after a real pan. A later locate can
+      // then move through props, without MapContext.moveToLocation's implicit
+      // precise-location request in the simulator.
+      if (actualCenter && isValidLocationCoordinates(actualCenter.latitude, actualCenter.longitude)) setCenter(actualCenter)
+    }
   }
 
   const handleLocate = async () => {
+    if (locatingRef.current) return
+    locatingRef.current = true
+    setLocating(true)
+    const version = ++cameraVersionRef.current
+    touchedViewRef.current = true
     try {
       const res = await getApproxUserLocation()
-      setCenter({ latitude: res.latitude, longitude: res.longitude })
-      setScale(13)
-      setHint('已定位到你附近，继续缩放可以查看周边更细的单杠分布。')
+      if (!isValidLocationCoordinates(res.latitude, res.longitude)) throw new Error('未能获取有效位置')
+      writeLocationCache(locationCacheKey, { ...res, locatedAt: Date.now() })
+      if (version !== cameraVersionRef.current) return
+      moveMap({ ...res, scale: pickMode ? 16 : 13 })
+      setHint(pickMode ? '已到你附近。请点到单杠的具体位置，再确认。' : '已定位到你附近。点击数字可展开周边单杠。')
     } catch (e) {
       Taro.showToast({ title: (e as Error)?.message || '定位失败', icon: 'none' })
+    } finally {
+      locatingRef.current = false
+      setLocating(false)
     }
   }
 
   const handleResetView = () => {
-    setCenter(DEFAULT_CENTER)
-    setScale(DEFAULT_SCALE)
+    moveMap(pickMode ? getInitialLocationMapView([], cachedUserLocation()) : getInitialLocationMapView(pins))
     setSelectedPin(null)
-    setHint(pickMode ? '已回到世界视角。搜索地名可快速到达目标区域，已选位置仍保留。' : '已回到世界视角，拖动和放大地图可以浏览不同国家的单杠点位。')
+    setHint(pickMode ? '搜索地名可到达国内外任意城市，再放大选点。' : '已显示单杠最多的区域。点击数字放大，或拖动地图浏览其他国家。')
   }
 
   const handleSearch = async () => {
@@ -350,7 +419,7 @@ export default function StreetliftingLocationsMapPage() {
     searchInFlightRef.current = true
     const version = ++searchVersionRef.current
     setSearching(true)
-    const cacheKey = `search:${query.toLowerCase()}`
+    const cacheKey = `search:local-names:${query.toLowerCase()}`
     const cached = readLocationCache<LocationSearchResult[]>(cacheKey)
     setSearchResults(Array.isArray(cached) ? cached : [])
     setSearchMessage('')
@@ -367,18 +436,28 @@ export default function StreetliftingLocationsMapPage() {
   const selectSearchResult = (result: LocationSearchResult) => {
     searchVersionRef.current += 1
     const position = toWeChatCoordinates(result)
-    setCenter({ latitude: position.latitude, longitude: position.longitude })
-    setScale(result.zoom)
-    setPickedPosition(result)
+    moveMap({ ...position, scale: result.zoom })
+    setPickedPosition(result.zoom >= 14 ? usableSearchSelection(result) : null)
     setSearchResults([])
     setSearchMessage('')
-    setHint('已到达所选地点。可放大后点击单杠的具体位置，或直接确认此处。')
+    setHint(result.zoom >= 14 ? '已到达所选地点。可点击单杠的具体位置，或确认当前标记。' : '已到达目标区域。请放大地图，点击单杠的具体位置。')
   }
 
   const selectMapPoint = (latitude: number, longitude: number, name = '') => {
     if (!pickMode || !isValidLocationCoordinates(latitude, longitude)) return
-    setPickedPosition((prev) => ({ name, address: '', country: prev?.country || decodeParam(paramsRef.current.country), province: prev?.province || '', city: prev?.city || '', county: prev?.county || '', latitude, longitude, coordinate_system: 'gcj02' }))
-    setHint('已选中地图位置，确认后将自动带回添加表单。国家和地址可在表单中补充。')
+    if (observedScale < 14) { Taro.showToast({ title: '请先放大地图，再选择具体位置', icon: 'none' }); return }
+    const previous = pickedPosition && toWeChatCoordinates(pickedPosition)
+    // Re-confirming a searched point must keep its original WGS84 coordinates.
+    if (previous && Math.abs(previous.latitude - latitude) < 0.00005 && Math.abs(previous.longitude - longitude) < 0.00005) {
+      // A map tap may arrive before its POI tap at the same coordinates.
+      // Keep the search address/coordinate system, but retain the POI name too.
+      if (name.trim()) setPickedPosition(current => current ? { ...current, name: name.trim() } : current)
+      setHint('位置已选好，确认后带回可获取的名称和地址。')
+      return
+    }
+    const selection: LocationSelection = { name, address: '', country: '', province: '', city: '', county: '', latitude, longitude, coordinate_system: 'gcj02' }
+    setPickedPosition(selection)
+    setHint(name ? '位置和地点名称已记录，确认后可补充详细地址。' : '位置已记录，未返回名称和地址，确认后请手动补充。')
   }
 
   const chooseMapCenter = async () => {
@@ -389,10 +468,16 @@ export default function StreetliftingLocationsMapPage() {
 
   const confirmMapPosition = () => {
     if (!pickedPosition) { Taro.showToast({ title: '请先搜索地点或在地图上选点', icon: 'none' }); return }
-    const channel = (Taro.getCurrentInstance().page as any)?.getOpenerEventChannel?.()
-    if (!channel?.emit) { Taro.showToast({ title: '请从添加单杠页面重新选点', icon: 'none' }); return }
-    channel.emit('streetliftingLocationSelected', pickedPosition)
-    void Taro.navigateBack()
+    const key = decodeParam(paramsRef.current.selectionKey)
+    const userId = authService.getCurrentUser()?.id || ''
+    if (!key || !key.startsWith(`picker:${userId}:`)) { Taro.showToast({ title: '请从分享单杠入口选择位置', icon: 'none' }); return }
+    writeLocationCache(key, { userId, position: pickedPosition })
+    const saved = readLocationCache<{ position: LocationSelection }>(key)
+    if (!saved || saved.position?.latitude !== pickedPosition.latitude || saved.position?.longitude !== pickedPosition.longitude) {
+      Taro.showToast({ title: '暂时无法保存所选位置，请重试', icon: 'none' })
+      return
+    }
+    void Taro.navigateBack().catch(() => Taro.showToast({ title: '返回失败，请点击左上角返回', icon: 'none' }))
   }
 
   const pickerMarker = pickedPosition ? [{ ...toWeChatCoordinates(pickedPosition), id: 1, iconPath: locationPinIcon, width: 32, height: 40, anchor: { x: 0.5, y: 1 } }] : []
@@ -421,20 +506,20 @@ export default function StreetliftingLocationsMapPage() {
     <View className={`locations-map-page theme-${effectiveTheme}`}>
       <View className='locations-map-toolbar'>
         <View className='locations-map-btn' onClick={handleBackToList}>
-          <Text>{pickMode ? '返回表单' : '返回列表'}</Text>
+          <Text>{pickMode ? '取消选点' : '返回列表'}</Text>
         </View>
         <View className='locations-map-btn' onClick={handleLocate}>
-          <Text>定位我附近</Text>
+          <Text>{locating ? '定位中…' : '定位我附近'}</Text>
         </View>
         <View className='locations-map-btn primary' onClick={handleResetView}>
-          <Text>世界视角</Text>
+          <Text>{pickMode ? '起始区域' : '点位分布'}</Text>
         </View>
       </View>
 
       <View className='locations-map-summary'>
         <View className='locations-map-summary-main'>
-          <Text className='locations-map-title'>{pickMode ? '搜索地点 / 地图选点' : '单杠地图模式'}</Text>
-          <Text className='locations-map-desc'>{pickMode ? '搜索后点击具体位置，坐标会自动填写，无需手动输入。' : '浏览国内外单杠点位，支持聚合查看、经纬度定位和系统地图导航。'}</Text>
+          <Text className='locations-map-title'>{pickMode ? '标记单杠的实际位置' : '寻找附近的单杠'}</Text>
+          <Text className='locations-map-desc'>{pickMode ? '先定位到你附近，搜索地点后确认单杠位置。能获取的信息自动带回，缺失或不准确的内容再修改。' : '优先显示你附近或单杠集中的地区。地图上的数字表示单杠数量。'}</Text>
         </View>
         {!pickMode && <View className='locations-map-stat'>
           <Text className='locations-map-stat-value'>{pins.length}</Text>
@@ -477,21 +562,21 @@ export default function StreetliftingLocationsMapPage() {
 
         {!pickMode && <View className='locations-map-overlay'>
           <View>
-            <Text className='locations-map-overlay-title'>国内外点位分布</Text>
-            <Text className='locations-map-overlay-desc'>当前缩放 {scale} 级，已渲染 {clustered.markers.length} 个地图标记</Text>
+            <Text className='locations-map-overlay-title'>点击数字放大，点击单杠查看</Text>
+            <Text className='locations-map-overlay-desc'>支持拖动地图浏览国内外点位</Text>
           </View>
           <View className='locations-map-overlay-badge'>
-            <Text>{selectedPin ? '已选中点位' : '聚合已开启'}</Text>
+            <Text>{selectedPin ? '已选中' : `${pins.length} 处`}</Text>
           </View>
         </View>}
       </View>
 
       {pickMode && <View className='locations-map-picker-confirm'>
         <Text className='locations-map-selected-title'>{pickedPosition ? pickedPosition.name || '已选地图位置' : '点击地图选择单杠位置'}</Text>
-        {pickedPosition && <Text className='locations-map-selected-address'>{pickedPosition.address || '坐标已自动记录，可在表单中补充地址。'}</Text>}
+        {pickedPosition && <Text className='locations-map-selected-address'>{pickedPosition.address || '位置已记录，未返回详细地址，确认后请补充。'}</Text>}
         <View className='locations-map-selected-actions'>
           <View className='locations-map-btn select-map-center' onClick={chooseMapCenter}><Text>选取地图中心</Text></View>
-          <View className='locations-map-btn primary confirm-map-position' onClick={confirmMapPosition}><Text>确认此位置</Text></View>
+          <View className={`locations-map-btn primary confirm-map-position${!pickedPosition ? ' disabled' : ''}`} onClick={confirmMapPosition}><Text>确认地图标记</Text></View>
         </View>
       </View>}
 

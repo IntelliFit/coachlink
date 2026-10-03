@@ -26,7 +26,7 @@
 
   &.primary {
     background: #cf6d4e;
-    border-color: #1f2937;
+    border-color: #cf6d4e;
     color: #ffffff;
   }
 }
@@ -134,7 +134,7 @@
 .locations-map-overlay-badge {
   flex-shrink: 0;
   padding: 8rpx 16rpx;
-  border-radius: 1000rpx;
+  border-radius: 9999rpx;
   background: #fef3c7;
   color: #b45309;
   font-size: 20rpx;
@@ -196,9 +196,9 @@
   font-weight: 700;
 
   &.primary {
-    background: #ecfdf5;
-    border-color: #bbf7d0;
-    color: #047857;
+    background: #CF6D4E;
+    border-color: #CF6D4E;
+    color: #ffffff;
   }
 }
 
@@ -223,6 +223,7 @@
 }
 
 .locations-map-picker-confirm { margin-top: 16rpx; }
+.locations-map-btn.disabled { opacity: 0.5; }
 .locations-map-search-row { display: flex; align-items: center; gap: 16rpx; }
 .locations-map-search-input {
   flex: 1;
