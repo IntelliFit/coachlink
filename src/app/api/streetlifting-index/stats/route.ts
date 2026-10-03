@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
 import type { ApiData } from "@/types/api";
@@ -28,7 +27,7 @@ function formatMonthKey(date: Date): string {
 
 export async function POST(req: Request) {
     try {
-        await getServerSession();
+        // Public aggregate data does not require loading the caller's profile.
         await req.json().catch(() => ({} as StreetliftingStatsDto));
 
         const db = serviceRoleSupabase;

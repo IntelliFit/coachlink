@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { rebuildStreetliftingLocationContributorStats } from "../contributorStats";
@@ -67,11 +67,14 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
-        try {
-            await rebuildStreetliftingLocationContributorStats();
-        } catch (rebuildError) {
-            console.error("[streetlifting-index][locations] contributor rebuild after create failed:", rebuildError);
-        }
+        // The location is already saved. Ranking maintenance must not delay its acknowledgement.
+        after(async () => {
+            try {
+                await rebuildStreetliftingLocationContributorStats();
+            } catch (rebuildError) {
+                console.error("[streetlifting-index][locations] contributor rebuild after create failed:", rebuildError);
+            }
+        });
 
         return NextResponse.json<ApiData<StreetliftingCreateLocationResponseDto>>({
             success: true,

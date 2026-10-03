@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
 import type { ApiData } from "@/types/api";
@@ -9,7 +8,7 @@ import { CHINA_PROVINCE_NAMES, getLocationCountry } from '@coachlink/core';
 
 export async function POST(req: Request) {
     try {
-        await getServerSession();
+        // This public list has no user-specific data; keep profile requests off its critical path.
         const body = (await req.json().catch(() => ({}))) as StreetliftingListLocationsDto;
         const db = serviceRoleSupabase;
 
