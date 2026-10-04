@@ -1,6 +1,6 @@
 ## 教练销售恢复体验发布中（2026-10-04）
 
-- 用户明确授权新体验版及前后端更新。门禁477测试/root typecheck重跑通过；dist-release生产构建中。部署目标dev.coachlink.fit，main正式服务保持不动；未提审或正式发布。
+- 用户明确授权新体验版及前后端更新。源码c1a3d818已推GitHub/Gitee dev；477测试/root typecheck重跑、独立生产mini2884模块124页及compiled resolver四env通过。体验版2026.10.04.1200官方upload任务confirmation_upload_6b04bd45-fc4a-4c70-ab85-10b1fba97012待工具内确认，不主动轮询。配套dev Web/API采用现有手动CI run37173278319构建，main generation124/3副本原镜像不动。生产工具dev health域名拦截，后台只读访问被浏览器安全策略阻止，已请用户核对request域名；截图超时、本轮未下单/分账/提审或正式发布。
 
 ## 教练销售独立策略已本地恢复（2026-10-04）
 
