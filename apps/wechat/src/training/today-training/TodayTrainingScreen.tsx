@@ -1,5 +1,5 @@
 import { canViewPlanDay } from '@coachlink/core/src/planCalendar'
-import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Image, ScrollView, Textarea } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
@@ -1643,7 +1643,7 @@ function TodayTrainingScreen() {
                     <Text className='coach-pick-name'>{coach.name || `教练 ${String(sub.id).slice(0, 8)}`}</Text>
                     {isActive && <Text className='coach-pick-current'>当前</Text>}
                     {!hasPlan && (
-                      <Text className='coach-pick-badge'>{subGrace ? (WECHAT_FREE_RELEASE ? '服务到期' : '待续费') : '待制定'}</Text>
+                      <Text className='coach-pick-badge'>{subGrace ? (WECHAT_COACH_PURCHASE_PAUSED ? '服务到期' : '待续费') : '待制定'}</Text>
                     )}
                   </View>
                   <Text className='coach-pick-plan'>{planTitle}</Text>
@@ -1682,7 +1682,7 @@ function TodayTrainingScreen() {
       : resolveAvatarUrl(activeSubscription?.coach?.avatar_url)
     const focusStatusText = !hasPlanForCard
       ? isExpiredGrace
-        ? (WECHAT_FREE_RELEASE ? '服务到期' : '待续费')
+        ? (WECHAT_COACH_PURCHASE_PAUSED ? '服务到期' : '待续费')
         : hasCoachWaitingPlan
           ? '制定中'
           : '未开始'
@@ -1710,7 +1710,7 @@ function TodayTrainingScreen() {
           : '教练计划'
       : hasCoachWaitingPlan
         ? isExpiredGrace
-          ? (WECHAT_FREE_RELEASE ? '教练服务到期' : '订阅需要续费')
+          ? (WECHAT_COACH_PURCHASE_PAUSED ? '教练服务到期' : '订阅需要续费')
           : '等待教练制定'
         : '还没有长期计划'
     const cardTitle = hasPlanForCard
@@ -1734,7 +1734,7 @@ function TodayTrainingScreen() {
             : '当天安排'
       : hasCoachWaitingPlan
         ? isExpiredGrace
-          ? (WECHAT_FREE_RELEASE ? '先自由练' : '续费后继续')
+          ? (WECHAT_COACH_PURCHASE_PAUSED ? '先自由练' : '续费后继续')
           : '先自由练'
         : '自由训练'
     const focusMetaLine = hasPlanForCard
@@ -1751,14 +1751,14 @@ function TodayTrainingScreen() {
             ? '查看轻任务'
             : '开始训练'
       : isExpiredGrace && hasCoachWaitingPlan
-        ? (WECHAT_FREE_RELEASE ? '即兴锻炼' : '去续费')
+        ? (WECHAT_COACH_PURCHASE_PAUSED ? '即兴锻炼' : '去续费')
         : '即兴锻炼'
     const handlePrimaryAction = () => {
       if (hasPlanForCard) {
         handleMegaStart()
         return
       }
-      if (!WECHAT_FREE_RELEASE && isExpiredGrace && hasCoachWaitingPlan) {
+      if (!WECHAT_COACH_PURCHASE_PAUSED && isExpiredGrace && hasCoachWaitingPlan) {
         Taro.navigateTo({ url: renewPath })
         return
       }
@@ -1837,7 +1837,7 @@ function TodayTrainingScreen() {
               </View>
             ) : isExpiredGrace && hasCoachWaitingPlan ? (
               <View className='tt-focus-secondary-btn' onClick={() => Taro.navigateTo({ url: renewPath })} hoverClass='tt-focus-secondary-btn--pressed' hoverStayTime={70}>
-                <Text>{WECHAT_FREE_RELEASE ? '查看教练资料' : '去教练主页续费'}</Text>
+                <Text>{WECHAT_COACH_PURCHASE_PAUSED ? '查看教练资料' : '去教练主页续费'}</Text>
               </View>
             ) : (
               <View className='tt-focus-secondary-btn' onClick={handleFindCoach} hoverClass='tt-focus-secondary-btn--pressed' hoverStayTime={70}>
@@ -1864,7 +1864,7 @@ function TodayTrainingScreen() {
               {noPlanForCard
                 ? '之后有教练计划时，这里会自动切换成今日训练。'
                 : isExpiredGrace
-                  ? (WECHAT_FREE_RELEASE ? '原计划、日历和训练记录不会丢失，可先使用免费的自主训练功能。' : '原计划、日历和训练记录不会丢失，续费后继续。')
+                  ? (WECHAT_COACH_PURCHASE_PAUSED ? '原计划、日历和训练记录不会丢失，可先使用免费的自主训练功能。' : '原计划、日历和训练记录不会丢失，续费后继续。')
                   : '教练发布计划后，日历和当天安排会出现在这里。'}
             </Text>
           </View>
@@ -2012,7 +2012,7 @@ function TodayTrainingScreen() {
           </View>
           <View className='more-training-item-copy'>
             <Text className='more-training-item-title'>浏览教练</Text>
-            <Text className='more-training-item-desc'>{WECHAT_FREE_RELEASE ? '查看教练介绍与已有服务' : '查看教练服务与订阅方案'}</Text>
+            <Text className='more-training-item-desc'>{WECHAT_COACH_PURCHASE_PAUSED ? '查看教练介绍与已有服务' : '查看教练服务与订阅方案'}</Text>
           </View>
           <ArrowRight size={18} color='#9CA3AF' />
         </View>
@@ -2125,7 +2125,7 @@ function TodayTrainingScreen() {
                     宽限期剩余 {graceDaysLeft} 天{graceDeadlineLabel ? `（截至 ${graceDeadlineLabel}）` : ''}。
                   </Text>
                   <Text className='banner-link' onClick={() => Taro.navigateTo({ url: renewPath })}>
-                    {WECHAT_FREE_RELEASE ? '查看服务状态' : '去续费'}
+                    {WECHAT_COACH_PURCHASE_PAUSED ? '查看服务状态' : '去续费'}
                   </Text>
                 </View>
               )}
@@ -2246,7 +2246,7 @@ function TodayTrainingScreen() {
                     宽限期剩余 {graceDaysLeft} 天{graceDeadlineLabel ? `（截至 ${graceDeadlineLabel}）` : ''}。
                   </Text>
                   <Text className='banner-link' onClick={() => Taro.navigateTo({ url: renewPath })}>
-                    {WECHAT_FREE_RELEASE ? '查看服务状态' : '去续费'}
+                    {WECHAT_COACH_PURCHASE_PAUSED ? '查看服务状态' : '去续费'}
                   </Text>
                 </View>
               )}
@@ -2293,7 +2293,7 @@ function TodayTrainingScreen() {
                     当前订阅处于宽限期，剩余 {graceDaysLeft} 天{graceDeadlineLabel ? `（截至 ${graceDeadlineLabel}）` : ''}。
                   </Text>
                   <Text className='banner-link' onClick={() => Taro.navigateTo({ url: renewPath })}>
-                    {WECHAT_FREE_RELEASE ? '查看服务状态' : '去续费'}
+                    {WECHAT_COACH_PURCHASE_PAUSED ? '查看服务状态' : '去续费'}
                   </Text>
                 </View>
               )}

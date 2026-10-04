@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react'
-import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import FreeReleaseInfo from '@/components/FreeReleaseInfo'
 import { View, Text, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
@@ -521,7 +521,7 @@ function Market() {
 }
 
 export default function MarketReleasePage() {
-  return WECHAT_FREE_RELEASE
+  return WECHAT_COACH_PURCHASE_PAUSED
     ? <FreeReleaseInfo title='服务暂未开放' description='你可以浏览教练资料，或从“我的教练”查看已有服务。' />
     : <Market />
 }

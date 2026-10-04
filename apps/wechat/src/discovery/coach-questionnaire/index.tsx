@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import FreeReleaseInfo from '@/components/FreeReleaseInfo'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
@@ -513,7 +513,7 @@ function CoachQuestionnaireForm() {
 
 export default function CoachQuestionnairePage() {
   const router = useRouter()
-  return WECHAT_FREE_RELEASE && router.params.mode !== 'edit'
+  return WECHAT_COACH_PURCHASE_PAUSED && router.params.mode !== 'edit'
     ? <FreeReleaseInfo title='服务暂未开放' description='已有学员可以从“我的教练”进入并修改问卷。' />
     : <CoachQuestionnaireForm />
 }

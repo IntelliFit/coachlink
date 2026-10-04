@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { authService } from '@/services/authService'
@@ -128,7 +128,7 @@ export default function MyCoaches() {
         <View className='empty-state'>
           <View className='empty-icon'><User /></View>
           <Text className='empty-text'>{errorMessage || '暂无订阅的教练'}</Text>
-          <Text className='empty-hint'>{WECHAT_FREE_RELEASE ? '可浏览教练资料；免费版暂不提供新购或续费。' : '去发现教练页订阅你喜欢的教练'}</Text>
+          <Text className='empty-hint'>{WECHAT_COACH_PURCHASE_PAUSED ? '可浏览教练资料；免费版暂不提供新购或续费。' : '去发现教练页订阅你喜欢的教练'}</Text>
           <View className='btn-discovery' onClick={goDiscovery} style={{ marginTop: 16 }}>
             <Text>发现教练</Text>
           </View>

@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
 import { AUTH_SESSION_INVALID_EVENT } from '../services/authSessionEvents'
 import { resolveApiBaseUrl } from './apiBaseUrl'
-import { WECHAT_FREE_RELEASE, WECHAT_PURCHASE_PAUSED_MESSAGE, isWechatNewPurchasePath, wechatReleaseHeaders } from '@coachlink/core'
+import { WECHAT_PURCHASE_PAUSED_MESSAGE, isWechatPurchasePaused, wechatReleaseHeaders, wechatCoachPurchaseHeaders } from '@coachlink/core'
 
 // 同一个上传包按微信 develop/trial/release 运行环境选择对应 API。
 export const API_BASE_URL = resolveApiBaseUrl()
@@ -199,7 +199,7 @@ function getNetworkFailureMessage(error: any) {
  */
 export async function request<T = any>(options: RequestOptions): Promise<ApiResponse<T>> {
   const { url, method = 'GET', data, header = {}, showErrorToast: showErrorToastOpt = true } = options
-  if (WECHAT_FREE_RELEASE && method === 'POST' && isWechatNewPurchasePath(url)) {
+  if (method === 'POST' && isWechatPurchasePaused(url)) {
     showErrorToast(WECHAT_PURCHASE_PAUSED_MESSAGE, showErrorToastOpt)
     return { success: false, message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   }
@@ -216,7 +216,8 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...header,
-    ...wechatReleaseHeaders()
+    ...wechatReleaseHeaders(),
+    ...wechatCoachPurchaseHeaders()
   };
   
   if (token) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
+import { isWechatFreeRequest, rejectWechatCoachPurchase } from '@/lib/wechatFreeRelease';
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import { yuanToFen } from "@/lib/moneyUtils";
@@ -13,7 +13,7 @@ import type {
 import { Json } from "@/types/database.types";
 
 export async function POST(req: NextRequest) {
-    const paused = rejectWechatPurchase(req);
+    const paused = rejectWechatCoachPurchase(req);
     if (paused) return paused;
     const userId = await getApiUserId(req);
     if (!userId) {
@@ -37,6 +37,16 @@ export async function POST(req: NextRequest) {
         productTier,
         subscribedWeeks,
     } = await req.json() as CreateSubscriptionDto;
+
+    // This client creates a pending purchase only. Huifu's verified payment
+    // notification activates service; a purchase capability cannot grant it.
+    if (await isWechatFreeRequest(req) && status !== 'inactive') {
+        return NextResponse.json({
+            success: false,
+            message: "请先创建待支付订阅并完成支付",
+            data: null,
+        }, { status: 400 });
+    }
 
     // 参数验证
     if (!coachId || !tier || monthlyPrice === undefined) {

@@ -5,6 +5,9 @@ import {
   WECHAT_FREE_RELEASE_HEADER,
   WECHAT_FREE_RELEASE_ID,
   WECHAT_PURCHASE_PAUSED_MESSAGE,
+  WECHAT_COACH_PURCHASE_ENABLED,
+  WECHAT_COACH_PURCHASE_HEADER,
+  WECHAT_COACH_PURCHASE_ID,
 } from '@coachlink/core';
 
 type RequestHeaders = Pick<Request, 'headers'>;
@@ -36,4 +39,16 @@ export function rejectWechatPurchase(
     { success: false, code: 'WECHAT_FREE_RELEASE', message: options.message || WECHAT_PURCHASE_PAUSED_MESSAGE, data: null },
     { status: 403 },
   );
+}
+
+/** Coach routes only. Passing this guard still requires normal auth and ownership. */
+export function rejectWechatCoachPurchase(
+  request: RequestHeaders,
+  options: { wechatOnly?: boolean; message?: string } = {},
+) {
+  if (WECHAT_COACH_PURCHASE_ENABLED && (
+    !isFreeClient(request)
+    || request.headers.get(WECHAT_COACH_PURCHASE_HEADER) === WECHAT_COACH_PURCHASE_ID
+  )) return null;
+  return rejectWechatPurchase(request, options);
 }

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { WECHAT_FREE_RELEASE, WECHAT_PURCHASE_PAUSED_MESSAGE } from '@coachlink/core'
+import { WECHAT_COACH_PURCHASE_PAUSED, WECHAT_PURCHASE_PAUSED_MESSAGE } from '@coachlink/core'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import {
@@ -104,7 +104,7 @@ export default function CoachProfile() {
       }
 
       const [pricingRes, contentRes, reviewsRes] = await Promise.all([
-        WECHAT_FREE_RELEASE ? Promise.resolve([]) : fetchPricing(id),
+        WECHAT_COACH_PURCHASE_PAUSED ? Promise.resolve([]) : fetchPricing(id),
         fetchContents(id, 0, 10),
         fetchPublicReviews(id)
       ])
@@ -155,13 +155,13 @@ export default function CoachProfile() {
       if (tabParam !== undefined && tabParam !== '') {
         const tabIndex = parseInt(tabParam, 10)
         if (!Number.isNaN(tabIndex) && tabIndex >= 0 && tabIndex <= 3) {
-          setActiveTab(WECHAT_FREE_RELEASE && tabIndex === TAB_PRICING ? TAB_ABOUT : tabIndex)
+          setActiveTab(WECHAT_COACH_PURCHASE_PAUSED && tabIndex === TAB_PRICING ? TAB_ABOUT : tabIndex)
         }
       }
-      if (!WECHAT_FREE_RELEASE && (renewParam === 'true' || renewParam === '1')) {
+      if (!WECHAT_COACH_PURCHASE_PAUSED && (renewParam === 'true' || renewParam === '1')) {
         setRenewMode(true)
       }
-      if (!WECHAT_FREE_RELEASE && (autoSubscribeParam === 'true' || autoSubscribeParam === '1') && productIdParam) {
+      if (!WECHAT_COACH_PURCHASE_PAUSED && (autoSubscribeParam === 'true' || autoSubscribeParam === '1') && productIdParam) {
         const consumeKey = autoSubscribeToken
           ? `coach-profile-auto-subscribe-consumed:${autoSubscribeToken}`
           : ''
@@ -253,7 +253,7 @@ export default function CoachProfile() {
     renewAdditionalWeeks?: number
     testAmountFen?: number
   }) => {
-    if (WECHAT_FREE_RELEASE) {
+    if (WECHAT_COACH_PURCHASE_PAUSED) {
       Taro.showToast({ title: WECHAT_PURCHASE_PAUSED_MESSAGE, icon: 'none' })
       return
     }
@@ -284,7 +284,7 @@ export default function CoachProfile() {
   }, [coachDisplayName, coachId, navigateToPaymentWaiting, ensureWechatOpenid])
 
   const handleSubscribe = () => {
-    if (WECHAT_FREE_RELEASE) {
+    if (WECHAT_COACH_PURCHASE_PAUSED) {
       Taro.navigateTo({ url: '/me/my-coaches/index' })
       return
     }
@@ -299,7 +299,7 @@ export default function CoachProfile() {
   }
 
   const handleEnterRenewMode = () => {
-    if (WECHAT_FREE_RELEASE) return
+    if (WECHAT_COACH_PURCHASE_PAUSED) return
     setActiveTab(TAB_PRICING)
     setScrollIntoView('tab-pricing-anchor')
     setRenewMode(true)
@@ -308,7 +308,7 @@ export default function CoachProfile() {
   }
 
   const handleStartTestRenew = async () => {
-    if (WECHAT_FREE_RELEASE) return
+    if (WECHAT_COACH_PURCHASE_PAUSED) return
     if (!IS_DEV) return
     if (!userSubscription?.id) {
       Taro.showToast({ title: '缺少当前订阅，无法测试续费', icon: 'none' })
@@ -324,7 +324,7 @@ export default function CoachProfile() {
   }
 
   const handleSelectProduct = async (product: Product, duration: DurationOption) => {
-    if (WECHAT_FREE_RELEASE) return
+    if (WECHAT_COACH_PURCHASE_PAUSED) return
     const user = authService.getCurrentUser()
     if (!user?.id) {
       Taro.showToast({ title: '请先登录', icon: 'none' })
@@ -517,7 +517,7 @@ export default function CoachProfile() {
 
   const tabs = [
     { index: TAB_ABOUT, label: '关于教练' },
-    ...(!WECHAT_FREE_RELEASE ? [{ index: TAB_PRICING, label: '订阅价格' }] : []),
+    ...(!WECHAT_COACH_PURCHASE_PAUSED ? [{ index: TAB_PRICING, label: '订阅价格' }] : []),
     { index: TAB_CONTENT, label: `教练专栏(${aggregatedInfo?.contentCount ?? contentsTotal})` },
     { index: TAB_REVIEWS, label: `学员评价(${reviewCount})` }
   ]
@@ -533,7 +533,7 @@ export default function CoachProfile() {
         scrollIntoViewAlignment='start'
       >
         <View style={{ paddingBottom: '100px' }}>
-          {!WECHAT_FREE_RELEASE && hasPendingPayment && (
+          {!WECHAT_COACH_PURCHASE_PAUSED && hasPendingPayment && (
             <View className='pending-payment-banner' onClick={handleContinuePendingPayment}>
               <Text className='banner-text'>您有待支付的订阅，点击继续完成购买</Text>
             </View>
@@ -562,7 +562,7 @@ export default function CoachProfile() {
           <View className={`tab-panel ${activeTab === TAB_ABOUT ? 'tab-panel-active' : ''}`}>
             <AboutSection coach={displayCoach} />
           </View>
-          {!WECHAT_FREE_RELEASE && <View className={`tab-panel ${activeTab === TAB_PRICING ? 'tab-panel-active' : ''}`}>
+          {!WECHAT_COACH_PURCHASE_PAUSED && <View className={`tab-panel ${activeTab === TAB_PRICING ? 'tab-panel-active' : ''}`}>
             <PricingSection
               products={products}
               onSelectProduct={handleSelectProduct}
@@ -590,14 +590,14 @@ export default function CoachProfile() {
         <View className='fixed-cta'>
           <View className='fixed-cta-btn' onClick={handleSubscribe}>
             <Text>
-              {WECHAT_FREE_RELEASE ? '查看已有教练关系' : userSubscription?.status === 'active'
+              {WECHAT_COACH_PURCHASE_PAUSED ? '查看已有教练关系' : userSubscription?.status === 'active'
                 ? '查看订阅'
                 : userSubscription?.status === 'waiting'
                   ? '查看订阅进度'
                   : '立即订阅 / 查看价格'}
             </Text>
           </View>
-          <Text className='fixed-cta-hint'>{WECHAT_FREE_RELEASE ? '可从“我的教练”查看已有服务' : '不用右滑找「订阅价格」，点这里直接跳转'}</Text>
+          <Text className='fixed-cta-hint'>{WECHAT_COACH_PURCHASE_PAUSED ? '可从“我的教练”查看已有服务' : '不用右滑找「订阅价格」，点这里直接跳转'}</Text>
         </View>
       )}
     </View>

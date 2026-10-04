@@ -2,7 +2,7 @@
  * 鏀粯鐩稿叧锛氬悓鏃朵繚鐣欐棫鏀粯瀹濊烦杞兘鍔涳紝骞舵柊澧炲皬绋嬪簭鍐呭師鐢熷井淇℃敮浠樿兘鍔涖€?
  */
 import { request } from '@/utils/request'
-import { WECHAT_FREE_RELEASE, WECHAT_PURCHASE_PAUSED_MESSAGE } from '@coachlink/core'
+import { WECHAT_FREE_RELEASE, WECHAT_COACH_PURCHASE_PAUSED, WECHAT_PURCHASE_PAUSED_MESSAGE } from '@coachlink/core'
 import Taro from '@tarojs/taro'
 import {
   isVirtualPaymentCancellation,
@@ -171,7 +171,7 @@ export async function createCoachWechatPayment(params: {
   subject?: string
   testAmountFen?: number
 }): Promise<{ success: boolean; data?: CreateCoachWechatPaymentResponse; message?: string }> {
-  if (WECHAT_FREE_RELEASE) return { success: false, message: WECHAT_PURCHASE_PAUSED_MESSAGE }
+  if (WECHAT_COACH_PURCHASE_PAUSED) return { success: false, message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   const res = await request<CreateCoachWechatPaymentResponse>({
     url: '/api/payment/wechat/coach/create',
     method: 'POST',
@@ -241,7 +241,7 @@ export async function requestCoachWechatPayment(params: CoachWechatPaymentParams
   status: 'success' | 'cancelled' | 'failed'
   message?: string
 }> {
-  if (WECHAT_FREE_RELEASE) return { success: false, status: 'failed', message: WECHAT_PURCHASE_PAUSED_MESSAGE }
+  if (WECHAT_COACH_PURCHASE_PAUSED) return { success: false, status: 'failed', message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   try {
     await Taro.requestPayment({
       timeStamp: params.timeStamp,

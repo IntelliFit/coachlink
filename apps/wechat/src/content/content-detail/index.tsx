@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import { View, Text, ScrollView, RichText, Video, Image } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { request } from '@/utils/request'
@@ -92,8 +92,8 @@ export default function ContentDetail() {
         </View>
         <View className="paywall-wrap">
           <View className="paywall-icon"><Lock size={48} color="#CF6D4E" /></View>
-          <Text className="paywall-title">{WECHAT_FREE_RELEASE ? '当前内容暂不可见' : '订阅后可见'}</Text>
-          <Text className="paywall-desc">{WECHAT_FREE_RELEASE ? '该内容仅向教练现有学员开放；免费版暂不提供新的服务购买。' : '该内容需要订阅教练后才能查看，去教练主页订阅吧'}</Text>
+          <Text className="paywall-title">{WECHAT_COACH_PURCHASE_PAUSED ? '当前内容暂不可见' : '订阅后可见'}</Text>
+          <Text className="paywall-desc">{WECHAT_COACH_PURCHASE_PAUSED ? '该内容仅向教练现有学员开放；免费版暂不提供新的服务购买。' : '该内容需要订阅教练后才能查看，去教练主页订阅吧'}</Text>
         </View>
       </View>
     )

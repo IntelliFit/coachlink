@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
+import { rejectWechatCoachPurchase } from '@/lib/wechatFreeRelease';
 import type { ApiData } from "@/types/api";
 import { getApiUserId } from "@/lib/getApiUserId";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
@@ -42,7 +42,7 @@ interface CreateCoachWechatPaymentResponse {
 }
 
 export async function POST(request: NextRequest) {
-    const paused = rejectWechatPurchase(request, { wechatOnly: true });
+    const paused = rejectWechatCoachPurchase(request, { wechatOnly: true });
     if (paused) return paused;
     try {
         const testPricingEnabled = process.env.NODE_ENV !== "production";

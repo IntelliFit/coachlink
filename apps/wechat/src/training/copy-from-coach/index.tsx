@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { WECHAT_FREE_RELEASE } from '@coachlink/core'
+import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { listCoachActions, copyCoachAction, handleApiError } from '@/services/actionLibPageService'
@@ -99,7 +99,7 @@ export default function CopyFromCoachPage() {
         <Text className="header-hint">选择现有教练分享的动作，一键复制到我的动作库</Text>
         <View className="empty-wrap">
           <Text className="empty-title">暂无教练动作</Text>
-          <Text className="empty-desc">{WECHAT_FREE_RELEASE ? '此处仅提供现有教练服务内的共享动作，新购服务暂未开放' : '订阅教练后，可在此处添加教练分享的动作'}</Text>
+          <Text className="empty-desc">{WECHAT_COACH_PURCHASE_PAUSED ? '此处仅提供现有教练服务内的共享动作，新购服务暂未开放' : '订阅教练后，可在此处添加教练分享的动作'}</Text>
         </View>
       </View>
     )
