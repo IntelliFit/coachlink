@@ -1,6 +1,6 @@
-## 教练销售恢复体验发布中（2026-10-04）
+## 教练销售恢复dev已发布，体验上传待确认（2026-10-04）
 
-- 用户明确授权新体验版及前后端更新。源码c1a3d818已推GitHub/Gitee dev；477测试/root typecheck重跑、独立生产mini2884模块124页及compiled resolver四env通过。体验版2026.10.04.1200官方upload任务confirmation_upload_6b04bd45-fc4a-4c70-ab85-10b1fba97012待工具内确认，不主动轮询。配套dev Web/API采用现有手动CI run37173278319构建，main generation124/3副本原镜像不动。生产工具dev health域名拦截，后台只读访问被浏览器安全策略阻止，已请用户核对request域名；截图超时、本轮未下单/分账/提审或正式发布。
+- 用户明确授权新体验版及前后端更新。源码c1a3d818已推GitHub/Gitee dev；477测试/root typecheck、独立生产mini2884模块124页与compiled resolver四env通过。dev Web/API已完成generation82/3新副本Ready、摘要1787f827d2e9500d6bac1dce0e1095a22750bd11f1e151b394765763b2cbe006/health200；国内备用Webpack546页通过，长传输CI已取消并确认终态，构建器已停止。真实既有JWT探针新版教练400缺参数、旧免费教练403、平台会员403，无有效订单/扣款。main124/3副本原f8b60be6摘要及health200不动。体验2026.10.04.1200 upload任务confirmation_upload_6b04bd45-fc4a-4c70-ab85-10b1fba97012待工具确认，不主动轮询；独立生产包dev域名拦截刷新后仍存在，后台只读访问被安全策略阻止，已请用户核对request域名。截图超时，实付/分账及正式发布未做。
 
 ## 教练销售独立策略已本地恢复（2026-10-04）
 

@@ -1,9 +1,11 @@
-## 教练购买恢复：新体验版与dev前后端发布执行中（2026-10-04）
+## 教练购买恢复：dev发布完成，体验上传待工具确认（2026-10-04）
 
 - 用户明确要求“提交新的体验版本，更新前后端”，已授权本次恢复代码提交推送、体验Web/API镜像更新与小程序体验上传。仅dev/体验环境；不更新main正式镜像、不提审、不发布小程序正式版。
 - 发布门禁重跑通过：root typecheck、74文件477测试；lint仅提示未配置。生产小程序2884模块/124页及线上域名/无开发按钮包检查通过，独立dist-release上传已发起；原开发项目仍dist/。
-- 上传pendingTask：confirmation_upload_6b04bd45-fc4a-4c70-ab85-10b1fba97012，工具upload，版本2026.10.04.1200，project=D:/files/coachlink/apps/wechat/dist-release，最后pending；已提醒用户工具内确认，不主动轮询/重发。源码c1a3d818已推GitHub/Gitee dev。远端限3GiB/2CPU构建因开发CLI下载失败已停止，切现有手动CI run37173278319标准构建；main不动。
+- 上传pendingTask：confirmation_upload_6b04bd45-fc4a-4c70-ab85-10b1fba97012，工具upload，版本2026.10.04.1200，project=D:/files/coachlink/apps/wechat/dist-release，最后pending；已提醒用户工具内确认，不主动轮询/重发，不更新latest元数据冒称成功。用户继续后先查询该旧任务，不重发。源码c1a3d818已推GitHub/Gitee dev。
 - 生产项目实际CTA→99/159/199价格文本与7选项读取成功，截图超时未取得；实际API正式域名/compiled resolver四env通过。工具urlCheck=true对dev health提示白名单拦截，后台只读访问被浏览器安全策略阻止，已请求用户核对CoachLink request合法域名https://dev.coachlink.fit；不关域名校验。实际下单/分账尚未验证。
+- dev Web/API已部署：国内备用Webpack完整编译/546页与镜像推送成功；CI attempt2长传输任务已取消并确认终态，避免tag竞争。dev/c1a3d81/domestic同摘要1787f827d2e9500d6bac1dce0e1095a22750bd11f1e151b394765763b2cbe006，dev generation82、3/3新摘要Ready/health200；main124/3Ready原f8b60be6摘要、health200不变，构建器已停止。
+- 原开发项目现有登录JWT内部实际验证：新标识教练空参数400、旧免费教练403、平台会员403。未有效下单/扣款/创建业务数据，未验证实付到账、退款或分账。原项目urlCheck=false，该结果不能代替独立生产包/手机网络验收；独立生产项目刷新后dev域名拦截仍存在，需用户核对request合法域名。详细交付docs/work/wechat-coach-trial-release-2026-10-04.md。
 - 只提交本次教练恢复的源码/新增测试/对应状态文档；保留未完成的版本公告草稿、10/3地图补记及自动生成next-env，不将其作为本次业务修改提交。
 
 ## 教练购买与续费已本地恢复（2026-10-04）
