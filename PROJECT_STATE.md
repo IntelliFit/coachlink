@@ -1,3 +1,14 @@
+## 单杠照片新版体验上传待确认（2026-10-05）
+
+- 用户授权新体验版；图片点击预览修复48e3d411已推GitHub/Gitee dev。root typecheck/477测试、生产2884模块124页、独立dist-release包及resolver四env通过；无后端部署或正式小程序发布。
+- 用户截图标题coachlink-wechat-app属于CoachLink，原app.json报错来自构建未结束先开上传目录；完成构建并重新编译已恢复实际单杠页/AppID wx316e39eb71c0e834/正式API，读取新点击角标并tap成功。截图工具超时，本轮没有生产相册PNG，10/4真实本地1/3相册证据仍有效。
+- 2026.10.05.0653官方upload返回pendingTask confirmation_upload_ea02d371-c9be-4eaa-bdf6-c628ad24689c，待开发者工具内确认，不主动轮询/重发；用户继续再查原任务。未更新最后成功元信息，不能声称上传完成。旧1200任务查询Task not found，结果未知；本次是新增照片修复的新授权版本。记录docs/work/streetlifting-image-trial-release-2026-10-05.md。
+
+## 单杠照片浏览预览已本地修复（2026-10-04）
+
+- 列表图区域漏绑定点击；已在locations/index.tsx接入Taro.previewImage完整点位相册，无需编辑或登录，支持旧image_url与新image_urls，图片数量提示可点击，分享按钮阻止冒泡。只改该页源码，无后端/图片数据写入。
+- root类型检查/477测试、Next546页及mini2897模块通过；官方DevTools使用真实公开点位点击图片，实际原生预览显示1/3，列表/相册PNG已查看。没有mock、上传或提交推送；当前正式客户端未更新，图片修复不在既有1200pending上传包中。记录docs/work/streetlifting-image-preview-2026-10-04.md。
+
 ## 教练销售恢复dev已发布，体验上传待确认（2026-10-04）
 
 - 用户明确授权新体验版及前后端更新。源码c1a3d818已推GitHub/Gitee dev；477测试/root typecheck、独立生产mini2884模块124页与compiled resolver四env通过。dev Web/API已完成generation82/3新副本Ready、摘要1787f827d2e9500d6bac1dce0e1095a22750bd11f1e151b394765763b2cbe006/health200；国内备用Webpack546页通过，长传输CI已取消并确认终态，构建器已停止。真实既有JWT探针新版教练400缺参数、旧免费教练403、平台会员403，无有效订单/扣款。main124/3副本原f8b60be6摘要及health200不动。体验2026.10.04.1200 upload任务confirmation_upload_6b04bd45-fc4a-4c70-ab85-10b1fba97012待工具确认，不主动轮询；独立生产包dev域名拦截刷新后仍存在，后台只读访问被安全策略阻止，已请用户核对request域名。截图超时，实付/分账及正式发布未做。

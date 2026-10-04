@@ -1,3 +1,29 @@
+## 套餐问卷统计包含未支付提交（2026-10-05，已确认）
+
+- 用户确认kk通过网页版填写套餐问卷但未支付，并明确问卷统计应包含这些未支付用户。统计按已提交并保存的问卷账号计数，支付状态单列；不能只查active订阅或paid订单。
+- 已核对Web实际源码：QuestionnaireForm.onSubmit先await createPendingOrder保存答案到coach_subscription_orders.subscribe_data，再打开PaymentDialog。因此提交成功后即使关闭支付窗口也有可统计记录；kk已计入上轮3人。只填页面但未点击提交的本地内容未持久化，不在该统计口径内。
+- 本轮确认已有行为和统计口径，没有修改业务代码或云端数据。
+
+## 教练主页套餐问卷统计（2026-10-05，已完成）
+
+- 用户要求统计这两天填写套餐问卷的人并查找kk。通过项目既有Apollo bootstrap读取配置，只读查询coach_subscriptions和coach_subscription_orders，按student_id去重；时间口径Asia/Tokyo的2026-10-04至2026-10-05，截至查询时2026-10-05 06:52。
+- 新提交并保存的问卷共3人，均为枭马葛（02db8c38-dc64-490b-9b78-e002a13811df）：kk（10/4 19:18:13，不限项目，任意个性化指导。，pending_payment）、计划执行者4215（20:39:38，负重引体计划，inactive）、热身研究员3510（20:46:32，负重引体提升，active）。三份均10题且回答非空。
+- 目标kk用户06de1d96-7c42-4291-817a-42d8720ca0b7；问卷位于订单9fc414d4-ddac-4ccd-91fb-b08708e31e7c，subscription_id=null，尚无该账号的有效订阅。另有同名历史用户，不能仅靠昵称混认。
+- 89条旧订阅updated_at相同（2026-10-04T21:43:06.529Z），通用更新时间不足以证明近期填写；统计限定新建且有答案的问卷记录，不能精确还原旧问卷这两天编辑次数。未改业务、测试或云端数据。脱敏证据artifacts/questionnaire-audit/2026-10-05/summary.json，不导出电话、密钥、健康回答。既有新版上传任务状态保留，此次统计不代表上传完成。
+
+## 含单杠图片预览的新体验版上传（2026-10-05，待开发者工具确认）
+
+- 用户明确要求上传新版，授权发布包含已验证图片预览修复的新体验包。唯一业务改动是单杠列表17行，提交48e3d411已推GitHub/Gitee dev；沿用现有dev教练恢复/免费会员等功能，不改支付或重部署后端、不提审或正式发布。
+- 微信官方skill0.3.2/login正常/无需token；已先查10/4旧1200 upload任务，返回Task not found，不能冒称旧上传成功。本次是不同版本号与新增图片修复产物的新授权发布，不重发旧1200。
+- 本次lint提示未配置，root typecheck与74文件477测试通过；生产2884模块/124页构建完成，独立dist-release根目录/srcRoot=./、AppID wx316e39eb71c0e834、urlCheck=true；原开发项目仍dist/。新生产包包含previewImage/点击提示、无localhost及开发登录按钮，compiled resolver trial→dev、其余回退正式通过。包SHA256 af46d9bf787f770233d956eff3c22628782bc6e1cc3b2161289f73eac0d6e2c1。
+- 用户截图的coachlink-wechat-app标题是正确项目名；代理构建未完先开独立生产目录导致app.json缺失，已承认。构建完成后重新编译，实际当前页streetlifting/index/locations、AppID与API=https://coachlink.fit核验；实际读到3张图·点击查看，图片tap返回success。新截图工具60秒超时，不能声称本轮生产包相册PNG已取得；10/4同源码本地原生1/3相册PNG已核验。没有清用户storage或改登录态。
+- 新版2026.10.05.0653 upload pendingTask=confirmation_upload_ea02d371-c9be-4eaa-bdf6-c628ad24689c，工具upload，project=D:/files/coachlink/apps/wechat/dist-release，desc=48e3d411-bar-location-photo-preview，最后pending/未轮询。已明确提醒用户开发者工具内确认；官方规则不主动轮询/不重发。用户继续后查一次原任务，只有实际success才更新latest-weapp-release.json并宣布上传完成；现元信息仍为最后已确认1609。详细docs/work/streetlifting-image-trial-release-2026-10-05.md。
+
+## 单杠图片普通浏览预览已本地修复（2026-10-04）
+
+- 用户反馈普通浏览点位无法点开图片，希望无需编辑即可预览全部照片。确认当前卡片只有图片展示，没有点击/previewImage绑定；本轮在唯一小程序列表源码接入微信原生全相册预览，沿用多图/旧单图读取，图片数量提示增加点击查看，分享按钮stopPropagation防串触。无图不调用预览，失败提示可重试。
+- 仅本地修复；既有教练1200上传pending、后端部署与其授权范围不扩展到图片任务，不提交推送/上传新包或操作云端点位。root lint提示未配置/typecheck及74文件477测试、Next编译53秒/546页、小程序2897模块构建均通过。官方DevTools真实正式公开数据：天山公园3张照片的新提示截图已查看，tap真实图片打开原生1/3相册，预览PNG已查看，无mock/未进入编辑或登录。初始读旧编译，仅清cleanCompileCache后刷新；旧page destroyed超时保留，不当作当前失败。修复须随新客户端包发布才影响线上，当前独立dist-release及1200pending未改。证据artifacts/streetlifting-image-preview/2026-10-04，详细docs/work/streetlifting-image-preview-2026-10-04.md。
+
 ## 教练购买恢复：dev发布完成，体验上传待工具确认（2026-10-04）
 
 - 用户明确要求“提交新的体验版本，更新前后端”，已授权本次恢复代码提交推送、体验Web/API镜像更新与小程序体验上传。仅dev/体验环境；不更新main正式镜像、不提审、不发布小程序正式版。
@@ -28,6 +54,8 @@
 
 ## 正式单杠后端热修已上线（2026-10-03）
 
+- 用户随后反馈美国新点在美国筛选可见、全部只看到中国；08:53:37UTC只读正式API核验“美国单杠测试”7d8112ef-75cc-4d32-9739-341b31044073（新上传1图），在未传国家及country=all两种第一页20条请求中均为后端第1条，总921。按现有客户端有图/图数量/日期排序推算为同页第12条，前11均中国；没有被后端国家过滤/掉到第2页。不是手机画面直接验收；新记录没有删除授权，保留，不更改前端或暗改图片/时间提高排序。证据all-country-membership.json。
+- 后续只读核对默认列表逻辑：country/province 初值 all、search 空；“全部国家/地区”请求不传 country，不排除历史国家空值或海外记录。客户端每页20条，滚到底部或点击加载更多追加下一页；搜索/省州筛选仍可缩小范围。未改业务代码。
 - 用户已正式发布客户端，本轮严格只改后端；没有小程序源码/包更新。国家筛选根因是main旧镜像未同步历史country兼容；用户两条测试实际已入库，客户端照片优先排序解释全部列表开头旧图，排序遵要求不改。
 - 后端88b8c7ae已推GitHub/Gitee dev/main，Next after使保存确认不等贡献榜，list/stats移除无用session查询。lint/typecheck/457测试、Docker内Next编译与546页生成通过。镜像f8b60be658e1b825f2e5ef813d65a7d2323b792cb790cc4325445aae35d40855，main generation124/dev80，各3/3新镜像Ready，Node无压力/41.85GiB可用。
 - 真实微信登录正式API：新增美国940ms、中国1610ms，均提交成功/返回ID落库；编辑15039ms成功，不能声称所有操作1秒。探针精确清理0残留。正式stats匿名/登录200完整920点位；中国810、武荣公园搜索2条，旧记录恢复筛选。并发复验3个curl TLS超时/1个后端get瞬断，逐个重试均通过，外网偶发问题未宣称根除。
