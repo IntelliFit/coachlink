@@ -584,6 +584,17 @@ export default function StreetliftingLocations() {
     setImageUrls((p) => p.filter((_, i) => i !== index))
   }
 
+  const previewLocationImages = async (location: StreetliftingLocation) => {
+    const urls = getLocationImages(location)
+    if (!urls.length) return
+    try {
+      await Taro.previewImage({ current: urls[0], urls })
+    } catch (error) {
+      console.error('[streetlifting-locations] preview images failed', error)
+      void Taro.showToast({ title: '图片暂时无法打开，请重试', icon: 'none' })
+    }
+  }
+
   const chooseImage = async () => {
     if (imageUrls.length >= MAX_IMAGES) {
       Taro.showToast({ title: `最多${MAX_IMAGES}张`, icon: 'none' })
@@ -1232,7 +1243,7 @@ export default function StreetliftingLocations() {
                 <View className='loc-list'>
                   {displayLocations.map((loc) => (
                     <View key={loc.id} className={`loc-card ${loc.id === sharedLocationId ? 'loc-card-shared' : ''}`}>
-                      <View className='loc-card-image-wrap'>
+                      <View className='loc-card-image-wrap' onClick={() => void previewLocationImages(loc)}>
                         {getLocationImages(loc).length > 0 ? (
                           <Image
                             className='loc-card-img'
@@ -1246,7 +1257,7 @@ export default function StreetliftingLocations() {
                         )}
                         {hasLocationImages(loc) && (
                           <View className='loc-card-badge'>
-                            <Text>{getLocationImages(loc).length} 张图</Text>
+                            <Text>{getLocationImages(loc).length} 张图 · 点击查看</Text>
                           </View>
                         )}
                         {loc.id === sharedLocationId && (
@@ -1256,7 +1267,7 @@ export default function StreetliftingLocations() {
                         )}
                         <Button
                           className='loc-card-img-share'
-                          onClick={() => handleOpenShareOptions(loc)}
+                          onClick={(event) => { event.stopPropagation(); handleOpenShareOptions(loc) }}
                         >
                           <Text className='iconfont icon-share' />
                         </Button>
