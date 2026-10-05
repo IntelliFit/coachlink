@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { parseHuifuNotifyContent } from "@/lib/huifuMiniProgramPay";
+import { assertHuifuWebPaymentAmount, isHuifuWebPayment } from "@/lib/huifuWebPayment";
 import { fulfillSubscriptionAndMaybeCreditWallet } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillContentPurchasePaid } from "@/app/api/payment/alipay/contentPurchaseFulfillment";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
@@ -53,9 +54,15 @@ export async function POST(request: NextRequest) {
         const nextStatus = mapNotifyStatus(String(notifyData.trans_stat || ""));
         const { data: existingOrder } = await (serviceRoleSupabase
             .from("alipay_orders") as any)
-            .select("payment_provider")
+            .select("payment_provider, total_amount, order_data, status")
             .eq("id", reqSeqId)
             .maybeSingle();
+        if (existingOrder) {
+            assertHuifuWebPaymentAmount(existingOrder, notifyData);
+            if (isHuifuWebPayment(existingOrder) && existingOrder.status === "paid" && nextStatus !== "paid") {
+                return new Response(`RECV_ORD_ID_${reqSeqId}`, { status: 200 });
+            }
+        }
         const notifyTradeType = String(notifyData.trade_type || notifyData.trans_type || "").trim();
         const defaultProvider = notifyTradeType.startsWith("A_") ? "" : "wechat";
         const paymentProvider = String(existingOrder?.payment_provider || defaultProvider).trim();
@@ -74,10 +81,14 @@ export async function POST(request: NextRequest) {
             updatePayload.payment_provider = paymentProvider;
         }
 
-        const { data: updatedOrder, error: updateError } = await (serviceRoleSupabase
+        let updateQuery = (serviceRoleSupabase
             .from("alipay_orders") as any)
             .update(updatePayload)
-            .eq("id", reqSeqId)
+            .eq("id", reqSeqId);
+        if (existingOrder && isHuifuWebPayment(existingOrder) && nextStatus !== "paid") {
+            updateQuery = updateQuery.neq("status", "paid");
+        }
+        const { data: updatedOrder, error: updateError } = await updateQuery
             .select()
             .single();
 

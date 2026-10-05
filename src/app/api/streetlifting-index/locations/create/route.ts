@@ -3,6 +3,7 @@ import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { rebuildStreetliftingLocationContributorStats } from "../contributorStats";
 import { validateLocationInput } from '../locationInput';
+import { normalizeLocationEquipment, withLocationEquipment } from '@coachlink/core';
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
             .from("streetlifting_locations")
             .insert([{
                 name: body.name.trim(),
+                ...(body.equipment_types !== undefined ? { equipment_types: body.equipment_types === null ? null : normalizeLocationEquipment(body.equipment_types) } : {}),
                 ...(body.country !== undefined ? { country: body.country?.trim() || null } : {}),
                 ...(body.coordinate_system !== undefined ? { coordinate_system: body.coordinate_system } : {}),
                 description: body.description || null,
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
             console.error("[streetlifting-index][locations] create error:", error);
             return NextResponse.json<ApiData<StreetliftingCreateLocationResponseDto>>({
                 success: false,
-                message: error?.message || "提交失败",
+                message: /equipment_types/.test(error?.message || '') ? '器材信息暂时无法保存，请稍后重试' : error?.message || "提交失败",
                 data: null,
             }, { status: 500 });
         }
@@ -80,7 +82,7 @@ export async function POST(req: Request) {
             success: true,
             message: "提交成功",
             data: {
-                location: data,
+                location: withLocationEquipment(data),
             },
         });
     } catch (error) {

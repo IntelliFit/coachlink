@@ -50,7 +50,21 @@ const PaymentPage = () => {
     const fetchPaymentDetails = async (id: string, isSilent = false) => {
         try {
             if (!isSilent) setLoading(true);
-            const res = await alipayService.queryOrder({ orderId: id as any } as any);
+            let res;
+            if (searchParams?.get('provider') === 'wechat') {
+                const response = await fetch('/api/payment/wechat/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId: id }),
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success || !result.data?.order) {
+                    throw new Error(result.message || '无法同步微信支付状态');
+                }
+                res = { order: result.data.order, tradeStatus: result.data.status === 'success' ? 'TRADE_SUCCESS' : '' };
+            } else {
+                res = await alipayService.queryOrder({ orderId: id as any } as any);
+            }
 
             if (res) {
                 const order = res.order;
@@ -178,7 +192,8 @@ const PaymentPage = () => {
                     <Button 
                         label="我已完成支付" 
                         loading={loading}
-                        className="w-full py-4 rounded-2xl font-bold tracking-tight bg-surface-900 border-none transition-transform active:scale-[0.98]"
+                        className="w-full py-4 rounded-2xl font-bold tracking-tight border-none active:opacity-90"
+                        style={{ backgroundColor: '#CF6D4E', color: '#FFFFFF' }}
                         onClick={() => fetchPaymentDetails(paymentId)}
                     />
                 )}
@@ -187,7 +202,8 @@ const PaymentPage = () => {
                     <Button 
                         label="继续" 
                         icon="pi pi-arrow-right"
-                        className="w-full py-4 rounded-2xl font-bold bg-primary-600 border-none transition-transform active:scale-[0.98]"
+                        className="w-full py-4 rounded-2xl font-bold border-none active:opacity-90"
+                        style={{ backgroundColor: '#CF6D4E', color: '#FFFFFF' }}
                         onClick={handlePaymentComplete}
                     />
                 )}
@@ -196,9 +212,8 @@ const PaymentPage = () => {
                     <Button 
                         label={status === 'cancelled' ? '重新订阅' : '重新尝试'} 
                         icon="pi pi-refresh"
-                        className={`w-full py-4 rounded-2xl font-bold border-none transition-transform active:scale-[0.98] ${
-                            status === 'cancelled' ? 'bg-amber-500' : 'bg-red-500'
-                        }`}
+                        className="w-full py-4 rounded-2xl font-bold border-none active:opacity-90"
+                        style={{ backgroundColor: '#CF6D4E', color: '#FFFFFF' }}
                         onClick={() => router.push('/coach/subscription')}
                     />
                 )}

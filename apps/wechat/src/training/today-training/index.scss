@@ -3735,3 +3735,64 @@
       line-height: 1;
     }
   }
+.today-training-page.compact-training-home {
+  --compact-surface: #ffffff;
+  --compact-text: #302d29;
+  --compact-muted: #706b65;
+  --compact-border: #ebe8e3;
+  background: #f4f2ed;
+
+  &.theme-dark {
+    --compact-surface: #292b2e;
+    --compact-text: #f4f2ed;
+    --compact-muted: #b8b5af;
+    --compact-border: #424448;
+    background: #191b1e;
+  }
+  .page-content { padding: 160rpx 32rpx 32rpx; }
+  .compact-context-row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 32rpx; }
+  .compact-context-control { display: flex; align-items: center; gap: 8rpx; min-width: 0; color: var(--compact-text); }
+  .compact-date-text { font-size: 28rpx; line-height: 1.5; font-weight: 600; color: var(--compact-text); }
+  .compact-plan-control { display: flex; align-items: center; gap: 8rpx; max-width: 280rpx; color: var(--compact-text); font-size: 24rpx; }
+  .compact-plan-control text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .compact-down-arrow { transform: rotate(90deg); flex-shrink: 0; }
+  .compact-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 16rpx; }
+  .compact-summary-text { color: var(--compact-muted); font-size: 24rpx; }
+  .compact-completed-text { color: #278052; font-size: 28rpx; font-weight: 600; }
+  .compact-more-button { min-width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; color: var(--compact-muted); font-size: 36rpx; }
+  .compact-primary-button,
+  .compact-secondary-button { display: flex; align-items: center; justify-content: center; min-height: 96rpx; margin-top: 24rpx; padding: 16rpx 24rpx; border-radius: 16rpx; box-sizing: border-box; font-size: 32rpx; font-weight: 600; }
+  .compact-primary-button { background: #cf6d4e; color: #ffffff; &:active { background: #b65d42; } }
+  .compact-secondary-button { margin-top: 16rpx; background: #ffffff; border: 1rpx solid #cf6d4e; color: #cf6d4e; &:active { opacity: 0.72; } }
+  .compact-empty-state { padding: 32rpx 0; }
+  .compact-empty-title { display: block; color: var(--compact-text); font-size: 32rpx; font-weight: 600; }
+  .compact-empty-hint { display: block; margin-top: 24rpx; color: var(--compact-muted); font-size: 24rpx; line-height: 1.6; }
+  .compact-menu-link { padding: 24rpx; text-align: center; color: var(--compact-muted); font-size: 24rpx; }
+  .compact-notice { padding: 16rpx; margin-bottom: 24rpx; border-radius: 16rpx; background: var(--compact-surface); color: #cf6d4e; font-size: 24rpx; }
+  .compact-training-card {
+    .compact-training-list, .compact-lightweight-list { background: var(--compact-surface); }
+    .compact-training-name, .compact-training-count { color: var(--compact-text); }
+    .compact-training-row, .compact-lightweight-row { border-color: var(--compact-border); }
+    .compact-training-chevron, .compact-lightweight-summary, .compact-task-link { color: var(--compact-muted); }
+    .completed { color: #278052; }
+    .compact-task-link.primary { color: #cf6d4e; }
+  }
+}
+
+.compact-training-sheet {
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  background: var(--card-bg, #ffffff);
+  color: var(--text-primary, #302d29);
+  .compact-sheet-title { display: block; margin-bottom: 24rpx; font-size: 32rpx; font-weight: 600; }
+  .compact-plan-options { max-height: 560rpx; }
+  .compact-plan-option, .compact-menu-row { display: flex; align-items: center; gap: 16rpx; min-height: 96rpx; padding: 24rpx 0; border-bottom: 1rpx solid var(--border-color, #ebe8e3); box-sizing: border-box; &:last-child { border-bottom: 0; } }
+  .compact-plan-option-copy { flex: 1; min-width: 0; }
+  .compact-plan-option { min-height: 144rpx; }
+  .compact-plan-option-title, .compact-menu-row { font-size: 28rpx; }
+  .compact-plan-option-meta { display: block; margin-top: 8rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 24rpx; color: var(--text-secondary, #706b65); }
+  .compact-menu-row { justify-content: space-between; }
+  .compact-calendar-progress { display: block; margin-bottom: 16rpx; font-size: 24rpx; color: var(--text-secondary, #706b65); }
+  .compact-calendar-scroll { height: 640rpx; }
+  .compact-missing-day { display: flex; gap: 24rpx; padding: 24rpx 0; font-size: 24rpx; }
+  .compact-task-action { color: #cf6d4e; }
+}

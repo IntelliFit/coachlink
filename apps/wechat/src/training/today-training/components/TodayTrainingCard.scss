@@ -952,3 +952,55 @@
     line-height: 1.4;
   }
 }
+.compact-training-card {
+  .compact-training-list,
+  .compact-lightweight-list {
+    overflow: hidden;
+    border-radius: 24rpx;
+    background: var(--card-bg, #ffffff);
+  }
+  .compact-lightweight-list { margin-top: 24rpx; }
+  .compact-training-row {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    min-height: 112rpx;
+    margin: 0 24rpx;
+    padding: 16rpx 0;
+    box-sizing: border-box;
+    border-bottom: 1rpx solid var(--border-color, #ebe8e3);
+    &:last-child { border-bottom: 0; }
+    &:active { opacity: 0.72; }
+  }
+  .compact-training-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 32rpx;
+    line-height: 1.4;
+    font-weight: 600;
+    color: var(--text-primary, #302d29);
+  }
+  .compact-training-count { font-size: 28rpx; color: var(--text-primary, #302d29); }
+  .compact-training-chevron { font-size: 40rpx; color: var(--text-secondary, #706b65); }
+  .completed { color: #278052; }
+  .compact-lightweight-row {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    margin: 0 24rpx;
+    padding: 24rpx 0;
+    border-bottom: 1rpx solid var(--border-color, #ebe8e3);
+    &:last-child { border-bottom: 0; }
+  }
+  .compact-lightweight-copy { flex: 1; min-width: 0; }
+  .compact-lightweight-summary {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    line-height: 1.5;
+    color: var(--text-secondary, #706b65);
+  }
+  .compact-lightweight-actions { display: flex; flex-direction: column; gap: 16rpx; }
+  .compact-task-link { padding: 8rpx; font-size: 24rpx; color: var(--text-secondary, #706b65); }
+  .compact-task-link.primary { color: #cf6d4e; font-weight: 600; }
+}

@@ -11,7 +11,8 @@ import type { ApiData } from '@/types/api';
 import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto, TradeStatus } from './entity';
 import { fenToYuan } from '@/lib/moneyUtils';
 import { fulfillContentPurchasePaid } from '../contentPurchaseFulfillment';
-import { formatHuifuReqDate, queryHuifuMiniProgramOrder } from '@/lib/huifuMiniProgramPay';
+import { formatHuifuReqDate } from '@/lib/huifuMiniProgramPay';
+import { assertHuifuWebPaymentAmount, isHuifuWebPayment, queryHuifuPaymentOrder } from '@/lib/huifuWebPayment';
 
 // 文档：https://opendocs.alipay.com/open/217dd591_alipay.trade.query?scene=common&pathHash=62ae74aa
 
@@ -89,6 +90,10 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
+    if (isHuifuWebPayment(existOrder) && existOrder.user_id !== userId) {
+        return NextResponse.json({ success: false, message: '无权查看此订单', data: null }, { status: 403 });
+    }
+
     if (!existOrderError && existOrder.status === 'paid') {
         // 将金额从分转换为元返回给前端
         const orderWithYuan = {
@@ -121,19 +126,23 @@ export async function POST(req: Request) {
         isCoachRevenueCandidate;
 
     if (isHuifuGatewayOrder) {
-        const queryResult = await queryHuifuMiniProgramOrder({
+        const queryResult = await queryHuifuPaymentOrder(existOrder, {
             orgReqDate: huifuReqDate,
             orgReqSeqId: String(existOrder.id),
         });
 
         const orderStatus =
+            // Web Wechat orders can also reach this historical shared status page.
             queryResult.trans_stat === 'S'
                 ? 'paid'
                 : queryResult.trans_stat === 'F'
                   ? 'failed'
+                  : queryResult.trans_stat === 'C'
+                    ? 'closed'
                   : 'pending';
+        assertHuifuWebPaymentAmount(existOrder, queryResult);
 
-        const { data: order, error: orderError } = await (serviceRoleSupabase as any)
+        let updateQuery = (serviceRoleSupabase as any)
             .from('alipay_orders')
             .update({
                 status: orderStatus,
@@ -144,7 +153,11 @@ export async function POST(req: Request) {
                     : { ...existOrderData, huifu_req_date: huifuReqDate },
                 updated_at: new Date().toISOString(),
             })
-            .eq('id', orderId)
+            .eq('id', orderId);
+        if (isHuifuWebPayment(existOrder) && orderStatus !== 'paid') {
+            updateQuery = updateQuery.neq('status', 'paid');
+        }
+        const { data: order, error: orderError } = await updateQuery
             .select()
             .single();
 

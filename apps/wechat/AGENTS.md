@@ -39,6 +39,16 @@ This directory contains the WeChat mini-program inside the `coachlink` monorepo.
   - `cli.bat auto --project D:\files\coachlink\apps\wechat --auto-port 9420`
 - If DevTools reports `Connection closed` or wrong page/project appears, treat it as a port/session conflict first and re-establish a dedicated automation instance.
 
+## 自动验收窗口生命周期（强制）
+
+- 遵守仓库根 `AGENTS.md` 的“自动验收资源管理”，完整设计见 `../../docs/work/devtools-session-management-design-2026-10-06.md`。
+- `coachlink/apps/wechat`、独立 acceptance 和生产包项目可能指向同一 AppID；新路径不是新业务项目。默认按同一逻辑项目协调验收，不为每个对话各留一个窗口。
+- 独立 acceptance 目录仅隔离输出文件，不能据此认定 storage、登录态、mock 或自动化内部上下文均已隔离。同一 AppID 的受控测试先串行。
+- 9420 为 CoachLink 常规自动化端口，9421 留给 food_link；独立验收使用额外端口时必须登记完整路径、AppID和归属，端口不得抢用。
+- 开窗前先盘点、复用和登记；新建的工作窗口必须在成功/失败收尾时回收，明确移交用户验收的窗口例外。不得把停止CLI子进程或 SDK disconnect 当成窗口已关闭。
+- 检查页面真正可显示后才标记 ready：目标 AppID/路径正确、页面响应、实际渲染证据与对应构建匹配。打开接口成功、TCP/WebSocket连接成功、旧截图均不能独立证明启动成功。
+- 当前统一管理器尚未实现。过渡期按上述步骤明确记录占用与收尾；无法确认其他任务是否占用时，不抢用、不再开一个同项目窗口规避协调。
+
 ## Durable State
 
 - Do not rely on chat transcript alone for project continuity.

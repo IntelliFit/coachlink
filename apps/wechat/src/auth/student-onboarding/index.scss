@@ -16,7 +16,51 @@
 }
 
 .onboarding-content {
-  padding: 96rpx 32rpx 32rpx;
+  padding: 32rpx;
+}
+
+.onboarding-header {
+  padding: 0 32rpx;
+}
+
+.onboarding-nav {
+  display: flex;
+  gap: 16rpx;
+  padding-right: 192rpx;
+}
+
+.onboarding-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  min-height: 64rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  border: 2rpx solid #e2e8f0;
+  border-radius: 16rpx;
+  background: #ffffff;
+  color: #334155;
+  font-size: 24rpx;
+  line-height: 1.5;
+  flex-shrink: 0;
+
+  &::after {
+    border: none;
+  }
+
+  &:active,
+  &[disabled] {
+    opacity: 0.6;
+  }
+}
+
+.onboarding-page-title {
+  display: block;
+  margin-top: 24rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .loading-state {

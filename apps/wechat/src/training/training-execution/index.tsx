@@ -1532,6 +1532,7 @@ function TrainingExecution() {
 
               if (!isImpromptuMode && dayIndex) {
                 Taro.setStorageSync(RETURN_CONFIRM_STORAGE_KEY, {
+                  instanceId,
                   dayIndex,
                   ts: Date.now()
                 })
@@ -1629,6 +1630,7 @@ function TrainingExecution() {
 
               if (!isImpromptuMode && dayIndex) {
                 Taro.setStorageSync(RETURN_CONFIRM_STORAGE_KEY, {
+                  instanceId,
                   dayIndex,
                   ts: Date.now()
                 })
@@ -2630,7 +2632,7 @@ function TrainingExecution() {
 
   const handleLeaveAfterSummary = () => {
     setShowWorkoutSummary(false)
-    Taro.navigateBack()
+    handleBackToTodayTraining()
   }
 
   if (loading && !execution) {
@@ -2665,6 +2667,20 @@ function TrainingExecution() {
     <View className={`training-execution-page theme-${effectiveTheme}`}>
       <View className="execution-scroll">
         <View className="execution-shell">
+          {isWorkoutCompleted && (
+            <View className="workout-complete-entry">
+              <Text className="workout-complete-title">本次训练已完成</Text>
+              <Text className="workout-complete-hint">
+                {canOpenWorkoutSummary ? '生成打卡图，分享这次训练。' : '训练已记录，暂无可生成打卡图的完成组。'}
+              </Text>
+              {canOpenWorkoutSummary && (
+                <Button className="workout-checkin-button" loading={workoutPosterGenerating}
+                  disabled={workoutPosterGenerating} onClick={handleGenerateWorkoutPoster}>
+                  生成打卡图
+                </Button>
+              )}
+            </View>
+          )}
           <View className="hero-section">
             <View className="hero-main">
               <View className="hero-timer-card">
@@ -3357,18 +3373,6 @@ function TrainingExecution() {
             )}
           </View>
         )}
-        {(isReadOnly || isWorkoutCompleted) && canOpenWorkoutSummary && (
-          <View className="footer-section review-share-section">
-            <Text className="finish-hint">本次训练已完成，可生成图片发送给好友或群聊。</Text>
-            <Button
-              className="finish-btn"
-              loading={workoutPosterGenerating}
-              onClick={handleGenerateWorkoutPoster}
-            >
-              生成并分享
-            </Button>
-          </View>
-        )}
         </View>
       </View>
 
@@ -3503,7 +3507,7 @@ function TrainingExecution() {
             <View className="summary-actions">
               <Text className="summary-secondary-btn" onClick={handleLeaveAfterSummary}>返回</Text>
               <Text className={`summary-primary-btn ${workoutPosterGenerating ? 'disabled' : ''}`} onClick={handleGenerateWorkoutPoster}>
-                {workoutPosterGenerating ? '生成中...' : '生成并分享'}
+                {workoutPosterGenerating ? '生成中...' : '生成打卡图'}
               </Text>
             </View>
           </View>

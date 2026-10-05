@@ -1063,10 +1063,6 @@
     border-top: 1rpx solid rgba(255, 255, 255, 0.06);
   }
 
-  .review-share-section {
-    margin-top: 24rpx;
-  }
-
   .finish-hint {
     display: block;
     margin-bottom: 12rpx;
@@ -1435,14 +1431,14 @@
   }
 
   .summary-actions {
-    margin-top: 18rpx;
+    margin-top: 24rpx;
   }
 
   .summary-secondary-btn,
   .summary-primary-btn {
     flex: 1;
     height: 80rpx;
-    border-radius: 18rpx;
+    border-radius: 16rpx;
     font-size: 28rpx;
     font-weight: 800;
     line-height: 80rpx;
@@ -1450,8 +1446,10 @@
   }
 
   .summary-secondary-btn {
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.84);
+    box-sizing: border-box;
+    border: 1rpx solid #cf6d4e;
+    background: #ffffff;
+    color: #cf6d4e;
   }
 
   .summary-primary-btn {
@@ -2133,7 +2131,6 @@
 
   .picker-muscle-item,
   .picker-equipment-chip,
-  .summary-secondary-btn,
   .rest-action-btn {
     background: #f8f5f1 !important;
     color: #4b5563 !important;
@@ -2176,5 +2173,19 @@
   .rest-timer-value,
   .rest-bubble-value {
     color: #cf6d4e !important;
+  }
+}
+.training-execution-page {
+  .workout-complete-entry { margin-bottom: 24rpx; padding: 24rpx; border-radius: 16rpx; background: #192c23; }
+  .workout-complete-title { display: block; color: #a7dfbe; font-size: 32rpx; font-weight: 600; }
+  .workout-complete-hint { display: block; margin-top: 8rpx; color: #cad7cf; font-size: 24rpx; line-height: 1.5; }
+  .workout-checkin-button { height: 96rpx; margin-top: 24rpx; padding: 0 24rpx; border-radius: 16rpx; background: #cf6d4e; color: #ffffff; font-size: 32rpx; font-weight: 600; line-height: 96rpx; }
+  .workout-checkin-button::after { border: none; }
+  .workout-checkin-button:active { background: #b65d42; }
+  .workout-checkin-button[disabled] { opacity: 0.6; }
+  &.theme-light {
+    .workout-complete-entry { background: #edf7ef; }
+    .workout-complete-title { color: #278052; }
+    .workout-complete-hint { color: #58715f; }
   }
 }

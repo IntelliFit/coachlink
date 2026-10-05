@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
 import type { StreetliftingLocation } from '@/services/streetliftingIndexService'
+import type { LocationEquipmentType } from '@coachlink/core'
 
 const STORAGE_KEY = 'streetlifting_location_cache_v1'
 const MAX_AGE = 60 * 24 * 60 * 60 * 1000
@@ -25,6 +26,8 @@ export type LocationDraft = {
   longitude: number | null
   coordinate_system: 'wgs84' | 'gcj02' | null
   image_urls: string[]
+  equipment_types?: LocationEquipmentType[]
+  equipment_touched?: boolean
   auto_filled?: Partial<Record<'name' | 'address' | 'province' | 'city' | 'county', string>>
 }
 

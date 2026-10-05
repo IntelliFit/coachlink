@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
-import { getLocationCountry } from '@coachlink/core';
+import { getLocationCountry, normalizeLocationEquipment, validateLocationEquipment, type LocationEquipmentInput } from '@coachlink/core';
+import { readEquipmentLocations } from '../equipmentQuery';
+import type { StreetliftingListLocationsDto, StreetliftingLocation } from '../list/entity';
 
-export interface MapPin {
+export interface MapPin extends LocationEquipmentInput {
     id: string;
     country?: string | null;
     coordinate_system?: 'wgs84' | 'gcj02' | null;
@@ -17,39 +18,33 @@ export interface MapPin {
     address?: string | null;
 }
 
-export async function POST(): Promise<Response> {
+export async function POST(req?: Request): Promise<Response> {
     try {
-        await getServerSession();
-
-        let { data, error } = await serviceRoleSupabase
-            .from("streetlifting_locations")
-            .select("id, name, country, coordinate_system, latitude, longitude, province, city, county, address")
-            .not("latitude", "is", null)
-            .not("longitude", "is", null)
-            .limit(2000);
-
-        // Keep legacy browsing usable until the additive migration is deployed.
-        if (error?.code === '42703' && /country|coordinate_system/.test(error.message)) {
-            const legacy = await serviceRoleSupabase.from('streetlifting_locations')
-                .select('id, name, latitude, longitude, province, city, county, address')
-                .not('latitude', 'is', null).not('longitude', 'is', null).limit(2000);
-            data = legacy.data as typeof data;
-            error = legacy.error;
-        }
-
-        if (error) {
-            console.error("[streetlifting-index][map-pins] error:", error);
-            return NextResponse.json<ApiData<MapPin[]>>({
-                success: false,
-                message: error.message,
-                data: null,
-            }, { status: 500 });
-        }
+        const body = (await req?.json().catch(() => ({})) || {}) as StreetliftingListLocationsDto;
+        const equipmentError = validateLocationEquipment(body.equipment);
+        if (equipmentError) return NextResponse.json({ success: false, message: equipmentError, data: null }, { status: 400 });
+        const query = serviceRoleSupabase.from('streetlifting_locations').select('*')
+            .not('latitude', 'is', null).not('longitude', 'is', null).order('id');
+        const rows = await readEquipmentLocations<StreetliftingLocation>((from, to) => query.range(from, to), normalizeLocationEquipment(body.equipment));
+        const country = body.country?.trim();
+        const province = body.province?.trim();
+        const search = body.search?.trim().toLowerCase();
+        const data = rows.filter(item =>
+            (!country || country === 'all' || getLocationCountry(item) === country) &&
+            (!province || province === 'all' || item.province === province) &&
+            (!body.city || item.city === body.city) && (!body.county || item.county === body.county) &&
+            (!search || [item.name, getLocationCountry(item), item.province, item.city, item.address, item.description].some(value => String(value || '').toLowerCase().includes(search)))
+        );
 
         return NextResponse.json<ApiData<MapPin[]>>({
             success: true,
             message: "ok",
-            data: (data ?? []).map(item => ({ ...item, country: getLocationCountry(item) || null })) as MapPin[],
+            data: data.map(item => ({
+                id: item.id, name: item.name, country: getLocationCountry(item) || null,
+                coordinate_system: item.coordinate_system, latitude: item.latitude!, longitude: item.longitude!,
+                province: item.province, city: item.city, county: item.county, address: item.address,
+                equipment_types: item.equipment_types, equipment_source: item.equipment_source
+            })),
         });
     } catch (error) {
         console.error("[streetlifting-index][map-pins] error:", error);

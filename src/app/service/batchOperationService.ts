@@ -1,8 +1,18 @@
-import {
+import type {
     SSEMessage,
     ConversationTurn,
     BatchOperationContextOptions,
 } from '@/app/api/plan-lib/batch-operation/entity';
+
+const INCOMPLETE_RESPONSE_MESSAGE = 'AI 连接中断，本轮修改尚未生成完整预览，未应用到计划。请重新提交原修改要求。';
+
+function formatStreamError(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error || '操作失败');
+    if (/network\s*error|failed to fetch|fetch failed|load failed|terminated|connection.*(?:closed|reset)|abort/i.test(message)) {
+        return INCOMPLETE_RESPONSE_MESSAGE;
+    }
+    return message;
+}
 
 /**
  * 批量操作服务
@@ -52,48 +62,10 @@ export class BatchOperationService {
                 body: JSON.stringify(body),
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || '请求失败');
-            }
-
-            const reader = response.body?.getReader();
-            if (!reader) {
-                throw new Error('无法读取响应流');
-            }
-
-            const decoder = new TextDecoder();
-            let buffer = ''; // 用于缓存不完整的数据
-
-            while (true) {
-                const { done, value } = await reader.read();
-                
-                if (done) {
-                    // 处理缓冲区中剩余的数据
-                    if (buffer.trim()) {
-                        this.processBuffer(buffer, onMessage, onError);
-                    }
-                    onComplete();
-                    break;
-                }
-
-                // 解码数据并添加到缓冲区
-                buffer += decoder.decode(value, { stream: true });
-                
-                // 按行分割处理
-                const lines = buffer.split('\n');
-                
-                // 保留最后一个可能不完整的行
-                buffer = lines.pop() || '';
-
-                // 处理完整的行
-                for (const line of lines) {
-                    this.processLine(line, onMessage, onError);
-                }
-            }
+            await this.consumeResponse(response, onMessage, onComplete, onError, previewInputOnly);
         } catch (error: any) {
             console.error('批量操作失败:', error);
-            onError(error.message || '操作失败');
+            onError(formatStreamError(error));
         }
     }
 
@@ -140,42 +112,73 @@ export class BatchOperationService {
                 body: JSON.stringify(body),
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || '请求失败');
-            }
+            await this.consumeResponse(response, onMessage, onComplete, onError, previewInputOnly);
+        } catch (error: any) {
+            console.error('本地批量操作失败:', error);
+            onError(formatStreamError(error));
+        }
+    }
 
-            const reader = response.body?.getReader();
-            if (!reader) {
-                throw new Error('无法读取响应流');
-            }
+    private static async consumeResponse(
+        response: Response,
+        onMessage: (message: SSEMessage) => void,
+        onComplete: () => void,
+        onError: (error: string) => void,
+        previewInputOnly: boolean,
+    ): Promise<void> {
+        if (!response.ok) {
+            const text = await response.text();
+            let message: string | undefined;
+            try {
+                const payload = JSON.parse(text);
+                if (typeof payload.message === 'string') message = payload.message;
+            } catch { /* Proxy error pages are not user-facing messages. */ }
+            throw new Error(message || `AI 服务请求失败（HTTP ${response.status}），请稍后重新提交修改要求。`);
+        }
 
-            const decoder = new TextDecoder();
-            let buffer = '';
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error(INCOMPLETE_RESPONSE_MESSAGE);
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let receivedResult = false;
+        let receivedError = false;
+        const handleMessage = (message: SSEMessage) => {
+            if (
+                message.type === 'preview_result' || message.type === 'query_result' ||
+                message.type === 'need_clarification' ||
+                (previewInputOnly && message.type === 'ai_input_snapshot')
+            ) receivedResult = true;
+            onMessage(message);
+        };
+        const handleError = (message: string) => {
+            if (receivedError) return;
+            receivedError = true;
+            onError(message);
+        };
 
+        try {
             while (true) {
                 const { done, value } = await reader.read();
-
                 if (done) {
-                    if (buffer.trim()) {
-                        this.processBuffer(buffer, onMessage, onError);
-                    }
-                    onComplete();
+                    buffer += decoder.decode();
+                    if (buffer.trim()) this.processBuffer(buffer, handleMessage, handleError);
                     break;
                 }
-
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split('\n');
                 buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                    this.processLine(line, onMessage, onError);
-                }
+                for (const line of lines) this.processLine(line, handleMessage, handleError);
             }
-        } catch (error: any) {
-            console.error('本地批量操作失败:', error);
-            onError(error.message || '操作失败');
+        } catch (error) {
+            // A connection failure after the final result must not discard it or
+            // overwrite an already-reported server error with a transport error.
+            if (!receivedResult && !receivedError) throw error;
+        } finally {
+            reader.releaseLock();
         }
+
+        if (!receivedResult && !receivedError) throw new Error(INCOMPLETE_RESPONSE_MESSAGE);
+        if (!receivedError) onComplete();
     }
 
     /**

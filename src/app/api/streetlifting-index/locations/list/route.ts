@@ -4,7 +4,8 @@ import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { StreetliftingListLocationsDto } from "./entity";
 import type { StreetliftingListLocationsResponseDto } from "./entity";
-import { CHINA_PROVINCE_NAMES, getLocationCountry } from '@coachlink/core';
+import { CHINA_PROVINCE_NAMES, getLocationCountry, normalizeLocationEquipment, validateLocationEquipment, withLocationEquipment } from '@coachlink/core';
+import { readEquipmentLocations } from '../equipmentQuery';
 
 export async function POST(req: Request) {
     try {
@@ -23,11 +24,15 @@ export async function POST(req: Request) {
         const country = (body?.country || "").trim();
         const city = (body?.city || "").trim();
         const county = (body?.county || "").trim();
+        const equipmentError = validateLocationEquipment(body?.equipment);
+        if (equipmentError) return NextResponse.json({ success: false, message: equipmentError, data: null }, { status: 400 });
+        const equipment = normalizeLocationEquipment(body?.equipment);
 
         let q = db
             .from("streetlifting_locations")
             .select("*", { count: "exact" })
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .order('id', { ascending: false });
 
         if (province && province !== "all") {
             q = q.eq("province", province);
@@ -59,7 +64,12 @@ export async function POST(req: Request) {
             q = q.or(legacyChina);
         }
 
-        const { data, error, count } = await q.range(from, to);
+        const filtered = equipment.length
+            ? await readEquipmentLocations((start, end) => q.range(start, end), equipment)
+            : null;
+        const { data, error, count } = filtered
+            ? { data: filtered.slice(from, to + 1), error: null, count: filtered.length }
+            : await q.range(from, to);
 
         if (error) {
             console.error("[streetlifting-index][locations] list error:", error);
@@ -78,7 +88,7 @@ export async function POST(req: Request) {
             success: true,
             message: "获取地点成功",
             data: {
-                locations: (data || []).map(item => ({ ...item, country: getLocationCountry(item) || null })),
+                locations: (data || []).map(item => ({ ...withLocationEquipment(item), country: getLocationCountry(item) || null })),
                 pagination: {
                     page,
                     limit,

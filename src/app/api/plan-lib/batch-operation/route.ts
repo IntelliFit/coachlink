@@ -26,6 +26,7 @@ import {
 import { formatTemplateToPlanScript, parsePlanScript } from "@/lib/planScript";
 import { resolveOneRmAdjustments, type OneRmAdjustmentDraft } from "@/lib/oneRmAdjustments";
 import { applyLoadAdjustments, type LoadAdjustmentDraft } from "@/lib/loadAdjustments";
+import { createPlanEditSseResponse } from "@/lib/planEditSse";
 import {
     compileDetailedLongPlanDeterministically,
     countLongPlanActionPrescriptions,
@@ -71,18 +72,21 @@ function formatBatchOperationError(error: any) {
     return error?.message || '操作失败';
 }
 
-async function createChatCompletionWithRetry(client: any, body: any) {
+async function createChatCompletionWithRetry(client: any, body: any, signal: AbortSignal) {
+    signal.throwIfAborted();
     try {
-        return await client.chat.completions.create(body);
+        return await client.chat.completions.create(body, { signal });
     } catch (error) {
+        signal.throwIfAborted();
         if (!isRetryableLlmConnectionError(error)) throw error;
         await new Promise((resolve) => setTimeout(resolve, 800));
-        return client.chat.completions.create(body);
+        signal.throwIfAborted();
+        return client.chat.completions.create(body, { signal });
     }
 }
 
-async function createJsonChatCompletionWithRetry(client: any, body: any) {
-    const completion = await createChatCompletionWithRetry(client, body);
+async function createJsonChatCompletionWithRetry(client: any, body: any, signal: AbortSignal) {
+    const completion = await createChatCompletionWithRetry(client, body, signal);
     const content = completion.choices?.[0]?.message?.content?.trim();
     if (content) {
         try {
@@ -94,7 +98,7 @@ async function createJsonChatCompletionWithRetry(client: any, body: any) {
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500));
-    return createChatCompletionWithRetry(client, body);
+    return createChatCompletionWithRetry(client, body, signal);
 }
 
 function normalizeActionNameKey(name?: string | null) {
@@ -1108,12 +1112,13 @@ async function compileDetailedLongPlanInChunks(params: {
     plan: DetailedLongPlanInstruction;
     actions: any[];
     sendMessage: (message: SSEMessage) => void;
+    signal: AbortSignal;
 }): Promise<{
     script: string;
     promptTokens: number;
     completionTokens: number;
 }> {
-    const { plan, actions, sendMessage } = params;
+    const { plan, actions, sendMessage, signal } = params;
     const deterministic = compileDetailedLongPlanDeterministically(plan);
     if (deterministic) {
         const parsed = parsePlanScript({
@@ -1149,6 +1154,7 @@ async function compileDetailedLongPlanInChunks(params: {
                     prompt: `把这部分逐条忠实转换成PlanScript，只输出W${part.week}和${part.dayRange}。休息日写Dn off；动作写中文原名 NxM @Nkg，每个训练处方独占一行，条件处方也不得省略或用斜杠合并。没有动作名的负重热身沿用“负重引体（底部暂停）”。不要解释。\n\n${part.text}`,
                     maxTokens: 1800,
                     timeoutMs: 60_000,
+                    signal,
                 });
                 const script = normalizeCompiledPlanScriptPart(result.content, part.week);
                 const parsed = parsePlanScript({
@@ -1180,6 +1186,7 @@ async function compileDetailedLongPlanInChunks(params: {
                 return { week: part.week, script };
             } catch (error: any) {
                 lastError = error?.message || "分段计划脚本编译失败";
+                signal.throwIfAborted();
                 if (isDevelopment) {
                     console.warn(
                         `[batch-operation] W${part.week} ${part.dayRange} compile attempt ${attempt + 1} failed: ${lastError}`,
@@ -1234,6 +1241,7 @@ async function runPlanScriptPatchEdit(params: {
     preferredDayIndexes?: number[];
     contextPrompt: string;
     sendMessage: (message: SSEMessage) => void;
+    signal: AbortSignal;
 }): Promise<PlanScriptEditResult> {
     const {
         openai,
@@ -1245,6 +1253,7 @@ async function runPlanScriptPatchEdit(params: {
         preferredDayIndexes = [],
         contextPrompt,
         sendMessage,
+        signal,
     } = params;
     const actionNameById = buildActionNameById(actions);
     const scope = selectPlanScriptPatchScope(scopeInstruction, trainingDays, actions, preferredDayIndexes);
@@ -1333,6 +1342,7 @@ ${effectiveInstruction}`;
                         prompt: patchPrompt + correction,
                         maxTokens: 7000,
                         timeoutMs: 90_000,
+                        signal,
                     });
                     rawContent = repaired.content.trim();
                     promptTokens += repaired.inputTokens;
@@ -1344,13 +1354,14 @@ ${effectiveInstruction}`;
                         messages,
                         temperature: 0.1,
                         max_tokens: 7000,
-                    });
+                    }, signal);
                     rawContent = String(completion.choices?.[0]?.message?.content || "").trim();
                     promptTokens += completion.usage?.prompt_tokens || 0;
                     completionTokens += completion.usage?.completion_tokens || 0;
                     totalTokens += completion.usage?.total_tokens || 0;
                 }
             } catch (error) {
+                signal.throwIfAborted();
                 if (isDevelopment) {
                     console.warn(
                         `[batch-operation] OpenAI patch channel failed: chunk=${chunkIndex + 1}/${chunks.length}, elapsedMs=${Date.now() - requestStartedAt}; switching to Wanjie Anthropic endpoint`,
@@ -1364,6 +1375,7 @@ ${effectiveInstruction}`;
                     prompt: patchPrompt + correction,
                     maxTokens: 7000,
                     timeoutMs: 90_000,
+                    signal,
                 });
                 rawContent = fallbackResult.content.trim();
                 promptTokens += fallbackResult.inputTokens;
@@ -1483,6 +1495,7 @@ async function runPlanScriptEdit(params: {
     contextPrompt: string;
     deterministicReason?: string;
     sendMessage: (message: SSEMessage) => void;
+    signal: AbortSignal;
 }): Promise<PlanScriptEditResult> {
     const {
         openai,
@@ -1495,6 +1508,7 @@ async function runPlanScriptEdit(params: {
         contextPrompt,
         deterministicReason,
         sendMessage,
+        signal,
     } = params;
 
     let currentScript: string;
@@ -1589,6 +1603,7 @@ ${outputFormatPrompt}`,
             plan: detailedLongPlan,
             actions,
             sendMessage,
+            signal,
         });
         const parsed = parsePlanScript({
             script: compiled.script,
@@ -1624,6 +1639,7 @@ ${outputFormatPrompt}`,
             preferredDayIndexes,
             contextPrompt,
             sendMessage,
+            signal,
         });
     }
 
@@ -1647,7 +1663,7 @@ ${outputFormatPrompt}`,
                 temperature: 0.1,
                 max_tokens: 12000,
             };
-            completion = await createChatCompletionWithRetry(openai, requestBody);
+            completion = await createChatCompletionWithRetry(openai, requestBody, signal);
         } catch (error) {
             if (isDevelopment) {
                 console.warn(
@@ -1798,17 +1814,7 @@ export async function POST(req: NextRequest) {
             modificationContext.length > 0 ? `【当前草稿已有变化，仅用于理解指代】\n${modificationContextPrompt}` : '',
         ].filter(Boolean).join('\n\n');
 
-        // 创建 SSE 响应
-        const encoder = new TextEncoder();
-        const stream = new ReadableStream({
-            async start(controller) {
-                // 辅助函数：发送 SSE 消息
-                const sendMessage = (message: SSEMessage) => {
-                    const data = `data: ${JSON.stringify(message)}\n\n`;
-                    controller.enqueue(encoder.encode(data));
-                };
-
-                try {
+        return createPlanEditSseResponse(req.signal, async ({ sendMessage, signal }) => {
                     const startTime = Date.now();
 
                     // 1. 获取训练计划（template 模式）或使用前端传入草稿（local 模式）
@@ -2112,7 +2118,7 @@ ${currentInstruction}
                             response_format: { type: "json_object" },
                             temperature: 0.1,
                             max_tokens: 2000
-                        });
+                        }, signal);
 
                         const intentContent = intentCompletion.choices[0]?.message?.content;
                         const intentResult = intentContent ? JSON.parse(intentContent) : { intent: 'modify' };
@@ -2159,7 +2165,7 @@ ${modificationContextPrompt}
                             messages: buildPromptMessages(queryPrompt),
                             temperature: 0.3,
                             max_tokens: 6000
-                        });
+                        }, signal);
 
                         const queryAnswer = queryCompletion.choices[0]?.message?.content || '无法分析该问题';
                         const totalDuration = Date.now() - startTime;
@@ -2225,7 +2231,7 @@ ${currentInstruction}
                             response_format: { type: "json_object" },
                             temperature: 0.1,
                             max_tokens: 3000
-                        });
+                        }, signal);
                         const clarificationContent = clarificationCompletion.choices[0]?.message?.content;
                         if (clarificationContent) {
                             try {
@@ -2339,6 +2345,7 @@ ${currentInstruction}
                                 contextPrompt,
                                 deterministicReason: deterministicResult.matched ? deterministicResult.reason : undefined,
                                 sendMessage,
+                                signal,
                             });
 
                             if (scriptResult.success && scriptResult.updatedTrainingDays) {
@@ -2583,7 +2590,7 @@ ${effectiveModificationInstruction}
                                 response_format: { type: "json_object" },
                                 temperature: 0.2,
                                 max_tokens: 12000
-                            });
+                            }, signal);
                             const aiDuration = Date.now() - aiStartTime;
 
                             const responseContent = completion.choices[0]?.message?.content;
@@ -2695,6 +2702,7 @@ ${effectiveModificationInstruction}
                                 }
                             }
                         } catch (error: any) {
+                            signal.throwIfAborted();
                             if (retryCount >= maxRetries - 1) {
                                 throw error;
                             }
@@ -2755,25 +2763,7 @@ ${effectiveModificationInstruction}
                         message: `分析完成，共发现 ${modifications.length} 处修改${executionResult.loadAdjustmentCount ? `，并结构化应用 ${executionResult.loadAdjustmentCount} 条负荷调整` : ''}${(executionResult.oneRmAdjustments || []).length > 0 ? `，并调整 ${(executionResult.oneRmAdjustments || []).length} 个动作的全局1RM` : ''}${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`
                     });
 
-                } catch (error: any) {
-                    console.error('[batch-operation] Error:', error);
-                    sendMessage({
-                        type: 'error',
-                        message: formatBatchOperationError(error)
-                    });
-                } finally {
-                    controller.close();
-                }
-            }
-        });
-
-        return new Response(stream, {
-            headers: {
-                'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache',
-                'Connection': 'keep-alive',
-            },
-        });
+        }, formatBatchOperationError);
 
     } catch (error: any) {
         console.error('[batch-operation] Request error:', error);

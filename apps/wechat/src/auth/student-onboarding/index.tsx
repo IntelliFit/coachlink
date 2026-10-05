@@ -308,8 +308,14 @@ function StudentOnboarding() {
   const [nicknameInputFocused, setNicknameInputFocused] = useState(false)
   const nicknameValueRef = useRef(DEFAULT_FORM_DATA.nickname)
   const nicknameFooterTimerRef = useRef<any>(null)
+  const exitingRef = useRef(false)
   const routerParams = (Taro.getCurrentInstance().router?.params as any) || {}
   const isEditMode = String(routerParams.mode || '').trim() === 'edit'
+  const headerPaddingTop = useMemo(() => {
+    const { statusBarHeight = 24, windowWidth = 375 } = Taro.getWindowInfo()
+    const statusBarRpx = Math.ceil((statusBarHeight * 750 / windowWidth) / 8) * 8
+    return `${statusBarRpx + 16}rpx`
+  }, [])
 
   const [heightIndex, setHeightIndex] = useState(() => {
     const idx = DEFAULT_FORM_DATA.height - HEIGHT_MIN
@@ -351,7 +357,34 @@ function StudentOnboarding() {
     return isEditMode ? '/me/profile/index' : '/pages/index/index'
   })()
 
+  const handleExit = async (goHome = false) => {
+    if (exitingRef.current || saving) return
+    exitingRef.current = true
+    try {
+      if (!isEditMode) {
+        // The home page requires onboarding for signed-in students. Clear the
+        // local session first so cancelling cannot redirect back to this form.
+        await authService.logout()
+      } else if (!goHome && Taro.getCurrentPages().length > 1) {
+        try {
+          await Taro.navigateBack({ delta: 1 })
+          return
+        } catch (_) {
+          // A page opened directly still needs a usable exit destination.
+        }
+      }
+      await Taro.reLaunch({
+        url: isEditMode && !goHome ? '/me/profile/index' : authService.buildPostAuthHomeUrl()
+      })
+    } catch (error) {
+      console.error('[student-onboarding] exit failed:', error)
+      exitingRef.current = false
+      Taro.showToast({ title: '返回失败，请重试', icon: 'none' })
+    }
+  }
+
   useEffect(() => {
+    let cancelled = false
     const bootstrap = async () => {
       const session = authService.getAuthSession({ normalize: true })
       if (!session.isAuthenticated || !session.userId) {
@@ -371,6 +404,7 @@ function StudentOnboarding() {
 
       try {
         const profileRes = await studentService.getStudentProfile(session.userId)
+        if (cancelled || exitingRef.current) return
         const profile = profileRes?.profile || null
         const questionnaire = profileRes?.questionnaire?.answers || {}
 
@@ -408,17 +442,19 @@ function StudentOnboarding() {
           return Math.max(0, Math.min(idx, weightItems.length - 1))
         })
       } catch (error: any) {
+        if (cancelled || exitingRef.current) return
         console.error('[student-onboarding] bootstrap failed:', error)
         Taro.showToast({
           title: error?.message || '资料加载失败',
           icon: 'none'
         })
       } finally {
-        setLoading(false)
+        if (!cancelled && !exitingRef.current) setLoading(false)
       }
     }
 
     void bootstrap()
+    return () => { cancelled = true }
   }, [isEditMode, nextUrl])
 
   const toggleListValue = (key: 'fitnessGoals' | 'equipments', value: string) => {
@@ -1111,6 +1147,26 @@ function StudentOnboarding() {
     <ConfigProvider locale={zhCN}>
       <TaroForm className='student-onboarding-form' onSubmit={handleStepOneSubmit}>
       <View className='student-onboarding-page'>
+        <View className='onboarding-header' style={{ paddingTop: headerPaddingTop }}>
+          <View className='onboarding-nav'>
+            <TaroButton
+              className='onboarding-nav-btn'
+              disabled={saving}
+              onClick={() => void handleExit()}
+            >
+              <Text className='iconfont icon-left' />
+              <Text>{isEditMode ? '返回' : '取消登录'}</Text>
+            </TaroButton>
+            <TaroButton
+              className='onboarding-nav-btn'
+              disabled={saving}
+              onClick={() => void handleExit(true)}
+            >
+              <Text>返回首页</Text>
+            </TaroButton>
+          </View>
+          <Text className='onboarding-page-title'>完善基础档案</Text>
+        </View>
         {loading ? (
           <View className='content-scroll'>
             <View className='loading-state'>

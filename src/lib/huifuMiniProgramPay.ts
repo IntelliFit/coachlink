@@ -19,7 +19,7 @@ interface HuifuCreateMiniProgramOrderParams {
     remark?: string;
     body?: string;
     clientIp?: string;
-    tradeType?: string;            // "T_MINIAPP" (默认) | "A_JSAPI" | "A_NATIVE"
+    tradeType?: string;            // "T_MINIAPP" (默认) | "T_JSAPI" | "A_JSAPI" | "A_NATIVE"
     alipayData?: { subject: string; body?: string; buyer_id?: string; buyer_logon_id?: string };
     acctSplitBunch?: string;       // JSON，实时分账时传入（新方案不再使用）
     delayAcctFlag?: string;        // "Y" | "N"，默认 "N"
@@ -345,6 +345,58 @@ export async function queryHuifuMiniProgramOrder(params: HuifuQueryOrderParams) 
     const { customerId } = getHuifuConfig();
     return huifuPost<HuifuQueryOrderResult>("/v3/trade/payment/scanpay/query", {
         huifu_id: customerId,
+        org_req_date: params.orgReqDate,
+        org_req_seq_id: params.orgReqSeqId,
+    });
+}
+
+export function getHuifuWebPayProjectId() {
+    return String(process.env.HUIFU_WEB_PAY_PROJECT_ID || "").trim();
+}
+
+/** Huifu's hosted cashier handles WeChat authorization and mobile/PC entry points. */
+export async function createHuifuHostedWebOrder(params: {
+    reqDate: string;
+    reqSeqId: string;
+    transAmtYuan: string;
+    goodsDesc: string;
+    notifyUrl: string;
+    callbackUrl: string;
+    mobile: boolean;
+    acctId: string;
+}) {
+    const { customerId } = getHuifuConfig();
+    const projectId = getHuifuWebPayProjectId();
+    if (!projectId) throw new Error("网页微信支付尚未配置，请联系平台");
+
+    return huifuPost<HuifuCreateMiniProgramOrderResult>("/v2/trade/hosting/payment/preorder", {
+        req_date: params.reqDate,
+        req_seq_id: params.reqSeqId,
+        huifu_id: customerId,
+        pre_order_type: "1",
+        trans_type: "T_JSAPI",
+        trans_amt: params.transAmtYuan,
+        goods_desc: params.goodsDesc,
+        notify_url: params.notifyUrl,
+        acct_id: params.acctId,
+        delay_acct_flag: "N",
+        fee_flag: "2",
+        hosting_data: JSON.stringify({
+            project_id: projectId,
+            project_title: "CoachLink 教练订阅",
+            request_type: params.mobile ? "M" : "P",
+            callback_url: params.callbackUrl,
+            private_info: params.reqSeqId,
+        }),
+    });
+}
+
+export async function queryHuifuHostedWebOrder(params: HuifuQueryOrderParams) {
+    const { customerId } = getHuifuConfig();
+    return huifuPost<HuifuQueryOrderResult>("/v2/trade/hosting/payment/queryorderinfo", {
+        huifu_id: customerId,
+        req_date: formatHuifuReqDate(),
+        req_seq_id: crypto.randomUUID(),
         org_req_date: params.orgReqDate,
         org_req_seq_id: params.orgReqSeqId,
     });

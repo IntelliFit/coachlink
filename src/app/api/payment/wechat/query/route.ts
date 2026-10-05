@@ -3,7 +3,8 @@ import type { ApiData } from "@/types/api";
 import { getApiUserId } from "@/lib/getApiUserId";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { fenToYuan } from "@/lib/moneyUtils";
-import { formatHuifuReqDate, queryHuifuMiniProgramOrder } from "@/lib/huifuMiniProgramPay";
+import { formatHuifuReqDate } from "@/lib/huifuMiniProgramPay";
+import { assertHuifuWebPaymentAmount, isHuifuWebPayment, queryHuifuPaymentOrder } from "@/lib/huifuWebPayment";
 import {
     fulfillSubscriptionOnPaid,
     updateTransactionAndWallet,
@@ -37,6 +38,7 @@ interface QueryWechatPaymentResponse {
 function mapHuifuTransStatus(value: string | null | undefined): PaymentStatus {
     if (value === "S") return "success";
     if (value === "F") return "failed";
+    if (value === "C") return "cancelled";
     return "pending";
 }
 
@@ -200,20 +202,23 @@ export async function POST(request: NextRequest) {
 
         if (paymentStatus === "pending") {
             const orderData = (order.order_data || {}) as Record<string, any>;
-            const queryResult = await queryHuifuMiniProgramOrder({
+            const queryResult = await queryHuifuPaymentOrder(order, {
                 orgReqDate: String(orderData.huifu_req_date || formatHuifuReqDate(new Date(order.created_at))),
                 orgReqSeqId: order.id,
             });
 
             const mappedStatus = mapHuifuTransStatus(queryResult.trans_stat);
+            assertHuifuWebPaymentAmount(order, queryResult);
             const nextDbStatus =
                 mappedStatus === "success"
                     ? "paid"
                     : mappedStatus === "failed"
                       ? "failed"
+                      : mappedStatus === "cancelled"
+                        ? "closed"
                       : "pending";
 
-            const { data: updatedOrder, error: updateError } = await (serviceRoleSupabase
+            let updateQuery = (serviceRoleSupabase
                 .from("alipay_orders") as any)
                 .update({
                     status: nextDbStatus,
@@ -222,7 +227,11 @@ export async function POST(request: NextRequest) {
                     payment_provider: "wechat",
                     updated_at: new Date().toISOString(),
                 })
-                .eq("id", order.id)
+                .eq("id", order.id);
+            if (isHuifuWebPayment(order) && nextDbStatus !== "paid") {
+                updateQuery = updateQuery.neq("status", "paid");
+            }
+            const { data: updatedOrder, error: updateError } = await updateQuery
                 .select()
                 .single();
 

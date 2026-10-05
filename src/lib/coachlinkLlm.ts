@@ -96,6 +96,7 @@ export function getCoachlinkPlanScriptFallbackLlm() {
             prompt: string;
             maxTokens?: number;
             timeoutMs?: number;
+            signal?: AbortSignal;
         }): Promise<WanjieAnthropicTextResult> {
             const response = await fetch(messagesUrl, {
                 method: "POST",
@@ -110,7 +111,9 @@ export function getCoachlinkPlanScriptFallbackLlm() {
                     temperature: 0,
                     messages: [{ role: "user", content: params.prompt }],
                 }),
-                signal: AbortSignal.timeout(params.timeoutMs || 60_000),
+                signal: params.signal
+                    ? AbortSignal.any([params.signal, AbortSignal.timeout(params.timeoutMs || 60_000)])
+                    : AbortSignal.timeout(params.timeoutMs || 60_000),
             });
             const raw = await response.text();
             let payload: any = null;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { withLocationEquipment } from '@coachlink/core';
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
       success: true,
       message: "获取点位成功",
       data: {
-        location: data,
+        location: withLocationEquipment(data),
       },
     });
   } catch (error) {

@@ -1,7 +1,9 @@
 import type { StreetliftingLocation } from "../list/entity";
+import type { LocationEquipmentType } from '@coachlink/core';
 
 export interface StreetliftingCreateLocationDto {
     name: string;
+    equipment_types?: LocationEquipmentType[] | null;
     country?: string | null;
     coordinate_system?: 'wgs84' | 'gcj02' | null;
     description?: string | null;

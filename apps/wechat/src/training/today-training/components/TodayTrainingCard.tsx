@@ -32,6 +32,7 @@ interface TodayTrainingCardProps {
   onDeleteLightweightTask?: (task: NormalizedDayTask) => void
   onOpenExecution?: (dayIndex: number, focusAction?: number) => void
   embeddedInSchedule?: boolean
+  compact?: boolean
 }
 
 function TodayTrainingCard({
@@ -49,7 +50,8 @@ function TodayTrainingCard({
   onAddLightweightTask,
   onDeleteLightweightTask,
   onOpenExecution,
-  embeddedInSchedule = false
+  embeddedInSchedule = false,
+  compact = false
 }: TodayTrainingCardProps) {
   const [showAllTasks, setShowAllTasks] = useState(false)
   const [showAllStrengthTasks, setShowAllStrengthTasks] = useState(false)
@@ -146,6 +148,64 @@ function TodayTrainingCard({
         : '暂无训练'
 
   const headerSubtitle = subheading || `第${dayIndex}天 · ${moduleCount}个模块`
+
+  if (compact) {
+    return (
+      <>
+        <View className='compact-training-card'>
+          {strengthTasks.length > 0 && (
+            <View className='compact-training-list'>
+              {strengthTasks.map((task) => (
+                <View key={`${task.executionIndex}-${task.actionId}`} className='compact-training-row'
+                  onClick={() => openExecution(task.executionIndex)}>
+                  <Text className='compact-training-name'>{task.title}</Text>
+                  <Text className={`compact-training-count ${task.isCompleted ? 'completed' : ''}`}>
+                    {task.completedSetCount}/{task.setCount}组
+                  </Text>
+                  <Text className='compact-training-chevron'>›</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          {lightweightTasks.length > 0 && (
+            <View className='compact-lightweight-list'>
+              {lightweightTasks.map((task) => {
+                const meta = buildLightweightSummary(task)
+                return (
+                  <View key={`${task.executionIndex}-${task.actionId}`} className='compact-lightweight-row'>
+                    <View className='compact-lightweight-copy' onClick={() => handleOpenTask(task)}>
+                      <Text className='compact-training-name'>{task.title}</Text>
+                      <Text className='compact-lightweight-summary'>{meta.summary}</Text>
+                      {!!task.suggestedTime && <Text className='compact-lightweight-summary'>{task.suggestedTime}</Text>}
+                    </View>
+                    <View className='compact-lightweight-actions'>
+                      {(task.detailText || task.noteText) && (
+                        <Text className='compact-task-link' onClick={() => setInfoTask(task)}>说明</Text>
+                      )}
+                      {task.isStudentExtra && onDeleteLightweightTask && (
+                        <Text className='compact-task-link' onClick={() => onDeleteLightweightTask(task)}>删除</Text>
+                      )}
+                      <Text className={`compact-task-link ${task.isCompleted ? 'completed' : 'primary'}`}
+                        onClick={() => handleOpenTask(task)}>{meta.actionLabel}</Text>
+                    </View>
+                  </View>
+                )
+              })}
+            </View>
+          )}
+        </View>
+        {infoTask && (
+          <View className='task-info-mask' onClick={() => setInfoTask(null)}>
+            <View className='task-info-dialog' onClick={(event) => event.stopPropagation()}>
+              <Text className='info-title'>{infoTask.title}</Text>
+              <Text className='info-desc'>{[infoTask.detailText, infoTask.noteText].filter(Boolean).join('\n')}</Text>
+              <View className='info-close' onClick={() => setInfoTask(null)}><Text>关闭</Text></View>
+            </View>
+          </View>
+        )}
+      </>
+    )
+  }
 
   return (
     <>

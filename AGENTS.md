@@ -34,6 +34,17 @@ This workspace is dedicated to the `coachlink` project.
 - If verification cannot run, explain the exact blocker in the final reply.
 - If the user explicitly says they will manually run or verify the change (for example: `不用你测试，我来手动运行就行`), that instruction overrides the automatic browser/manual verification requirement for that task. In that case, do not run UI/manual verification yourself; focus on code changes and code-level checks, and state clearly in the final reply that manual verification was left to the user.
 
+## 自动验收资源管理（强制）
+
+- 微信开发者工具窗口属于可复用的项目资源，不属于每个对话的默认附件。不得因新对话、连接超时或截图失败而直接重复开窗。
+- 设计与迁移步骤见 `docs/work/devtools-session-management-design-2026-10-06.md`。**目前尚无统一管理器实现**，不能声称已经自动排队或自动关窗；实现后所有验收脚本必须接入同一管理入口。
+- 验收前核对项目完整路径、AppID、窗口标识、端口和构建目录，记录用途及当前占用者；空闲且版本匹配的窗口优先复用。窗口标题相同不能证明是同一项目；端口不同不能证明运行环境完全隔离。
+- 同一逻辑小程序的导航、截图、mock、storage 操作必须串行；有人正在验收时，其他对话等待，不抢窗口。同一输出目录的构建、清缓存、配置切换也不得与验收并发；并行构建应使用完整且固定的独立输出。
+- 新建窗口前必须先确认缺少可复用目标，并记录窗口由谁创建。规划上限为每个逻辑项目一个 AI 工作窗口、最多一个明确移交用户的验收窗口；达到上限先等待或回收已确认的闲置资源。用户原有窗口不计作可任意回收的 AI 窗口。
+- 验收完成或失败均须执行收尾：恢复本任务 mock/测试 storage，断开连接，记录结果，并关闭本任务创建且未移交用户的临时窗口。借用的窗口只释放占用，不关闭。`disconnect()` 不等于关闭 GUI 窗口。
+- 留给用户的窗口须明确标注项目、用途、固定构建版本与“待用户验收”，登记保留原因；不得留下归属不明的窗口后宣称交付完成。
+- 超时只能在同一窗口有限重连；仍失败就收集错误并结束该次验收，不靠连续开窗恢复。归属不明、仍有活跃任务、存在未恢复测试状态或未保存内容的旧窗口，只盘点，不批量强杀开发者工具。
+
 ## Working Style
 
 - Favor direct edits, concrete verification, and short status updates.

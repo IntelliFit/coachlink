@@ -73,7 +73,7 @@ interface PaymentDialogProps {
     renewAdditionalWeeks?: number;
     amount?: number;
     /** Default payment method to select when dialog opens */
-    defaultPaymentMethod?: 'qrcode' | 'alipay_api' | 'offline';
+    defaultPaymentMethod?: 'qrcode' | 'alipay_api' | 'wechat_api' | 'offline';
     /** Whether offline payment should be available in this dialog */
     allowOfflinePayment?: boolean;
     /** Whether legacy personal QR-code payment should be available in this dialog */
@@ -82,7 +82,7 @@ interface PaymentDialogProps {
     onCancel?: () => void;
 }
 
-type PaymentMethodType = 'qrcode' | 'alipay_api' | 'offline';
+type PaymentMethodType = 'qrcode' | 'alipay_api' | 'wechat_api' | 'offline';
 
 const PaymentDialog: React.FC<PaymentDialogProps> = ({
     visible,
@@ -107,9 +107,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const [showTermsDialog, setShowTermsDialog] = useState(false);
     const [selectedQrCode, setSelectedQrCode] = useState<QrCodeItem | null>(null);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType>('qrcode');
-    const [processingAlipay, setProcessingAlipay] = useState(false);
+    const [processingPayment, setProcessingPayment] = useState(false);
     const [huifuQrOrder, setHuifuQrOrder] = useState<{
         orderId: string;
+        provider: 'alipay' | 'wechat';
         qrValue: string;
         amountText: string;
         redirect: string;
@@ -140,7 +141,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         }
 
         if (mode === 'alipay_api' || mode === 'both') {
-            methods.push('alipay_api');
+            methods.push('alipay_api', 'wechat_api');
         }
 
         if (offlineAllowed) {
@@ -151,7 +152,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             return methods;
         }
 
-        return offlineAllowed ? ['offline'] : ['alipay_api'];
+        return offlineAllowed ? ['offline'] : ['alipay_api', 'wechat_api'];
     };
 
     const normalizePaymentMethod = (
@@ -220,6 +221,46 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             }
         }
     }, [selectedPaymentMethod, paymentInfo, allowOfflinePayment, allowPersonalQrcode]);
+
+    useEffect(() => {
+        if (!huifuQrOrder) return;
+        const qrOrder = huifuQrOrder;
+        const controller = new AbortController();
+        let active = true;
+        let querying = false;
+        const queryPayment = async () => {
+            if (querying) return;
+            querying = true;
+            try {
+                const response = await fetch(`/api/payment/${qrOrder.provider}/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId: qrOrder.orderId }),
+                    signal: controller.signal,
+                });
+                const result = await response.json();
+                if (!active || !response.ok || !result.success) return;
+                const orderStatus = result.data?.order?.status;
+                if (orderStatus === 'paid' || result.data?.status === 'success') {
+                    window.location.assign(`/payment/${qrOrder.orderId}?provider=${qrOrder.provider}&redirect=${encodeURIComponent(qrOrder.redirect)}`);
+                } else if (['failed', 'closed', 'cancelled', 'refunded'].includes(orderStatus)) {
+                    setHuifuQrOrder(null);
+                    showToast({ severity: 'warn', summary: '支付未完成', detail: '订单已失效，请重新发起支付' });
+                }
+            } catch {
+                // A transient query failure must not turn an unpaid order into a paid/failed one.
+            } finally {
+                querying = false;
+            }
+        };
+        void queryPayment();
+        const timer = window.setInterval(queryPayment, 5000);
+        return () => {
+            active = false;
+            controller.abort();
+            window.clearInterval(timer);
+        };
+    }, [huifuQrOrder, showToast]);
 
     // 上传支付凭证
     const handleReceiptUpload = async (event: FileUploadHandlerEvent) => {
@@ -340,8 +381,8 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     };
 
-    // 处理平台支付宝支付
-    const handleAlipayPayment = async () => {
+    // 微信网页进入汇付托管收银台，由收银台完成微信授权和支付。
+    const handlePlatformPayment = async () => {
         if (!amount) {
             showToast({ severity: 'error', summary: '错误', detail: '缺少支付金额' });
             return;
@@ -351,15 +392,16 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             return;
         }
 
-        setProcessingAlipay(true);
+        setProcessingPayment(true);
         const mobile = isMobile();
+        const provider = selectedPaymentMethod === 'wechat_api' ? 'wechat' : 'alipay';
         const redirect =
             typeof window !== 'undefined'
                 ? `${window.location.pathname}${window.location.search || ''}`
                 : '';
 
         try {
-            const res = await fetch('/api/payment/alipay/create', {
+            const res = await fetch(provider === 'wechat' ? '/api/payment/wechat/web/create' : '/api/payment/alipay/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -395,21 +437,27 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     onHide();
 
                     if (payTarget) {
-                        if (mobile && isHttpUrl(payTarget)) {
+                        const hostedWechat = provider === 'wechat' && paymentInfo.paymentMode === 'hosting';
+                        const wechatBrowser = /MicroMessenger/i.test(navigator.userAgent);
+                        if (isHttpUrl(payTarget) && (
+                            (provider === 'alipay' && mobile) ||
+                            (hostedWechat && (mobile || wechatBrowser))
+                        )) {
                             window.location.assign(payTarget);
                             return;
                         }
 
                         setHuifuQrOrder({
                             orderId: createdOrderId,
+                            provider,
                             qrValue: payTarget,
-                            amountText: amount.toFixed(2),
+                            amountText: Number(data.data.order.total_amount).toFixed(2),
                             redirect,
                         });
                         return;
                     }
 
-                    window.location.assign(`/payment/${createdOrderId}?redirect=${encodeURIComponent(redirect)}`);
+                    window.location.assign(`/payment/${createdOrderId}?provider=${provider}&redirect=${encodeURIComponent(redirect)}`);
                     return;
                 }
 
@@ -438,10 +486,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 showToast({ severity: 'error', summary: '错误', detail });
             }
         } catch (error) {
-            console.error('支付宝支付失败:', error);
+            console.error('平台支付失败:', error);
             showToast({ severity: 'error', summary: '错误', detail: '支付请求失败' });
         } finally {
-            setProcessingAlipay(false);
+            setProcessingPayment(false);
         }
     };
 
@@ -449,7 +497,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const effectiveMode = paymentInfo?.effectivePaymentMode || 'alipay_api';
 
     const getFooterContent = () => {
-        if (selectedPaymentMethod === 'alipay_api') {
+        if (selectedPaymentMethod === 'alipay_api' || selectedPaymentMethod === 'wechat_api') {
             return (
                 <div className="flex justify-end gap-2">
                     <Button
@@ -460,16 +508,17 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                             onHide();
                         }}
                         className="p-button-text rounded-2xl"
-                        disabled={loading || processingAlipay}
+                        disabled={loading || processingPayment}
                     />
                     <Button
                         label="立即支付"
                         icon="pi pi-credit-card"
-                        onClick={handleAlipayPayment}
-                        disabled={!amount || processingAlipay}
-                        loading={processingAlipay}
+                        onClick={handlePlatformPayment}
+                        disabled={!amount || processingPayment}
+                        loading={processingPayment}
                         autoFocus
                         className="p-button-primary rounded-2xl"
+                        style={{ backgroundColor: '#CF6D4E', borderColor: '#CF6D4E', color: '#FFFFFF', minHeight: '40px', padding: '8px 16px' }}
                     />
                 </div>
             );
@@ -547,10 +596,18 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 id: 'alipay_api',
                 label: '支付宝',
                 // 替换为 ZhifubaoIcon
-                icon: (isActive: boolean) => <ZhifubaoIcon width="18" height="18" fill={isActive ? "#FFFFFF" : "#64748b"} />,
-                visible: effectiveMode === 'alipay_api' || effectiveMode === 'both',
-                activeClass: 'bg-blue-500 border-blue-600 text-white', // 调整激活样式以适应支付宝蓝
+                icon: (isActive: boolean) => <ZhifubaoIcon width="24" height="24" fill={isActive ? "#FFFFFF" : "#64748b"} />,
+                visible: getAvailablePaymentMethods(paymentInfo).includes('alipay_api'),
+                activeClass: 'bg-[#CF6D4E] border-[#CF6D4E] text-white',
                 iconClass: 'bg-blue-500'
+            },
+            {
+                id: 'wechat_api',
+                label: '微信支付',
+                icon: (isActive: boolean) => <WeixinzhifuIcon width="24" height="24" fill={isActive ? '#FFFFFF' : '#07C160'} />,
+                visible: getAvailablePaymentMethods(paymentInfo).includes('wechat_api'),
+                activeClass: 'bg-[#CF6D4E] border-[#CF6D4E] text-white',
+                iconClass: 'bg-green-600'
             },
             {
                 id: 'offline',
@@ -571,25 +628,29 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
         return (
             <div className="w-full mb-6">
-                <div className="flex items-center gap-2 mb-3 px-1">
+                <div className="flex items-center gap-2 mb-4 px-2">
                     <span className="text-[10px] font-black text-surface-400 uppercase tracking-[0.2em]">
                         结算方式
                     </span>
                 </div>
 
-                <div className={`grid ${gridColsClass} gap-3`}>
+                <div className={`grid ${gridColsClass} gap-4`}>
                     {visibleMethods.map((method) => {
                         const isActive = selectedPaymentMethod === method.id;
                         return (
-                            <div
+                            <button
+                                type="button"
                                 key={method.id}
+                                aria-label={method.label}
+                                aria-pressed={isActive}
+                                disabled={loading || processingPayment}
                                 onClick={() => setSelectedPaymentMethod(method.id)}
                                 className={`
                                 cursor-pointer relative overflow-hidden transition-all duration-300
-                                p-3 rounded-[16px] border flex flex-col items-center gap-2 active:scale-95
+                                p-4 rounded-[16px] border flex flex-col items-center gap-2 active:opacity-80 disabled:opacity-50
                                 ${isActive
                                         ? `${method.activeClass} shadow-sm`
-                                        : 'border-surface-100 bg-surface-50/50 hover:bg-surface hover:border-surface-200'
+                                        : 'border-surface-200 bg-white hover:border-surface-400'
                                     }
                             `}
                             >
@@ -611,7 +672,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                                 <span className="text-[10px] font-black tracking-tight leading-none uppercase">
                                     {method.label}
                                 </span>
-                            </div>
+                            </button>
                         );
                     })}
                 </div>
@@ -789,17 +850,23 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         );
     };
 
-    // 渲染平台支付宝界面
-    const renderAlipayApiPayment = () => {
+    // 渲染当前平台支付渠道
+    const renderPlatformPayment = () => {
         return (
             <div className="flex flex-col items-center py-4">
                 <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-4">
                     {/* 替换原有的 pi-credit-card */}
-                    <ZhifubaoIcon width="40" height="40" fill="#1677FF" />
+                    {selectedPaymentMethod === 'wechat_api'
+                        ? <WeixinzhifuIcon width="40" height="40" fill="#07C160" />
+                        : <ZhifubaoIcon width="40" height="40" fill="#1677FF" />}
                 </div>
                 <div className="text-center mb-4">
-                    <div className="font-bold text-lg text-surface-900">平台支付宝支付</div>
-                    <div className="text-sm text-surface-500 mt-1">点击"立即支付"跳转至支付宝完成支付</div>
+                    <div className="font-bold text-lg text-surface-900">{selectedPaymentMethod === 'wechat_api' ? '平台微信支付' : '平台支付宝支付'}</div>
+                    <div className="text-sm text-surface-500 mt-2">
+                        {selectedPaymentMethod === 'wechat_api'
+                            ? '点击“立即支付”进入微信收银台；电脑端可扫码付款'
+                            : '点击“立即支付”使用支付宝完成支付'}
+                    </div>
                 </div>
                 {amount && (
                     <div className="text-primary font-bold text-2xl mb-4">
@@ -978,7 +1045,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     </>
                 )}
 
-                {selectedPaymentMethod === 'alipay_api' && renderAlipayApiPayment()}
+                {(selectedPaymentMethod === 'alipay_api' || selectedPaymentMethod === 'wechat_api') && renderPlatformPayment()}
 
                 {selectedPaymentMethod === 'offline' && renderOfflinePaymentForm()}
             </>
@@ -990,7 +1057,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             <Dialog
                 id="guide-payment-options"
                 header={
-                    selectedPaymentMethod === 'alipay_api' ? '平台支付' :
+                    selectedPaymentMethod === 'alipay_api' || selectedPaymentMethod === 'wechat_api' ? '平台支付' :
                         selectedPaymentMethod === 'offline' ? '线下支付确认' : '扫码支付'
                 }
                 visible={visible}
@@ -1032,13 +1099,13 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             />
 
             <Dialog
-                header="支付宝扫码支付"
+                header={huifuQrOrder?.provider === 'wechat' ? '微信扫码支付' : '支付宝扫码支付'}
                 visible={Boolean(huifuQrOrder)}
                 onHide={() => setHuifuQrOrder(null)}
                 modal
                 draggable={false}
                 resizable={false}
-                style={{ width: '92vw', maxWidth: '420px' }}
+                style={{ width: '92vw', maxWidth: '416px' }}
                 pt={{
                     header: { className: 'border-none bg-surface' },
                     content: { className: 'bg-surface' },
@@ -1055,10 +1122,11 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         <Button
                             className="rounded-2xl"
                             label="我已完成支付"
+                            style={{ backgroundColor: '#CF6D4E', borderColor: '#CF6D4E', color: '#FFFFFF', minHeight: '40px', padding: '8px 16px' }}
                             onClick={() => {
                                 if (!huifuQrOrder) return;
                                 window.location.assign(
-                                    `/payment/${huifuQrOrder.orderId}?redirect=${encodeURIComponent(huifuQrOrder.redirect)}`,
+                                    `/payment/${huifuQrOrder.orderId}?provider=${huifuQrOrder.provider}&redirect=${encodeURIComponent(huifuQrOrder.redirect)}`,
                                 );
                             }}
                         />
@@ -1068,13 +1136,14 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 {huifuQrOrder ? (
                     <div className="flex flex-col items-center gap-4 py-2 text-center">
                         <div className="rounded-2xl border border-surface-200 bg-white p-4">
-                            <QRCodeSVG value={huifuQrOrder.qrValue} size={220} level="M" />
+                            <QRCodeSVG value={huifuQrOrder.qrValue} size={224} level="M" />
                         </div>
                         <div className="text-sm font-black text-surface-900">
-                            请使用支付宝扫码支付 ¥{huifuQrOrder.amountText}
+                            请使用{huifuQrOrder.provider === 'wechat' ? '微信' : '支付宝'}扫码支付 ¥{huifuQrOrder.amountText}
                         </div>
                         <div className="text-xs leading-relaxed text-surface-500">
-                            支付完成后点击确认，系统会查询订单状态并自动确认订阅。
+                            请打开手机扫一扫，扫描上方二维码。
+                            系统会自动查询支付结果，也可点击“我已完成支付”手动查询。
                         </div>
                     </div>
                 ) : null}

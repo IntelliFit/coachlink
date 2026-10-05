@@ -1,4 +1,6 @@
-export interface StreetliftingLocation {
+import type { LocationEquipmentInput, LocationEquipmentType } from '@coachlink/core';
+
+export interface StreetliftingLocation extends LocationEquipmentInput {
     id: string;
     country?: string | null;
     coordinate_system?: 'wgs84' | 'gcj02' | null;
@@ -26,6 +28,7 @@ export interface StreetliftingListLocationsDto {
     province?: string; // 'all' means no filter
     city?: string;
     county?: string;
+    equipment?: LocationEquipmentType[];
 }
 
 export interface StreetliftingListLocationsResponseDto {

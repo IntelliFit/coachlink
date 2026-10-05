@@ -32,7 +32,8 @@ import {
   type StreetliftingLocationPosterData
 } from './poster'
 import { useTheme } from '@/hooks/useTheme'
-import { isValidLocationCoordinates, getLocationCountry, toWeChatCoordinates, type LocationCoordinateSystem, type LocationSelection } from '@coachlink/core'
+import { isValidLocationCoordinates, getLocationCountry, toWeChatCoordinates, inferLocationEquipment, normalizeLocationEquipment, resolveLocationEquipment, matchesLocationEquipment, type LocationEquipmentType, type LocationCoordinateSystem, type LocationSelection } from '@coachlink/core'
+import { EquipmentSelector, EquipmentTags } from '@/components/LocationEquipment'
 import { readLocationCache, writeLocationCache, type LocationDraft, type LocationListCache } from '@/utils/streetliftingLocationCache'
 import { getApproxUserLocation } from '@/utils/approxLocation'
 import { parseNativeLocation, mergePickedLocation, usableSearchSelection, getPickerStart, type PickerAutoFields } from '@/utils/locationPicker'
@@ -64,6 +65,71 @@ function getLocationImages(loc: StreetliftingLocation): string[] {
   if (loc.image_urls?.length) return loc.image_urls
   if (loc.image_url) return [loc.image_url]
   return []
+}
+
+function NearbyLocationCard({ location, onOpenMap, onPreview }: {
+  location: NearbyLocation
+  onOpenMap: (location: NearbyLocation) => void
+  onPreview: (location: StreetliftingLocation) => Promise<void>
+}) {
+  const cacheKey = `detail:${location.id}`
+  const [details, setDetails] = useState<StreetliftingLocation | null>(() => readLocationCache(cacheKey))
+  const [loadingDetails, setLoadingDetails] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [retry, setRetry] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    const cached = readLocationCache<StreetliftingLocation>(cacheKey)
+    if (cached) setDetails(cached)
+    setLoadingDetails(true)
+    setLoadFailed(false)
+    void (async () => {
+      try {
+        const result = await streetliftingIndexService.getLocation(location.id)
+        writeLocationCache(cacheKey, result)
+        if (!cancelled) setDetails(result)
+      } catch {
+        if (!cancelled) setLoadFailed(true)
+      } finally {
+        if (!cancelled) setLoadingDetails(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [cacheKey, location.id, retry])
+
+  const images = details ? getLocationImages(details) : []
+  return (
+    <View className='nearby-item'>
+      <View className='nearby-item-header'>
+        <View className='nearby-item-main'>
+          <Text className='nearby-name'>{location.name}</Text>
+          <Text className='nearby-distance'>{location.distanceKm < 1 ? `${Math.round(location.distanceKm * 1000)}m` : `${location.distanceKm.toFixed(1)}km`}</Text>
+        </View>
+        <View className='nearby-map-btn' onClick={() => onOpenMap(location)}>
+          <Text className='iconfont icon-location' />
+          <Text>地图查看</Text>
+        </View>
+      </View>
+      <EquipmentTags location={details || location} />
+      {details && images.length > 0 ? (
+        <View className='nearby-photo-wrap' onClick={() => void onPreview(details)}>
+          <Image className='nearby-photo' src={images[0]} mode='aspectFill' />
+          <View className='nearby-photo-badge'>
+            <Text>{images.length} 张图 · 点击查看</Text>
+          </View>
+        </View>
+      ) : loadingDetails ? (
+        <Text className='nearby-photo-status'>照片加载中…</Text>
+      ) : loadFailed ? (
+        <View className='nearby-photo-retry' onClick={() => setRetry(value => value + 1)}>
+          <Text>照片加载失败，点击重试</Text>
+        </View>
+      ) : (
+        <Text className='nearby-photo-status'>暂未上传现场照片</Text>
+      )}
+    </View>
+  )
 }
 
 function hasLocationImages(loc: StreetliftingLocation): boolean {
@@ -231,6 +297,10 @@ export default function StreetliftingLocations() {
   const [search, setSearch] = useState('')
   const [province, setProvince] = useState('all')
   const [country, setCountry] = useState('all')
+  const [equipmentFilter, setEquipmentFilter] = useState<LocationEquipmentType[]>([])
+  const [equipmentTypes, setEquipmentTypes] = useState<LocationEquipmentType[]>([])
+  const equipmentTouchedRef = useRef(false)
+  const mapPinsRequestRef = useRef(0)
   const [countries, setCountries] = useState<string[]>(['中国'])
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null)
   const [locating, setLocating] = useState(false)
@@ -274,11 +344,22 @@ export default function StreetliftingLocations() {
   const [regionDetailsOpen, setRegionDetailsOpen] = useState(false)
   const [openingPicker, setOpeningPicker] = useState(false)
   const autoFilledRef = useRef<PickerAutoFields>({})
+  useEffect(() => {
+    if (dialogOpen && !equipmentTouchedRef.current) setEquipmentTypes(inferLocationEquipment(form))
+  }, [dialogOpen, form.name, form.description])
   const pickerRequestRef = useRef<{ key: string; userId: string; form: typeof form; id: string | null; imageUrls: string[] } | null>(null)
   const hasSelectedPosition = isValidLocationCoordinates(form.latitude, form.longitude)
   const countryOptions = useMemo(() => Array.from(new Set(['中国', ...countries])), [countries])
 
   useDidShow(() => {
+    const returnedFilters = readLocationCache<{ equipment: LocationEquipmentType[]; country?: string; province?: string; search?: string }>('map-equipment-filter-return')
+    if (returnedFilters) {
+      writeLocationCache('map-equipment-filter-return', null)
+      setEquipmentFilter(normalizeLocationEquipment(returnedFilters.equipment))
+      setCountry(returnedFilters.country || 'all')
+      setProvince(returnedFilters.province || 'all')
+      setSearch(returnedFilters.search || '')
+    }
     const request = pickerRequestRef.current
     if (!request) return
     pickerRequestRef.current = null
@@ -291,15 +372,15 @@ export default function StreetliftingLocations() {
     const merged = mergePickedLocation(request.form, usableSearchSelection(position), autoFilledRef.current)
     const next = merged.form
     autoFilledRef.current = merged.autoFilled
-    writeLocationCache(`draft:${request.userId}`, { ...next, id: request.id, image_urls: request.imageUrls, auto_filled: merged.autoFilled })
+    writeLocationCache(`draft:${request.userId}`, { ...next, id: request.id, image_urls: request.imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: merged.autoFilled })
     setForm(next)
     setManualDetailsOpen(true)
     void Taro.showToast({ title: next.address ? '位置和地址已带回，请核对' : '位置已记录，请补充地址', icon: 'none' })
   })
   useEffect(() => {
     const userId = authService.getCurrentUser()?.id
-    if (dialogOpen && userId) writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, auto_filled: autoFilledRef.current })
-  }, [dialogOpen, form, editing, imageUrls])
+    if (dialogOpen && userId) writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
+  }, [dialogOpen, form, editing, imageUrls, equipmentTypes])
   const posterLoadResultRef = useRef<{ coverLoaded: boolean; qrLoaded: boolean }>({ coverLoaded: false, qrLoaded: false })
 
   const {
@@ -332,7 +413,7 @@ export default function StreetliftingLocations() {
 
   const fetchLocations = async (targetPage = 1, append = false) => {
     const currentRequestId = ++requestIdRef.current
-    const params = { page: targetPage, limit: PAGE_SIZE, search: search.trim() || undefined, country: country === 'all' ? undefined : country, province: province === 'all' ? undefined : province }
+    const params = { page: targetPage, limit: PAGE_SIZE, search: search.trim() || undefined, country: country === 'all' ? undefined : country, province: province === 'all' ? undefined : province, equipment: normalizeLocationEquipment(equipmentFilter) }
     const cacheKey = `list:${JSON.stringify(params)}`
     if (!append) {
       const cached = readLocationCache<LocationListCache>(cacheKey)
@@ -420,9 +501,10 @@ export default function StreetliftingLocations() {
     }
     const t = setTimeout(() => {
       fetchLocations(1, false)
+      if (userLocation) void ensureMapPins().catch(error => Taro.showToast({ title: error.message || '附近点位加载失败', icon: 'none' }))
     }, 300)
     return () => clearTimeout(t)
-  }, [search, province, country])
+  }, [search, province, country, equipmentFilter])
 
   const resetForm = () => {
     setEditing(null)
@@ -431,6 +513,8 @@ export default function StreetliftingLocations() {
     setManualDetailsOpen(false)
     setRegionDetailsOpen(false)
     autoFilledRef.current = {}
+    equipmentTouchedRef.current = false
+    setEquipmentTypes([])
     setImageUrls([])
   }
 
@@ -444,6 +528,8 @@ export default function StreetliftingLocations() {
     if (draft && draft.id === null && typeof draft.name === 'string') {
       setForm({ name: draft.name, description: draft.description, address: draft.address, city: draft.city, province: draft.province, county: draft.county, country: draft.country || '中国', latitude: draft.latitude, longitude: draft.longitude, coordinate_system: draft.coordinate_system })
       setImageUrls(draft.image_urls || [])
+      equipmentTouchedRef.current = draft.equipment_touched ?? false
+      setEquipmentTypes(Array.isArray(draft.equipment_types) ? normalizeLocationEquipment(draft.equipment_types) : inferLocationEquipment(draft))
       setOverseasLocation(Boolean(draft.country && draft.country !== '中国'))
       autoFilledRef.current = draft.auto_filled || {}
       setManualDetailsOpen(Boolean(draft.name || draft.address || isValidLocationCoordinates(draft.latitude, draft.longitude)))
@@ -459,6 +545,8 @@ export default function StreetliftingLocations() {
     const imgs = getLocationImages(loc)
     const pending = readLocationCache<LocationDraft>(`draft:${authService.getCurrentUser()?.id || ''}`)
     const source = pending?.id === loc.id ? { ...loc, ...pending } : loc
+    equipmentTouchedRef.current = pending?.id === loc.id ? pending.equipment_touched ?? false : resolveLocationEquipment(loc).equipment_source === 'confirmed'
+    setEquipmentTypes(resolveLocationEquipment(source).equipment_types)
     setEditing(loc)
     setForm({
       name: source.name,
@@ -487,7 +575,7 @@ export default function StreetliftingLocations() {
     setOpeningPicker(true)
     const key = `picker:${userId}:${Date.now()}`
     pickerRequestRef.current = { key, userId, form, id: editing?.id || null, imageUrls }
-    writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, auto_filled: autoFilledRef.current })
+    writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
     // New locations start at a fresh, explicitly requested nearby position.
     let nearby = previousNearby || null
     if (!hasSelectedPosition && previousNearby === undefined) {
@@ -521,7 +609,7 @@ export default function StreetliftingLocations() {
     if (form.country !== '中国') { await openMapPicker(); return }
     const userId = authService.getCurrentUser()?.id
     if (!userId) { requireLoginForLocationsAction('登录后可选择并分享单杠位置。'); return }
-    writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, auto_filled: autoFilledRef.current })
+    writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
     setOpeningPicker(true)
     let nearby: UserLocation | null = null
     try {
@@ -630,14 +718,16 @@ export default function StreetliftingLocations() {
     const coordinateFields = hasSelectedPosition
       ? { latitude: form.latitude, longitude: form.longitude, coordinate_system: form.coordinate_system }
       : { latitude: null, longitude: null, coordinate_system: null }
+    const equipmentFields = { equipment_types: equipmentTypes.length || equipmentTouchedRef.current ? equipmentTypes : undefined }
     const draftKey = `draft:${authService.getCurrentUser()?.id || ''}`
     // Persist the mutation before starting cloud sync; failed submissions keep a recoverable draft.
-    writeLocationCache(draftKey, { ...form, ...coordinateFields, id: editing?.id || null, image_urls: imageUrls, auto_filled: autoFilledRef.current })
+    writeLocationCache(draftKey, { ...form, ...coordinateFields, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
     setSubmitting(true)
     try {
       if (editing) {
         await streetliftingIndexService.updateLocation({
           id: editing.id,
+          ...equipmentFields,
           name: form.name.trim(),
           country: form.country.trim(),
           ...coordinateFields,
@@ -651,6 +741,7 @@ export default function StreetliftingLocations() {
         Taro.showToast({ title: '保存成功', icon: 'success' })
       } else {
         await streetliftingIndexService.createLocation({
+          ...equipmentFields,
           name: form.name.trim(),
           country: form.country.trim(),
           ...coordinateFields,
@@ -908,17 +999,21 @@ export default function StreetliftingLocations() {
   }
 
   const ensureMapPins = async () => {
-    const cached = mapPins.length > 0 ? mapPins : readLocationCache<StreetliftingLocationMapPin[]>('map-pins')
+    const version = ++mapPinsRequestRef.current
+    const filters = { equipment: normalizeLocationEquipment(equipmentFilter), country: country === 'all' ? undefined : country, province: province === 'all' ? undefined : province, search: search.trim() || undefined }
+    const cacheKey = `map-pins:equipment-v1:${JSON.stringify(filters)}`
+    const cached = readLocationCache<StreetliftingLocationMapPin[]>(cacheKey)
+    if (!Array.isArray(cached)) setMapPins([])
     if (Array.isArray(cached)) setMapPins(cached.filter((pin) => isValidLocationCoordinates(pin.latitude, pin.longitude)).map(toWeChatCoordinates))
     setLoadingMapPins(true)
     try {
-      const pins = await streetliftingIndexService.listLocationMapPins()
-      writeLocationCache('map-pins', pins)
+      const pins = await streetliftingIndexService.listLocationMapPins(filters)
+      writeLocationCache(cacheKey, pins)
       const displayPins = pins.filter((pin) => isValidLocationCoordinates(pin.latitude, pin.longitude)).map(toWeChatCoordinates)
-      setMapPins(displayPins)
+      if (version === mapPinsRequestRef.current) setMapPins(displayPins)
       return displayPins
     } finally {
-      setLoadingMapPins(false)
+      if (version === mapPinsRequestRef.current) setLoadingMapPins(false)
     }
   }
 
@@ -962,8 +1057,9 @@ export default function StreetliftingLocations() {
   }
 
   const handleOpenMapMode = () => {
+    const filters = { equipment: normalizeLocationEquipment(equipmentFilter), country: country === 'all' ? undefined : country, province: province === 'all' ? undefined : province, search: search.trim() || undefined }
     Taro.navigateTo({
-      url: '/streetlifting/index/locations-map'
+      url: `/streetlifting/index/locations-map?filters=${encodeURIComponent(JSON.stringify(filters))}`
     }).catch(() => {
       Taro.showToast({ title: '打开地图失败', icon: 'none' })
     })
@@ -972,6 +1068,7 @@ export default function StreetliftingLocations() {
   const nearbyLocations = useMemo<NearbyLocation[]>(() => {
     if (!userLocation || mapPins.length === 0) return []
     return [...mapPins]
+      .filter(pin => matchesLocationEquipment(pin, equipmentFilter))
       .map((pin) => ({
         ...pin,
         distanceKm: calculateDistanceKm(userLocation, {
@@ -981,7 +1078,7 @@ export default function StreetliftingLocations() {
       }))
       .sort((a, b) => a.distanceKm - b.distanceKm)
       .slice(0, 5)
-  }, [mapPins, userLocation])
+  }, [mapPins, userLocation, equipmentFilter])
 
   const primaryOverviewCards = useMemo(() => {
     if (!locationOverview) return []
@@ -1031,9 +1128,9 @@ export default function StreetliftingLocations() {
   const displayContributors = useMemo(() => contributors.slice(0, 3), [contributors])
   const sharedFocusLocation = sharedLocation || sharedLocationPreview
   const displayLocations = useMemo(() => {
-    if (!sharedLocation) return locations
+    if (!sharedLocation || !matchesLocationEquipment(sharedLocation, equipmentFilter)) return locations
     return [sharedLocation, ...locations.filter((item) => item.id !== sharedLocation.id)]
-  }, [locations, sharedLocation])
+  }, [locations, sharedLocation, equipmentFilter])
 
   const hasMore = locations.length < total
 
@@ -1180,6 +1277,7 @@ export default function StreetliftingLocations() {
                 </View>
               </View>
 
+              <EquipmentSelector filter value={equipmentFilter} onChange={setEquipmentFilter} />
               {userLocation && (
                 <View className='user-location-row'>
                   <Text className='user-location-text'>
@@ -1193,16 +1291,7 @@ export default function StreetliftingLocations() {
                   <Text className='nearby-title'>离你最近</Text>
                   <View className='nearby-list'>
                     {nearbyLocations.map((item) => (
-                      <View key={item.id} className='nearby-item'>
-                        <View className='nearby-item-main'>
-                          <Text className='nearby-name'>{item.name}</Text>
-                          <Text className='nearby-distance'>{item.distanceKm < 1 ? `${Math.round(item.distanceKm * 1000)}m` : `${item.distanceKm.toFixed(1)}km`}</Text>
-                        </View>
-                        <View className='nearby-map-btn' onClick={() => openLocationInMap(item)}>
-                          <Text className='iconfont icon-location' />
-                          <Text>地图查看</Text>
-                        </View>
-                      </View>
+                      <NearbyLocationCard key={item.id} location={item} onOpenMap={openLocationInMap} onPreview={previewLocationImages} />
                     ))}
                   </View>
                 </View>
@@ -1236,8 +1325,8 @@ export default function StreetliftingLocations() {
                 renderSkeleton()
               ) : locations.length === 0 ? (
                 <View className='empty-wrap'>
-                  <Text>暂无地点信息</Text>
-                  <Text className='empty-hint'>成为第一个分享者吧</Text>
+                  <Text>{equipmentFilter.length ? '没有找到符合器材条件的点位' : '暂无地点信息'}</Text>
+                  <Text className='empty-hint'>{equipmentFilter.length ? '试试减少器材条件，或选择全部器材' : '成为第一个分享者吧'}</Text>
                 </View>
               ) : (
                 <View className='loc-list'>
@@ -1312,6 +1401,7 @@ export default function StreetliftingLocations() {
                             <Text className='loc-card-meta-item'>{loc.address}</Text>
                           ) : null}
                         </View>
+                        <EquipmentTags location={loc} />
                         {loc.description ? (
                           <View className='loc-card-desc-row'>
                             <Text className='loc-card-desc' numberOfLines={2}>{loc.description}</Text>
@@ -1695,6 +1785,11 @@ export default function StreetliftingLocations() {
                   <View className='form-row'><Text className='label'>城市（选填）</Text><Input className='input location-city-input' placeholder='例如：北京市' value={form.city} onInput={e => setForm(p => ({ ...p, city: e.detail.value }))} /></View>
                   <View className='form-row'><Text className='label'>区县（选填）</Text><Input className='input location-county-input' placeholder='例如：海淀区' value={form.county} onInput={e => setForm(p => ({ ...p, county: e.detail.value }))} /></View>
                 </>}
+                <View className='form-row equipment-form'>
+                  <Text className='label'>这里有哪些器材？（可多选）</Text>
+                  <EquipmentSelector value={equipmentTypes} onChange={value => { equipmentTouchedRef.current = true; setEquipmentTypes(value) }} />
+                  <Text className='equipment-hint'>{!equipmentTouchedRef.current && equipmentTypes.length ? '已根据名称或描述预选，请按现场情况核对' : '按现场情况选择；未填写也可以分享'}</Text>
+                </View>
                 <View className='form-row'>
                   <Text className='label'>地点地址（可修改，未获取时补充）</Text>
                   <Textarea className='input location-address-input' placeholder='例如：北京市海淀区海淀路46号附近' maxlength={500} value={form.address} onInput={e => setForm(p => ({ ...p, address: e.detail.value }))} />

@@ -4,7 +4,7 @@
 import Taro from '@tarojs/taro'
 import { API_BASE_URL, BaseService } from '@/utils/request'
 import type { CalcMode, ExerciseType, Gender } from '@/utils/streetliftingCalc'
-import type { LocationSearchResult } from '@coachlink/core'
+import type { LocationSearchResult, LocationEquipmentInput, LocationEquipmentType } from '@coachlink/core'
 
 export interface StreetliftingFormula {
   id: number
@@ -20,7 +20,7 @@ export interface StreetliftingFormula {
   last_updated: string
 }
 
-export interface StreetliftingLocation {
+export interface StreetliftingLocation extends LocationEquipmentInput {
   id: string
   country?: string | null
   coordinate_system?: 'wgs84' | 'gcj02' | null
@@ -40,7 +40,7 @@ export interface StreetliftingLocation {
   contributor_name_snapshot?: string | null
 }
 
-export interface StreetliftingLocationMapPin {
+export interface StreetliftingLocationMapPin extends LocationEquipmentInput {
   id: string
   country?: string | null
   coordinate_system?: 'wgs84' | 'gcj02' | null
@@ -209,7 +209,7 @@ class StreetliftingIndexService extends BaseService {
     throw new Error((res as any)?.message || '获取公式失败')
   }
 
-  async listLocations(params?: { page?: number; limit?: number; search?: string; country?: string; province?: string; city?: string; county?: string }) {
+  async listLocations(params?: { page?: number; limit?: number; search?: string; country?: string; province?: string; city?: string; county?: string; equipment?: LocationEquipmentType[] }) {
     const res = await this.post<{
       locations: StreetliftingLocation[]
       pagination: { page: number; limit: number; total: number }
@@ -228,6 +228,7 @@ class StreetliftingIndexService extends BaseService {
 
   async createLocation(dto: {
     name: string
+    equipment_types?: LocationEquipmentType[] | null
     country?: string | null
     coordinate_system?: 'wgs84' | 'gcj02' | null
     description?: string | null
@@ -247,6 +248,7 @@ class StreetliftingIndexService extends BaseService {
 
   async updateLocation(dto: {
     id: string
+    equipment_types?: LocationEquipmentType[] | null
     country?: string | null
     coordinate_system?: 'wgs84' | 'gcj02' | null
     name?: string
@@ -265,8 +267,8 @@ class StreetliftingIndexService extends BaseService {
     throw new Error((res as any)?.message || '保存失败')
   }
 
-  async listLocationMapPins() {
-    const res = await this.post<StreetliftingLocationMapPin[]>('locations/map-pins', {})
+  async listLocationMapPins(params?: { equipment?: LocationEquipmentType[]; country?: string; province?: string; search?: string }) {
+    const res = await this.post<StreetliftingLocationMapPin[]>('locations/map-pins', params || {})
     if (res.success && res.data) return res.data
     throw new Error((res as any)?.message || '地图点位加载失败')
   }

@@ -1,4 +1,4 @@
-import { isValidLocationCoordinates } from '@coachlink/core'
+import { isValidLocationCoordinates, validateLocationEquipment } from '@coachlink/core'
 import type { LocationCoordinateSystem } from '@coachlink/core'
 
 export function validateLocationInput(body: {
@@ -6,6 +6,7 @@ export function validateLocationInput(body: {
     coordinate_system?: LocationCoordinateSystem | null;
     latitude?: number | null;
     longitude?: number | null;
+    equipment_types?: unknown;
 }): string | null {
     if (body.country != null && (typeof body.country !== 'string' || body.country.trim().length > 100)) {
         return '国家/地区名称不能超过100个字符';
@@ -16,5 +17,5 @@ export function validateLocationInput(body: {
     if ((body.latitude != null || body.longitude != null) && !isValidLocationCoordinates(body.latitude, body.longitude)) {
         return '请填写有效经纬度：纬度 -90～90，经度 -180～180';
     }
-    return null;
+    return validateLocationEquipment(body.equipment_types);
 }

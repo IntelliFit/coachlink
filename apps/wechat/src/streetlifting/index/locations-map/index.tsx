@@ -12,7 +12,8 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
-import { isValidLocationCoordinates, toWeChatCoordinates, DEFAULT_LOCATION_MAP_VIEW, getInitialLocationMapView, getGestureMapScale, type LocationSelection, type LocationSearchResult, type LocationMapView } from '@coachlink/core'
+import { isValidLocationCoordinates, toWeChatCoordinates, DEFAULT_LOCATION_MAP_VIEW, getInitialLocationMapView, getGestureMapScale, normalizeLocationEquipment, type LocationEquipmentType, type LocationSelection, type LocationSearchResult, type LocationMapView } from '@coachlink/core'
+import { EquipmentSelector, EquipmentTags } from '@/components/LocationEquipment'
 import { readLocationCache, writeLocationCache, type LocationDraft } from '@/utils/streetliftingLocationCache'
 import { getApproxUserLocation } from '@/utils/approxLocation'
 import { usableSearchSelection } from '@/utils/locationPicker'
@@ -210,9 +211,21 @@ export default function StreetliftingLocationsMapPage() {
   const markerMetaRef = useRef(new globalThis.Map<number, ClusterMarkerMeta>())
   const [params, setParams] = useState<Record<string, string>>({})
   const [ready, setReady] = useState(false)
+  const [equipmentFilter, setEquipmentFilter] = useState<LocationEquipmentType[]>([])
+  const [browseFilters, setBrowseFilters] = useState<{ country?: string; province?: string; search?: string }>({})
   const paramsRef = useRef(params)
   paramsRef.current = params
-  useLoad((options) => { setParams(options || {}); setReady(true) })
+  useLoad((options) => {
+    setParams(options || {})
+    try {
+      const raw = options?.filters || '{}'
+      let filters: { equipment?: unknown; country?: string; province?: string; search?: string }
+      try { filters = JSON.parse(raw) } catch { filters = JSON.parse(decodeURIComponent(raw)) }
+      setEquipmentFilter(normalizeLocationEquipment(filters.equipment))
+      setBrowseFilters({ country: filters.country, province: filters.province, search: filters.search })
+    } catch { /* Old deep links have no filters. */ }
+    setReady(true)
+  })
   const pickMode = paramsRef.current.mode === 'pick'
   const decodeParam = (value?: string) => { try { return decodeURIComponent(value || '') } catch { return value || '' } }
   const [pickedPosition, setPickedPosition] = useState<LocationSelection | null>(null)
@@ -291,28 +304,34 @@ export default function StreetliftingLocationsMapPage() {
     }
     const applyPins = (data: StreetliftingLocationMapPin[]) => {
       const displayPins = data.filter((pin) => isValidLocationCoordinates(pin.latitude, pin.longitude)).map(toWeChatCoordinates)
-      setPins(focus && !displayPins.some((pin) => pin.id === focus.id) ? [...displayPins, focus] : displayPins)
-      if (focus) setSelectedPin(displayPins.find((pin) => pin.id === focus.id) || focus)
+      const visibleFocus = focus && (!equipmentFilter.length || displayPins.some(pin => pin.id === focus.id)) ? focus : null
+      setPins(visibleFocus && !displayPins.some((pin) => pin.id === visibleFocus.id) ? [...displayPins, visibleFocus] : displayPins)
+      if (focus) setSelectedPin(visibleFocus ? displayPins.find((pin) => pin.id === visibleFocus.id) || visibleFocus : null)
       else if (!touchedViewRef.current) moveMap(getInitialLocationMapView(displayPins, cachedUserLocation()), false)
     }
-    const cached = readLocationCache<StreetliftingLocationMapPin[]>('map-pins')
+    const filters = { equipment: normalizeLocationEquipment(equipmentFilter), ...browseFilters }
+    const cacheKey = `map-pins:equipment-v1:${JSON.stringify(filters)}`
+    let cancelled = false
+    const cached = readLocationCache<StreetliftingLocationMapPin[]>(cacheKey)
+    if (!cached && !focus) setPins([])
     if (Array.isArray(cached)) applyPins(cached)
     const load = async () => {
       setLoading(true)
       setError('')
       try {
-        const data = await streetliftingIndexService.listLocationMapPins()
-        writeLocationCache('map-pins', data || [])
-        applyPins(data || [])
+        const data = await streetliftingIndexService.listLocationMapPins(filters)
+        writeLocationCache(cacheKey, data || [])
+        if (!cancelled) applyPins(data || [])
       } catch (e) {
-        setError((e as Error)?.message || '地图点位加载失败')
+        if (!cancelled) setError((e as Error)?.message || '地图点位加载失败')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     void load()
-  }, [ready, params])
+    return () => { cancelled = true }
+  }, [ready, params, equipmentFilter, browseFilters])
 
   useEffect(() => {
     if (!ready || pickMode || cachedUserLocation()) return
@@ -540,6 +559,12 @@ export default function StreetliftingLocationsMapPage() {
         <Text className='locations-map-search-attribution'>地点数据 © OpenStreetMap contributors · 搜索由 Photon 提供</Text>
       </View>}
 
+      {!pickMode && <EquipmentSelector filter value={equipmentFilter} onChange={value => {
+        touchedViewRef.current = true
+        setSelectedPin(null)
+        setEquipmentFilter(value)
+        writeLocationCache('map-equipment-filter-return', { equipment: value, ...browseFilters })
+      }} />}
       <View className='locations-map-container'>
         <TaroMap
           id={mapIdRef.current}
@@ -596,6 +621,7 @@ export default function StreetliftingLocationsMapPage() {
         <View className='locations-map-selected'>
           <Text className='locations-map-selected-title'>{selectedPin.name}</Text>
           <Text className='locations-map-selected-area'>{formatArea(selectedPin)}</Text>
+          <EquipmentTags location={selectedPin} />
           <Text className='locations-map-selected-address'>{selectedPin.address || '暂未补充详细地址'}</Text>
           <View className='locations-map-selected-actions'>
             <View className='locations-map-selected-btn' onClick={() => setSelectedPin(null)}>
