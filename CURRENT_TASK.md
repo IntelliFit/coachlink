@@ -10404,9 +10404,10 @@
 - 现有计划按单动作添加，批量工具是同一动作加到多天；未找到可复用组合库/整组插入/结构化超级组轮次链路。group_title和one-filter不代表该能力。
 - 建议动作组合关联现有动作视频及教学文章，保存顺序/组次时长/休息，计划一次插入并可单独调整；普通顺序与超级组交替执行分开配置。以上待确认，未作为已实现功能或用户选定细则。
 - 记录docs/work/coach-warmup-action-groups-capability-2026-10-06.md。仅源码/文档，无业务测试改动、DB写、构建/UI/提交发布；下一步按用户具体实施意图推进，其他WIP保留。
-## 全量本地改动发布（2026-10-06，执行中）
+## 全量本地改动发布（2026-10-06，主体完成）
 
 - 用户授权提交当前本地修改、更新 Web/API 前后端并上传微信小程序体验版，要求快速完成。体验版上传不等于提审或正式发布。
-- 发布门禁：`npm run lint` 退出 0（项目未配置 ESLint）、`npm run typecheck` 通过、78 文件 520 项测试通过；`npx next build` 547 页通过，小程序生产构建仍在收尾。
-- 器材筛选迁移 `20261005233000_streetlifting_location_equipment.sql` 已通过隔离 workdir 的 dry-run 确认只应用这一条，随后已应用到链接的 CoachLink Supabase 项目；待回读验证。
-- 网页微信托管支付仍缺 `HUIFU_WEB_PAY_PROJECT_ID`，已向用户询问现有项目号。未确认配置前不得宣称该渠道真实可用。Docker 本机未启动，但远端构建机 Docker 可达；后续继续提交、推送、镜像及体验版发布。
+- 发布门禁：`npm run lint` 退出 0（项目未配置 ESLint）、`npm run typecheck` 通过、78 文件 520 项测试通过；`npx next build` 547 页通过，小程序生产构建通过。完整 E2E 缺隔离库未运行。
+- 源码 `b94f8e07` 已推 GitHub/Gitee 的 main/dev；器材迁移已单独应用并通过迁移记录及实际 REST 字段读取验证。镜像四标签均指向 `sha256:29b98d04770c7e1c25bbafc63c7fd6dba432c70d54d9f81c31b28eabd157d11c`，main/dev 各 3/3 新 Pod Ready，两域健康、登录、器材筛选只读探针 200。
+- 微信体验版 `2026.10.06.0614` 官方 CLI 上传成功，未提审或正式发布。Nginx SSE 配置已 reload 且部署仓库 `f718b10` 推送。
+- 网页微信托管支付仍缺 `HUIFU_WEB_PAY_PROJECT_ID`，已向用户询问现有项目号；不能宣称该渠道真实可用。`mrc where --port 9420` 无连接，本次整体体验包未取得新截图/交互或手机验收，留用户复看。详情 `docs/work/release-2026-10-06.md`。
