@@ -17,6 +17,6 @@ export function XPayTrialEntry({ userId }: { userId?: string | number }) {
   }, [userId])
   return allowed ? <View style={{ padding: '24rpx', margin: '16rpx', background: '#FFFFFF', borderRadius: '16rpx' }}
     onClick={() => Taro.navigateTo({ url: '/me/payment-test/index' })}>
-    <Text>管理员：支付联调 ›</Text>
+    <Text>支付测试（沙箱） ›</Text>
   </View> : null
 }

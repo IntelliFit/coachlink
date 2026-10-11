@@ -6,7 +6,7 @@ import { getWechatXPayConfig } from '@/lib/wechatXPay';
 export const XPAY_TRIAL_HEADER = 'x-coachlink-xpay-admin-trial';
 
 // Never enables purchases on main or accepts a local-debug identity.
-export async function requireXPayTrialAdmin(request: NextRequest) {
+async function readAuthenticatedTrialUser(request: NextRequest) {
     if (process.env.APOLLO_CLUSTER !== 'dev' || getWechatXPayConfig().env !== 1) {
         throw new Error('支付联调仅在体验后端的沙箱环境开放');
     }
@@ -18,7 +18,21 @@ export async function requireXPayTrialAdmin(request: NextRequest) {
     if (!userId) throw new Error('请先登录');
     const { data, error } = await serviceRoleSupabase.from('users')
         .select('id, is_admin, wechat_openid').eq('id', userId).maybeSingle();
-    if (error || !data?.is_admin || !data.wechat_openid) throw new Error('仅微信已绑定的管理员可联调');
+    if (error || !data?.id) throw new Error('请使用有效账号登录体验版');
+    return data;
+}
+
+// All logged-in experience testers can enter. Payment creation separately
+// verifies the stored OpenID against a fresh WeChat login session.
+export async function requireXPayTrialUser(request: NextRequest) {
+    const data = await readAuthenticatedTrialUser(request);
+    return String(data.id);
+}
+
+// Legacy isolated harness contract; normal experience routes do not use it.
+export async function requireXPayTrialAdmin(request: NextRequest) {
+    const data = await readAuthenticatedTrialUser(request);
+    if (!data.is_admin || !data.wechat_openid) throw new Error('仅微信已绑定的管理员可联调');
     return String(data.id);
 }
 

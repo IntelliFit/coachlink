@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { request } from '@/utils/request'
+import { authService } from '@/services/authService'
 import { isXPayTrialClient } from '@/utils/xpayTrial'
 import { requestVirtualPaymentAndWait, isVirtualPaymentCancellation, virtualPaymentErrorMessage } from '@/utils/virtual-payment'
 import './index.scss'
@@ -9,9 +10,9 @@ import './index.scss'
 export default function PaymentTest() {
   const [state, setState] = useState<any>(null)
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('正在检查管理员权限与支付环境…')
+  const [message, setMessage] = useState('正在检查登录状态与支付环境…')
   const load = async () => {
-    if (!isXPayTrialClient()) { setMessage('仅体验版管理员可使用'); return }
+    if (!isXPayTrialClient()) { setMessage('请在体验版中进行支付测试'); return }
     const result = await request({ url: '/api/payment/wechat/xpay/admin-trial', showErrorToast: false })
     if (!result.success) { setMessage(result.message || '无联调权限'); return }
     setState(result.data)
@@ -33,6 +34,8 @@ export default function PaymentTest() {
     if (!confirmed.confirm) return
     setBusy(true)
     try {
+      const binding = await authService.bindWechatOpenid()
+      if (!binding.success) { setMessage(binding.message || '微信身份验证失败，请使用微信登录后重试'); return }
       const session = await Taro.login()
       const result = await request<any>({ url: '/api/payment/wechat/membership/create', method: 'POST',
         header: { 'x-coachlink-xpay-admin-trial': '1' }, data: { productKey: 'ai_pack_basic', loginCode: session.code }, showErrorToast: false })

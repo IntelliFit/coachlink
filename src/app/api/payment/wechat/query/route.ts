@@ -14,7 +14,7 @@ import {
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 import { fulfillContentPurchasePaid } from "@/app/api/payment/alipay/contentPurchaseFulfillment";
 import { queryWechatXPayOrder, notifyWechatXPayProvidedGoods } from "@/lib/wechatXPay";
-import { requireXPayTrialAdmin, readXPayTrialState } from '@/lib/wechatXPayAdminTrial';
+import { requireXPayTrialUser, readXPayTrialState } from '@/lib/wechatXPayAdminTrial';
 import {
     fulfillPaidXPayOrder,
     markXPayOrderPaid,
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
 
         if (String(order.payment_provider || "") === "wechat_xpay") {
             const orderData = (order.order_data || {}) as Record<string, any>;
-            if (orderData.xpay_admin_trial === true) await requireXPayTrialAdmin(request);
+            if (orderData.xpay_admin_trial === true) await requireXPayTrialUser(request);
             if (paymentStatus === "pending") {
                 const xpayOrder = await queryWechatXPayOrder({
                     openId: String(orderData.xpay_openid || ""),

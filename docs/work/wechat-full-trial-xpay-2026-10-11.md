@@ -1,5 +1,11 @@
 # 完整体验版与 XPay 沙箱验收
 
+## 最新权限纠正（2026-10-11，更新中）
+
+用户明确所有能进入体验版的正常用户都应可测试，不需平台白名单或提供账号给代理。正常体验路由改用requireXPayTrialUser，去除is_admin及进入前微信已绑定要求；仍限制dev/env1和真实JWT，支付时复用现有bindWechatOpenid并核验本人新鲜微信session与订单归属。不修改管理员角色、不覆盖冲突绑定，main免费和汇付不改。旧admin命名的HTTP路径/header/订单标记保持兼容已上传0905，不代表新权限要求。
+
+新增tests/xpay-experience-access.test.ts和tests/ai/xpay-experience-tester-regression.md，保留已有legacy管理员guard测试契约不改；正常体验API不再调用旧guard。生产mini/门禁中，须更新包和dev后端后才交付直接测试路径。下面0905只记录上一轮实际进度。
+
 用户授权全部本地改动提交推送，最新正常小程序与配套dev后端；不是单页测试包，不提交正式审核、不恢复普通会员收费。
 
 沿用dev Apollo沙箱AppKey/env1。本人微信管理员登录Android体验版，“我的→管理员：支付联调”，服务端每次查users核验is_admin/微信绑定；main/env0/cldev拒绝。普通免费版与Huifu购买/分账保留。

@@ -1,1 +1,1 @@
-export default definePageConfig({ navigationBarTitleText: '管理员支付联调' })
+export default definePageConfig({ navigationBarTitleText: '支付测试（沙箱）' })

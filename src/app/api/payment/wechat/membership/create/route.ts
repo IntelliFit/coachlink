@@ -13,7 +13,7 @@ import {
     type WechatXPayParams,
 } from "@/lib/wechatXPay";
 import { getMembershipXPayProduct } from "@/lib/wechatXPayProducts";
-import { XPAY_TRIAL_HEADER, requireXPayTrialAdmin, readXPayTrialState } from '@/lib/wechatXPayAdminTrial';
+import { XPAY_TRIAL_HEADER, requireXPayTrialUser, readXPayTrialState } from '@/lib/wechatXPayAdminTrial';
 
 export const runtime = "nodejs";
 
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         const adminTrial = request.headers.get(XPAY_TRIAL_HEADER) === '1';
         const paused = rejectWechatPurchase(request, { wechatOnly: true });
         if (paused && !adminTrial) return paused;
-        const userId = adminTrial ? await requireXPayTrialAdmin(request) : await getApiUserId(request);
+        const userId = adminTrial ? await requireXPayTrialUser(request) : await getApiUserId(request);
         if (!userId) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "请先登录后再发起支付", data: null },
