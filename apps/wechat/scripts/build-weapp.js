@@ -10,7 +10,11 @@ function getBuildEnv(buildMode) {
     return {
       ...process.env,
       NODE_ENV: 'production',
-      WEAPP_OUTPUT_ROOT: process.env.WEAPP_OUTPUT_ROOT || 'dist-release',
+      // Taro joins this value to appRoot, so use a relative path even when the
+      // caller specifies an absolute task directory outside the workspace.
+      WEAPP_OUTPUT_ROOT: process.env.WEAPP_OUTPUT_ROOT
+        ? path.relative(process.cwd(), path.resolve(process.cwd(), process.env.WEAPP_OUTPUT_ROOT))
+        : 'dist-release',
     }
   }
 
