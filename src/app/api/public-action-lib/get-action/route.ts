@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { filterReviewedStreetWorkoutActions } from "@/lib/streetWorkoutImageReview";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
             console.warn("[public-action-lib] get-action ranked view failed, fallback:", error);
             ({ data: row, error } = await fetchFrom("community_actions"));
         }
-        if (error || !row) {
+        if (error || !row || (await filterReviewedStreetWorkoutActions(supabase, [row])).length === 0) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "公共动作不存在", data: null },
                 { status: 404 },

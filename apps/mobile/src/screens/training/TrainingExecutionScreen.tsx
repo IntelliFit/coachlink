@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, formatRecordedTrainingSet } from '@coachlink/core/src/trainingSetMetrics'
+import { buildPlannedSetPreviews } from '@coachlink/core/src/planSetPrescriptions'
+import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type TrainingIntent } from '@coachlink/core/src/trainingAccess'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import * as ImagePicker from 'expo-image-picker'
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
@@ -45,23 +48,15 @@ function buildPlanPreview(planData: any, dayIndex: number) {
     const action = actions[actionId] || {}
     const params = item?.params || {}
     const itemType = normalizeTrainingItemType(item?.itemType || action?.type)
-    const setCount = itemType === 'STRENGTH'
-      ? Math.max(1, Number(params['组数'] ?? item?.sets ?? 1) || 1)
-      : 1
     return {
       action_id: actionId,
       action_name: action?.name || item?.set_name || `任务 ${actionIndex + 1}`,
+      attrs: action?.attrs,
       item_type: itemType,
       params,
       custom_data: params.custom_data || {},
       status: 'pending',
-      sets: Array.from({ length: setCount }, (_, setIndex) => ({
-        set_number: setIndex + 1,
-        status: 'pending',
-        planned_weight: params.load ?? null,
-        planned_reps: params['次数'] ?? item?.reps ?? null,
-        planned_rest_seconds: params['休息时间'] ?? params.rest_seconds ?? item?.rest_seconds ?? null,
-      })),
+      sets: buildPlannedSetPreviews({ ...item, itemType }),
     }
   })
   return normalizeExecution({
@@ -100,7 +95,12 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   const { user } = useAuth()
   const userId = user?.id ? String(user.id) : ''
   const isImpromptu = Boolean((params as any).impromptuId)
-  const readOnly = !isImpromptu && Boolean(params.readOnly)
+  const [intent, setIntent] = useState(() => resolveTrainingIntent(params.intent, params.readOnly))
+  const readOnly = !isImpromptu && intent === 'preview'
+  const [cloudReady, setCloudReady] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [canStartPreview, setCanStartPreview] = useState(false)
+  const loadInFlight = useRef<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [execution, setExecution] = useState<any | null>(null)
@@ -126,6 +126,9 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     if ((params as any).impromptuId) return executionSnapshotKey({ mode: 'impromptu', id: (params as any).impromptuId })
     return executionSnapshotKey({ mode: 'plan', instanceId: params.instanceId, dayIndex: params.dayIndex || 1 })
   }, [params])
+  const requestScope = `${userId}:${cacheKey}:${params.intent || ''}:${params.readOnly || false}`
+  const currentScope = useRef(requestScope)
+  currentScope.current = requestScope
 
   async function syncExecution(next: any) {
     setExecution(next)
@@ -143,11 +146,20 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     })
   }
 
-  async function hydrateFromCloud() {
+  async function hydrateFromCloud(requestedIntent?: TrainingIntent, restartTimedOut = false) {
+    const scope = requestScope
+    if (loadInFlight.current === scope) return
     if (!(params as any).impromptuId && !params.instanceId) {
       setLoading(false)
       return
     }
+    loadInFlight.current = scope
+    const isCurrent = () => currentScope.current === scope
+    const commit = async (next: any) => { if (isCurrent()) await syncExecution(next) }
+    const loadIntent = requestedIntent || intent
+    if (requestedIntent) setIntent(requestedIntent)
+    setCloudReady(false)
+    setLoadError('')
     setSyncing(true)
     try {
       if (isImpromptu) {
@@ -156,7 +168,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
           body: { id: (params as any).impromptuId },
           timeoutMs: 15000,
         })
-        await syncExecution(normalizeExecution(pickData(res)))
+        await commit(normalizeExecution(pickData(res)))
       } else {
         const planRes = await apiClient.request('/api/plan-lib/get-instance', {
           method: 'POST',
@@ -164,37 +176,49 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
           timeoutMs: 15000,
         })
         const planData = pickData(planRes) || {}
+        if (!isCurrent()) return
         setPlanActions(planData.actions || {})
-        if (readOnly) {
+        setCanStartPreview(canStartPlanDay({ trainingDays: planData.instance?.training_days || [],
+          progressDayIndex: Number(planData.recommendedDayIndex || 1), targetDayIndex: Number(params.dayIndex || 1),
+          executionsByDayIndex: planData.executionsByDayIndex }))
+        if (loadIntent !== 'execute') {
           const dayIndex = Number(params.dayIndex || 1)
           const existing = planData.executionsByDayIndex?.[dayIndex]
-          if (existing) await syncExecution(normalizeExecution(existing))
+          if (existing) await commit(normalizeExecution(existing))
           else setExecution(buildPlanPreview(planData, dayIndex))
         } else {
           const res = await apiClient.request('/api/execution/start', {
             method: 'POST',
-            body: { instanceId: params.instanceId, dayIndex: params.dayIndex || 1 },
+            body: { instanceId: params.instanceId, dayIndex: params.dayIndex || 1, restartTimedOut },
             timeoutMs: 15000,
           })
           const normalized = normalizeExecution(pickData(res))
-          await syncExecution(normalized)
+          await commit(normalized)
         }
       }
+      if (isCurrent()) setCloudReady(true)
     } catch (error) {
-      if (!execution) Alert.alert('加载失败', error instanceof Error ? error.message : '请稍后重试')
+      if (isCurrent()) setLoadError(error instanceof Error ? error.message : '加载失败，请稍后重试')
     } finally {
-      setSyncing(false)
-      setLoading(false)
+      if (loadInFlight.current === scope) loadInFlight.current = null
+      if (isCurrent()) { setSyncing(false); setLoading(false) }
     }
   }
 
   const progressText = execution ? `${execution.completed_sets || 0}/${execution.total_sets || 0}` : '-'
   const status = String(execution?.status || '').toLowerCase()
   const isCompleted = status === 'completed' || status === 'finished'
-  const operationDisabled = syncing || isCompleted || readOnly
+  const capabilities = executionCapabilities(execution, isImpromptu ? 'execute' : intent, cloudReady)
+  const canEditRecords = !syncing && (capabilities.canRecord || (!isImpromptu && capabilities.canCorrect))
+  const operationDisabled = syncing || !capabilities.canRecord
 
   useEffect(() => {
     let alive = true
+    const routeIntent = resolveTrainingIntent(params.intent, params.readOnly)
+    setIntent(routeIntent)
+    setCloudReady(false)
+    setExecution(null)
+    setLoading(true)
     async function boot() {
       const cached = await readExecutionSnapshot(userId, cacheKey).catch((error) => {
         console.warn('[mobile-training] failed to read execution cache', error)
@@ -204,13 +228,13 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         setExecution(normalizeExecution(cached))
         setLoading(false)
       }
-      if (alive) await hydrateFromCloud()
+      if (alive) await hydrateFromCloud(routeIntent)
     }
     void boot()
     return () => {
       alive = false
     }
-  }, [cacheKey, userId])
+  }, [cacheKey, userId, params.intent, params.readOnly])
 
   useEffect(() => {
     const startedAt = new Date(execution?.started_at || execution?.created_at || Date.now()).getTime()
@@ -221,14 +245,14 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
       setElapsedSeconds(Math.max(0, Math.floor((end - base) / 1000)))
     }
     tick()
-    if (isCompleted) return
+    if (!capabilities.canRecord) return
     const timer = setInterval(tick, 1000)
     return () => clearInterval(timer)
-  }, [execution?.started_at, execution?.created_at, execution?.completed_at, execution?.updated_at, isCompleted])
+  }, [execution?.started_at, execution?.created_at, execution?.completed_at, execution?.updated_at, isCompleted, capabilities.canRecord])
 
   useEffect(() => {
     const executionId = String(execution?.id || '')
-    if (!executionId || !userId || readOnly || isCompleted) return
+    if (!executionId || !userId || !capabilities.canRecord) return
     let active = true
     void readRestTimerDeadline(userId, executionId).then((deadlineAt) => {
       if (!active || deadlineAt <= Date.now()) return
@@ -238,7 +262,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     return () => {
       active = false
     }
-  }, [execution?.id, isCompleted, readOnly, userId])
+  }, [execution?.id, capabilities.canRecord, userId])
 
   useEffect(() => {
     if (!restDeadlineAt) {
@@ -263,7 +287,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   const elapsedLabel = isCompleted && elapsedSeconds >= 86400 ? '跨天完成，历时' : isCompleted ? '本次用时' : '训练总时长'
 
   function startRestTimer(seconds: number) {
-    if (readOnly || !execution?.id) return
+    if (!capabilities.canRecord || !execution?.id) return
     const safeSeconds = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds) : 90
     const deadlineAt = Date.now() + safeSeconds * 1000
     setRestDeadlineAt(deadlineAt)
@@ -300,17 +324,21 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   function getDraft(actionIndex: number, setIndex: number, set: any): DraftValue {
     const existing = drafts[draftKey(actionIndex, setIndex)]
     if (existing) return existing
+    const action = execution?.action_executions?.find((item: any) => item.actionIndex === actionIndex)
+    const timed = isTimedTrainingSet(set, action)
+    const seconds = getActualDurationSeconds(set) ?? (set.status === 'completed' ? null : getPlannedDurationSeconds(set, action))
     return {
       weight: set.actualWeight != null ? String(set.actualWeight) : set.plannedWeight != null ? String(set.plannedWeight).replace(/[^\d.-]/g, '') : '',
-      reps: set.actualReps != null ? String(set.actualReps) : set.plannedReps != null ? String(set.plannedReps).replace(/[^\d.-]/g, '') : '',
+      reps: timed ? (seconds === null ? '' : String(seconds)) : set.actualReps != null ? String(set.actualReps) : set.plannedReps != null ? String(set.plannedReps).replace(/[^\d.-]/g, '') : '',
       rpe: set.rpe != null ? String(set.rpe) : '',
       notes: String(set.notes || ''),
-      isPr: Boolean(set.isPr || set.isAutoPr),
+      isPr: Boolean(set.isPr || (!timed && set.isAutoPr)),
       videoUrl: String(set.videoUrl || ''),
     }
   }
 
   async function uploadSetVideo(action: any, set: any) {
+    if (!canEditRecords) return
     const key = draftKey(action.actionIndex, set.setIndex)
     if (!execution?.id || (!isImpromptu && !action.actionId) || uploadingVideoKey) return
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -462,12 +490,18 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   async function completeSet(action: any, set: any) {
     const actionIndex = action.actionIndex
     const setIndex = set.setIndex
-    if (!execution?.id || syncing || readOnly || (isCompleted && isImpromptu)) return
+    if (!execution?.id || !canEditRecords) return
     const draft = getDraft(actionIndex, setIndex, set)
     const actualWeight = parseNumberInput(draft.weight)
     const actualReps = parseNumberInput(draft.reps)
+    const timed = isTimedTrainingSet(set, action)
     if (actualReps == null || actualReps <= 0) {
-      Alert.alert('请填写次数', '完成组前需要填写大于 0 的实际次数。')
+      Alert.alert(timed ? '请填写保持时长' : '请填写次数', timed ? '请填写实际保持的秒数。' : '完成组前需要填写大于 0 的实际次数。')
+      return
+    }
+    const plannedLoad = String(set.plannedWeight ?? '').toLowerCase()
+    if (!timed && actualWeight === null && !plannedLoad.includes('rm') && !plannedLoad.includes('%')) {
+      Alert.alert('请填写外加重量', '徒手训练可点击“自重 / 无负重”。')
       return
     }
     setSyncing(true)
@@ -478,8 +512,9 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         actionIndex,
         setIndex,
         actionId: action.actionId,
-        actualWeight,
-        actualReps,
+        actualWeight: timed ? null : actualWeight,
+        actualReps: timed ? null : actualReps,
+        actualDuration: timed ? actualReps : undefined,
         notes: draft.notes.trim() || undefined,
       }
       if (!isImpromptu) {
@@ -495,11 +530,12 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
       const next = patchCompletedSet(responseExecution, actionIndex, setIndex, {
         actualWeight: body.actualWeight,
         actualReps: body.actualReps,
+        actualDuration: body.actualDuration,
         rpe: body.rpe,
         notes: draft.notes.trim(),
         isPr: draft.isPr,
         isAutoPr: Boolean(data?.autoE1RM?.isPR),
-        e1rm: data?.autoE1RM?.e1rm,
+        e1rm: timed ? null : data?.autoE1RM?.e1rm,
         videoUrl: draft.videoUrl.trim(),
         completedSets: data?.completedSets,
         totalSets: data?.totalSets,
@@ -516,11 +552,11 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     }
   }
 
-  function patchCompletedSet(current: any, actionIndex: number, setIndex: number, values: { actualWeight: number | null; actualReps: number | null; rpe?: number | null; notes?: string; isPr?: boolean; isAutoPr?: boolean; e1rm?: number | null; videoUrl?: string; completedSets?: number; totalSets?: number }) {
+  function patchCompletedSet(current: any, actionIndex: number, setIndex: number, values: { actualWeight: number | null; actualReps: number | null; actualDuration?: number; rpe?: number | null; notes?: string; isPr?: boolean; isAutoPr?: boolean; e1rm?: number | null; videoUrl?: string; completedSets?: number; totalSets?: number }) {
     const nextActions = current.action_executions.map((action: any) => {
       if (action.actionIndex !== actionIndex) return action
       const nextSets = action.sets.map((item: any) => item.setIndex === setIndex
-        ? { ...item, status: 'completed', actualWeight: values.actualWeight, actualReps: values.actualReps, rpe: values.rpe ?? item.rpe, notes: values.notes ?? item.notes, isPr: values.isPr ?? item.isPr, isAutoPr: values.isAutoPr ?? item.isAutoPr, e1rm: values.e1rm ?? item.e1rm, hasVideo: Boolean(values.videoUrl || item.videoUrl), videoUrl: values.videoUrl || item.videoUrl }
+        ? { ...item, status: 'completed', actualWeight: values.actualWeight, actualReps: values.actualReps, actualDuration: values.actualDuration ?? item.actualDuration, rpe: values.rpe ?? item.rpe, notes: values.notes ?? item.notes, isPr: values.isPr ?? item.isPr, isAutoPr: values.isAutoPr ?? item.isAutoPr, e1rm: values.e1rm === null ? null : values.e1rm ?? item.e1rm, hasVideo: Boolean(values.videoUrl || item.videoUrl), videoUrl: values.videoUrl || item.videoUrl }
         : item)
       return { ...action, sets: nextSets }
     })
@@ -758,7 +794,10 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   if (!execution) {
     return (
       <Page title="训练执行" subtitle="还没有可执行的训练记录">
-        <SectionCard title="从训练入口开始" description="计划训练需要选择具体计划日；即兴训练可以从动作库选择动作后马上开始。">
+        <SectionCard title="尚未开始训练" description={loadError || '未取得训练记录，请重新核对。'}>
+          <Pressable onPress={() => void hydrateFromCloud()} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>重新核对并重试</Text>
+          </Pressable>
           <Pressable onPress={() => navigation.replace('ImpromptuTraining')} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>开始即兴锻炼</Text>
           </Pressable>
@@ -769,6 +808,16 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
 
   return (
     <Page title={isImpromptu ? '即兴训练' : '训练执行'} subtitle={syncing ? '正在同步训练记录...' : readOnly ? '只读查看，不会创建或修改训练记录' : isCompleted ? '本次训练已完成' : '记录当前组，云端返回后更新本地缓存'}>
+      {loadError ? <SectionCard title="未能同步训练" description={loadError}>
+        <Pressable disabled={syncing} onPress={() => void hydrateFromCloud()} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>重新核对并重试</Text>
+        </Pressable>
+      </SectionCard> : null}
+      {capabilities.canRecover ? <SectionCard title="上次训练已超时" description="已有记录仍保留。如果实际已经练完，请按实际日期补记完成；否则可以重新训练这一天。">
+        <Pressable disabled={syncing} onPress={() => Alert.alert('重新训练', '保留原记录并重新开始这一天？', [
+          { text: '取消', style: 'cancel' }, { text: '重新开始', onPress: () => { void hydrateFromCloud('execute', true) } },
+        ])} style={styles.primaryButton}><Text style={styles.primaryButtonText}>重新训练这一天</Text></Pressable>
+      </SectionCard> : null}
       <View style={styles.hero}>
         <View>
           <Text style={styles.heroLabel}>{isImpromptu ? '自由训练' : `计划第 ${params.dayIndex || execution.day_index || 1} 天`}</Text>
@@ -786,8 +835,11 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         <View style={styles.readOnlyBanner}>
           <IconFont name="icon-time" color={colors.brand} size={18} />
           <View style={styles.readOnlyMain}>
-            <Text style={styles.readOnlyTitle}>只读查看</Text>
-            <Text style={styles.readOnlyText}>历史记录和未来安排不会启动训练，也不能改组、打卡或完成训练。</Text>
+            <Text style={styles.readOnlyTitle}>计划预览，尚未开始</Text>
+            <Text style={styles.readOnlyText}>预览不会创建或修改训练记录。开始前会重新核对云端进度。</Text>
+            <Pressable disabled={syncing} onPress={() => void hydrateFromCloud(canStartPreview ? 'execute' : 'preview')} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>{canStartPreview ? '核对并开始训练' : '刷新计划状态'}</Text>
+            </Pressable>
           </View>
         </View>
       ) : null}
@@ -873,14 +925,14 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
               const setKey = draftKey(action.actionIndex, set.setIndex)
               const expanded = expandedSetKey === setKey
               const uploadingVideo = uploadingVideoKey === setKey
-              const canEditSet = !syncing && !readOnly && (!isCompleted || !isImpromptu)
+              const canEditSet = canEditRecords
               return (
                 <View key={set.setIndex} style={[styles.setRow, completed && styles.setCompleted]}>
                   <View style={styles.setHead}>
                     <View style={styles.setTitleRow}>
                       <Text style={styles.setTitle}>第 {set.setNumber} 组</Text>
                       {set.isPr || draft.isPr ? <Text style={styles.prTag}>PR</Text> : null}
-                      {set.isAutoPr ? <Text style={styles.autoPrTag}>自动纪录</Text> : null}
+                      {set.isAutoPr && !isTimedTrainingSet(set, action) ? <Text style={styles.autoPrTag}>自动纪录</Text> : null}
                       {set.videoUrl || draft.videoUrl ? <Text style={styles.videoTag}>视频</Text> : null}
                       {set.notes || draft.notes ? <Text style={styles.noteTag}>备注</Text> : null}
                     </View>
@@ -888,15 +940,17 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                       <Text style={[styles.deleteText, operationDisabled && styles.disabledText]}>删除</Text>
                     </Pressable>
                   </View>
-                  <Text style={styles.setPlan}>计划 {displayLoad(set.plannedWeight, set.plannedReps)}{set.plannedRestSeconds ? ` · 休息 ${set.plannedRestSeconds} 秒` : ''}</Text>
+                  <Text style={styles.setPlan}>计划 {isTimedTrainingSet(set, action) ? `保持 ${getPlannedDurationSeconds(set, action) ?? '-'} 秒` : displayLoad(set.plannedWeight, set.plannedReps)}{set.plannedRestSeconds ? ` · 休息 ${set.plannedRestSeconds} 秒` : ''}</Text>
+                  {completed && <Text style={styles.setPlan}>{formatRecordedTrainingSet(set, action)}</Text>}
                   <View style={styles.inputs}>
-                    <TextInput accessibilityLabel={`第 ${set.setNumber} 组重量`} value={draft.weight} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { weight: value })} keyboardType="decimal-pad" placeholder="重量" placeholderTextColor={colors.textMuted} style={styles.input} />
-                    <TextInput accessibilityLabel={`第 ${set.setNumber} 组次数`} value={draft.reps} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { reps: value })} keyboardType="number-pad" placeholder="次数" placeholderTextColor={colors.textMuted} style={styles.input} />
+                    {!isTimedTrainingSet(set, action) && <TextInput accessibilityLabel={`第 ${set.setNumber} 组外加重量`} value={draft.weight} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { weight: value })} keyboardType="decimal-pad" placeholder="外加重量 kg" placeholderTextColor={colors.textMuted} style={styles.input} />}
+                    <TextInput accessibilityLabel={`第 ${set.setNumber} 组${isTimedTrainingSet(set, action) ? '保持秒数' : '次数'}`} value={draft.reps} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { reps: value })} keyboardType="number-pad" placeholder={isTimedTrainingSet(set, action) ? '保持秒数' : '次数'} placeholderTextColor={colors.textMuted} style={styles.input} />
                     {!isImpromptu ? <TextInput accessibilityLabel={`第 ${set.setNumber} 组 RPE`} value={draft.rpe} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { rpe: value })} keyboardType="decimal-pad" placeholder="RPE" placeholderTextColor={colors.textMuted} style={styles.input} /> : null}
                     <Pressable accessibilityRole="button" accessibilityLabel={`${completed ? '保存' : '完成'}第 ${set.setNumber} 组`} accessibilityState={{ disabled: !canEditSet || uploadingVideo, busy: syncing || uploadingVideo }} disabled={!canEditSet || uploadingVideo} onPress={() => completeSet(action, set)} style={[styles.doneButton, (!canEditSet || uploadingVideo) && styles.doneButtonDisabled]}>
                       <Text style={styles.doneButtonText}>{completed ? '保存' : '完成'}</Text>
                     </Pressable>
                   </View>
+                  {!isTimedTrainingSet(set, action) && <Pressable accessibilityRole="button" disabled={!canEditSet} onPress={() => setDraft(action.actionIndex, set.setIndex, { weight: '0' })} style={styles.setMoreButton}><Text style={styles.setMoreText}>{draft.weight === '0' ? '已选自重 / 无负重' : '自重 / 无负重'}</Text></Pressable>}
                   <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? '收起' : '展开'}第 ${set.setNumber} 组详细记录`} accessibilityState={{ expanded }} onPress={() => setExpandedSetKey(expanded ? '' : setKey)} style={styles.setMoreButton}>
                     <Text style={styles.setMoreText}>{expanded ? '收起详细记录' : '备注、PR 与组视频'}</Text>
                     <IconFont name={expanded ? 'icon-left' : 'icon-right-arrow'} color={colors.brand} size={14} />

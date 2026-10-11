@@ -1,0 +1,26 @@
+.local-debug-panel, .local-debug-banner {
+  margin: 16rpx;
+  padding: 24rpx;
+  border: 1rpx solid #cf6d4e;
+  border-radius: 16rpx;
+  background: #fff7f2;
+  color: #4a3229;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.local-debug-title { font-size: 28rpx; font-weight: 600; }
+.local-debug-detail { font-size: 22rpx; word-break: break-all; }
+.local-debug-label { font-size: 24rpx; }
+.local-debug-input { padding: 16rpx; height: 48rpx; border: 1rpx solid #ccc; border-radius: 8rpx; background: #fff; color: #222; font-size: 24rpx; }
+.local-debug-primary, .local-debug-secondary {
+  margin: 0;
+  padding: 16rpx 24rpx;
+  border-radius: 16rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+.local-debug-primary { background: #cf6d4e; color: #fff; }
+.local-debug-secondary { background: #fff; color: #8e432d; border: 1rpx solid #cf6d4e; }
+.local-debug-primary:active, .local-debug-secondary:active { opacity: .8; }
+.local-debug-error { font-size: 24rpx; color: #a12a20; }

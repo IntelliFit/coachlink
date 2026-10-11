@@ -21,6 +21,7 @@ type ActionRow = {
   id?: string
   name: string
   type?: string
+  attrs?: string[] | null
   source?: 'mine' | 'public'
 }
 
@@ -56,13 +57,13 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
         const type = String(row.type || '').toUpperCase()
         if (!name || ['DIET', 'CARDIO', 'HABIT', 'REST'].includes(type)) return
         seen.add(name)
-        merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, source: 'mine' })
+        merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, attrs: row.attrs, source: 'mine' })
       })
       pub.forEach((row: any) => {
         const name = String(row.name || row.action_name || '').trim()
         const type = String(row.type || '').toUpperCase()
         if (!name || seen.has(name) || ['DIET', 'CARDIO', 'HABIT', 'REST'].includes(type)) return
-        merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, source: 'public' })
+        merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, attrs: row.attrs, source: 'public' })
       })
       setActions(merged)
     } catch (loadError: any) {
@@ -130,6 +131,7 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
       const payload = selectedRows.map((row) => ({
         actionId: row.source === 'mine' ? row.id : undefined,
         actionName: row.name,
+        attrs: row.attrs,
         sets: 1,
         reps: null,
         weight: null,

@@ -3,6 +3,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import type { GetPersonalRecordsResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
+import { filterTimedStrengthRecords } from '@/lib/filterTimedStrengthRecords';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
         .from("personal_records_history")
-        .select("id, exercise_name, weight, reps, e1rm, date_achieved, notes")
+        .select("id, action_id, exercise_name, weight, reps, e1rm, date_achieved, notes")
         .eq("user_id", userId)
         .order("date_achieved", { ascending: false })
         .limit(10);
@@ -36,7 +37,8 @@ export async function POST(req: Request) {
 
     // Map to response format
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const personalRecords = ((data || []) as any[]).map((r) => ({
+    const measuredRecords = await filterTimedStrengthRecords(supabase, userId, (data || []) as any[]);
+    const personalRecords = measuredRecords.map((r) => ({
         id: r.id,
         exercise_name: r.exercise_name,
         weight: r.weight,

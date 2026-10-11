@@ -3796,3 +3796,7 @@
   .compact-missing-day { display: flex; gap: 24rpx; padding: 24rpx 0; font-size: 24rpx; }
   .compact-task-action { color: #cf6d4e; }
 }
+.compact-month-link { color: #CF6D4E; font-size: 24rpx; margin-left: 8rpx; white-space: nowrap; }
+.compact-training-home .week-dashboard-strip { margin: 0 0 16rpx; }
+.compact-training-home .week-dashboard-strip__row { display: flex; gap: 8rpx; }
+.compact-training-home .week-dashboard-strip__pill { flex: 1; min-width: 0; border-radius: 16rpx; padding: 8rpx; }

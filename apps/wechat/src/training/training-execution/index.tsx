@@ -1,4 +1,11 @@
+import { openActionTeaching } from '@/utils/actionTeaching'
+import ExecutionPlanNoticePopup from '@/components/ExecutionPlanNoticePopup'
+import { LocalDebugBanner } from '@/components/LocalDebugLogin'
+import { hasReadExecutionPlanNotice, markExecutionPlanNoticeRead } from '@/utils/executionPlanNotice'
 import React from 'react'
+import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type TrainingIntent } from '@coachlink/core/src/trainingAccess'
+import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation'
+import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, getTrainingSetVolume, formatRecordedTrainingSet, inheritedTimedSetDefaults } from '@coachlink/core/src/trainingSetMetrics'
 import RecordCompletionButton from '@/components/RecordCompletionButton'
 import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
@@ -267,6 +274,7 @@ function normalizeActionName(action: any): string {
 
 function getSetWeightDefault(set?: SetData | null): number | null {
   if (!set) return null
+  if (isTimedTrainingSet(set)) return null
   if (set.actual_weight !== null && set.actual_weight !== undefined && Number.isFinite(Number(set.actual_weight))) {
     return Number(set.actual_weight)
   }
@@ -276,6 +284,7 @@ function getSetWeightDefault(set?: SetData | null): number | null {
 
 function getSetRepsDefault(set?: SetData | null): number | null {
   if (!set) return null
+  if (isTimedTrainingSet(set)) return getActualDurationSeconds(set) ?? (set.status === 'completed' ? null : getPlannedDurationSeconds(set))
   if (set.actual_reps !== null && set.actual_reps !== undefined && Number.isFinite(Number(set.actual_reps))) {
     return Math.max(0, Math.floor(Number(set.actual_reps)))
   }
@@ -291,6 +300,7 @@ function getSetRestDefault(set?: SetData | null): number | null {
 function formatPlannedRepsText(set?: SetData | null): string {
   const value = String(set?.planned_reps || '').trim()
   if (!value) return ''
+  if (isTimedTrainingSet(set)) return `保持 ${getPlannedDurationSeconds(set) ?? '-'} 秒`
   const targetType = String(set?.planned_target_type || '').trim().toLowerCase()
   if (targetType === 'time' || targetType === 'distance' || targetType === 'amrap' || targetType === 'reps_max') {
     return value
@@ -298,7 +308,7 @@ function formatPlannedRepsText(set?: SetData | null): string {
   return `${value}次`
 }
 
-function buildInheritedExtraSet(sourceSet?: SetData | null): SetData {
+function buildInheritedExtraSet(sourceSet?: SetData | null, action?: any): SetData {
   const inheritedWeight = getSetWeightDefault(sourceSet)
   const inheritedReps = getSetRepsDefault(sourceSet)
   const inheritedRest = getSetRestDefault(sourceSet)
@@ -308,6 +318,7 @@ function buildInheritedExtraSet(sourceSet?: SetData | null): SetData {
     status: 'pending',
     planned_weight: inheritedWeight !== null ? `${formatKgValueForGym(inheritedWeight)}kg` : (sourceSet?.planned_weight || ''),
     planned_reps: inheritedReps !== null ? String(inheritedReps) : (sourceSet?.planned_reps || ''),
+    ...inheritedTimedSetDefaults(sourceSet, action),
     planned_rest_seconds: inheritedRest ?? sourceSet?.planned_rest_seconds,
     source: 'student_extra'
   }
@@ -383,7 +394,10 @@ function TrainingExecution() {
         ? ''
         : routeFallback.readOnly || ''
   ).toLowerCase()
-  const routeRequestsReadOnly = !isImpromptuMode && (readOnlyParam === 'true' || readOnlyParam === '1')
+  const [intent, setIntent] = React.useState<TrainingIntent>(() => resolveTrainingIntent(
+    routeParams.intent || (!hasCurrentRouteTarget ? routeFallback.intent : undefined), readOnlyParam))
+  const [canStartFromPreview, setCanStartFromPreview] = React.useState(false)
+  const [executionNoticeVisible, setExecutionNoticeVisible] = React.useState(false)
   
   const [loading, setLoading] = React.useState(true)
   const [loadError, setLoadError] = React.useState('')
@@ -435,7 +449,7 @@ function TrainingExecution() {
   const [feedbackSubmitting, setFeedbackSubmitting] = React.useState(false)
   const [pendingSharePath, setPendingSharePath] = React.useState('')
   const [showWorkoutSummary, setShowWorkoutSummary] = React.useState(false)
-  const startTrainingRef = React.useRef<(() => Promise<void>) | null>(null)
+  const startTrainingRef = React.useRef<((requestedIntent?: TrainingIntent) => Promise<void>) | null>(null)
   const startTrainingInFlightRef = React.useRef<Promise<void> | null>(null)
   const lastStartTrainingAtRef = React.useRef(0)
   const executionRef = React.useRef<any>(null)
@@ -470,12 +484,13 @@ function TrainingExecution() {
         instanceId: rawInstanceId || '',
         impromptuId: rawImpromptuId || '',
         dayIndex,
-        readOnly: readOnlyParam
+        readOnly: readOnlyParam,
+        intent
       })
     } catch {
       // Route-param fallback is only for DevTools hot reload / native picker return resilience.
     }
-  }, [dayIndex, rawImpromptuId, rawInstanceId, readOnlyParam])
+  }, [dayIndex, rawImpromptuId, rawInstanceId, readOnlyParam, intent])
 
   const executionSnapshotScopeKey = React.useMemo(
     () => trainingExecutionSnapshotKey({ isImpromptuMode, impromptuId, instanceId, dayIndex }),
@@ -505,10 +520,10 @@ function TrainingExecution() {
   const isCompletedExecution =
     String(execution?.status || '').toLowerCase() === 'completed' || !!execution?.completed_at
   const isTimedOutExecution = String(execution?.status || '').toLowerCase() === 'timed_out'
-  const canCorrectCompletedSets = isCompletedExecution && !routeRequestsReadOnly
-  const isReadOnly =
-    isCompletedExecution || isTimedOutExecution || (routeRequestsReadOnly && !isPersistedInProgressExecution)
-  const canLateCompleteTimedOut = isTimedOutExecution && !routeRequestsReadOnly
+  const capabilities = executionCapabilities(execution, isImpromptuMode ? 'execute' : intent, cloudExecutionReady)
+  const canCorrectCompletedSets = capabilities.canCorrect
+  const isReadOnly = !capabilities.canRecord
+  const canLateCompleteTimedOut = capabilities.canRecover
 
   React.useEffect(() => {
     executionRef.current = execution
@@ -519,10 +534,10 @@ function TrainingExecution() {
   }, [loading])
 
   const blockUntilExecutionReady = React.useCallback(() => {
-    if (!isPreviewExecution && (isImpromptuMode || cloudExecutionReady)) return false
-    Taro.showToast({ title: '正在同步训练记录，稍等几秒', icon: 'none' })
+    if (!isPreviewExecution && cloudExecutionReady) return false
+    Taro.showToast({ title: loadError || '训练尚未开始，请先核对并开始', icon: 'none' })
     return true
-  }, [cloudExecutionReady, isImpromptuMode, isPreviewExecution])
+  }, [cloudExecutionReady, isImpromptuMode, isPreviewExecution, loadError])
 
   const clearPersistedRestTimer = React.useCallback(() => {
     restTimerDeadlineAtRef.current = 0
@@ -699,6 +714,7 @@ function TrainingExecution() {
   }, [])
 
   const isWeightRequiredForSet = React.useCallback((set?: SetData | null) => {
+    if (isTimedTrainingSet(set)) return false
     const planned = String(set?.planned_weight || '').trim().toLowerCase()
     if (!planned) return true
     if (planned.includes('kg')) return true
@@ -707,7 +723,7 @@ function TrainingExecution() {
     return true
   }, [])
 
-  const hydrateSetInputs = React.useCallback((set?: SetData | null, options?: { allowCompleted?: boolean }) => {
+  const hydrateSetInputs = React.useCallback((set?: SetData | null, options?: { allowCompleted?: boolean; action?: any }) => {
     const allowCompleted = !!options?.allowCompleted
     if (!set || (set.status === 'completed' && !allowCompleted)) {
       setWeight(null)
@@ -721,8 +737,9 @@ function TrainingExecution() {
       return
     }
 
-    const defaultWeight = getSetWeightDefault(set)
-    const defaultReps = getSetRepsDefault(set)
+    const timed = isTimedTrainingSet(set, options?.action)
+    const defaultWeight = timed ? null : getSetWeightDefault(set)
+    const defaultReps = timed ? getActualDurationSeconds(set) ?? (set.status === 'completed' ? null : getPlannedDurationSeconds(set, options?.action)) : getSetRepsDefault(set)
     setWeight(defaultWeight)
     setWeightInput(formatInputValue(defaultWeight))
     setReps(defaultReps)
@@ -773,10 +790,14 @@ function TrainingExecution() {
   )
 
   // 开始或恢复训练：先展示本地/计划预览，再用幂等 start 接口拿到真实执行记录。
-  const startTraining = React.useCallback(async () => {
+  const startTraining = React.useCallback(async (requestedIntent?: TrainingIntent) => {
+    const loadIntent = requestedIntent || intent
+    if (requestedIntent) setIntent(requestedIntent)
+    const shouldStart = isImpromptuMode || loadIntent === 'execute'
     setLoadError('')
     setLoadStage('启动训练页')
     setCloudExecutionReady(false)
+    setCanStartFromPreview(false)
     if (!userId) {
       setExecution(null)
       setLoading(false)
@@ -824,6 +845,7 @@ function TrainingExecution() {
         const data = await withExecutionLoadTimeout(impromptuService.get(impromptuId), '加载即兴训练')
         if (!data) {
           if (snapshot?.execution) {
+            setLoadError('无法核对最新训练状态，当前仅显示上次内容，请重试')
             Taro.showToast({ title: '已使用本地训练记录', icon: 'none' })
             return
           }
@@ -872,13 +894,19 @@ function TrainingExecution() {
           console.log('[training-execution] load plan instance', { instanceId, dayIndex })
           setLoadStage('加载计划内容')
         }
-        let instanceRes = cachedInstanceRes
+        let instanceRes: { instance: any; actions?: Record<string, any>; executionsByDayIndex?: Record<string | number, any>; executions?: any[] } | null = cachedInstanceRes
+        let cloudPlanLoaded = false
         try {
           const cloudInstanceRes = await withExecutionLoadTimeout(
             trainingService.getInstance({ id: instanceId }),
             '加载训练计划'
           )
-          if (cloudInstanceRes) instanceRes = cloudInstanceRes
+          if (cloudInstanceRes) { instanceRes = cloudInstanceRes; cloudPlanLoaded = true }
+          if (cloudInstanceRes?.instance) {
+            setCanStartFromPreview(canStartPlanDay({ trainingDays: cloudInstanceRes.instance.training_days || [],
+              progressDayIndex: Number((cloudInstanceRes as any).recommendedDayIndex || 1), targetDayIndex: dayIndex,
+              executionsByDayIndex: (cloudInstanceRes as any).executionsByDayIndex }))
+          }
         } catch (cloudInstanceError) {
           if (!instanceRes) throw cloudInstanceError
           console.warn('[training-execution] cloud plan refresh failed; keep local snapshot', cloudInstanceError)
@@ -899,40 +927,50 @@ function TrainingExecution() {
         }
 
         let data: any = null
-        if (!routeRequestsReadOnly) {
+        let dataConfirmed = false
+        if (shouldStart && !hasReadExecutionPlanNotice({ instanceId, userId })) {
+          setExecutionNoticeVisible(true)
+          return
+        }
+        if (shouldStart) {
           console.log('[training-execution] sync execution record', { instanceId, dayIndex })
           setLoadStage('同步训练记录')
           data = await withExecutionLoadTimeout(
             executionService.startExecution(instanceId, dayIndex),
             '同步训练记录'
           )
+          dataConfirmed = !!data
         }
-        if (!data && routeRequestsReadOnly) {
+        if (!data && !shouldStart) {
           const serverExecution = instanceRes?.executionsByDayIndex?.[dayIndex] ||
             instanceRes?.executionsByDayIndex?.[String(dayIndex)] ||
             (Array.isArray(instanceRes?.executions)
               ? instanceRes.executions.find((item: any) => Number(item?.day_index) === Number(dayIndex))
               : null)
-          let persistedExecution = serverExecution || null
+          let persistedExecution = cloudPlanLoaded ? serverExecution || null : null
+          dataConfirmed = !!persistedExecution
           const snapshotExecutionId = String(snapshot?.execution?.id || '')
           const snapshotIsPersisted = !!snapshotExecutionId && !snapshotExecutionId.startsWith('preview-')
-          if (!persistedExecution && snapshotIsPersisted) {
+          if (!cloudPlanLoaded && !persistedExecution && snapshotIsPersisted) {
             persistedExecution = await withExecutionLoadTimeout(
               executionService.getExecution(snapshotExecutionId),
               '刷新训练记录'
             ).catch(() => null)
+            dataConfirmed = !!persistedExecution
           }
-          data = persistedExecution || snapshot?.execution ||
+          data = persistedExecution || (!cloudPlanLoaded ? snapshot?.execution : null) ||
             buildPreviewExecution(instanceRes?.instance, instanceActions, dayIndex)
         }
 
         if (data) {
           executionRef.current = data
           hasDisplayableExecution = true
-          setCloudExecutionReady(true)
-          setLoadStage('已进入训练')
+          const persisted = !!data.id && !String(data.id).startsWith('preview-') && data.status !== 'preview'
+          setCloudExecutionReady(persisted && dataConfirmed)
+          if (!cloudPlanLoaded && !dataConfirmed) setLoadError('无法核对最新训练状态，当前仅显示上次内容，请重试')
+          setLoadStage(persisted ? '已同步训练记录' : '查看计划，尚未开始')
           setExecution(data)
-          syncExecutionToCaches(data)
+          if (dataConfirmed || (cloudPlanLoaded && !persisted)) syncExecutionToCaches(data)
           focusFirstPendingSet(data)
         } else {
           setLoadStage('没有找到当天训练内容')
@@ -942,12 +980,12 @@ function TrainingExecution() {
       }
     } catch (e: any) {
       console.error('开始训练失败:', e)
+      setLoadError(e?.message || '开始训练失败，请检查网络后重试')
       if (!hasDisplayableExecution && !executionRef.current) {
         setLoadStage('进入训练失败')
         setLoadError(e?.message || '加载失败，请检查网络后重试')
       } else {
-        setLoadStage('云端刷新失败，已保留本地内容')
-        Taro.showToast({ title: '云端刷新失败，已保留本地记录', icon: 'none' })
+        setLoadStage('尚未同步成功，下面仅保留上次内容')
       }
     } finally {
       setLoading(false)
@@ -958,7 +996,7 @@ function TrainingExecution() {
     isImpromptuMode,
     dayIndex,
     userId,
-    routeRequestsReadOnly,
+    intent,
     buildPreviewExecution,
     executionSnapshotScopeKey,
     focusFirstPendingSet,
@@ -967,7 +1005,7 @@ function TrainingExecution() {
 
   startTrainingRef.current = startTraining
 
-  const requestStartTraining = React.useCallback((options?: { force?: boolean }) => {
+  const requestStartTraining = React.useCallback((options?: { force?: boolean; intent?: TrainingIntent }) => {
     const runner = startTrainingRef.current
     if (!runner) {
       setLoadStage('等待启动函数')
@@ -981,7 +1019,7 @@ function TrainingExecution() {
       return Promise.resolve()
     }
     lastStartTrainingAtRef.current = now
-    const runPromise = runner().finally(() => {
+    const runPromise = runner(options?.intent).finally(() => {
       startTrainingInFlightRef.current = null
     })
     startTrainingInFlightRef.current = runPromise
@@ -995,7 +1033,7 @@ function TrainingExecution() {
   useDidShow(() => {
     reconcileRestTimer()
     if (Date.now() < suppressAutoRefreshUntilRef.current) return
-    if (executionRef.current) return
+    if (executionRef.current && !loadError) return
     void requestStartTraining({ force: true })
   })
 
@@ -1029,7 +1067,8 @@ function TrainingExecution() {
       return
     }
     hydrateSetInputs(current, {
-      allowCompleted: !!currentKey && editingSetKey === currentKey
+      allowCompleted: !!currentKey && editingSetKey === currentKey,
+      action: execution?.action_executions?.[expandedAction]
     })
   }, [editingSetKey, execution, expandedAction, currentSetIndex, hydrateSetInputs, setDrafts, setKeyOf])
 
@@ -1136,7 +1175,8 @@ function TrainingExecution() {
 
   // 选择视频（注意：微信小程序本地存储约 10MB 限制，视频过大会触发 writeFile 超限，建议大视频用「粘贴链接」）
   const handleChooseVideo = async () => {
-    if (isReadOnly) {
+    if (uploadingVideo || cancelling || completing) return
+    if (isReadOnly && !(canCorrectCompletedSets && editingSetKey === setKeyOf(expandedAction, currentSetIndex))) {
       Taro.showToast({ title: '只读模式不可修改', icon: 'none' })
       return
     }
@@ -1189,7 +1229,7 @@ function TrainingExecution() {
         targetExecutionId,
         actionId,
         targetSetIndex + 1,
-        { fileSize: Number((res as any).size || 0) }
+        { fileSize: Number((res as any).size || 0), isImpromptu: isImpromptuMode, actionIndex: targetActionIndex }
       )
       const url = uploadRes?.video_url || uploadRes?.url
       if (url) {
@@ -1215,7 +1255,8 @@ function TrainingExecution() {
 
   // 粘贴视频链接
   const handlePasteVideoLink = async () => {
-    if (isReadOnly) {
+    if (uploadingVideo || cancelling || completing) return
+    if (isReadOnly && !(canCorrectCompletedSets && editingSetKey === setKeyOf(expandedAction, currentSetIndex))) {
       Taro.showToast({ title: '只读模式不可修改', icon: 'none' })
       return
     }
@@ -1255,11 +1296,13 @@ function TrainingExecution() {
       success: async (res) => {
         if (res.confirm && res.content) {
           try {
+            setUploadingVideo(true)
             const linkRes = await executionService.addSetVideoLink(
               execution.id,
               actionId,
-              currentSetIndex + 1,
-              res.content
+              targetSetIndex + 1,
+              res.content,
+              { isImpromptu: isImpromptuMode, actionIndex: targetActionIndex }
             )
             if (linkRes) {
               const url = linkRes.video_url || res.content
@@ -1272,6 +1315,8 @@ function TrainingExecution() {
             }
           } catch (e: any) {
             Taro.showToast({ title: (e as Error).message || '添加失败', icon: 'none' })
+          } finally {
+            setUploadingVideo(false)
           }
         }
       }
@@ -1290,6 +1335,7 @@ function TrainingExecution() {
 
   // 完成一组
   const handleCompleteSet = async () => {
+    if (cancelling || uploadingVideo) return
     if (!execution) return
     if (blockUntilExecutionReady()) return
     if (completionMutationRef.current) return
@@ -1310,7 +1356,12 @@ function TrainingExecution() {
       return
     }
 
-    if (isWeightRequiredForSet(currentSet) && (weight === null || weight === undefined)) {
+    const timed = isTimedTrainingSet(currentSet, currentAction)
+    if (timed && (reps === null || reps <= 0)) {
+      Taro.showToast({ title: '请输入保持时长（秒）', icon: 'none' })
+      return
+    }
+    if (!timed && isWeightRequiredForSet(currentSet) && (weight === null || weight === undefined)) {
       Taro.showToast({ title: '请输入重量', icon: 'none' })
       return
     }
@@ -1324,17 +1375,18 @@ function TrainingExecution() {
             execution.id,
             expandedAction,
             currentSetIndex,
-            { actualWeight: weight, actualReps: reps, notes: setNotes || undefined }
+            { actualWeight: timed ? null : weight, actualReps: timed ? null : reps, actualDuration: timed ? reps : undefined, notes: setNotes, rpe, isPR: markAsPR }
           )
         : await executionService.completeSet(
             execution.id,
             expandedAction,
             currentSetIndex,
             {
-              actualWeight: weight,
-              actualReps: reps,
+              actualWeight: timed ? null : weight,
+              actualReps: timed ? null : reps,
+              actualDuration: timed ? reps : undefined,
               rpe: rpe,
-              notes: setNotes || undefined,
+              notes: setNotes,
               videoUrl: videoUrl || undefined,
               isPR: markAsPR,
               actionId: currentAction.action_id,
@@ -1351,13 +1403,14 @@ function TrainingExecution() {
         updatedSets[currentSetIndex] = {
           ...updatedSets[currentSetIndex],
           status: 'completed',
-          actual_weight: weight,
-          actual_reps: reps,
+          actual_weight: timed ? null : weight,
+          actual_reps: timed ? null : reps,
+          ...(timed ? { actual_duration: reps } : {}),
           rpe: rpe,
           notes: setNotes,
           video_url: videoUrl,
           is_pr: markAsPR,
-          e1rm: data?.autoE1RM?.e1rm ?? updatedSets[currentSetIndex]?.e1rm,
+          e1rm: timed ? null : data?.autoE1RM?.e1rm ?? updatedSets[currentSetIndex]?.e1rm,
           is_auto_pr: !!data?.autoE1RM?.isPR
         }
         updatedAction.sets = updatedSets
@@ -1692,6 +1745,8 @@ function TrainingExecution() {
           focusFirstPendingSet(data)
           setElapsedTrainingSeconds(0)
           Taro.showToast({ title: '已开始新的训练', icon: 'success' })
+        } catch (error: any) {
+          setLoadError(error?.message || '重新开始失败，请重新核对并重试')
         } finally {
           setRestartingTimedOut(false)
         }
@@ -1803,7 +1858,7 @@ function TrainingExecution() {
     const actionExec = execution.action_executions[actionIndex]
     const existingSets = Array.isArray(actionExec?.sets) ? actionExec.sets : []
     const sourceSet = findInheritableSourceSet(existingSets)
-    const inheritedSet = buildInheritedExtraSet(sourceSet)
+    const inheritedSet = buildInheritedExtraSet(sourceSet, actionExec)
     const inheritedWeight = getSetWeightDefault(sourceSet)
     const inheritedReps = getSetRepsDefault(sourceSet)
     const inheritedRest = getSetRestDefault(sourceSet)
@@ -1835,7 +1890,7 @@ function TrainingExecution() {
         setExecution(updated)
         syncExecutionToCaches(updated)
         setCurrentSetIndex(res.newSetIndex)
-        hydrateSetInputs(ae.sets[res.newSetIndex])
+        hydrateSetInputs(ae.sets[res.newSetIndex], { action: ae })
         Taro.showToast({ title: `已添加第${res.newSetIndex + 1}组`, icon: 'success' })
       } else {
         Taro.showToast({ title: '添加失败', icon: 'none' })
@@ -2046,6 +2101,8 @@ function TrainingExecution() {
         updated.action_executions.push({
           action_id: actionId,
           action_name: actionName,
+          attrs: actionForTraining.attrs,
+          type: actionForTraining.type || 'STRENGTH',
           action_order: nextOrder,
           source: 'student_extra',
           sets: [{ set_number: 1, status: 'pending', planned_weight: '', planned_reps: '', source: 'student_extra' }],
@@ -2115,28 +2172,19 @@ function TrainingExecution() {
     updateSetDraft(activeSetKey, { weight: next, weightInput: nextInput })
   }
 
-  const handleOpenActionDetail = (actionExec: ActionExecution, actionDetail: any) => {
+  const handleOpenActionDetail = (actionExec: ActionExecution, actionDetail: any, actionIndex: number) => {
     const actionId = String(actionExec?.action_id || actionDetail?.id || '')
     if (!actionId) {
       Taro.showToast({ title: '暂无动作详情', icon: 'none' })
       return
     }
 
-    try {
-      Taro.setStorageSync(`action_detail_${actionId}`, {
-        id: actionId,
-        name: actionExec?.action_name || actionDetail?.name || '动作详情',
-        detail: actionDetail?.detail || '',
-        positions: actionDetail?.positions || null,
-        attrs: actionDetail?.attrs || null,
-        type: actionDetail?.type || null,
-        url: actionDetail?.url || null
-      })
-    } catch {
-      // Detail cache is a convenience for the detail page; navigation can still proceed.
-    }
-
-    Taro.navigateTo({ url: `/training/action-detail?id=${encodeURIComponent(actionId)}` })
+    const sourceIndex = Number(actionExec?.source_action_index ?? actionIndex)
+    void openActionTeaching({ ...actionDetail, id: actionId, name: actionExec.action_name || actionDetail?.name,
+      url: actionDetail?.url || actionDetail?.video_url }, {
+      instanceId: isImpromptuMode ? undefined : instanceId, dayIndex, actionIndex: sourceIndex,
+      coachNote: getPlanActionNote(planInstance, dayIndex, actionExec, actionIndex)
+    })
   }
 
   const handleCopyVideoUrl = (url?: string | null) => {
@@ -2177,6 +2225,7 @@ function TrainingExecution() {
   }
 
   const handleExpandAction = (actionIdx: number) => {
+    if (uploadingVideo || completing || cancelling) return
     setExpandedAction(actionIdx)
     setExpandedSetKey(null)
     setEditingSetKey(null)
@@ -2190,6 +2239,7 @@ function TrainingExecution() {
   }
 
   const handlePressSet = (actionIdx: number, setIdx: number) => {
+    if (uploadingVideo || completing || cancelling) return
     const targetSet = actionExecutions?.[actionIdx]?.sets?.[setIdx]
     if (!targetSet) return
 
@@ -2207,20 +2257,22 @@ function TrainingExecution() {
   }
 
   const handleEditCompletedSet = (actionIdx: number, setIdx: number, set: SetData) => {
+    if (uploadingVideo || completing || cancelling) return
     const targetKey = setKeyOf(actionIdx, setIdx)
     setExpandedAction(actionIdx)
     setCurrentSetIndex(setIdx)
     setExpandedSetKey(targetKey)
     setEditingSetKey(targetKey)
     setOpenSetMoreKey(set.notes || set.video_url ? targetKey : null)
-    hydrateSetInputs(set, { allowCompleted: true })
+    hydrateSetInputs(set, { allowCompleted: true, action: actionExecutions[actionIdx] })
   }
 
   const handleCancelEditCompletedSet = () => {
+    if (uploadingVideo || completing || cancelling) return
     setEditingSetKey(null)
     setOpenSetMoreKey(null)
     const current = actionExecutions?.[expandedAction]?.sets?.[currentSetIndex]
-    hydrateSetInputs(current)
+    hydrateSetInputs(current, { action: actionExecutions?.[expandedAction] })
   }
 
   const handleSkipRest = () => {
@@ -2262,14 +2314,14 @@ function TrainingExecution() {
     !isImpromptuMode &&
     !isReadOnly &&
     isPersistedInProgressExecution &&
-    completedSets === 0
+    canCancelEmptyPlanExecution(execution)
 
   const handleCancelTraining = () => {
     if (!canCancelTraining || !execution?.id || !instanceId || !userId || cancelling) return
 
     Taro.showModal({
       title: '取消本次训练？',
-      content: `第${dayIndex}天的本次记录将作废，并恢复为未开始状态。此操作无法撤销。`,
+      content: '仅取消尚无已保存记录的本次训练，恢复为未开始。未保存的输入也会丢弃。已有记录的训练请保留并返回。',
       confirmText: '确认取消',
       cancelText: '继续训练',
       confirmColor: '#CF6D4E',
@@ -2299,7 +2351,9 @@ function TrainingExecution() {
           setRestTimerMinimized(false)
           setElapsedTrainingSeconds(0)
           Taro.showToast({ title: '训练已取消', icon: 'success' })
-          setTimeout(() => Taro.navigateBack(), 500)
+          handleBackToTodayTraining()
+        } catch (error: any) {
+          Taro.showToast({ title: error?.message || '取消失败，记录已保留', icon: 'none' })
         } finally {
           setCancelling(false)
         }
@@ -2331,7 +2385,7 @@ function TrainingExecution() {
   const heroSubtitle = planTitle && currentActionName && planTitle === currentActionName
     ? currentPlannedSummary || '按计划完成本组'
     : [currentActionName, currentPlannedSummary || null].filter(Boolean).join(' · ')
-  const currentActualSummary = currentSet
+  const currentActualSummary = currentSet && isTimedTrainingSet(currentSet, currentAction) ? formatRecordedTrainingSet(currentSet, currentAction) : currentSet
     ? [
         currentSet.actual_weight !== null && currentSet.actual_weight !== undefined ? `${currentSet.actual_weight}kg` : null,
         currentSet.actual_reps !== null && currentSet.actual_reps !== undefined ? `${currentSet.actual_reps}次` : null,
@@ -2351,10 +2405,7 @@ function TrainingExecution() {
       const actionType = String(detail?.type || action.type || action.item_type || 'STRENGTH').toUpperCase()
       const completed = (action.sets || []).filter((set: SetData) => set.status === 'completed')
       const actionVolume = completed.reduce((sum: number, set: SetData) => {
-        const actualWeight = Number(set.actual_weight)
-        const actualReps = Number(set.actual_reps)
-        if (!Number.isFinite(actualWeight) || !Number.isFinite(actualReps)) return sum
-        return sum + Math.max(0, actualWeight) * Math.max(0, actualReps)
+        return sum + getTrainingSetVolume(set, action)
       }, 0)
       const muscles = inferMusclesForAction(action, detail)
       const score = actionVolume > 0 ? actionVolume : completed.length * 50
@@ -2370,8 +2421,10 @@ function TrainingExecution() {
         sum + Math.max(0, Number(set.actual_duration || 0)) / 60
       ), 0)
       const actionCalories = Math.max(0, Number(action.energy_estimate?.calories || 0))
-      cardioDistanceKm += actionDistanceKm
-      cardioRecordedMinutes += actionDurationMin
+      if (actionType === 'CARDIO') {
+        cardioDistanceKm += actionDistanceKm
+        cardioRecordedMinutes += actionDurationMin
+      }
       calories += actionCalories
       return {
         id: action.action_id,
@@ -2411,6 +2464,7 @@ function TrainingExecution() {
             setNumber: Number(set.set_number || set.set_index || setIndex + 1),
             weightText,
             repsText,
+            recordText: formatRecordedTrainingSet(set, action).replace(' / 无外加负重', ''),
             isPr: !!set.is_pr
           }
         }),
@@ -2635,9 +2689,20 @@ function TrainingExecution() {
     handleBackToTodayTraining()
   }
 
+  const executionNoticePopup = <ExecutionPlanNoticePopup visible={executionNoticeVisible}
+    executionNotice={planInstance?.execution_notice || planInstance?.executionNotice || null}
+    planName={planInstance?.name || null} planSource={planInstance?.source === 'self' ? 'self' : 'coach'}
+    onClose={() => { setExecutionNoticeVisible(false); setLoadError('请先阅读执行须知，再开始训练') }}
+    onConfirm={() => {
+      markExecutionPlanNoticeRead({ instanceId, userId })
+      setExecutionNoticeVisible(false)
+      void requestStartTraining({ force: true, intent: 'execute' })
+    }} confirmLabel='我已阅读，开始训练' />
+
   if (loading && !execution) {
     return (
       <View className={`training-execution-page theme-${effectiveTheme}`}>
+        {process.env.NODE_ENV === 'development' ? <LocalDebugBanner /> : null}
         <View className="loading-wrap">
           <Text className="loading-title">正在进入训练</Text>
           <Text className="loading-stage">{loadStage}</Text>
@@ -2650,6 +2715,8 @@ function TrainingExecution() {
   if (!execution) {
     return (
       <View className={`training-execution-page theme-${effectiveTheme}`}>
+        {process.env.NODE_ENV === 'development' ? <LocalDebugBanner /> : null}
+        {executionNoticePopup}
         <View className="error-wrap">
           <Text className="error-title">暂时进不去训练</Text>
           <Text className="loading-stage">{loadStage}</Text>
@@ -2665,6 +2732,23 @@ function TrainingExecution() {
 
   return (
     <View className={`training-execution-page theme-${effectiveTheme}`}>
+      {process.env.NODE_ENV === 'development' ? <LocalDebugBanner /> : null}
+      {executionNoticePopup}
+      {loadError ? (
+        <View className='error-wrap execution-status-banner'>
+          <Text className='error-title'>训练尚未就绪</Text>
+          <Text className='error-desc'>{loadError}</Text>
+          <Button className='error-primary-btn' onClick={() => void requestStartTraining({ force: true })}>重新核对并重试</Button>
+        </View>
+      ) : null}
+      {!isImpromptuMode && intent === 'preview' ? (
+        <View className='error-wrap execution-status-banner'>
+          <Text className='error-desc'>这是计划预览，尚未开始训练。</Text>
+          {canStartFromPreview ? <Button className='error-primary-btn'
+            onClick={() => void requestStartTraining({ force: true, intent: 'execute' })}>开始这一天的训练</Button>
+            : <Button className='error-secondary-btn' onClick={() => void requestStartTraining({ force: true })}>刷新训练资格</Button>}
+        </View>
+      ) : null}
       <View className="execution-scroll">
         <View className="execution-shell">
           {isWorkoutCompleted && (
@@ -2689,7 +2773,7 @@ function TrainingExecution() {
               </View>
               <View className="hero-summary">
                 {!isImpromptuMode && (
-                  <Text className="hero-day-label hero-day-label--context">{`${isReadOnly ? '只读查看 · ' : ''}第${dayIndex}天`}</Text>
+                  <Text className="hero-day-label hero-day-label--context">{`${intent === 'preview' ? '计划预览 · ' : isCompletedExecution ? '训练记录 · ' : isTimedOutExecution ? '待处理训练 · ' : !cloudExecutionReady ? '尚未开始 · ' : ''}第${dayIndex}天`}</Text>
                 )}
                 <Text className="hero-title">{planTitle || '训练执行'}</Text>
                 <Text className="hero-subtitle">{heroSubtitle}</Text>
@@ -2699,8 +2783,8 @@ function TrainingExecution() {
                   {currentActualSummary ? <Text className="hero-chip success">{currentActualSummary}</Text> : null}
                   {isTimedOutExecution
                     ? <Text className="hero-chip warning">已超过5小时</Text>
-                    : isReadOnly
-                      ? <Text className="hero-chip warning">只读模式</Text>
+                    : intent === 'preview'
+                      ? <Text className="hero-chip warning">计划预览</Text>
                       : null}
                 </View>
               </View>
@@ -2750,8 +2834,6 @@ function TrainingExecution() {
                     formatRestSummary(firstSet?.planned_rest_seconds)
                   ].filter(Boolean).join(' · ')
                 : actionMeta.cue
-              const hasActionDetail = !!(actionDetail?.detail || actionDetail?.url || actionDetail?.positions?.length || actionDetail?.attrs?.length)
-              const hasActionDemo = !!actionDetail?.url
               const planActionNote = getPlanActionNote(planInstance, dayIndex, action, actionIdx)
 
               return (
@@ -2768,32 +2850,12 @@ function TrainingExecution() {
                           <Text className="action-type-pill">{actionMeta.label}</Text>
                           {actionSummary ? <Text className="action-summary">{actionSummary}</Text> : null}
                         </View>
-                        {(hasActionDetail || hasActionDemo) && (
-                          <View className="action-reference-row">
-                            {hasActionDetail && (
-                              <Text
-                                className="action-reference-chip"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleOpenActionDetail(action, actionDetail)
-                                }}
-                              >
-                                动作要点
-                              </Text>
-                            )}
-                            {hasActionDemo && (
-                              <Text
-                                className="action-reference-chip demo"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleOpenActionDetail(action, actionDetail)
-                                }}
-                              >
-                                演示
-                              </Text>
-                            )}
-                          </View>
-                        )}
+                        <View className="action-reference-row">
+                          <Text className="action-reference-chip" onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenActionDetail(action, actionDetail, actionIdx)
+                          }}>动作讲解</Text>
+                        </View>
                       </View>
                     </View>
                     <View className="action-progress">
@@ -2834,19 +2896,20 @@ function TrainingExecution() {
                               (canCorrectCompletedSets && isCompletedSet && isEditingThisSet)
                             )
                             const setDraft = setDrafts[setKey]
+                            const timedSet = isTimedTrainingSet(set, action)
                             const plannedWeightText = String(set.planned_weight || '').trim()
                             const plannedRepsText = formatPlannedRepsText(set)
                             const plannedSummary = [
-                              plannedWeightText || null,
+                              !timedSet ? plannedWeightText || null : null,
                               plannedRepsText || null,
                               set.planned_intensity || null
                             ].filter(Boolean).join(' · ')
-                            const actualSummary = [
+                            const actualSummary = timedSet ? formatRecordedTrainingSet(set, action) : [
                               set.actual_weight !== null && set.actual_weight !== undefined ? `${set.actual_weight}kg` : null,
                               set.actual_reps !== null && set.actual_reps !== undefined ? `${set.actual_reps}次` : null,
                               set.rpe ? `RPE ${set.rpe}` : null
                             ].filter(Boolean).join(' · ')
-                            const draftSummary = setDraft
+                            const draftSummary = timedSet && setDraft ? (setDraft.reps ? `保持 ${setDraft.reps} 秒` : '') : setDraft
                               ? [
                                   setDraft.weight !== null && setDraft.weight !== undefined ? `${formatKgValueForGym(setDraft.weight)}kg` : null,
                                   setDraft.reps !== null && setDraft.reps !== undefined ? `${setDraft.reps}次` : null,
@@ -2890,8 +2953,9 @@ function TrainingExecution() {
                                     <View className="set-header-bottom">
                                       <Text className="set-subline">{formatRestSummary(set.planned_rest_seconds)}</Text>
                                       {set.is_pr && <Text className="set-tag pr">PR</Text>}
-                                      {set.is_auto_pr && <Text className="set-tag auto">新纪录</Text>}
+                                      {set.is_auto_pr && !timedSet && <Text className="set-tag auto">新纪录</Text>}
                                       {set.video_url && <Text className="set-tag">视频</Text>}
+                                      {set.notes && <Text className="set-tag">备注</Text>}
                                     </View>
                                   </View>
                                   {!isReadOnly && set.source === 'student_extra' && (
@@ -2909,9 +2973,9 @@ function TrainingExecution() {
 
                                 {showSetForm && (
                                   <View className="set-record-form">
-                                    <View className="record-inline-row">
-                                      <View className="record-input-cell weight">
-                                        <Text className="record-input-label">重量</Text>
+                                    <View className={`record-inline-row ${timedSet ? 'timed' : ''}`}>
+                                      {!timedSet && <View className="record-input-cell weight">
+                                        <Text className="record-input-label">外加重量</Text>
                                         <View className="record-adjust-input">
                                           <View className="record-value-wrap">
                                             <Input
@@ -2941,9 +3005,9 @@ function TrainingExecution() {
                                             }}>-</Text>
                                           </View>
                                         </View>
-                                      </View>
+                                      </View>}
                                       <View className="record-input-cell reps">
-                                        <Text className="record-input-label">次数</Text>
+                                        <Text className="record-input-label">{timedSet ? '保持时长' : '次数'}</Text>
                                         <View className="record-adjust-input">
                                           <View className="record-value-wrap">
                                             <Input
@@ -2958,7 +3022,7 @@ function TrainingExecution() {
                                                 updateSetDraft(setKey, { reps: nextReps })
                                               }}
                                             />
-                                            <Text className="record-unit">次</Text>
+                                            <Text className="record-unit">{timedSet ? '秒' : '次'}</Text>
                                           </View>
                                           <View className="record-stepper">
                                             <Text className="record-stepper-hit" onClick={(e) => {
@@ -2990,7 +3054,7 @@ function TrainingExecution() {
                                       </View>
                                       <Button
                                         className="record-complete-btn"
-                                        onClick={() => handleCompleteSet(actionIdx, setIdx)}
+                                        onClick={() => handleCompleteSet()}
                                         loading={completing}
                                       >
                                         {isEditingThisSet ? '保存' : '完成'}
@@ -2998,6 +3062,11 @@ function TrainingExecution() {
                                     </View>
 
                                     <View className="set-secondary-row">
+                                      {!timedSet && <Button size="mini" className="bodyweight-btn" onClick={() => {
+                                        setWeight(0)
+                                        setWeightInput('0')
+                                        updateSetDraft(setKey, { weight: 0, weightInput: '0' })
+                                      }}>{weight === 0 ? '已选自重 / 无负重' : '自重 / 无负重'}</Button>}
                                       <Text
                                         className={`progress-toggle ${markAsPR ? 'active' : ''}`}
                                         onClick={() => {
@@ -3008,11 +3077,14 @@ function TrainingExecution() {
                                       >
                                         {markAsPR ? '已标记进步组' : '标记进步组'}
                                       </Text>
+                                      <Button size="mini" className="ghost-tool-btn" onClick={handleChooseVideo} loading={uploadingVideo}>
+                                        {hasAttachedVideo ? '更换本组视频' : '上传本组视频'}
+                                      </Button>
                                       <Text
                                         className={`set-more-toggle ${isMoreOpen ? 'open' : ''}`}
                                         onClick={() => setOpenSetMoreKey(isMoreOpen ? null : setKey)}
                                       >
-                                        备注 / 视频（可选）{moreSummary ? ` · ${moreSummary}` : ''}
+                                        备注 / 视频链接{moreSummary ? ` · ${moreSummary}` : ''}
                                       </Text>
                                     </View>
 
@@ -3335,7 +3407,7 @@ function TrainingExecution() {
                     ? handleQuickFinishTraining
                     : handleFinishTraining
               }
-              loading={completing}
+                                  loading={completing}
               disabled={!cloudExecutionReady || restartingTimedOut}
             >
               {canLateCompleteTimedOut
@@ -3364,7 +3436,7 @@ function TrainingExecution() {
                 <Button
                   className="cancel-training-btn"
                   loading={cancelling}
-                  disabled={completing || cancelling}
+                  disabled={completing || cancelling || uploadingVideo}
                   onClick={handleCancelTraining}
                 >
                   取消本次训练

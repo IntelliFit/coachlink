@@ -90,7 +90,7 @@ export type RootStackParamList = {
   Privacy: undefined
   PlatformAgreement: undefined
   ProtectionOfConsumer: undefined
-  TrainingExecution: { instanceId?: string; dayIndex?: number; readOnly?: boolean; impromptuId?: string } | undefined
+  TrainingExecution: { instanceId?: string; dayIndex?: number; readOnly?: boolean; intent?: 'execute' | 'preview' | 'review'; impromptuId?: string } | undefined
   TrainingShare: { executionId?: string } | undefined
   ImpromptuTraining: undefined
   CoachProfile: { id?: string } | undefined

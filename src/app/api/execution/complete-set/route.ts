@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isTimedTrainingSet, trainingSetMeasurementPatch } from '@coachlink/core/src/trainingSetMetrics';
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
             actionId,
             actualWeight,
             actualReps,
+            actualDuration,
             rpe,
             notes,
             is_pr,
@@ -146,14 +148,19 @@ export async function POST(request: NextRequest) {
         // 更新组数据 - 包含is_pr, has_video, video_url, and e1RM info
         const nowIso = new Date().toISOString();
         const originalSet = actionExecutions[actionIndex].sets[setIndex];
+        const timed = isTimedTrainingSet(originalSet, actionExecutions[actionIndex]);
+        const measurements = trainingSetMeasurementPatch(originalSet, { actualWeight, actualReps, actualDuration }, actionExecutions[actionIndex]);
+        if (measurements.error) {
+            return NextResponse.json({ success: false, message: measurements.error, data: null }, { status: 400 });
+        }
         const measurementsChanged =
             (actualWeight !== undefined && actualWeight !== originalSet.actual_weight) ||
-            (actualReps !== undefined && actualReps !== originalSet.actual_reps);
+            (actualReps !== undefined && actualReps !== originalSet.actual_reps) ||
+            (actualDuration !== undefined && actualDuration !== originalSet.actual_duration);
         actionExecutions[actionIndex].sets[setIndex] = {
             ...originalSet,
             status: "completed",
-            ...(actualWeight !== undefined ? { actual_weight: actualWeight } : {}),
-            ...(actualReps !== undefined ? { actual_reps: actualReps } : {}),
+            ...measurements.patch,
             ...(rpe !== undefined ? { rpe } : {}),
             ...(notes !== undefined ? { notes } : {}),
             ...(is_pr !== undefined ? { is_pr } : {}),
@@ -213,7 +220,7 @@ export async function POST(request: NextRequest) {
 
         // PR side effects must follow a successful save, never a rejected stale write.
         let autoE1RMResult: { isPR: boolean; e1rm: number; previousPR?: number } | null = null;
-        if (actualWeight !== undefined && actualReps && actionId) {
+        if (!timed && actualWeight !== undefined && actualWeight !== null && actualReps && actionId) {
             try {
                 const { data: instanceRow } = await supabase
                     .from("coach_plan_instances")

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import supabase from "@/lib/supabaseClient";
 import { getAuthUser } from "@/lib/auth";
 import type { ApiData } from "@/types/api";
@@ -65,6 +66,7 @@ function collectExecutionHistoryPoints(params: {
                 : "";
 
             ae.sets.forEach((set: any) => {
+                if (isTimedTrainingSet(set, ae)) return;
                 if (set.status !== "completed" && !set.actual_weight) {
                     return;
                 }
@@ -193,7 +195,7 @@ export async function POST(request: NextRequest) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data } = await (supabase as any)
                 .from("coach_actions")
-                .select('name, "includesBodyWeight"')
+                .select('name, attrs, "includesBodyWeight"')
                 .eq("id", actionId)
                 .maybeSingle();
             coachActionData = data || null;
@@ -201,7 +203,7 @@ export async function POST(request: NextRequest) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data: studentData } = await (supabase as any)
                 .from("student_actions")
-                .select('name, "includesBodyWeight"')
+                .select('name, attrs, "includesBodyWeight"')
                 .eq("id", actionId)
                 .eq("user_id", userId)
                 .maybeSingle();
@@ -212,7 +214,7 @@ export async function POST(request: NextRequest) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data } = await (supabase as any)
                 .from("coach_actions")
-                .select('name, "includesBodyWeight"')
+                .select('name, attrs, "includesBodyWeight"')
                 .eq("name", requestedActionName)
                 .limit(1)
                 .maybeSingle();
@@ -223,7 +225,7 @@ export async function POST(request: NextRequest) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data } = await (supabase as any)
                 .from("student_actions")
-                .select('name, "includesBodyWeight"')
+                .select('name, attrs, "includesBodyWeight"')
                 .eq("name", requestedActionName)
                 .eq("user_id", userId)
                 .limit(1)
@@ -232,6 +234,9 @@ export async function POST(request: NextRequest) {
         }
 
         const actionData = coachActionData || studentActionData;
+        if (isTimedTrainingSet({}, actionData)) {
+            return NextResponse.json<ApiData<GetE1RMHistoryResponseDto>>({ success: true, message: '静态动作按时长记录，不计算1RM', data: { history: [] } });
+        }
         let actionName = actionData?.name || requestedActionName;
         // If we still don't have a name, we can't find it in JSON or Questionnaire
         if (!actionName) {

@@ -1,4 +1,5 @@
 'use client';
+import { trainingEntry } from '@coachlink/core/src/trainingAccess';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
@@ -287,8 +288,10 @@ const TodayTrainingPage: React.FC = () => {
     const openTrainingExecution = (targetDayIndex: number, suffix = '') => {
         if (!instance?.id) return;
 
-        const nextUrl = `/training-execution/${instance.id}?dayIndex=${targetDayIndex}${suffix}`;
-        if (!hasReadExecutionPlanNotice({
+        const entry = trainingEntry({ trainingDays, progressDayIndex, targetDayIndex, executionsByDayIndex,
+            execution: executionsByDayIndex?.[targetDayIndex] });
+        const nextUrl = `/training-execution/${instance.id}?dayIndex=${targetDayIndex}&intent=${entry.intent}${suffix}`;
+        if (entry.intent === 'execute' && !hasReadExecutionPlanNotice({
             instanceId: instance.id,
             userId: session?.user?.id,
         })) {
@@ -1758,6 +1761,7 @@ const TodayTrainingPage: React.FC = () => {
                             {selectedDay && selectedDay.type === 'training' ? (
                                 <>
                                     <TodayTrainingCard
+                                        trainingDays={trainingDays} progressDayIndex={progressDayIndex} executionsByDayIndex={executionsByDayIndex}
                                         day={selectedDay}
                                         actions={actions}
                                         instanceId={instance.id}
@@ -1818,6 +1822,7 @@ const TodayTrainingPage: React.FC = () => {
                                     <RestDayCard dayIndex={selectedDayIndex} />
                                     <div className="mt-4">
                                         <TodayTrainingCard
+                                            trainingDays={trainingDays} progressDayIndex={progressDayIndex} executionsByDayIndex={executionsByDayIndex}
                                             day={selectedDay}
                                             actions={actions}
                                             instanceId={instance.id}

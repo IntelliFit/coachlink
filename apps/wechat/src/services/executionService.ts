@@ -21,6 +21,8 @@ interface PRRecord {
 const SET_VIDEO_CHUNK_SIZE_BYTES = 768 * 1024
 
 interface UploadSetVideoOptions {
+  isImpromptu?: boolean
+  actionIndex?: number
   fileSize?: number
   fileName?: string
   contentType?: string
@@ -206,6 +208,8 @@ class ExecutionService {
         fileName,
         contentType,
         totalSize: fileSize,
+        executionType: options?.isImpromptu ? 'impromptu' : 'plan',
+        actionIndex: options?.actionIndex,
         totalChunks
       }
     )
@@ -222,10 +226,13 @@ class ExecutionService {
     const res = await request({
       url: `${this.baseUrl}/start`,
       method: 'POST',
-      data: { instanceId, dayIndex, restartTimedOut: !!options?.restartTimedOut }
+      data: { instanceId, dayIndex, restartTimedOut: !!options?.restartTimedOut },
+      showErrorToast: false
     })
     if (res.success && res.data) return res.data
-    return null
+    throw Object.assign(new Error(res.message || '开始训练失败，请重试'), {
+      code: (res as any).code || 'EXECUTION_START_FAILED', data: res.data
+    })
   }
 
   /**
@@ -242,6 +249,7 @@ class ExecutionService {
     data: {
       actualWeight?: number | null
       actualReps?: number | null
+      actualDuration?: number | null
       rpe?: number | null
       notes?: string
       videoUrl?: string
@@ -259,8 +267,9 @@ class ExecutionService {
         setIndex,
         actualWeight: data.actualWeight,
         actualReps: data.actualReps,
+        actualDuration: data.actualDuration,
         rpe: data.rpe,
-        notes: data.notes || undefined,
+        notes: data.notes,
         videoUrl: data.videoUrl || undefined,
         isPR: data.isPR,
         is_pr: data.isPR,
@@ -506,12 +515,13 @@ class ExecutionService {
     executionId: string,
     actionId: string,
     setNumber: number,
-    videoUrl: string
+    videoUrl: string,
+    options?: { isImpromptu?: boolean; actionIndex?: number }
   ): Promise<{ video_url?: string } | null> {
     const res = await request({
-      url: `${this.baseUrl}/add-set-video-link`,
+      url: `${options?.isImpromptu ? '/api/impromptu' : this.baseUrl}/add-set-video-link`,
       method: 'POST',
-      data: { executionId, actionId, setNumber, videoUrl }
+      data: { executionId, actionId, setNumber, videoUrl, actionIndex: options?.actionIndex }
     })
     if (res.success && res.data) return res.data
     return null

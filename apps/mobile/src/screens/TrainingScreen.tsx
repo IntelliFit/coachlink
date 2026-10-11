@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { trainingEntry } from '@coachlink/core/src/trainingAccess'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import { useFocusEffect } from '@react-navigation/native'
 import {
@@ -69,11 +70,9 @@ function dayStatusLabel(block: TodayTrainingPlanBlock, day: any) {
   return '待确认'
 }
 
-function isReadOnlyDay(block: TodayTrainingPlanBlock, dayIndex: number) {
-  const status = executionStatus(block, dayIndex)
-  if (status === 'in_progress') return false
-  if (status === 'completed' || status === 'abandoned') return true
-  return dayIndex > block.recommendedDayIndex
+function entryForDay(block: TodayTrainingPlanBlock, dayIndex: number) {
+  return trainingEntry({ trainingDays: block.instance?.training_days || [], progressDayIndex: block.recommendedDayIndex,
+    targetDayIndex: dayIndex, executionsByDayIndex: block.executionsByDayIndex, execution: block.executionsByDayIndex?.[dayIndex] })
 }
 
 export function TrainingScreen({ navigation }: Props) {
@@ -303,7 +302,7 @@ export function TrainingScreen({ navigation }: Props) {
     go('TrainingExecution', {
       instanceId: String(instance.id),
       dayIndex,
-      readOnly: isReadOnlyDay(activePlan, dayIndex),
+      intent: entryForDay(activePlan, dayIndex).intent,
     })
   }
 
@@ -336,14 +335,7 @@ export function TrainingScreen({ navigation }: Props) {
 
   const selectedStatus = selectedDay ? dayStatusLabel(activePlan, selectedDay) : ''
   const selectedExecutionStatus = executionStatus(activePlan, selectedDayIndex)
-  const primaryLabel =
-    selectedExecutionStatus === 'in_progress'
-      ? '继续训练'
-      : isReadOnlyDay(activePlan, selectedDayIndex)
-        ? '查看训练详情'
-        : activePlan.missingDays.includes(selectedDayIndex)
-          ? '开始补练'
-          : '开始今日训练'
+  const primaryLabel = entryForDay(activePlan, selectedDayIndex).label
 
   return (
     <Page>

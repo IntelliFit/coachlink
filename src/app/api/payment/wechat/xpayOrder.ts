@@ -1,6 +1,7 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { getWechatXPayConfig } from "@/lib/wechatXPay";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
+import { fulfillXPayAdminTrial } from '@/lib/wechatXPayAdminTrial';
 
 function asObject(value: unknown): Record<string, any> {
     return value && typeof value === "object" && !Array.isArray(value)
@@ -50,6 +51,10 @@ export async function fulfillPaidXPayOrder(order: Record<string, any>) {
     }
     if (order.order_type === "student_membership") {
         const orderData = asObject(order.order_data);
+        if (orderData.xpay_admin_trial === true) {
+            await fulfillXPayAdminTrial(order);
+            return;
+        }
         await fulfillStudentMembershipOrderOnPaid({
             relatedOrderId: String(orderData.related_order_id || ""),
             productKey: String(orderData.product_key || ""),

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getTrainingSetVolume, isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import supabase from "@/lib/supabaseClient";
 import { getApiUserId } from "@/lib/getApiUserId";
-import type { ActivityResponseDto } from "../../friends/entity";
+import type { ActivityResponseDto } from "../../../friends/entity";
 import { differenceInMinutes } from "date-fns";
 
 /**
@@ -115,10 +116,10 @@ export async function GET(request: NextRequest) {
                             ) {
                                 const weight = set.actual_weight || 0;
                                 const reps = set.actual_reps || 0;
-                                totalVolume += weight * reps;
+                                totalVolume += getTrainingSetVolume(set, action);
 
                                 // 找最大重量的组作为亮点
-                                if (weight > maxWeight && reps > 0) {
+                                if (!isTimedTrainingSet(set, action) && weight > maxWeight && reps > 0) {
                                     maxWeight = weight;
                                     highlight = {
                                         actionName: action.action_name || action.name || "动作",

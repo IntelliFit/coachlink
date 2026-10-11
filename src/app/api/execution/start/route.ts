@@ -1,4 +1,5 @@
 import { buildPlanDayFacts } from '@/lib/planDayFacts';
+import { canStartPlanDay, normalizePlanDays, selectPlanAttempt } from '@coachlink/core/src/trainingAccess';
 import { NextRequest, NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
@@ -18,33 +19,10 @@ import { normalizePlannedRestSeconds } from "@/lib/restTime";
 import {
     deriveEffectiveStartExecutionDay,
     deriveStrictSequentialProgressDay,
+    dayHasRestTasks,
 } from "@/lib/planProgress";
 import { toBeijingDateKey } from "@/lib/beijingTime";
 import { expireAndActivatePendingPlanRevisions } from "@/lib/planExecutionLifecycle";
-
-function canManuallyAdvanceAcrossRestDays(params: {
-    planDays: any[];
-    recommendedDayIndex: number;
-    requestedDayIndex: number;
-}) {
-    const { planDays, recommendedDayIndex, requestedDayIndex } = params;
-    if (requestedDayIndex <= recommendedDayIndex) return false;
-
-    const remainingDays = [...(planDays || [])]
-        .filter((day) => Number(day?.dayIndex || 0) >= recommendedDayIndex)
-        .sort((left, right) => Number(left?.dayIndex || 0) - Number(right?.dayIndex || 0));
-    const firstTrainingDay = remainingDays.find(
-        (day) => String(day?.type || "training").toLowerCase() === "training",
-    );
-    if (Number(firstTrainingDay?.dayIndex || 0) !== requestedDayIndex) return false;
-
-    return remainingDays
-        .filter((day) => {
-            const index = Number(day?.dayIndex || 0);
-            return index >= recommendedDayIndex && index < requestedDayIndex;
-        })
-        .every((day) => String(day?.type || "training").toLowerCase() !== "training");
-}
 
 function getSetPrescriptions(actionSet: any): any[] {
     const params = actionSet?.params || {};
@@ -139,21 +117,12 @@ export async function POST(request: NextRequest) {
         const body: StartExecutionDto = await request.json();
         const { instanceId, dayIndex, restartTimedOut = false } = body;
 
-        if (!instanceId || !dayIndex) {
+        if (!instanceId || !Number.isInteger(dayIndex) || dayIndex <= 0) {
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
                 success: false,
                 message: "缺少必填参数",
                 data: null,
             }, { status: 400 });
-        }
-
-        const lifecycle = await expireAndActivatePendingPlanRevisions({ instanceId });
-        if (lifecycle.activations.some((activation) => activation.activated)) {
-            return NextResponse.json({
-                success: false,
-                code: "PLAN_REVISION_ACTIVATED",
-                message: "教练更新的计划已生效，请刷新后重新开始训练",
-            }, { status: 409 });
         }
 
         const accessDecision = await validateExecutionSubscriptionAccess({
@@ -164,15 +133,22 @@ export async function POST(request: NextRequest) {
         if (!accessDecision.allowed) {
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
                 success: false,
+                code: accessDecision.reason || 'PLAN_ACCESS_DENIED',
                 message: accessDecision.message || "无权访问此计划",
                 data: null,
             }, { status: accessDecision.status });
         }
 
+        const lifecycle = await expireAndActivatePendingPlanRevisions({ instanceId });
+        if (lifecycle.activations.some((activation) => activation.activated)) {
+            return NextResponse.json({ success: false, code: 'PLAN_REVISION_ACTIVATED',
+                message: '教练更新的计划已生效，请刷新后重新开始训练' }, { status: 409 });
+        }
+
         // 3. Read an existing snapshot, but do not return it before validating
         // that an in-progress execution still belongs to the strict current
         // sequence day. Completed snapshots remain reviewable.
-        const { data: existingExecution, error: existingExecutionError } = await serviceRoleSupabase
+        const { data: dayAttempts, error: existingExecutionError } = await serviceRoleSupabase
             .from("plan_instance_executions")
             .select("*")
             .eq("instance_id", instanceId)
@@ -180,9 +156,7 @@ export async function POST(request: NextRequest) {
             .eq("student_id", userId)
             // .gte("started_at", new Date().toISOString().split("T")[0]) // 移除此限制，以便可以查看过去的记录
             .neq("status", "abandoned")
-            .order("started_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .order("started_at", { ascending: false });
         if (existingExecutionError) {
             console.error("Error checking existing execution:", existingExecutionError);
             return NextResponse.json({
@@ -190,6 +164,7 @@ export async function POST(request: NextRequest) {
                 message: "检查训练记录失败",
             }, { status: 500 });
         }
+        const existingExecution = selectPlanAttempt(dayAttempts || []);
         let recoverableTimedOutExecution: any = null;
         if (
             existingExecution &&
@@ -237,38 +212,15 @@ export async function POST(request: NextRequest) {
                 .eq("id", instance.coach_subscription_id)
                 .single();
 
-            console.log("Subscription check:", {
-                subscription_id: instance.coach_subscription_id,
-                subscription,
-                subError,
-                userId,
-            });
-
-            if (subscription && subscription.student_id === userId) {
-                subscriptionStartDate = subscription.start_date || null;
-                // 通过订阅验证
-            } else {
-                // 方式2: 如果没有找到订阅，检查是否是直接分配给学生的
-                const { data: directCheck } = await supabase
-                    .from("coach_subscriptions")
-                    .select("id")
-                    .eq("student_id", userId)
-                    .eq("status", "active")
-                    .limit(1)
-                    .maybeSingle();
-
-                if (!directCheck) {
-                    return NextResponse.json<ApiData<StartExecutionResponseDto>>({
-                        success: false,
-                        message: "无权访问此计划",
-                        data: null,
-                    }, { status: 403 });
-                }
-            }
+            if (subError) return NextResponse.json({ success: false,
+                message: '暂时无法核对订阅日期，请重试' }, { status: 503 });
+            if (!subscription || subscription.student_id !== userId) return NextResponse.json({
+                success: false, message: '无权访问此计划' }, { status: 403 });
+            subscriptionStartDate = subscription.start_date || null;
         }
 
         // 6. 找到对应的训练日
-        const trainingDays = instance.training_days as any[];
+        const trainingDays = normalizePlanDays(instance.training_days as any[]);
         const trainingDay = trainingDays.find((d) => Number(d?.dayIndex) === Number(dayIndex));
 
         if (!trainingDay) {
@@ -328,7 +280,7 @@ export async function POST(request: NextRequest) {
                 : [];
         const isEmptyRestDay =
             String(trainingDay?.type || "training").toLowerCase() !== "training" &&
-            actionSets.length === 0;
+            !dayHasRestTasks(trainingDay, executionsByDayIndex[dayIndex], {});
         if (isEmptyRestDay) {
             return NextResponse.json({
                 success: false,
@@ -337,13 +289,8 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
-        const isManualAdvanceAcrossRestDays = canManuallyAdvanceAcrossRestDays({
-            planDays: trainingDays,
-            recommendedDayIndex: Number(recommendedDayIndex),
-            requestedDayIndex: Number(dayIndex),
-        });
-
-        if (Number(dayIndex) !== Number(recommendedDayIndex) && !isManualAdvanceAcrossRestDays) {
+        if (!canStartPlanDay({ trainingDays, progressDayIndex: Number(recommendedDayIndex),
+            targetDayIndex: Number(dayIndex), executionsByDayIndex })) {
             return NextResponse.json({
                 success: false,
                 code: "TRAINING_DAY_NOT_CURRENT",
@@ -399,7 +346,7 @@ export async function POST(request: NextRequest) {
         if (actionIds.length > 0) {
             const { data: coachActionsData } = await supabase
                 .from("coach_actions")
-                .select('id, name, type, canonical_action_id, "includesBodyWeight"')
+                .select('id, name, type, attrs, canonical_action_id, "includesBodyWeight"')
                 .in("id", actionIds);
 
             if (coachActionsData) {
@@ -413,7 +360,7 @@ export async function POST(request: NextRequest) {
             if (remainingIds.length > 0) {
                 const { data: studentActionsData } = await supabase
                     .from("student_actions")
-                    .select('id, name, type, canonical_action_id, "includesBodyWeight"')
+                    .select('id, name, type, attrs, canonical_action_id, "includesBodyWeight"')
                     .in("id", remainingIds);
 
                 for (const action of studentActionsData || []) {
@@ -426,7 +373,7 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        const actionNames = Array.from(new Set(
+        const actionNames = Array.from(new Set<string>(
             actionSets
                 .map((a: any) => {
                     const actionId = a?.action_id || a?.actionId;
@@ -479,7 +426,9 @@ export async function POST(request: NextRequest) {
             // Keeping multiple strength-style sets here would make progress
             // impossible to finish because that endpoint marks one item.
             const setCount = isStrength ? sourceSetCount : 1;
-            const defaultReps = params?.["次数"] ?? actionSet.reps;
+            const duration = Number(params?.['持续时间']);
+            const timedDefault = Number.isFinite(duration) && duration > 0 && params?.['次数'] == null;
+            const defaultReps = params?.["次数"] ?? actionSet.reps ?? (timedDefault ? `${duration}秒` : null);
             const defaultIntensity = params?.["强度"] ?? actionSet.intensity;
             const prescriptionReps = setPrescriptions
                 .map((item) => String(item?.reps || "").trim())
@@ -507,10 +456,15 @@ export async function POST(request: NextRequest) {
                 const legacyRm = prescription ? null : (params["强度"] ?? defaultIntensity);
                 let load = prescription?.load ?? params?.load;
                 let plannedIntensity = rawIntensity || null;
-                const shouldRefreshExistingLoad = hasDynamicIntensityTarget({
+                const fixedLoadOverride = params?.fixedLoadOverride === true &&
+                    load !== null && load !== undefined && Number.isFinite(Number(load));
+                const shouldRefreshExistingLoad = fixedLoadOverride ? false : hasDynamicIntensityTarget({
                     intensityConfig,
                     legacyRm,
                 });
+                if (fixedLoadOverride && intensityConfig?.relativeIntensity?.type === 'rm') {
+                    plannedIntensity = `${intensityConfig.relativeIntensity.value}RM`;
+                }
 
                 // RM/% targets are recomputed per set. RPE and other text stay
                 // descriptive and are never coerced into a fake kg/RM value.
@@ -541,11 +495,11 @@ export async function POST(request: NextRequest) {
                         ? String(reps)
                         : null,
                     planned_weight: load !== null && load !== undefined && Number.isFinite(Number(load))
-                        ? formatKgForGym(Number(load))
+                        ? fixedLoadOverride ? `${Number(load)}kg` : formatKgForGym(Number(load))
                         : null,
                     planned_intensity: plannedIntensity,
-                    planned_target_type: prescription?.targetType ?? prescription?.target_type ?? null,
-                    planned_target_unit: prescription?.targetUnit ?? prescription?.target_unit ?? null,
+                    planned_target_type: prescription?.targetType ?? prescription?.target_type ?? (timedDefault ? 'time' : null),
+                    planned_target_unit: prescription?.targetUnit ?? prescription?.target_unit ?? (timedDefault ? 's' : null),
                     planned_rest_seconds: restSeconds,
                     has_video: false,
                     is_pr: false,
@@ -560,6 +514,7 @@ export async function POST(request: NextRequest) {
                 item_type: itemType,
                 planned_rounds: isStrength ? undefined : sourceSetCount,
                 source_action_index: idx,
+                attrs: actionsMap[actionId]?.attrs || null,
                 sets: executionSets,
                 total_sets: executionSets.length,
                 completed_sets: 0,

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getTrainingSetVolume } from '@coachlink/core/src/trainingSetMetrics';
 import supabase from "@/lib/supabaseClient";
 import { getApiUserId } from "@/lib/getApiUserId";
-import type { FriendRecordsResponseDto } from "../../../friends/entity";
+import type { FriendRecordsResponseDto } from "../../../../friends/entity";
 import { differenceInMinutes } from "date-fns";
 
 /**
@@ -96,8 +97,7 @@ export async function GET(
                             if (
                                 set.status === "completed" || set.completed_at
                             ) {
-                                totalVolume += (set.actual_weight || 0) *
-                                    (set.actual_reps || 0);
+                                totalVolume += getTrainingSetVolume(set, action);
                             }
                         });
                     }

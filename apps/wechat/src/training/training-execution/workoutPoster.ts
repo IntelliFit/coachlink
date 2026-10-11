@@ -19,6 +19,7 @@ export interface WorkoutPosterSetRow {
   setNumber: number
   weightText: string
   repsText: string
+  recordText?: string
   isPr: boolean
 }
 
@@ -245,7 +246,7 @@ function drawSetChip(
   ctx.fillStyle = INK
   ctx.font = '18px sans-serif'
   ctx.textAlign = 'left'
-  const recordText = fitText(ctx, `${item.weightText} × ${item.repsText}`, 86)
+  const recordText = fitText(ctx, item.recordText || `${item.weightText} × ${item.repsText}`, 86)
   ctx.fillText(recordText, x + 42, y + height / 2 + 1)
 
   if (item.isPr) {

@@ -1,7 +1,8 @@
 import supabase from "@/lib/supabaseClient";
+import { getTrainingSetVolume, isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import { differenceInMinutes, endOfMonth, format, startOfMonth } from "date-fns";
 import type { ApiData } from "@/types/api";
-import type { ShareInfoResponseDto } from "./entity";
+import type { ShareInfoResponseDto } from "./share-info/entity";
 
 const SHARE_SELECT_FIELDS = `
     id,
@@ -62,11 +63,11 @@ function summarizeActions(actions: any[]) {
 
                 const weight = Number(set?.actual_weight) || 0;
                 const reps = Number(set?.actual_reps) || 0;
-                const volume = weight * reps;
+                const volume = getTrainingSetVolume(set, action);
                 actionVolume += volume;
                 totalVolume += volume;
 
-                if (set?.is_pr) {
+                if (set?.is_pr && !isTimedTrainingSet(set, action)) {
                     prRecords.push({
                         exerciseName: action?.action_name || action?.name || "未命名动作",
                         weight,
@@ -170,7 +171,7 @@ export async function buildShareInfo(
             data: {
                 executionId: execution.id,
                 shareToken: execution.share_token || execution.id,
-                dayIndex: execution.day_index || execution.dayIndex || 0,
+                dayIndex: execution.day_index || 0,
                 planName,
                 completedAt: execution.completed_at,
                 totalVolume,

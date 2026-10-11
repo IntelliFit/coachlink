@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import * as apiTrace from "@/app/api/middleware/api-trace";
 import { getToken } from "next-auth/jwt";
 import { verifyToken } from "./lib/jwt";
+import { isDebugSensitivePath, isLocalDebugRequest, LOCAL_DEBUG_TOKEN_PREFIX } from './lib/localDebugLogin';
 
 function getSupabaseRestConfig() {
     const supabaseUrl =
@@ -102,6 +103,8 @@ const PUBLIC_PATHS = new Set([
     "/api/payment/alipay/query",
     "/api/payment/alipay/guest/create",
     "/api/payment/wechat/notify",
+    // WeChat authenticates this callback with its message signature in the route.
+    "/api/payment/wechat/xpay/notify",
     "/api/og/streetlifting-location",
     "/api/miniapp/qrcode/streetlifting-location",
     "/api/streetlifting-index/stats",
@@ -160,6 +163,22 @@ function handleMiddleware(request: NextRequest) {
 }
 
 export async function proxy(request: NextRequest) {
+    if (process.env.NODE_ENV === 'development' && process.env.COACHLINK_LOCAL_DEBUG_LOGIN === '1' && isDebugSensitivePath(request.nextUrl.pathname)) {
+        return NextResponse.json({ success: false, message: '本地调试后端禁止支付、账户绑定和管理操作' }, { status: 403 });
+    }
+    const debugToken = request.headers.get('authorization')?.slice(7);
+    if (request.nextUrl.pathname === '/api/miniapp/local-debug-login') return NextResponse.next();
+    if (request.headers.get('authorization')?.startsWith(`Bearer ${LOCAL_DEBUG_TOKEN_PREFIX}`)) {
+        if (!isLocalDebugRequest(request) || !debugToken || !verifyToken(debugToken)) {
+            return NextResponse.json({ success: false, message: '本地模拟登录已失效，请重新配对' }, { status: 401 });
+        }
+        if (isDebugSensitivePath(request.nextUrl.pathname)) {
+            return NextResponse.json({ success: false, message: '本地模拟登录不允许支付、账户绑定或管理操作' }, { status: 403 });
+        }
+        // No analytics writes for impersonated debugging; route-level ownership
+        // and subscription checks still run normally.
+        return NextResponse.next();
+    }
     handleMiddleware(request);
     const { pathname, origin } = request.nextUrl;
 

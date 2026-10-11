@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CoachLink · 动作图片审核库</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif; color: #293139; background: #f5f3ef; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; border: 1px solid #ddd7cf; background: #fff; color: #293139; border-radius: 8px; min-height: 40px; padding: 8px 16px; }
+    button:hover { border-color: #CF6D4E; }
+    button:active { opacity: .8; }
+    button:disabled { cursor: wait; opacity: .5; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #CF6D4E; outline-offset: 2px; }
+    .primary, .filter.active { background: #CF6D4E; border-color: #CF6D4E; color: white; }
+    header { padding: 24px 32px 16px; background: #fff; border-bottom: 1px solid #e4ded6; }
+    .heading { display: flex; gap: 24px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    h1 { font-size: 28px; margin: 0; }
+    .intro { margin: 8px 0 16px; color: #72777b; line-height: 1.6; }
+    .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .search { min-height: 48px; flex: 1; min-width: 240px; border: 1px solid #ddd7cf; border-radius: 8px; padding: 8px 16px; background: #faf9f6; }
+    select { height: 48px; padding: 8px 16px; border-radius: 8px; border: 1px solid #ddd7cf; background: #fff; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+    .meta { color: #72777b; font-size: 14px; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    main { padding: 0 32px 32px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 24px; }
+    .card { background: #fff; border: 1px solid #e4ded6; border-radius: 16px; overflow: hidden; }
+    .card.rejected { border: 2px solid #CF6D4E; }
+    .card.approved { border-color: #80a992; }
+    .card.retired { background: #faf9f6; }
+    .card.resume { outline: 3px solid #CF6D4E; outline-offset: 4px; }
+    .load-property { padding: 8px; margin: 8px 0 16px; border-radius: 8px; background: #edf6ef; color: #33724e; font-size: 13px; }
+    .image-button { width: 100%; height: 320px; padding: 16px; border: 0; border-radius: 0; display: block; background: #fff; position: relative; }
+    .image-button img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .image-button span { position: absolute; right: 16px; bottom: 8px; color: #72777b; font-size: 12px; background: #fff; padding: 8px; border-radius: 8px; }
+    .content { padding: 16px; border-top: 1px solid #eee9e2; }
+    .title-row { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
+    h2 { font-size: 20px; margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+    .badge { font-size: 12px; border-radius: 8px; padding: 8px; white-space: nowrap; color: #72777b; background: #f3f3f1; }
+    .rejected .badge { color: #ae5034; background: #fcece5; }
+    .approved .badge { color: #33724e; background: #edf6ef; }
+    .category { font-size: 13px; color: #72777b; margin: 8px 0 16px; }
+    .actions { display: flex; gap: 8px; }
+    .actions button { flex: 1; }
+    .undo { font-size: 13px; min-height: 32px; padding: 8px; }
+    .note { margin-top: 16px; }
+    .note label { font-size: 13px; color: #72777b; display: block; margin-bottom: 8px; }
+    textarea { resize: vertical; min-height: 80px; width: 100%; padding: 8px; border: 1px solid #ddd7cf; border-radius: 8px; display: block; }
+    .note-bottom { margin-top: 8px; display: flex; gap: 8px; justify-content: space-between; align-items: center; font-size: 12px; color: #72777b; }
+    .placeholder { height: 320px; display: grid; place-content: center; text-align: center; gap: 8px; padding: 32px; color: #72777b; background: #faf9f6; }
+    .empty { text-align: center; padding: 64px 24px; color: #72777b; }
+    .pagination { display: flex; gap: 16px; align-items: center; justify-content: center; padding: 32px 0 0; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); background: #293139; color: #fff; padding: 16px 24px; border-radius: 8px; z-index: 5; box-shadow: 0 8px 24px #0002; }
+    .error { color: #a1361e; background: #fcece5; padding: 16px; border-radius: 8px; }
+    dialog { border: 0; border-radius: 16px; padding: 24px; width: calc(100vw - 64px); max-width: 1400px; max-height: calc(100vh - 64px); }
+    dialog::backdrop { background: #0009; }
+    .dialog-header { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .dialog-image { display: block; width: 100%; height: 64vh; object-fit: contain; }
+    .dialog-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+    @media (max-width: 640px) { header { padding: 16px; } h1 { font-size: 24px; } main { padding: 0 16px 24px; } .meta { padding: 16px; } .grid { grid-template-columns: 1fr; gap: 16px; } .image-button, .placeholder { height: 280px; } dialog { width: calc(100vw - 32px); padding: 16px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="heading"><h1>动作图片审核库</h1><div class="tools"><button id="resume" class="primary" hidden>继续检查</button><button id="refresh">刷新图片库</button><button id="export">导出不合格清单</button></div></div>
+    <p class="intro">逐张检查动作。点“不合格”加入返工清单，备注可选；审核结果自动保存在本机。点图片可以放大。原审核顺序和页码固定，已删除或合并的位置保留处理记录。</p>
+    <div class="tools"><input id="search" class="search" type="search" placeholder="搜索动作名称…" aria-label="搜索动作名称"><select id="category" aria-label="动作分类"><option value="">全部分类</option><option>街健</option><option>力量</option><option>有氧</option></select></div>
+    <nav id="filters" class="filters" aria-label="审核状态"></nav>
+  </header>
+  <div class="meta"><span id="summary">正在读取本地图片…</span><span id="save-state" role="status">本地审核</span></div>
+  <main><div id="error" hidden class="error" role="alert"></div><div id="grid" class="grid"></div><div id="pagination" class="pagination"></div></main>
+  <div id="toast" class="toast" hidden role="status"></div>
+  <dialog id="viewer"><div class="dialog-header"><h2 id="viewer-title"></h2><button id="close-viewer" aria-label="关闭放大图">关闭</button></div><img class="dialog-image" id="viewer-image" alt=""><div id="viewer-actions" class="dialog-actions"></div></dialog>
+  <script>
+    const $ = id => document.getElementById(id);
+    const labels = { pending: '待审核', approved: '合格', rejected: '不合格' };
+    const pageSize = 24;
+    let actions = [], filter = 'all', page = 1, busy = false, toastTimer, viewedId, resumeId, initialLoad = true;
+    const drafts = new Map();
+    const dirty = new Set();
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+    function toast(text) { $('toast').textContent = text; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 3000); }
+    function showError(message) { $('error').textContent = message; $('error').hidden = !message; }
+    async function load() {
+      try {
+        showError('');
+        const response = await fetch('/api/catalog', { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+        actions = result.actions;
+        resumeId = result.resumePublicId;
+        $('resume').hidden = !resumeId;
+        $('resume').textContent = '从“' + (result.resumeName || '上次位置') + '”继续';
+        render();
+        if (initialLoad && new URLSearchParams(location.search).has('resume')) jumpToResume();
+        initialLoad = false;
+        $('save-state').textContent = '审核记录已从本机读取';
+      } catch (error) { showError(error.message); $('save-state').textContent = '读取失败'; }
+    }
+    async function save(row, status, note = drafts.get(row.publicId) ?? row.review.note ?? '') {
+      if (busy) return;
+      busy = true;
+      document.querySelectorAll('[data-save]').forEach(button => button.disabled = true);
+      $('refresh').disabled = true;
+      $('save-state').textContent = '正在保存到本机…';
+      try {
+        const response = await fetch('/api/review', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicId: row.publicId, imageSha: row.imageSha, status, note }) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+        row.review = result.review;
+        dirty.delete(row.publicId);
+        drafts.delete(row.publicId);
+        $('save-state').textContent = '已保存到本机';
+        toast(status === 'rejected' ? '已加入不合格返工清单' : status === 'approved' ? '已标记合格' : '已恢复待审核');
+        showError('');
+      } catch (error) { showError(error.message); $('save-state').textContent = '保存失败，请重试'; }
+      finally { busy = false; $('refresh').disabled = false; render(); if ($('viewer').open) renderViewer(); }
+    }
+    function saveButton(text, className, row, status, note) {
+      const button = element('button', className, text);
+      button.dataset.save = 'true'; button.disabled = busy;
+      button.onclick = () => save(row, status, note);
+      return button;
+    }
+    function reviewButtons(row) {
+      const box = element('div', 'actions');
+      box.append(saveButton('不合格', 'primary', row, 'rejected'), saveButton('合格', '', row, 'approved'));
+      if (row.review.status !== 'pending') box.append(saveButton('撤销', 'undo', row, 'pending'));
+      return box;
+    }
+    function renderCard(row) {
+      const card = element('article', 'card ' + (row.retired ? 'retired' : row.available ? row.review.status : 'hidden') + (row.publicId === resumeId ? ' resume' : ''));
+      card.id = 'action-' + row.publicId;
+      if (row.available) {
+        const button = element('button', 'image-button');
+        button.setAttribute('aria-label', '放大：' + row.name);
+        const img = element('img'); img.src = row.imageSrc; img.alt = row.name; img.loading = 'lazy'; img.decoding = 'async';
+        img.onerror = () => { button.replaceChildren(element('span', '', '图片读取失败，请刷新图片库')); };
+        button.append(img, element('span', '', '点击放大'));
+        button.onclick = () => { viewedId = row.publicId; renderViewer(); $('viewer').showModal(); };
+        card.append(button);
+      } else card.append(element('div', 'placeholder', row.retired ? (row.mergedIntoName ? '已合并到“' + row.mergedIntoName + '”' : '已从公共动作库删除') : '暂时隐藏 · 暂无已核实图片'));
+      const content = element('div', 'content');
+      const title = element('div', 'title-row');
+      title.append(element('h2', '', row.name), element('span', 'badge', row.retired ? (row.mergedIntoName ? '已合并' : '已删除') : row.available ? labels[row.review.status] : '暂时隐藏'));
+      content.append(title, element('p', 'category', row.retired ? '保留原审核位置 · 不再属于公共动作库' : row.available ? `${row.category} · ${row.poseCount === 1 ? '单幅姿势' : row.poseCount + ' 个关键姿势'}` : '等待可靠姿势资料'));
+      if (row.itemSchema?.load?.adjustable && row.available) {
+        const presets = row.itemSchema.load.suggestedBodyweightPercent || [];
+        content.append(element('p', 'load-property', '可调负重：kg / 自身体重比例' + (presets.length ? ' · 可选 ' + presets.map(value => value + '%').join('、') : '') + '（外加负重）'));
+      }
+      if (row.available) {
+        content.append(reviewButtons(row));
+        if (row.review.status === 'rejected') {
+          const note = element('div', 'note');
+          const label = element('label', '', '哪里画错了？（可选）'); label.htmlFor = 'note-' + row.publicId;
+          const textarea = element('textarea'); textarea.id = label.htmlFor; textarea.maxLength = 2000;
+          textarea.placeholder = '例如：握法不对、身体角度不对、缺少动作端点…';
+          textarea.value = drafts.get(row.publicId) ?? row.review.note ?? '';
+          const hint = element('span', '', dirty.has(row.publicId) ? '备注未保存' : '审核状态已保存');
+          textarea.oninput = () => { drafts.set(row.publicId, textarea.value); dirty.add(row.publicId); hint.textContent = '备注未保存'; };
+          const bottom = element('div', 'note-bottom'); bottom.append(hint, saveButton('保存备注', '', row, 'rejected'));
+          note.append(label, textarea, bottom); content.append(note);
+        }
+      }
+      card.append(content); return card;
+    }
+    function renderViewer() {
+      const row = actions.find(item => item.publicId === viewedId); if (!row) return;
+      $('viewer-title').textContent = `${row.name} · ${labels[row.review.status]}`;
+      $('viewer-image').src = row.imageSrc; $('viewer-image').alt = row.name;
+      $('viewer-actions').replaceChildren(reviewButtons(row));
+    }
+    function render() {
+      const counts = { all: actions.filter(row => row.available || row.retired).length, pending: 0, approved: 0, rejected: 0, hidden: 0, retired: 0 };
+      for (const row of actions) counts[row.retired ? 'retired' : row.available ? row.review.status : 'hidden']++;
+      const nav = [];
+      for (const [key, name] of [['all', '原审核顺序'], ['pending', '待审核'], ['rejected', '不合格'], ['approved', '合格'], ['retired', '删除 / 合并'], ['hidden', '暂时隐藏']]) {
+        const button = element('button', 'filter' + (filter === key ? ' active' : ''), `${name} ${counts[key]}`);
+        button.setAttribute('aria-pressed', String(filter === key));
+        button.onclick = () => { filter = key; page = 1; render(); }; nav.push(button);
+      }
+      $('filters').replaceChildren(...nav);
+      const query = $('search').value.trim().toLocaleLowerCase();
+      const category = $('category').value;
+      const matching = actions.filter(row => (filter === 'all' ? row.available || row.retired : filter === 'retired' ? row.retired : filter === 'hidden' ? !row.available && !row.retired : row.available && row.review.status === filter)
+        && (!category || row.category === category) && row.name.toLocaleLowerCase().includes(query));
+      const pages = Math.max(1, Math.ceil(matching.length / pageSize)); page = Math.min(page, pages);
+      $('summary').textContent = `${actions.filter(row => row.available).length} 张动作图片 · 删除 / 合并 ${counts.retired} · 不合格 ${counts.rejected} · 当前筛选 ${matching.length} 项`;
+      const items = matching.slice((page - 1) * pageSize, page * pageSize);
+      $('grid').replaceChildren(...(items.length ? items.map(renderCard) : [element('div', 'empty', '没有符合条件的动作')]));
+      const previous = element('button', '', '上一页'); previous.disabled = page === 1;
+      const next = element('button', '', '下一页'); next.disabled = page === pages;
+      const go = step => { page += step; render(); window.scrollTo({ top: 0, behavior: 'instant' }); };
+      previous.onclick = () => go(-1); next.onclick = () => go(1);
+      $('pagination').replaceChildren(previous, element('span', '', `${page} / ${pages}`), next);
+    }
+    function jumpToResume() {
+      filter = 'all'; $('search').value = ''; $('category').value = '';
+      const index = actions.filter(row => row.available || row.retired).findIndex(row => row.publicId === resumeId);
+      if (index < 0) return;
+      page = Math.floor(index / pageSize) + 1; render();
+      requestAnimationFrame(() => $('action-' + resumeId)?.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    }
+    $('resume').onclick = jumpToResume;
+    $('search').oninput = $('category').onchange = () => { page = 1; render(); };
+    $('refresh').onclick = async () => { if (dirty.size && !confirm('还有未保存的备注。刷新会放弃这些备注，继续吗？')) return; drafts.clear(); dirty.clear(); await load(); };
+    $('export').onclick = () => window.location.assign('/api/rework-queue');
+    $('close-viewer').onclick = () => $('viewer').close();
+    $('viewer').onclick = event => { if (event.target === $('viewer')) $('viewer').close(); };
+    window.addEventListener('beforeunload', event => { if (busy || dirty.size) { event.preventDefault(); event.returnValue = ''; } });
+    load();
+  </script>
+</body>
+</html>

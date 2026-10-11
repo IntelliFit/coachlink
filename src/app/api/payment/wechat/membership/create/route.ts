@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { NextRequest, NextResponse } from "next/server";
 import type { ApiData } from "@/types/api";
@@ -13,6 +13,7 @@ import {
     type WechatXPayParams,
 } from "@/lib/wechatXPay";
 import { getMembershipXPayProduct } from "@/lib/wechatXPayProducts";
+import { XPAY_TRIAL_HEADER, requireXPayTrialAdmin, readXPayTrialState } from '@/lib/wechatXPayAdminTrial';
 
 export const runtime = "nodejs";
 
@@ -48,10 +49,11 @@ const TEST_PRICING_ENABLED =
     process.env.PAYMENT_TEST_PRICING === "true";
 
 export async function POST(request: NextRequest) {
-    const paused = rejectWechatPurchase(request, { wechatOnly: true });
-    if (paused) return paused;
     try {
-        const userId = await getApiUserId(request);
+        const adminTrial = request.headers.get(XPAY_TRIAL_HEADER) === '1';
+        const paused = rejectWechatPurchase(request, { wechatOnly: true });
+        if (paused && !adminTrial) return paused;
+        const userId = adminTrial ? await requireXPayTrialAdmin(request) : await getApiUserId(request);
         if (!userId) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "请先登录后再发起支付", data: null },
@@ -61,6 +63,13 @@ export async function POST(request: NextRequest) {
 
         const body = (await request.json()) as CreateMembershipWechatPaymentDto;
         const productKey = String(body.productKey || "").trim();
+        if (adminTrial && productKey !== 'ai_pack_basic') {
+            return NextResponse.json({ success: false, message: '首轮联调仅开放 AI 加油包' }, { status: 403 });
+        }
+        const trialState = adminTrial ? await readXPayTrialState(userId) : null;
+        if (trialState?.order && trialState.order.status !== 'pending') {
+            return NextResponse.json({ success: false, message: '已有联调订单，请先查询原订单；不要重复付款', data: { orderId: trialState.order.id } }, { status: 409 });
+        }
         const product = (TEST_PRICING_ENABLED ? TEST_PRODUCTS : REAL_PRODUCTS)[productKey];
         if (!product) {
             return NextResponse.json<ApiData<null>>(
@@ -99,6 +108,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        if (trialState?.order) {
+            const previous = trialState.order.order_data;
+            if (previous.xpay_env !== config.env || previous.xpay_openid !== session.openId || previous.xpay_goods_price !== amountFen) {
+                throw new Error('原联调订单与当前支付配置不一致');
+            }
+            const { params } = createWechatXPayParams({ sessionKey: session.sessionKey, productId: xpayProduct.productId,
+                goodsPrice: amountFen, outTradeNo: previous.xpay_out_trade_no, attach: `membership:${productKey}` });
+            return NextResponse.json({ success: true, data: { orderId: String(trialState.order.id),
+                outTradeNo: previous.xpay_out_trade_no, paymentProvider: 'wechat_xpay', amount: 2, paymentParams: params } });
+        }
+
         const membershipOrderTable = serviceRoleSupabase.from("student_membership_orders" as any);
         const { data: membershipOrder, error: membershipOrderError } = await membershipOrderTable
             .insert({
@@ -118,7 +138,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const outTradeNo = randomUUID().replaceAll("-", "");
+        const outTradeNo = adminTrial
+            ? createHash('sha256').update(`admin-trial-v1:${config.appId}:${userId}`).digest('hex').slice(0, 32)
+            : randomUUID().replaceAll("-", "");
         const orderData = {
             related_order_id: membershipOrder.id,
             product_key: productKey,
@@ -127,6 +149,7 @@ export async function POST(request: NextRequest) {
             xpay_goods_price: amountFen,
             xpay_openid: session.openId,
             xpay_env: config.env,
+            ...(adminTrial ? { xpay_admin_trial: true, xpay_trial_balance_before: trialState!.aiBalance } : {}),
         };
         const { data: payOrder, error: payOrderError } = await (serviceRoleSupabase.from("alipay_orders") as any)
             .insert({

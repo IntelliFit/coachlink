@@ -13,7 +13,8 @@ import {
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 import { fulfillContentPurchasePaid } from "@/app/api/payment/alipay/contentPurchaseFulfillment";
-import { queryWechatXPayOrder } from "@/lib/wechatXPay";
+import { queryWechatXPayOrder, notifyWechatXPayProvidedGoods } from "@/lib/wechatXPay";
+import { requireXPayTrialAdmin, readXPayTrialState } from '@/lib/wechatXPayAdminTrial';
 import {
     fulfillPaidXPayOrder,
     markXPayOrderPaid,
@@ -141,12 +142,16 @@ export async function POST(request: NextRequest) {
 
         if (String(order.payment_provider || "") === "wechat_xpay") {
             const orderData = (order.order_data || {}) as Record<string, any>;
+            if (orderData.xpay_admin_trial === true) await requireXPayTrialAdmin(request);
             if (paymentStatus === "pending") {
                 const xpayOrder = await queryWechatXPayOrder({
                     openId: String(orderData.xpay_openid || ""),
                     outTradeNo: String(orderData.xpay_out_trade_no || ""),
                 });
                 const xpayStatus = Number(xpayOrder?.status ?? 0);
+                if (xpayOrder?.order_id && xpayOrder.order_id !== orderData.xpay_out_trade_no) {
+                    throw new Error('微信查单返回的订单号不一致');
+                }
                 if ([2, 3, 4].includes(xpayStatus)) {
                     validateXPayOrderMatch(order as any, {
                         outTradeNo: String(orderData.xpay_out_trade_no || ""),
@@ -185,6 +190,23 @@ export async function POST(request: NextRequest) {
                 await fulfillPaidXPayOrder(order as any);
             }
 
+            if (orderData.xpay_admin_trial === true) {
+                let trialState = await readXPayTrialState(userId);
+                if (paymentStatus === 'success' && trialState.order?.order_data?.xpay_trial_granted_at) {
+                    if (!trialState.order.order_data.xpay_trial_delivery_confirmed_at) {
+                        await notifyWechatXPayProvidedGoods(String(orderData.xpay_out_trade_no));
+                        const { error } = await (serviceRoleSupabase.from('alipay_orders') as any).update({
+                            order_data: { ...trialState.order.order_data, xpay_trial_delivery_confirmed_at: new Date().toISOString() },
+                        }).eq('id', order.id).eq('status', 'paid');
+                        if (error) throw new Error('保存微信发货确认失败');
+                        trialState = await readXPayTrialState(userId);
+                    }
+                }
+                return NextResponse.json({ success: true, data: {
+                    status: paymentStatus, amount: fenToYuan(latestOrder.total_amount ?? 0), ...trialState,
+                    deliveryConfirmed: Boolean(trialState.order?.order_data?.xpay_trial_delivery_confirmed_at),
+                } });
+            }
             return NextResponse.json<ApiData<QueryWechatPaymentResponse>>({
                 success: true,
                 message: "虚拟支付状态",

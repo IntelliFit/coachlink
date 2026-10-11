@@ -962,7 +962,7 @@
   .compact-lightweight-list { margin-top: 24rpx; }
   .compact-training-row {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 16rpx;
     min-height: 112rpx;
     margin: 0 24rpx;
@@ -970,8 +970,14 @@
     box-sizing: border-box;
     border-bottom: 1rpx solid var(--border-color, #ebe8e3);
     &:last-child { border-bottom: 0; }
-    &:active { opacity: 0.72; }
   }
+  .compact-action-heading { display: flex; align-items: center; gap: 16rpx; width: 100%; }
+  .compact-action-heading .compact-task-link { flex-shrink: 0; }
+  .compact-action-heading .compact-training-count { margin-left: auto; font-size: 24rpx; }
+  .compact-prescription, .compact-set-prescription {
+    font-size: 26rpx; line-height: 1.6; color: var(--text-secondary, #706b65);
+  }
+  .compact-coach-note { font-size: 26rpx; line-height: 1.6; color: var(--text-primary, #302d29); white-space: pre-wrap; }
   .compact-training-name {
     flex: 1;
     min-width: 0;

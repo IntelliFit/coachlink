@@ -3,8 +3,11 @@ export interface CompleteImpromptuSetDto {
     actionIndex: number;
     setIndex: number;
     actualWeight?: number | null;
+    actualDuration?: number | null;
     actualReps?: number | null;
     notes?: string;
+    rpe?: number | null;
+    isPR?: boolean;
 }
 
 export interface CompleteImpromptuSetResponseDto {

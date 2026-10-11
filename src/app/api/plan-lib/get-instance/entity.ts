@@ -22,6 +22,7 @@ export interface GetInstanceResponseDto {
     completedDays?: number[];
     // spec v1 (self-consistent)
     recommendedDayIndex?: number;
+    entryDecisions?: Record<number, { intent: string; label: string }>;
     resolvedDays?: number[];
     missingDays?: number[];
     totalTrainingDays?: number;

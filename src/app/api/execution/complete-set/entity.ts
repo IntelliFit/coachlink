@@ -4,8 +4,9 @@ export interface CompleteSetDto {
     actionIndex: number;
     setIndex: number;
     actionId: string; // For video lookup
-    actualWeight?: number;
-    actualReps?: number;
+    actualWeight?: number | null;
+    actualReps?: number | null;
+    actualDuration?: number | null; // seconds for timed strength sets
     rpe?: number;
     notes?: string;
     is_pr?: boolean; // PR flag

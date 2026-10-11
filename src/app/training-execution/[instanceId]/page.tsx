@@ -1,5 +1,8 @@
 'use client';
+import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, formatRecordedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import RecordCompletionButton from '@/app/today-training/components/RecordCompletionButton';
+import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type TrainingIntent } from '@coachlink/core/src/trainingAccess';
+import { buildPlanExecutionPreview } from '@coachlink/core/src/planExecutionPreview';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -30,6 +33,7 @@ import {
 } from '@/lib/executionPlanNotice';
 import { isOneRMEligibleAction } from '@/lib/oneRmEligibility';
 import { normalizePlannedRestSeconds } from '@/lib/restTime';
+import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation';
 
 interface SetData {
     set_number: number;
@@ -38,6 +42,8 @@ interface SetData {
     planned_reps?: string;
     planned_weight?: string;
     actual_weight?: number;
+    planned_target_type?: string | null;
+    planned_target_unit?: string | null;
     actual_reps?: number;
     rpe?: number;
     notes?: string;
@@ -78,28 +84,14 @@ function ActionDetailPanel({
 
     return (
         <div className="rounded-xl border border-surface-200 bg-surface-50 overflow-hidden">
-            <button
-                type="button"
-                className="w-full flex items-center justify-between px-4 py-3 text-left gap-2"
-                onClick={() => setExpanded(v => !v)}
-            >
-                <span className="text-xs font-bold uppercase tracking-widest text-surface-500">
-                    动作要点
-                </span>
-                <div className="flex items-center gap-2 shrink-0">
-                    {demoVideoUrl && !expanded && (
-                        <button
-                            type="button"
-                            className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-lg border border-primary-200"
-                            onClick={(e) => { e.stopPropagation(); onOpenVideo(demoVideoUrl); }}
-                        >
-                            <Play className="w-3.5 h-3.5" />
-                            演示
-                        </button>
-                    )}
-                    <ChevronDown className={`w-4 h-4 text-surface-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-                </div>
-            </button>
+            <div className="flex items-center gap-2 px-4 py-3">
+                <button type="button" aria-expanded={expanded} className="flex flex-1 items-center justify-between text-left"
+                    onClick={() => setExpanded(v => !v)}>
+                    <span className="text-sm font-medium">动作讲解</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                </button>
+                {demoVideoUrl && <button type="button" className="text-sm text-[#CF6D4E]" onClick={() => onOpenVideo(demoVideoUrl)}>演示视频</button>}
+            </div>
 
             {expanded && (
                 <div className="px-4 pb-4 space-y-3 border-t border-surface-200">
@@ -149,6 +141,12 @@ function TrainingExecutionContent() {
 
     const [loading, setLoading] = useState(true);
     const [execution, setExecution] = useState<any>(null);
+    const [intent, setIntent] = useState<TrainingIntent>(() => resolveTrainingIntent(searchParams.get('intent'), searchParams.get('readOnly')));
+    const [startError, setStartError] = useState('');
+    const [canStartPreview, setCanStartPreview] = useState(false);
+    const startInFlight = useRef(false);
+    const capabilities = executionCapabilities(execution, isImpromptuMode ? 'execute' : intent, !loading && !startError);
+    const canEditRecords = capabilities.canRecord || capabilities.canCorrect;
     const [actions, setActions] = useState<Record<string, any>>({});
     const [planInstance, setPlanInstance] = useState<any>(null);
     const [planDescExpanded, setPlanDescExpanded] = useState(false);
@@ -157,9 +155,12 @@ function TrainingExecutionContent() {
     const [showOptionalFields, setShowOptionalFields] = useState(false);
     const [expandedSetKey, setExpandedSetKey] = useState<string | null>(null); // 用于已完成组“展开详情”
     const [completing, setCompleting] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+    const cancellationPendingRef = useRef(false);
     const [quickFinishLoading, setQuickFinishLoading] = useState(false);
     const [restTimer, setRestTimer] = useState(0);
     const [isResting, setIsResting] = useState(false);
+    const [restMinimized, setRestMinimized] = useState(false);
     const [sessionNotes, setSessionNotes] = useState('');
     const restEndAtRef = useRef<number | null>(null);
     const restTimerStorageKey = `coachlink:rest-timer:${session?.user?.id || 'anonymous'}:${isImpromptuMode ? `impromptu:${impromptuId || instanceId}` : `plan:${instanceId}`}:day:${dayIndex}`;
@@ -288,7 +289,7 @@ function TrainingExecutionContent() {
         let cancelled = false;
 
         const prepareExecution = async () => {
-            if (!isImpromptuMode && !hasReadExecutionPlanNotice({
+            if (!isImpromptuMode && intent === 'execute' && !hasReadExecutionPlanNotice({
                 instanceId,
                 userId: session.user.id,
             })) {
@@ -337,7 +338,12 @@ function TrainingExecutionContent() {
 
     const clearPersistedRestTimer = useCallback(() => {
         if (typeof window === 'undefined') return;
-        window.localStorage.removeItem(restTimerStorageKey);
+        try {
+            window.localStorage.removeItem(restTimerStorageKey);
+        } catch (error) {
+            // A browser cache failure must not turn a successful server mutation into a failure.
+            console.warn('[training-execution] clear rest timer cache failed:', error);
+        }
     }, [restTimerStorageKey]);
 
     const persistRestTimer = useCallback((endAt: number | null, executionId?: string | null) => {
@@ -420,7 +426,7 @@ function TrainingExecutionContent() {
     useEffect(() => {
         if (!execution?.id) return;
 
-        if (execution.status === 'completed' || execution.status === 'abandoned') {
+        if (!capabilities.canRecord) {
             restEndAtRef.current = null;
             setRestTimer(0);
             setIsResting(false);
@@ -444,7 +450,7 @@ function TrainingExecutionContent() {
         restEndAtRef.current = persistedTimer.endAt;
         setIsResting(true);
         syncRestTimer();
-    }, [clearPersistedRestTimer, execution?.id, execution?.status, readPersistedRestTimer, syncRestTimer]);
+    }, [clearPersistedRestTimer, execution?.id, capabilities.canRecord, readPersistedRestTimer, syncRestTimer]);
 
     // Rest timer effect
     useEffect(() => {
@@ -505,6 +511,11 @@ function TrainingExecutionContent() {
         
         const currentSet = currentAction.sets[currentSetIndex];
         if (currentSet && currentSet.status === 'pending') {
+            if (isTimedTrainingSet(currentSet, currentAction)) {
+                setWeight(null);
+                setReps(getActualDurationSeconds(currentSet) ?? getPlannedDurationSeconds(currentSet, currentAction));
+                return;
+            }
             // 解析 planned_weight (去掉 "kg" 后缀)
             const weightStr = String(currentSet.planned_weight || '');
             
@@ -540,6 +551,7 @@ function TrainingExecutionContent() {
     }, [expandedAction, currentSetIndex, execution]);
 
     const isWeightRequiredForSet = (setData: SetData) => {
+        if (isTimedTrainingSet(setData)) return false;
         // 如果计划里是 “xxkg”/数字重量，重量是必填；如果是 “RM/%” 这类强度描述，允许先不填重量（更贴合手机端快打卡）
         const planned = String(setData.planned_weight || '').toLowerCase();
         if (!planned) return true;
@@ -639,6 +651,7 @@ function TrainingExecutionContent() {
     const setKeyOf = (actionIndex: number, setIndex: number) => `${actionIndex}:${setIndex}`;
 
     const selectAction = (nextActionIndex: number) => {
+        if (uploading || completing || cancelling) return;
         if (nextActionIndex === -1) {
             setExpandedAction(-1);
             return;
@@ -667,13 +680,22 @@ function TrainingExecutionContent() {
         setExpandedAction(nextActionIndex);
     };
 
-    const startTraining = async () => {
+    const startTraining = async (requestedIntent?: TrainingIntent, restartTimedOut = false) => {
+        if (startInFlight.current) return;
+        const loadIntent = requestedIntent || intent;
+        if (requestedIntent) setIntent(requestedIntent);
+        if (!isImpromptuMode && loadIntent === 'execute' && !hasReadExecutionPlanNotice({ instanceId, userId: session?.user?.id })) {
+            setExecutionNoticeVisible(true);
+            return;
+        }
+        startInFlight.current = true;
         try {
             setLoading(true);
+            setStartError('');
 
             let res: any = null;
             if (isImpromptuMode && impromptuId) {
-                const impromptuExecution = await impromptuTrainingService.get({
+                const impromptuExecution = await impromptuTrainingService.getExecution({
                     id: impromptuId,
                 });
                 res = impromptuExecution
@@ -695,16 +717,20 @@ function TrainingExecutionContent() {
                     setPlanInstance(instanceRes.instance);
                 }
 
-                // Start or resume execution
-                res = await executionService.startExecution({
+                setCanStartPreview(canStartPlanDay({ trainingDays: instanceRes?.instance?.training_days || [],
+                    progressDayIndex: Number(instanceRes?.recommendedDayIndex || 1), targetDayIndex: dayIndex,
+                    executionsByDayIndex: instanceRes?.executionsByDayIndex }));
+                res = loadIntent === 'execute' ? await executionService.startExecution({
                     instanceId,
                     dayIndex,
-                });
+                    restartTimedOut,
+                }) : { success: true, data: instanceRes?.executionsByDayIndex?.[dayIndex] ||
+                    buildPlanExecutionPreview(instanceRes?.instance, instanceRes?.actions || {}, dayIndex) };
             }
 
             if (res.success && res.data) {
                 setExecution(res.data);
-                trackEvent('student_training_start', 'training', { 
+                if (loadIntent === 'execute' && res.data.status === 'in_progress') trackEvent('student_training_start', 'training', {
                     planId: (res.data as any).plan_id, 
                     executionId: (res.data as any).id,
                     instanceId 
@@ -713,7 +739,7 @@ function TrainingExecutionContent() {
                 // 超时提醒：只要该训练日存在 in_progress 且 started_at 距今超过阈值，就弹出提醒
                 try {
                     const exec = res.data as any;
-                    if (exec?.status === 'in_progress' && exec?.started_at) {
+                    if (isImpromptuMode && exec?.status === 'in_progress' && exec?.started_at) {
                         const startedAtMs = new Date(exec.started_at).getTime();
                         const nowMs = Date.now();
                         const hours = Math.floor((nowMs - startedAtMs) / (1000 * 60 * 60));
@@ -768,6 +794,7 @@ function TrainingExecutionContent() {
                     }
                 }
             } else {
+                setStartError(res.message || '无法开始训练，请重试');
                 showToast({
                     severity: 'error',
                     summary: '加载失败',
@@ -776,12 +803,14 @@ function TrainingExecutionContent() {
             }
         } catch (error) {
             console.error('Start training failed:', error);
+            setStartError(error instanceof Error ? error.message : '开始训练失败，请重试');
             showToast({
                 severity: 'error',
                 summary: '错误',
                 detail: '开始训练失败'
             });
         } finally {
+            startInFlight.current = false;
             setLoading(false);
         }
     };
@@ -863,13 +892,29 @@ function TrainingExecutionContent() {
         window.open(url, "_blank");
     };
 
+    const bindSetVideo = async (input: { executionId: string; actionId: string; setNumber: number; videoUrl: string }) => {
+        const actionIndex = expandedAction;
+        const result = isImpromptuMode
+            ? await impromptuTrainingService.addSetVideoLink({ ...input, actionIndex })
+            : await executionService.addSetVideoLink(input);
+        if (result?.video_url) {
+            setExecution((previous: any) => {
+                if (previous?.id !== input.executionId) return previous;
+                return { ...previous, action_executions: previous.action_executions.map((action: any, index: number) =>
+                    index !== actionIndex ? action : { ...action, sets: action.sets.map((set: any, setIndex: number) =>
+                        setIndex + 1 !== input.setNumber ? set : { ...set, video_url: result.video_url, has_video: true }) }) };
+            });
+        }
+        return result;
+    };
+
     // 选择文件后立即上传并绑定到当前组（避免“必须点完成才上传”的困惑）
     const handleSelectAndUploadVideo = async (
         file: File | null | undefined,
         actionId: string,
         setNumber: number,
     ) => {
-        if (!execution) return;
+        if (!execution || !canEditRecords) return;
         if (!file) return;
 
         // reset previous state for this set
@@ -895,7 +940,7 @@ function TrainingExecutionContent() {
                 throw new Error("视频上传失败，未返回视频URL");
             }
 
-            const bindRes = await executionService.addSetVideoLink({
+            const bindRes = await bindSetVideo({
                 executionId: execution.id,
                 actionId,
                 setNumber,
@@ -937,11 +982,14 @@ function TrainingExecutionContent() {
     };
 
     const handleCompleteSet = async (actionIndex: number, setIndex: number) => {
+        if (!canEditRecords) return;
+        if (cancellationPendingRef.current) return;
         if (!execution) return;
 
         try {
             const actionExecution = execution.action_executions[actionIndex];
             const setData = actionExecution.sets[setIndex];
+            const timed = isTimedTrainingSet(setData, actionExecution);
             const isEditing = setData.status === 'completed';
             const plannedKg = parsePlannedWeightKg(setData.planned_weight);
             const plannedReps = parsePlannedReps(setData.planned_reps);
@@ -968,10 +1016,10 @@ function TrainingExecutionContent() {
             let hasVideo = false;
 
             // 1.0 If user pasted a link but didn't click "绑定链接", auto-bind on completion.
-            if (!isImpromptuMode && !linkedVideo?.url && videoLink.trim()) {
+            if (!linkedVideo?.url && videoLink.trim()) {
                 try {
                     setUploading(true);
-                    const res = await executionService.addSetVideoLink({
+                    const res = await bindSetVideo({
                         executionId: execution.id,
                         actionId: actionExecution.action_id,
                         setNumber: setIndex + 1,
@@ -1001,7 +1049,7 @@ function TrainingExecutionContent() {
                 hasVideo = true;
             }
             // 兜底：如果用户选择了文件但未自动上传成功，可在“完成本组”时重试
-            if (!isImpromptuMode && videoFile && !linkedVideo?.url) {
+            if (videoFile && !linkedVideo?.url) {
                 try {
                     setUploading(true);
                     setUploadProgress(0);
@@ -1022,7 +1070,7 @@ function TrainingExecutionContent() {
                     }
 
                     // 绑定到当前 execution/action/set
-                    const bindRes = await executionService.addSetVideoLink({
+                    const bindRes = await bindSetVideo({
                         executionId: execution.id,
                         actionId: actionExecution.action_id,
                         setNumber: setIndex + 1,
@@ -1073,9 +1121,12 @@ function TrainingExecutionContent() {
                     executionId: execution.id,
                     actionIndex,
                     setIndex,
-                    actualWeight: weight ?? undefined,
-                    actualReps: reps ?? undefined,
-                    notes: setNotes || undefined,
+                    actualWeight: timed ? null : weight ?? undefined,
+                    actualReps: timed ? null : reps ?? undefined,
+                    actualDuration: timed ? reps : undefined,
+                    notes: setNotes,
+                    rpe,
+                    isPR: markAsPR,
                 })
                 : await executionService.completeSet({
                     executionId: execution.id,
@@ -1083,10 +1134,11 @@ function TrainingExecutionContent() {
                     setIndex,
                     actionId: actionExecution.action_id,
                     // NOTE: allow 0kg (e.g. unloaded movements); only treat null/undefined as "not provided"
-                    actualWeight: weight ?? undefined,
-                    actualReps: reps ?? undefined,
+                    actualWeight: timed ? null : weight ?? undefined,
+                    actualReps: timed ? null : reps ?? undefined,
+                    actualDuration: timed ? reps : undefined,
                     rpe: rpe ?? undefined,
-                    notes: setNotes || undefined,
+                    notes: setNotes,
                     is_pr: markAsPR,
                     has_video: hasVideo
                 });
@@ -1148,15 +1200,16 @@ function TrainingExecutionContent() {
                 updatedExecution.action_executions[actionIndex].sets[setIndex] = {
                     ...setData,
                     status: 'completed',
-                    actual_weight: weight,
-                    actual_reps: reps,
+                    actual_weight: timed ? null : weight,
+                    actual_reps: timed ? null : reps,
+                    ...(timed ? { actual_duration: reps } : {}),
                     rpe,
                     notes: setNotes,
                     is_pr: markAsPR,
                     has_video: hasVideo,
                     video_url: uploadedVideoUrl,
                     // Add e1RM info
-                    e1rm: res.autoE1RM?.e1rm,
+                    e1rm: timed ? null : res.autoE1RM?.e1rm,
                     is_auto_pr: res.autoE1RM?.isPR
                 };
             // Recalculate completion counts (editing should not "++" counts)
@@ -1262,6 +1315,7 @@ function TrainingExecutionContent() {
     };
 
     const handleCompleteItem = async (actionIndex: number) => {
+        if (!capabilities.canRecord) return;
         if (!execution) return;
 
         try {
@@ -1304,7 +1358,7 @@ function TrainingExecutionContent() {
                 };
                 
                 updatedExecution.action_executions[actionIndex].completed_sets = 1;
-                updatedExecution.completed_sets = res.completedSets || execution.completed_sets + 1;
+                updatedExecution.completed_sets = res.completedItems ?? execution.completed_sets + 1;
                 setExecution(updatedExecution);
 
                 // Reset form for this action
@@ -1341,7 +1395,39 @@ function TrainingExecutionContent() {
         }
     };
 
+    const handleCancelTraining = () => {
+        if (isImpromptuMode || !canCancelEmptyPlanExecution(execution) || cancellationPendingRef.current) return;
+        confirmDialog({
+            header: '取消本次训练？',
+            message: '仅取消尚无已保存记录的本次训练，恢复为未开始。未保存的输入也会丢弃。已有记录的训练请保留并返回。',
+            acceptLabel: '确认取消',
+            rejectLabel: '继续训练',
+            acceptClassName: 'bg-[#CF6D4E] border-[#CF6D4E]',
+            accept: async () => {
+                if (cancellationPendingRef.current) return;
+                cancellationPendingRef.current = true;
+                setCancelling(true);
+                try {
+                    await executionService.cancelExecution(execution.id);
+                    clearPersistedRestTimer();
+                    setIsResting(false);
+                    setRestTimer(0);
+                    showToast({ severity: 'success', summary: '训练已取消', detail: '已恢复为未开始' });
+                    router.replace('/today-training');
+                    router.refresh();
+                } catch (error) {
+                    showToast({ severity: 'error', summary: '取消失败，记录已保留', detail: error instanceof Error ? error.message : '请刷新后重试' });
+                } finally {
+                    cancellationPendingRef.current = false;
+                    setCancelling(false);
+                }
+            },
+        });
+    };
+
     const handleFinishTraining = async () => {
+        if (!capabilities.canRecord) return;
+        if (cancellationPendingRef.current) return;
         if (!execution) return;
 
         try {
@@ -1356,6 +1442,11 @@ function TrainingExecutionContent() {
                 });
 
             if (res) {
+                setExecution((previous: any) => previous?.id === execution.id ? {
+                    ...previous,
+                    ...res,
+                    action_executions: res.action_executions ?? previous.action_executions,
+                } : previous);
                 trackEvent('student_training_complete', 'training', { 
                     planId: execution.plan_id, 
                     executionId: execution.id
@@ -1398,7 +1489,8 @@ function TrainingExecutionContent() {
     };
 
     const handleQuickFinishTraining = () => {
-        if (!execution || isImpromptuMode) return;
+        if (!capabilities.canRecord) return;
+        if (!execution || isImpromptuMode || cancellationPendingRef.current) return;
         if (execution.status === 'completed') return;
 
         confirmDialog({
@@ -1428,7 +1520,11 @@ function TrainingExecutionContent() {
                             detail: `完成 ${res.completed_sets}/${res.total_sets} 组`,
                         });
                         handleSkipRest();
-                        setExecution((prev: any) => prev ? { ...prev, status: 'completed', completed_at: res.completed_at, completed_sets: res.completed_sets, total_sets: res.total_sets } : null);
+                        setExecution((previous: any) => previous?.id === execution.id ? {
+                            ...previous,
+                            ...res,
+                            action_executions: res.action_executions ?? previous.action_executions,
+                        } : previous);
                         setFeedbackDialogVisible(true);
                     } else {
                         showToast({
@@ -1487,6 +1583,7 @@ function TrainingExecutionContent() {
     };
 
     const handleSkipRest = () => {
+        setRestMinimized(false);
         restEndAtRef.current = null;
         setRestTimer(0);
         setIsResting(false);
@@ -1494,12 +1591,13 @@ function TrainingExecutionContent() {
     };
 
     const handleAddTime = (seconds: number) => {
-        if (seconds <= 0) return;
+        if (!Number.isFinite(seconds) || seconds === 0) return;
 
         const base = restEndAtRef.current && restEndAtRef.current > Date.now()
             ? restEndAtRef.current
             : Date.now();
         const endAt = base + seconds * 1000;
+        if (endAt <= Date.now()) { handleSkipRest(); return; }
         restEndAtRef.current = endAt;
         setIsResting(true);
         persistRestTimer(endAt);
@@ -1508,6 +1606,7 @@ function TrainingExecutionContent() {
 
     // 添加额外组数
     const handleAddExtraSet = async (actionIndex: number) => {
+        if (!capabilities.canRecord) return;
         if (!execution || addingExtraSet) return;
         
         try {
@@ -1571,6 +1670,7 @@ function TrainingExecutionContent() {
 
     // 添加额外动作
     const handleAddExtraAction = async (action: any) => {
+        if (!capabilities.canRecord) return;
         if (!execution || addingExtraAction) return;
         
         try {
@@ -1651,6 +1751,7 @@ function TrainingExecutionContent() {
 
     // 删除学员自行添加的组
     const handleDeleteExtraSet = async (actionIndex: number, setIndex: number) => {
+        if (!capabilities.canRecord) return;
         if (!execution || removingSet) return;
         const actionExec = execution.action_executions[actionIndex];
         const setData = actionExec?.sets?.[setIndex];
@@ -1703,6 +1804,7 @@ function TrainingExecutionContent() {
 
     // 删除学员自行添加的动作
     const handleDeleteExtraAction = async (actionIndex: number) => {
+        if (!capabilities.canRecord) return;
         if (!execution || removingAction) return;
         const actionExec = execution.action_executions[actionIndex];
         if (!actionExec || actionExec.source !== 'student_extra') return;
@@ -1810,7 +1912,9 @@ function TrainingExecutionContent() {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-2 text-surface-900">加载失败</h2>
+                    <h2 className="text-2xl font-bold mb-2 text-surface-900">训练尚未就绪</h2>
+                    <p>{startError || '没有取得训练记录'}</p>
+                    <Button label="重新核对并重试" onClick={() => void startTraining()} />
                     <Button label="返回" onClick={() => router.back()} />
                 </div>
             </div>
@@ -1849,6 +1953,11 @@ function TrainingExecutionContent() {
 
     return (
         <div className="min-h-screen">
+            {startError && <div role="alert" className="p-4"><p>{startError}</p>
+                <Button label="重新核对并重试" onClick={() => void startTraining()} /></div>}
+            {intent === 'preview' && <div className="p-4"><p>这是计划预览，尚未开始训练。</p>
+                <Button label={canStartPreview ? '开始这一天的训练' : '刷新训练资格'}
+                    onClick={() => void startTraining(canStartPreview ? 'execute' : 'preview')} /></div>}
             {/* 超时未结束提醒 */}
             <Dialog
                 header="训练未结束提醒"
@@ -1983,22 +2092,26 @@ function TrainingExecutionContent() {
                 </div>
             )}
 
+            {isResting && restMinimized && <button type="button" className="fixed bottom-24 right-4 z-40 rounded-xl border bg-white px-4 py-2 text-[#CF6D4E]"
+                onClick={() => setRestMinimized(false)}>休息 {Math.floor(restTimer / 60)}:{String(restTimer % 60).padStart(2, '0')}</button>}
             {/* Rest Timer Overlay */}
-            {isResting && (
+            {isResting && !restMinimized && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex flex-col items-center justify-center">
                     <Timer className="w-16 h-16 text-blue-400 mb-4 animate-pulse" />
                     <div className="text-6xl font-bold mb-4 text-white">
                         {Math.floor(restTimer / 60)}:{(restTimer % 60).toString().padStart(2, '0')}
                     </div>
                     <p className="text-white/70 mb-6">组间休息</p>
-                    <div className="flex gap-4">
+                    <div className="flex flex-wrap gap-4">
+                        <Button label="-10秒" outlined onClick={() => handleAddTime(-10)} />
+                        <Button label="最小化" outlined onClick={() => setRestMinimized(true)} />
                         <Button 
-                            label="+30s" 
+                            label="+10秒"
                             outlined 
-                            onClick={() => handleAddTime(30)} 
+                            onClick={() => handleAddTime(10)}
                         />
                         <Button 
-                            label="跳过休息" 
+                            label="结束休息"
                             severity="secondary"
                             onClick={handleSkipRest} 
                         />
@@ -2018,6 +2131,9 @@ function TrainingExecutionContent() {
                 {strengthActionIndexes.map(({ actionExec, index: actionIndex }) => {
                     const action = actions[actionExec.action_id];
                     const demoVideoUrl = action?.url || action?.video_url;
+                    const day = planInstance?.training_days?.find((item: any) => Number(item.dayIndex) === dayIndex);
+                    const plannedAction = day?.actionSets?.[(actionExec as any).source_action_index ?? actionIndex];
+                    const coachNote = (actionExec as any).plan_note || plannedAction?.params?.note || plannedAction?.note;
                     const isExpanded = expandedAction === actionIndex;
                     const isCompleted = actionExec.completed_sets === actionExec.total_sets;
 
@@ -2052,7 +2168,7 @@ function TrainingExecutionContent() {
                                                 e.stopPropagation();
                                                 handleDeleteExtraAction(actionIndex);
                                             }}
-                                            disabled={removingAction}
+                                            disabled={removingAction || !capabilities.canRecord}
                                             className="p-2 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                                             title="删除此动作"
                                         >
@@ -2078,7 +2194,8 @@ function TrainingExecutionContent() {
                             {/* Sets or Item Content */}
                             {isExpanded && (
                                 <div className="mt-4 space-y-4">
-                                    {(action?.detail || demoVideoUrl) && (
+                                    {!!coachNote && <p className="whitespace-pre-wrap text-sm text-surface-700">教练要求：{coachNote}</p>}
+                                    {(
                                         <ActionDetailPanel
                                             detail={action?.detail}
                                             demoVideoUrl={demoVideoUrl}
@@ -2100,16 +2217,17 @@ function TrainingExecutionContent() {
                                             const key = setKeyOf(actionIndex, setIndex);
                                             const isDetailsExpanded = expandedSetKey === key;
                                             const isEditingThisSet = editingSetKey === key;
-                                            const showSetForm = isCurrentSet && (!isSetCompleted || isEditingThisSet);
+                                            const showSetForm = canEditRecords && isCurrentSet && (!isSetCompleted || isEditingThisSet);
                                             const allowNegativeWeight = !!(action?.includesBodyWeight ?? (action as any)?.includes_body_weight);
+                                            const timedSet = isTimedTrainingSet(setData, { ...actionExec, ...action });
                                             const plannedRepsText = setData.planned_reps === null ||
                                                 setData.planned_reps === undefined ||
                                                 String(setData.planned_reps).trim() === "" ||
                                                 String(setData.planned_reps).trim() === "0"
                                                 ? "自选"
                                                 : String(setData.planned_reps);
-                                            const plannedText = `${setData.planned_weight || '-'} × ${plannedRepsText}次`;
-                                            const actualText = `${setData.actual_weight ?? '-'}kg · ${setData.actual_reps ?? '-'}次`;
+                                            const plannedText = timedSet ? `保持 ${getPlannedDurationSeconds(setData, actionExec) ?? '-'} 秒` : `${setData.planned_weight || '-'} × ${plannedRepsText}次`;
+                                            const actualText = formatRecordedTrainingSet(setData, actionExec);
 
                                             return (
                                                 <div 
@@ -2126,6 +2244,7 @@ function TrainingExecutionContent() {
                                                                     <button 
                                                         type="button"
                                                                         onClick={() => {
+                                                            if (uploading || completing || cancelling) return;
                                                             // 未完成组：点击直接切换为当前编辑组
                                                             if (!isSetCompleted) {
                                                                 // Bug 3 Fix: 手动切换组时重置输入状态，防止"重量联动"
@@ -2157,7 +2276,7 @@ function TrainingExecutionContent() {
                                                                         <Star className="w-3.5 h-3.5" /> PR
                                                                     </span>
                                                                 )}
-                                                                {setData.is_auto_pr && (
+                                                                {setData.is_auto_pr && !timedSet && (
                                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[10px] rounded-full font-bold">
                                                                         🏆 新纪录
                                                                     </span>
@@ -2183,7 +2302,7 @@ function TrainingExecutionContent() {
                                                                         e.stopPropagation();
                                                                         handleDeleteExtraSet(actionIndex, setIndex);
                                                                     }}
-                                                                    disabled={removingSet}
+                                                                    disabled={removingSet || !capabilities.canRecord}
                                                                     className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                                                                     title="删除此组"
                                                                 >
@@ -2239,10 +2358,10 @@ function TrainingExecutionContent() {
                                                             )}
                                                             {/* 只展示：重量 / 次数 / RPE + 进步组勾选（其余折叠） */}
                                                             {/* iPhone 14 Pro Max 等较宽机型：避免 RPE 被挤到下一行，强制 4 列同排 */}
-                                                            <div className="mt-3 grid grid-cols-[minmax(0,1fr)_72px_72px_52px] items-end gap-2">
-                                                                <div className="min-w-0" id="guide-weight-input">
+                                                            <div className={`mt-3 grid ${timedSet ? 'grid-cols-[minmax(0,1fr)_72px_52px]' : 'grid-cols-[minmax(0,1fr)_72px_72px_52px]'} items-end gap-2`}>
+                                                                {!timedSet && <div className="min-w-0" id="guide-weight-input">
                                                                     <label className="text-xs text-surface-600 font-bold">
-                                                                        {allowNegativeWeight ? '外加重量(kg)' : '重量(kg)'}
+                                                                        外加重量(kg)
                                                                     </label>
                                                                     <AeroInputNumber
                                                                         value={weight}
@@ -2257,9 +2376,12 @@ function TrainingExecutionContent() {
                                                                                 : (isWeightRequiredForSet(setData) ? '必填' : '可选')
                                                                         }
                                                                     />
-                                                                </div>
+                                                                    <button type="button" className="mt-2 rounded-lg border border-surface-200 bg-white px-2 py-1 text-xs text-surface-700" onClick={() => setWeight(0)}>
+                                                                        {weight === 0 ? '已选自重 / 无负重' : '自重 / 无负重'}
+                                                                    </button>
+                                                                </div>}
                                                                 <div className="min-w-0">
-                                                                    <label className="text-xs text-surface-600 font-bold">次数</label>
+                                                                    <label className="text-xs text-surface-600 font-bold">{timedSet ? '保持时长(秒)' : '次数'}</label>
                                                                     <AeroInputNumber 
                                                                         value={reps}
                                                                         onValueChange={(e) => setReps(e.value ?? null)}
@@ -2286,16 +2408,16 @@ function TrainingExecutionContent() {
                                                                     onClick={async () => {
                                                                         if (completing || uploading) return;
 
-                                                                        if (!reps) {
+                                                                        if (reps === null || reps <= 0) {
                                                                             showToast({
                                                                                 severity: 'warn',
                                                                                 summary: '还差一步',
-                                                                                detail: '请先填写次数',
+                                                                                detail: timedSet ? '请先填写保持时长（秒）' : '请先填写次数',
                                                                             });
                                                                             return;
                                                                         }
                                                                         // Allow 0kg; only block when weight is missing
-                                                                        if (isWeightRequiredForSet(setData) && (weight === null || weight === undefined)) {
+                                                                        if (!timedSet && isWeightRequiredForSet(setData) && (weight === null || weight === undefined)) {
                                                                             showToast({
                                                                                 severity: 'warn',
                                                                                 summary: '还差一步',
@@ -2346,7 +2468,7 @@ function TrainingExecutionContent() {
                                                                     id="guide-video-upload"
                                                                     className="w-full flex items-center justify-between px-3 py-2 rounded-2xl bg-surface-50 border border-surface-200 text-surface-700 font-medium"
                                                                 >
-                                                                    <span className="text-sm">备注 / 视频（可选）</span>
+                                                                    <span className="text-sm">上传本组视频 / 添加备注</span>
                                                                     <ChevronDown className={`w-5 h-5 text-surface-400 transition-transform ${showOptionalFields ? 'rotate-180' : ''}`} />
                                                                 </button>
 
@@ -2471,7 +2593,7 @@ function TrainingExecutionContent() {
                                                                                 }
                                                                                 try {
                                                                                     setUploading(true);
-                                                                                    const res = await executionService.addSetVideoLink({
+                                                                                    const res = await bindSetVideo({
                                                                                         executionId: execution.id,
                                                                                         actionId: execution.action_executions[actionIndex].action_id,
                                                                                         setNumber: setIndex + 1,
@@ -2536,12 +2658,13 @@ function TrainingExecutionContent() {
                                                                     className="px-3 py-2 rounded-xl bg-surface-50 border border-surface-200 text-surface-700 text-sm font-medium hover:bg-surface-100"
                                                                     onClick={() => {
                                                                         // Enter edit mode for this set (even if whole day is completed)
+                                                                        if (!canEditRecords || uploading || completing || cancelling) return;
                                                                         setExpandedAction(actionIndex);
                                                                         setCurrentSetIndex(setIndex);
                                                                         setExpandedSetKey(key);
                                                                         setEditingSetKey(key);
-                                                                        setWeight(setData.actual_weight ?? null);
-                                                                        setReps(setData.actual_reps ?? null);
+                                                                        setWeight(timedSet ? null : setData.actual_weight ?? null);
+                                                                        setReps(timedSet ? getActualDurationSeconds(setData) : setData.actual_reps ?? null);
                                                                         setRpe(setData.rpe ?? null);
                                                                         setSetNotes(setData.notes ?? '');
                                                                         setMarkAsPR(!!setData.is_pr);
@@ -2573,15 +2696,15 @@ function TrainingExecutionContent() {
 
                                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                                 <div>
-                                                                    <label className="text-xs text-surface-500">重量(kg)</label>
+                                                                    <label className="text-xs text-surface-500">{timedSet ? '保持时长' : '外加重量(kg)'}</label>
                                                                     <div className="bg-green-50 border border-green-200 rounded-xl p-2 text-green-700 font-medium">
-                                                                        {setData.actual_weight ?? '-'}
+                                                                        {timedSet ? formatRecordedTrainingSet(setData, actionExec) : setData.actual_weight === 0 ? '自重 / 无负重' : setData.actual_weight ?? '-'}
                                                                     </div>
                                                                 </div>
                                                                 <div>
-                                                                    <label className="text-xs text-surface-500">次数</label>
+                                                                    <label className="text-xs text-surface-500">{timedSet ? '记录方式' : '次数'}</label>
                                                                     <div className="bg-green-50 border border-green-200 rounded-xl p-2 text-green-700 font-medium">
-                                                                        {setData.actual_reps ?? '-'}
+                                                                        {timedSet ? '按秒记录' : setData.actual_reps ?? '-'}
                                                                     </div>
                                                                 </div>
                                                                 <div>
@@ -2634,7 +2757,7 @@ function TrainingExecutionContent() {
                                         <button
                                             type="button"
                                             onClick={() => handleAddExtraSet(actionIndex)}
-                                            disabled={addingExtraSet}
+                                            disabled={addingExtraSet || !capabilities.canRecord}
                                             className="w-full py-3 border-2 border-dashed border-surface-300 rounded-2xl text-surface-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                                         >
                                             <Plus className="w-4 h-4" />
@@ -2772,7 +2895,7 @@ function TrainingExecutionContent() {
                 <button
                     type="button"
                     onClick={() => setShowActionPicker(true)}
-                    disabled={addingExtraAction}
+                    disabled={addingExtraAction || !capabilities.canRecord}
                     className="w-full py-4 border-2 border-dashed border-primary-300 rounded-2xl text-primary-600 hover:border-primary-500 hover:bg-primary-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                     <Plus className="w-5 h-5" />
@@ -2781,12 +2904,16 @@ function TrainingExecutionContent() {
             </div>
 
             {/* Finish Section */}
-            {/* Finish Section */}
             <div className="p-4 border-t border-surface-200 bg-white">
-                {!isImpromptuMode && execution?.status === 'timed_out' && (
+                {!isImpromptuMode && capabilities.canRecover && (
+                    <div className="space-y-4"><p>上次训练已超时。已经练完可按实际训练日期补记；尚未练完可重新开始。</p>
                     <RecordCompletionButton instanceId={instanceId} dayIndex={dayIndex} execution={execution}
                         earliestDate={planInstance?.start_date || planInstance?.created_at}
                         onSaved={(saved) => { setExecution(saved); setFeedbackDialogVisible(true); }} />
+                    <Button label="重新训练这一天" outlined onClick={() => confirmDialog({
+                        message: '保留上次记录并重新开始这一天？', header: '重新训练',
+                        accept: () => { void startTraining('execute', true); },
+                    })} /></div>
                 )}
                 {execution?.status === 'completed' ? (
                     <>
@@ -2823,7 +2950,7 @@ function TrainingExecutionContent() {
                                 label="完成训练"
                                 onClick={handleFinishTraining}
                                 id="guide-finish-training"
-                                disabled={execution?.status === 'timed_out'}
+                                disabled={cancelling || !capabilities.canRecord}
                                 className="w-full"
                                 severity="success"
                                 size="large"
@@ -2832,13 +2959,28 @@ function TrainingExecutionContent() {
                                 <Button
                                     label={quickFinishLoading ? '快速完成中...' : '一键快速完成'}
                                     onClick={handleQuickFinishTraining}
-                                    disabled={quickFinishLoading || execution?.status === 'timed_out'}
+                                    disabled={cancelling || quickFinishLoading || !capabilities.canRecord}
                                     severity="secondary"
                                     outlined
                                     className="w-full"
                                 />
                             )}
                         </div>
+                        {!isImpromptuMode && execution?.status === 'in_progress' && (
+                            <div className="mt-4 space-y-2">
+                                {canCancelEmptyPlanExecution(execution) ? (
+                                    <Button label="取消本次训练" outlined loading={cancelling}
+                                        disabled={completing || quickFinishLoading || uploading}
+                                        className="w-full bg-white border-surface-300 text-surface-700"
+                                        onClick={handleCancelTraining} />
+                                ) : (
+                                    <p className="text-sm text-surface-500">已有训练记录，返回后可继续训练。</p>
+                                )}
+                                <Button label="保留记录并返回" outlined disabled={cancelling}
+                                    className="w-full bg-white border-surface-300 text-surface-700"
+                                    onClick={() => router.push('/today-training')} />
+                            </div>
+                        )}
                     </>
                 )}
             </div>
@@ -3020,6 +3162,12 @@ function TrainingExecutionContent() {
 );
 }
 
+function KeyedTrainingExecution() {
+    const params = useParams();
+    const query = useSearchParams();
+    return <TrainingExecutionContent key={`${params.instanceId}:${query.get('dayIndex')}:${query.get('intent')}:${query.get('readOnly')}:${query.get('impromptuId')}`} />;
+}
+
 export default function TrainingExecutionPage() {
     return (
         <Suspense fallback={
@@ -3027,7 +3175,7 @@ export default function TrainingExecutionPage() {
                 <Skeleton width="4rem" height="4rem" shape="circle" />
             </div>
         }>
-            <TrainingExecutionContent />
+            <KeyedTrainingExecution />
         </Suspense>
     );
 }

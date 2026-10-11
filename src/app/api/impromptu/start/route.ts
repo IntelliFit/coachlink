@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
                 ? "CARDIO"
                 : "STRENGTH";
             const totalSets = Math.max(1, Number(action.sets || 1));
+            const timed = itemType === 'STRENGTH' && isTimedTrainingSet({}, action);
             const plannedReps = action.reps === null || action.reps === undefined
                 ? null
                 : String(action.reps);
@@ -83,7 +85,9 @@ export async function POST(req: Request) {
                     set_number: setIndex + 1,
                     status: "pending",
                     planned_reps: plannedReps,
-                    planned_weight: plannedWeight,
+                    planned_weight: timed ? null : plannedWeight,
+                    planned_target_type: timed ? 'time' : null,
+                    planned_target_unit: timed ? 's' : null,
                     planned_rest_seconds: plannedRestSeconds,
                     actual_reps: null,
                     actual_weight: null,

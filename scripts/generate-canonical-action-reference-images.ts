@@ -272,10 +272,10 @@ function buildPrompt(action: CanonicalActionRow, exported?: ExportAction): strin
   return [
     "Use case: scientific-educational",
     "Asset type: CoachLink standard action reference image",
-    `Primary request: Create one single wide horizontal image with three evenly spaced key frames from left to right for “${action.name}”.`,
+    `Primary request: Create one anatomy teaching illustration for “${action.name}”. Choose the number of poses from the actual exercise and what needs explaining; never force a three-frame layout.`,
     "Style: clean non-sexual sports anatomy teaching illustration, CoachLink v4 neutral training model: no shoes, no facial details, short dark hair, translucent white/gray anatomical body with subtle skeleton hints, clean white studio background.",
-    "Composition: three separate poses in one wide image, equal spacing, no text, no numbers, no arrows, no labels, no watermark, no color swatches.",
-    "Frames: frame 1 is the clear start position, frame 2 is the main transition / bottom / midpoint, frame 3 is the clear finish position. Make frame 3 visibly distinct when the action is cyclic.",
+    "Composition: for a static/isometric hold, show ONE clear full-body posture with all support points visible. Choose a canvas that fits the pose, centered with modest margins. No repeated identical figures, text, numbers, arrows, labels, watermark, or color swatches.",
+    "Dynamic actions: use two or three distinct key positions only when needed to explain real movement (start/end, with a meaningful midpoint only if useful). Every additional pose must add information. Do not invent movement or change camera angles just to fill a sequence.",
     `Muscle targets from library metadata: ${positions}.`,
     `Action attributes: ${attrs}.`,
     "Muscle highlights: primary trained muscles in red, secondary assisting/stabilizing muscles in orange. Keep highlights action-specific only.",

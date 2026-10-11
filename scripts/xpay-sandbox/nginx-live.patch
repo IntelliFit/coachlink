@@ -1,0 +1,5 @@
+--- coachlink.conf
++++ coachlink.conf
+@@ -120 +120 @@
+-    location ^~ /api/payment/wechat/xpay/sandbox/ {
++    location ~ ^/api/payment/wechat/xpay/(sandbox|live-test)/ {

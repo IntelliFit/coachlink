@@ -48,10 +48,13 @@ export interface SetRecord {
   planned_weight?: number;
   planned_reps: string | number;
   planned_rest_seconds: number;
+  planned_target_type?: string | null;
+  planned_target_unit?: string | null;
   
   // 实际完成
   actual_weight?: number;
   actual_reps?: number;
+  actual_duration?: number | null;
   actual_rest_seconds?: number;
   
   // 状态

@@ -3,6 +3,7 @@ import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import type { ApiData } from "@/types/api";
 import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
+import { filterReviewedStreetWorkoutActions } from "@/lib/streetWorkoutImageReview";
 import type {
     BootstrapStudentActionsFromProfileDto,
     BootstrapWorkoutDraftItemDto,
@@ -274,6 +275,7 @@ export async function POST(req: Request) {
             candidateRows = fallbackRows as CommunityAction[];
         }
 
+        candidateRows = await filterReviewedStreetWorkoutActions(supabase, candidateRows);
         const actionById = new Map(candidateRows.map((a) => [a.id, a]));
         const availableForImport = candidateRows.filter((a) => !!a.id && !!a.name && !existingNameSet.has(a.name));
         const llmCandidates = availableForImport.slice(0, 120);

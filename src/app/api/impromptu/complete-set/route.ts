@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isTimedTrainingSet, trainingSetMeasurementPatch } from '@coachlink/core/src/trainingSetMetrics';
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -20,8 +21,13 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json() as CompleteImpromptuSetDto;
-        const { executionId, actionIndex, setIndex, actualWeight, actualReps, notes } =
+        const { executionId, actionIndex, setIndex, actualWeight, actualReps, actualDuration, notes, rpe, isPR } =
             body;
+
+        if ((rpe != null && (!Number.isFinite(rpe) || rpe < 1 || rpe > 10)) ||
+            (isPR !== undefined && typeof isPR !== 'boolean')) {
+            return NextResponse.json({ success: false, message: 'RPE 或进步组参数无效', data: null }, { status: 400 });
+        }
 
         if (!executionId || actionIndex < 0 || setIndex < 0) {
             return NextResponse.json<ApiData<CompleteImpromptuSetResponseDto>>({
@@ -88,12 +94,17 @@ export async function POST(req: Request) {
             currentAction?.action_name || currentAction?.name || `动作${actionIndex + 1}`,
         ).trim() || `动作${actionIndex + 1}`;
         const actionId = String(currentAction?.action_id || "").trim() || null;
+        const timed = isTimedTrainingSet(currentSet, currentAction);
+        const measurements = trainingSetMeasurementPatch(currentSet, { actualWeight, actualReps, actualDuration }, currentAction);
+        if (measurements.error) {
+            return NextResponse.json({ success: false, message: measurements.error, data: null }, { status: 400 });
+        }
 
         let autoE1RMResult:
             | { isPR: boolean; e1rm: number; previousPR?: number }
             | null = null;
         if (
-            actualWeight !== null && actualWeight !== undefined &&
+            !timed && actualWeight !== null && actualWeight !== undefined &&
             actualReps !== null && actualReps !== undefined
         ) {
             autoE1RMResult = await handleAutoE1RMCheck({
@@ -117,11 +128,12 @@ export async function POST(req: Request) {
                 return {
                     ...set,
                     status: "completed",
-                    actual_weight: actualWeight ?? set?.actual_weight ?? null,
-                    actual_reps: actualReps ?? set?.actual_reps ?? null,
+                    ...measurements.patch,
                     notes: notes ?? set?.notes ?? null,
+                    rpe: rpe !== undefined ? rpe : set?.rpe ?? null,
+                    is_pr: isPR ?? set?.is_pr ?? false,
                     completed_at: nowIso,
-                    e1rm: autoE1RMResult?.e1rm ?? set?.e1rm ?? null,
+                    e1rm: timed ? null : autoE1RMResult?.e1rm ?? set?.e1rm ?? null,
                     is_auto_pr: autoE1RMResult?.isPR || false,
                     planned_weight: set?.planned_weight ?? currentSet?.planned_weight ?? null,
                     planned_reps: set?.planned_reps ?? currentSet?.planned_reps ?? null,

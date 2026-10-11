@@ -51,10 +51,6 @@ export async function POST(req: Request) {
             .order("last_updated", { ascending: false })
             .limit(1);
 
-        const { data: locations, error: locationError } = await db
-            .from("streetlifting_locations")
-            .select("created_at, description, province, city, latitude, longitude, image_url, image_urls");
-
         if (formulaError) {
             console.error("[streetlifting-index][stats] formula error:", formulaError);
             return NextResponse.json<ApiData<StreetliftingStatsResponseDto>>({
@@ -64,13 +60,29 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
-        if (locationError) {
-            console.error("[streetlifting-index][stats] location error:", locationError);
-            return NextResponse.json<ApiData<StreetliftingStatsResponseDto>>({
-                success: false,
-                message: locationError.message || "获取地点统计失败",
-                data: null,
-            }, { status: 500 });
+        // Read every page: a single select is capped by PostgREST's row limit.
+        // Keep pagination deterministic with a unique order.
+        const locationRows: LocationStatsRow[] = [];
+        const batchSize = 500;
+        for (let from = 0; ; from += batchSize) {
+            const { data: locations, error: locationError } = await db
+                .from("streetlifting_locations")
+                .select("created_at, description, province, city, latitude, longitude, image_url, image_urls")
+                .order("id", { ascending: true })
+                .range(from, from + batchSize - 1);
+
+            if (locationError) {
+                console.error("[streetlifting-index][stats] location error:", locationError);
+                return NextResponse.json<ApiData<StreetliftingStatsResponseDto>>({
+                    success: false,
+                    message: locationError.message || "获取地点统计失败",
+                    data: null,
+                }, { status: 500 });
+            }
+
+            const rows = (locations || []) as LocationStatsRow[];
+            locationRows.push(...rows);
+            if (rows.length < batchSize) break;
         }
 
         const { count: contributorCount, error: contributorCountError } = await db
@@ -81,7 +93,6 @@ export async function POST(req: Request) {
             console.warn("[streetlifting-index][stats] contributor table not ready:", contributorCountError.message);
         }
 
-        const locationRows = (locations || []) as LocationStatsRow[];
         const totalLocationCount = locationRows.length;
         const withImagesCount = locationRows.filter((row) => getStreetliftingLocationImageCount(row) > 0).length;
         const withDescriptionCount = locationRows.filter((row) => String(row.description || "").trim().length > 0).length;

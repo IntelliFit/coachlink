@@ -31,6 +31,11 @@ import type {
 } from "@/app/api/impromptu/extra-content/entity";
 
 class ImpromptuTrainingService extends BaseService {
+    async addSetVideoLink(input: { executionId: string; actionId: string; actionIndex: number; setNumber: number; videoUrl: string }) {
+        const res = await this.post<{ id: string; video_url: string }>('add-set-video-link', input);
+        return res.data?.success ? res.data.data : null;
+    }
+
     async listActions(reqData: ListImpromptuActionsDto = {}) {
         const res = await this.post<ListImpromptuActionsResponseDto>(
             "list-actions",
@@ -50,7 +55,7 @@ class ImpromptuTrainingService extends BaseService {
         return null;
     }
 
-    async get(reqData: GetImpromptuExecutionDto) {
+    async getExecution(reqData: GetImpromptuExecutionDto) {
         const res = await this.post<GetImpromptuExecutionResponseDto>("get", reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;

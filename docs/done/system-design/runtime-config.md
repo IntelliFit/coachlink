@@ -70,6 +70,9 @@ Runtime entry points run through `scripts/config/bootstrap-env.mjs`:
 
 - `npm run dev` -> `scripts/start-dev.mjs`
 - `npm run start` -> `scripts/start-prod.mjs`
+- `npm run dev:debug-login` -> `scripts/start-local-debug.mjs` (explicit local-only mini-program account debugging)
+
+The debug launcher uses the same single-source bootstrap. It binds only `127.0.0.1` (default port 3003), uses `.next-local-debug` and generates a per-launch pairing code/signing key in process memory. These are ephemeral developer controls, not Apollo business configuration and not normal auth secrets. Debug tokens expire after one hour and are rejected by ordinary/production servers. Background jobs and sensitive payment/admin/account-binding routes are disabled on this dedicated backend. The selected database may still be real: training writes are not sandboxed. See `docs/work/local-user-id-debug-login-2026-10-08.md` before use.
 
 The bootstrap sets `__NEXT_PROCESSED_ENV=true` before launching Next.js. This prevents Next.js from auto-loading `.env.development`, `.env.production`, `.env.local`, or `.env` after the selected source has already been applied.
 

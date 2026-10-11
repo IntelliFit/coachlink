@@ -5,6 +5,7 @@ import type { ApiData } from "@/types/api";
 import type { FinishImpromptuDto, FinishImpromptuResponseDto } from "./entity";
 import { attachWorkoutEnergyEstimate } from "@/lib/workoutEnergyExecution";
 import type { WorkoutEnergyEstimate } from "@/lib/workoutEnergy";
+import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds } from '@coachlink/core/src/trainingSetMetrics';
 
 export async function POST(req: Request) {
     try {
@@ -61,11 +62,13 @@ export async function POST(req: Request) {
                 const sets = Array.isArray(action?.sets) ? action.sets : [];
                 const nextSets = sets.map((set: any) => {
                     if (set?.status === "completed") return set;
+                    const timed = isTimedTrainingSet(set, action);
                     return {
                         ...set,
                         status: "completed",
-                        actual_weight: set?.actual_weight ?? null,
-                        actual_reps: set?.actual_reps ?? null,
+                        actual_weight: timed ? null : set?.actual_weight ?? null,
+                        actual_reps: timed ? null : set?.actual_reps ?? null,
+                        ...(timed ? { actual_duration: getActualDurationSeconds(set) ?? getPlannedDurationSeconds(set, action), e1rm: null, is_auto_pr: false } : {}),
                         completed_at: set?.completed_at ?? nowIso,
                     };
                 });

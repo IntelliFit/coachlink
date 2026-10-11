@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { trainingEntry } from '@coachlink/core/src/trainingAccess'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -76,24 +77,18 @@ function CoachPlanDashboard() {
     try {
       setLoading(true)
 
-      const [instanceRes, nextDayRes] = await Promise.all([
-        trainingService.getInstance({ id: planId }),
-        trainingService.getNextTrainingDay({ instanceId: planId }).catch(() => null)
-      ])
+      const instanceRes = await trainingService.getInstance({ id: planId })
+      const nextDayRes = instanceRes as any
 
       const loadedInstance = instanceRes?.instance || null
-      const resolvedNextDayIndex = nextDayRes?.nextDayIndex || loadedInstance?.start_execution_day || 1
+      const resolvedNextDayIndex = nextDayRes?.recommendedDayIndex || loadedInstance?.start_execution_day || 1
       const resolvedCompletionDates = nextDayRes?.completionDates || {}
 
       setInstance(loadedInstance)
       setNextDayIndex(resolvedNextDayIndex)
       setCompletionDates(resolvedCompletionDates)
 
-      const todayRes = await executionService.checkToday(planId, resolvedNextDayIndex).catch(() => null)
-      setExecutionMap((prev) => ({
-        ...prev,
-        [resolvedNextDayIndex]: todayRes || null
-      }))
+      setExecutionMap(nextDayRes?.executionsByDayIndex || {})
 
       setSelectedDayIndex(resolvedNextDayIndex)
       setSelectedWeek(getWeekByDayIndex(resolvedNextDayIndex))
@@ -167,8 +162,9 @@ function CoachPlanDashboard() {
   const selectedProgressText = selectedExecution && (selectedExecution.total_sets || 0) > 0
     ? `${selectedExecution.completed_sets || 0}/${selectedExecution.total_sets || 0} 组`
     : (selectedStatus === 'completed' ? '已完成' : '未开始')
-  const selectedCanExecute = !!selectedDay && selectedDay.type === 'training' &&
-    (selectedStatus === 'in_progress' || (selectedStatus !== 'completed' && selectedDay.dayIndex === nextDayIndex))
+  const selectedCanExecute = !!selectedDay && trainingEntry({ trainingDays: sortedDays,
+    progressDayIndex: nextDayIndex, targetDayIndex: selectedDay.dayIndex,
+    execution: selectedExecution, executionsByDayIndex: executionMap }).intent === 'execute'
   const selectedReadOnly = !!selectedDay && selectedDay.type === 'training' && !selectedCanExecute
 
   const coachQuery = useMemo(() => {
@@ -180,12 +176,11 @@ function CoachPlanDashboard() {
     if (!instance?.id) return
 
     const execution = executionMap[dayIndex]
-    const executionStatus = execution?.status || (completionDates[dayIndex] ? 'completed' : 'none')
-    const readOnly = executionStatus === 'completed' ||
-      (executionStatus !== 'in_progress' && dayIndex !== nextDayIndex)
+    const { intent } = trainingEntry({ trainingDays: instance.training_days || [],
+      progressDayIndex: nextDayIndex, targetDayIndex: dayIndex, execution, executionsByDayIndex: executionMap })
 
     Taro.navigateTo({
-      url: `/coach/plans/dashboard/[id]/training-execution?id=${encodeURIComponent(instance.id)}&dayIndex=${dayIndex}&readOnly=${readOnly ? 'true' : 'false'}${coachQuery}`
+      url: `/training/training-execution?instanceId=${encodeURIComponent(instance.id)}&dayIndex=${dayIndex}&intent=${intent}${coachQuery}`
     }).catch((error) => {
       console.error('[coach/plans/dashboard] goExecution error:', error)
       Taro.showToast({ title: '页面跳转失败', icon: 'none' })
@@ -296,8 +291,8 @@ function CoachPlanDashboard() {
               const dayExecution = executionMap[day.dayIndex]
               const dayStatus = dayExecution?.status || (completionDates[day.dayIndex] ? 'completed' : 'none')
               const selected = selectedDay?.dayIndex === day.dayIndex
-              const canExecuteDay = day.type === 'training' &&
-                (dayStatus === 'in_progress' || (dayStatus !== 'completed' && day.dayIndex === nextDayIndex))
+              const canExecuteDay = trainingEntry({ trainingDays: sortedDays, progressDayIndex: nextDayIndex,
+                targetDayIndex: day.dayIndex, execution: dayExecution, executionsByDayIndex: executionMap }).intent === 'execute'
               const isReadOnlyDay = day.type === 'training' && !canExecuteDay
 
               return (
@@ -315,7 +310,7 @@ function CoachPlanDashboard() {
                   ) : dayStatus === 'in_progress' ? (
                     <Text className='week-day-status progress'>进行中</Text>
                   ) : isReadOnlyDay ? (
-                    <Text className='week-day-status readonly'>只读</Text>
+                    <Text className='week-day-status readonly'>可预览</Text>
                   ) : (
                     <Text className='week-day-status pending'>待训练</Text>
                   )}

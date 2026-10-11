@@ -74,6 +74,7 @@ export default {
         'messages/chat/index',
         'my-coaches/index',
         'payment-waiting/index',
+        'payment-test/index',
         'user/index',
       ],
     },

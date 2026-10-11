@@ -402,30 +402,7 @@ export const buildDayModuleModel = (params: {
 export { addBeijingDays as addDays } from '@coachlink/core/src/beijingTime'
 
 /** 与 execution/start 保持一致：当前进度为连续休息日时，可直接训练后面的第一个训练日。 */
-export const canOpenPlanDayForExecution = (params: {
-  trainingDays: any[]
-  progressDayIndex: number
-  targetDayIndex: number
-}) => {
-  const { trainingDays, progressDayIndex, targetDayIndex } = params
-  if (targetDayIndex === progressDayIndex) return true
-  if (targetDayIndex < progressDayIndex) return false
-
-  const remainingDays = [...(trainingDays || [])]
-    .filter((day) => Number(day?.dayIndex ?? day?.day_index ?? 0) >= progressDayIndex)
-    .sort((left, right) => Number(left?.dayIndex ?? left?.day_index ?? 0) - Number(right?.dayIndex ?? right?.day_index ?? 0))
-  const firstTrainingDay = remainingDays.find(
-    (day) => String(day?.type || 'training').toLowerCase() === 'training'
-  )
-  if (Number(firstTrainingDay?.dayIndex ?? firstTrainingDay?.day_index ?? 0) !== targetDayIndex) return false
-
-  return remainingDays
-    .filter((day) => {
-      const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0)
-      return dayIndex >= progressDayIndex && dayIndex < targetDayIndex
-    })
-    .every((day) => String(day?.type || 'training').toLowerCase() !== 'training')
-}
+export { canStartPlanDay as canOpenPlanDayForExecution } from '@coachlink/core/src/trainingAccess'
 
 export { toBeijingDateKey as toDateKey } from '@coachlink/core/src/beijingTime'
 

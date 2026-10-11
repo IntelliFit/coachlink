@@ -19,7 +19,7 @@ export async function validateExecutionSubscriptionAccess(params: {
 
     const { data: instance, error: instanceError } = await supabase
         .from("coach_plan_instances")
-        .select("coach_subscription_id, training_days, start_execution_day, created_at")
+        .select("student_id, coach_subscription_id, training_days, start_execution_day, created_at")
         .eq("id", instanceId)
         .maybeSingle();
 
@@ -43,6 +43,9 @@ export async function validateExecutionSubscriptionAccess(params: {
         | string
         | null;
     if (!subscriptionId) {
+        if ((instance as any).student_id !== studentId) {
+            return { allowed: false, status: 403, message: '无权访问此计划', maxAccessibleDayIndex: null };
+        }
         return {
             allowed: true,
             status: 200,

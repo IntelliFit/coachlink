@@ -99,3 +99,21 @@ export interface ActivityResponseDto {
     };
     message?: string;
 }
+
+export interface FriendRecordsResponseDto {
+    success: boolean;
+    data?: {
+        user: { userId: string; nickname: string; avatarUrl?: string | null };
+        records: Array<{
+            executionId: string;
+            planName: string;
+            dayIndex: number;
+            totalVolume: number;
+            durationMinutes: number;
+            completedAt: string;
+            shareToken?: string | null;
+        }>;
+        total: number;
+    };
+    message?: string;
+}

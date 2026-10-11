@@ -4,7 +4,7 @@ import {
   removeExecutionFromTodayTrainingPageCache
 } from '@/utils/todayTrainingPageCache'
 
-const SNAPSHOT_KEY = 'training_execution_snapshots_v1'
+export const SNAPSHOT_KEY = 'training_execution_snapshots_v1'
 /** 与今日训练首页缓存一致：仅保留最近 60 天内的快照条目 */
 const SNAPSHOT_MAX_ENTRY_AGE_MS = 60 * 24 * 60 * 60 * 1000
 
@@ -111,7 +111,8 @@ export function findLatestInProgressImpromptuSnapshot(
 export function persistTrainingExecutionSnapshot(
   userId: string,
   scopeKey: string,
-  payload: { execution: any; planInstance?: any; actions?: Record<string, any> }
+  payload: { execution: any; planInstance?: any; actions?: Record<string, any> },
+  options?: { authoritative?: boolean }
 ) {
   if (!userId || !scopeKey || !payload?.execution) return
   const store = readStore(userId)
@@ -119,6 +120,7 @@ export function persistTrainingExecutionSnapshot(
   const previousEntry = prev[scopeKey]
   const previousExecution = previousEntry?.execution
   const shouldKeepExistingExecution =
+    !options?.authoritative &&
     isPreviewExecution(payload.execution) &&
     previousExecution &&
     !isPreviewExecution(previousExecution)
@@ -147,7 +149,7 @@ export function syncTrainingExecutionToStorage(params: {
   actions?: Record<string, any>
 }) {
   const { userId, scopeKey, instanceId, dayIndex, isImpromptuMode, execution, planInstance, actions } = params
-  persistTrainingExecutionSnapshot(userId, scopeKey, { execution, planInstance, actions })
+  persistTrainingExecutionSnapshot(userId, scopeKey, { execution, planInstance, actions }, { authoritative: true })
   if (!isImpromptuMode && instanceId) {
     patchExecutionInTodayTrainingPageCache(userId, instanceId, dayIndex, execution)
   }

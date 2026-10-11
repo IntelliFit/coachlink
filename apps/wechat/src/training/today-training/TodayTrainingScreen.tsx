@@ -1,4 +1,6 @@
 import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
+import { trainingEntry, type TrainingIntent } from '@coachlink/core/src/trainingAccess'
+import { getExecutionCacheRevision } from '@/utils/todayTrainingPageCache'
 import { toBeijingDateKey } from '@coachlink/core/src/beijingTime'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView, Textarea } from '@tarojs/components'
@@ -23,6 +25,8 @@ import {
 import TodayTrainingCard from './components/TodayTrainingCard'
 import RecordCompletionButton from '@/components/RecordCompletionButton'
 import ScheduleCalendarPanel from './components/ScheduleCalendarPanel'
+import WeekDashboardStrip, { buildWeekStripCells } from './components/WeekDashboardStrip'
+import { getDayWeekNumber } from '@/utils/weekUnlock'
 import LightweightTaskSheet from './components/LightweightTaskSheet'
 import LightweightActionPicker from './components/LightweightActionPicker'
 import {
@@ -34,7 +38,6 @@ import { Popup } from '@nutui/nutui-react-taro'
 import {
   buildPlanScheduleModel,
   buildDayModuleModel,
-  canOpenPlanDayForExecution,
   formatPlanDayLabel,
   resolvePlanDayDate,
   type NormalizedDayTask,
@@ -268,7 +271,8 @@ function TodayTrainingScreen() {
   const [newHabitName, setNewHabitName] = useState('')
   const [newHabitTargetDurationMin, setNewHabitTargetDurationMin] = useState('')
   const [executionNoticeVisible, setExecutionNoticeVisible] = useState(false)
-  const [pendingExecutionTarget, setPendingExecutionTarget] = useState<{ dayIndex: number; focusAction?: number; readOnly?: boolean } | null>(null)
+  const [pendingExecutionTarget, setPendingExecutionTarget] = useState<{ dayIndex: number; focusAction?: number; intent: TrainingIntent } | null>(null)
+  const loadRequestVersion = useRef(0)
   const [isGuestHome, setIsGuestHome] = useState(() => !authService.getAuthSession({ normalize: true }).isAuthenticated)
 
   const activeSubscription =
@@ -417,6 +421,13 @@ function TodayTrainingScreen() {
     [trainingDays, executionsByDayIndex, completionDates, effectiveCalendarStartDate, progressDayIndex, instance?.start_execution_day]
   )
   const selectedSchedule = scheduleModel.scheduleByDayIndex.get(selectedDayIndex)
+  const weekAnchor = selectedSchedule?.displayDate || new Date()
+  const weekCells = buildWeekStripCells({
+    now: weekAnchor, today: new Date(), trainingDays, scheduleModel, planStartDate: effectiveCalendarStartDate,
+    progressDayIndex, currentDayIndex: todayDayIndex, executionsByDayIndex, completionDates,
+    startExecutionDay: instance?.start_execution_day || 1,
+    unlockedWeek: Math.max(getDayWeekNumber(instance?.start_execution_day || 1), getDayWeekNumber(progressDayIndex || 1)) + 1
+  })
   const selectedDateLabel = useMemo(() => {
     if (!selectedDayIndex) return ''
     return formatPlanDayLabel(
@@ -498,6 +509,9 @@ function TodayTrainingScreen() {
   }, [planMode, selectedDayIndex])
 
   const loadData = useCallback(async () => {
+    const requestVersion = ++loadRequestVersion.current
+    const cacheRevision = getExecutionCacheRevision()
+    const isCurrent = () => requestVersion === loadRequestVersion.current && cacheRevision === getExecutionCacheRevision()
     try {
       const session = authService.getAuthSession({ normalize: true })
       if (!session.isAuthenticated || !session.userId) {
@@ -523,6 +537,7 @@ function TodayTrainingScreen() {
         data: { studentId: session.userId },
         showErrorToast: false
       })
+      if (!isCurrent()) return
 
       if (!subsResponse.success) {
         if (isAuthErrorMessage(subsResponse.message)) {
@@ -559,6 +574,7 @@ function TodayTrainingScreen() {
           }))
       ])
 
+      if (!isCurrent()) return
       const coachPlanData: Record<string, any> = {}
       let planRequestFailed = false
       let restoredCachedPlan = false
@@ -603,6 +619,7 @@ function TodayTrainingScreen() {
         if (sub?.id) coachPlanData[sub.id] = data
       }
 
+      if (!isCurrent()) return
       setCoachPlanDataBySubId(coachPlanData)
 
       let storedPreferred = ''
@@ -685,6 +702,7 @@ function TodayTrainingScreen() {
         setSelfMissingDays([])
       }
 
+      if (!isCurrent()) return
       const hasCoachPlan = activeSubs.some((item: any) => coachPlanData[item.id]?.instance)
       const hasSelfPlan = !!effectiveSelfRes?.instance
       // 刷新/回到前台时保留用户最后主动选择的有效计划；只有该计划不存在才回退。
@@ -772,6 +790,8 @@ function TodayTrainingScreen() {
     if (cached) {
       setCoachPlanDataBySubId(cached.coachPlanDataBySubId || {})
       setSelfExecutionsByDayIndex(cached.selfExecutionsByDayIndex || {})
+      setSelfDayIndex(cached.selfDayIndex || 1)
+      setSelfTodayCompleted(!!cached.selfTodayCompleted)
       setSelfCompletionDates(cached.selfCompletionDates || {})
     }
     void syncCurrentUserProfile()
@@ -792,25 +812,14 @@ function TodayTrainingScreen() {
   }, [instance?.id, trainingDays.length])
 
   const handleGoToTrainingExecution = useCallback(
-    (dayIndex: number, focusAction?: number, options?: { readOnly?: boolean }) => {
+    (dayIndex: number, focusAction?: number, options?: { readOnly?: boolean; intent?: TrainingIntent }) => {
       if (!instance?.id) return
       const targetExecution = executionsByDayIndex?.[dayIndex]
-      const targetStatus = String(targetExecution?.status || '').toLowerCase()
-      const isExecutablePlanDay = canOpenPlanDayForExecution({
-        trainingDays,
-        progressDayIndex: Number(progressDayIndex),
-        targetDayIndex: Number(dayIndex)
-      })
-      const effectiveReadOnly =
-        !!options?.readOnly || targetStatus === 'completed' || !isExecutablePlanDay
-      if (!options?.readOnly && !isExecutablePlanDay && targetStatus !== 'completed') {
-        Taro.showToast({
-          title: `请先完成第${progressDayIndex}天；第${dayIndex}天仅供预览`,
-          icon: 'none'
-        })
-      }
-      if (!hasReadExecutionPlanNotice({ instanceId: instance.id, userId: currentUserId })) {
-        setPendingExecutionTarget({ dayIndex, focusAction, readOnly: effectiveReadOnly })
+      const entry = trainingEntry({ trainingDays, progressDayIndex: Number(progressDayIndex),
+        targetDayIndex: Number(dayIndex), execution: targetExecution, executionsByDayIndex })
+      const intent = options?.intent || (options?.readOnly ? 'review' : entry.intent)
+      if (intent === 'execute' && !hasReadExecutionPlanNotice({ instanceId: instance.id, userId: currentUserId })) {
+        setPendingExecutionTarget({ dayIndex, focusAction, intent })
         setExecutionNoticeVisible(true)
         return
       }
@@ -820,10 +829,8 @@ function TodayTrainingScreen() {
         ? `&coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
         : ''
       const focusQuery = typeof focusAction === 'number' ? `&focusAction=${focusAction}` : ''
-      // Always make the intended mode explicit. An editable current day must
-      // actively overwrite any readOnly=1 left by a previous preview/history
-      // route in the mini-program's local fallback cache.
-      const readOnlyQuery = `&readOnly=${effectiveReadOnly ? '1' : '0'}`
+      // The route carries the requested action, never a cached permission verdict.
+      const intentQuery = `&intent=${intent}`
       try {
         if (currentUserId) {
           const scopeKey = trainingExecutionSnapshotKey({
@@ -845,7 +852,7 @@ function TodayTrainingScreen() {
         console.warn('[today-training] prewarm execution snapshot failed', error)
       }
       Taro.navigateTo({
-        url: `/training/training-execution?instanceId=${instance.id}&dayIndex=${dayIndex}${coachQuery}${focusQuery}${readOnlyQuery}`
+        url: `/training/training-execution?instanceId=${instance.id}&dayIndex=${dayIndex}${coachQuery}${focusQuery}${intentQuery}`
       })
     },
     [actions, activeSubscription, currentUserId, executionsByDayIndex, instance, planMode, progressDayIndex, trainingDays]
@@ -862,7 +869,7 @@ function TodayTrainingScreen() {
     const target = pendingExecutionTarget
     setExecutionNoticeVisible(false)
     setPendingExecutionTarget(null)
-    handleGoToTrainingExecution(target.dayIndex, target.focusAction, { readOnly: target.readOnly })
+    handleGoToTrainingExecution(target.dayIndex, target.focusAction, { intent: target.intent })
   }, [currentUserId, handleGoToTrainingExecution, instance?.id, pendingExecutionTarget])
 
   const handleCancelExecutionNotice = useCallback(() => {
@@ -939,7 +946,7 @@ function TodayTrainingScreen() {
   /** 主行动：进入当前进度日训练执行（与原「开始训练」快捷入口一致） */
   const handleMegaStart = useCallback(() => {
     const targetDayIndex = selectedDayIndex || todayCompletedDayIndex || progressDayIndex
-    handleGoToTrainingExecution(targetDayIndex, undefined, { readOnly: selectedExecutionStatus === 'completed' })
+    handleGoToTrainingExecution(targetDayIndex)
   }, [
     handleGoToTrainingExecution,
     progressDayIndex,
@@ -1395,9 +1402,8 @@ function TodayTrainingScreen() {
   const hasPlanChoices = coachSubscriptions.length + (selfInstance ? 1 : 0) > 1
   const hasStrength = selectedModuleModel.strengthTasks.length > 0
   const selectedTrainingCompleted = selectedExecutionStatus === 'completed'
-  const primaryLabel = selectedTrainingCompleted ? '查看训练记录'
-    : selectedExecutionStatus === 'in_progress' ? '继续训练'
-    : hasStrength ? '开始训练' : '查看任务'
+  const primaryLabel = hasStrength ? trainingEntry({ trainingDays, progressDayIndex,
+    targetDayIndex: selectedDayIndex, execution: selectedExec, executionsByDayIndex }).label : '查看任务'
 
   return (
     <PageThemeRoot>
@@ -1408,7 +1414,7 @@ function TodayTrainingScreen() {
             <View className='compact-context-control' onClick={() => enableScheduleMonthExpand && setCalendarExpanded(true)}>
               <Calendar size={18} />
               <Text className='compact-date-text'>{instance ? selectedDateLabel : formatPlanDayLabel(new Date())}</Text>
-              {enableScheduleMonthExpand && <ArrowRight size={14} className='compact-down-arrow' />}
+              {enableScheduleMonthExpand && <Text className='compact-month-link'>月历 ›</Text>}
             </View>
             {(instance || coachSubscriptions.length > 0) && (
               <View className='compact-plan-control' onClick={() => hasPlanChoices && setCoachPickSheetOpen(true)}>
@@ -1417,6 +1423,12 @@ function TodayTrainingScreen() {
               </View>
             )}
           </View>
+          {!!instance && <WeekDashboardStrip cells={weekCells} selectedDateKey={toBeijingDateKey(weekAnchor)} onCellPress={cell => {
+            if (cell.status === 'locked') { Taro.showToast({ title: '这一天尚未开放', icon: 'none' }); return }
+            if (cell.planDayIndexes.length > 1) { setCalendarExpanded(true); return }
+            if (cell.planDayIndex) setSelectedDayIndex(cell.planDayIndex)
+            else Taro.showToast({ title: '这一天没有计划安排', icon: 'none' })
+          }} />}
           {!instance ? (
             <View className='compact-empty-state'>
               <Text className='compact-empty-title'>{waitingCoachPage ? '教练正在制定计划' : '今天想怎么练？'}</Text>
@@ -1447,7 +1459,7 @@ function TodayTrainingScreen() {
                     day={selectedDay} actions={actions} instanceId={instance.id} dayIndex={selectedDayIndex}
                     executionStatus={selectedExecutionStatus} execution={selectedExec}
                     onOpenLightweightTask={handleOpenLightweightTask} onDeleteLightweightTask={handleDeleteLightweightTask}
-                    onOpenExecution={handleGoToTrainingExecution} />
+                    onOpenExecution={handleGoToTrainingExecution} executionLabel={primaryLabel} />
                   {(hasStrength || selectedExecutionStatus !== 'none' || selectedTaskSummary.lightweightCount > 0) && (
                     <View className='compact-primary-button' onClick={() => {
                       if (hasStrength || selectedExecutionStatus !== 'none') { handleMegaStart(); return }

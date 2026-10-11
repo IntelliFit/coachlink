@@ -182,6 +182,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
         updateParams({
             intensityConfig: Object.keys(newConfig).length > 0 ? newConfig : undefined,
+            fixedLoadOverride: false,
             ...newParams
         });
     }, [existingConfig, recommendedValue, recommendedUnit, rmValue, updateParams]);
@@ -199,7 +200,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
         updateParams({
             '强度': rmValue,
-            intensityConfig: newConfig
+            intensityConfig: newConfig,
+            fixedLoadOverride: false,
         });
     }, [recommendedValue, recommendedUnit, updateParams]);
 
@@ -216,7 +218,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
         updateParams({
             '强度': undefined, // 百分比模式不使用旧字段
-            intensityConfig: newConfig
+            intensityConfig: newConfig,
+            fixedLoadOverride: false,
         });
     }, [recommendedValue, recommendedUnit, updateParams]);
 
@@ -273,6 +276,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
     // 当参数或算法变化时，自动计算推荐负重（RM 和 百分比 两种模式都支持）
     useEffect(() => {
+        // 教练指定的RM对应重量应保持原值；RM仅用于标明强度档位。
+        if (set.params?.fixedLoadOverride === true) return;
         if (!studentData || !currentAction?.enableAutoWeightCompute) {
             return;
         }
@@ -367,7 +372,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 });
             }
         }
-    }, [rmValue, set.params?.algorithm, studentData, currentAction, intensityType, existingConfig, percentageValue, manual1RM, planReference1RM, updateParams]);
+    }, [rmValue, set.params?.algorithm, set.params?.fixedLoadOverride, studentData, currentAction, intensityType, existingConfig, percentageValue, manual1RM, planReference1RM, updateParams]);
 
     // 检查当前动作是否有"强度"属性
     const hasIntensityAttr = currentAction?.attrs?.includes('强度');
@@ -550,7 +555,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                         {/* 推荐/固定重量 */}
                         <div className="flex flex-col gap-1.5">
                             <label className="block text-900 text-xs ml-1">
-                                {intensityType === 'none' ? '固定重量' : '推荐数值（备选）'}
+                                {set.params?.fixedLoadOverride === true ? '指定重量' : intensityType === 'none' ? '固定重量' : '推荐数值（备选）'}
                             </label>
                             <div className="flex gap-2">
                                 <AeroInputNumber
@@ -576,7 +581,9 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                             </div>
                             {advancedOpen && (
                                 <small className="text-500 text-xs ml-1 opacity-50">
-                                    {intensityType === 'none'
+                                    {set.params?.fixedLoadOverride === true
+                                        ? '按计划使用此重量；RM值标明强度档位'
+                                        : intensityType === 'none'
                                         ? '直接使用此重量'
                                         : '无法计算时使用此值'}
                                 </small>

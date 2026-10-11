@@ -76,18 +76,17 @@ export const buildStreetliftingLocationShareImageUrl = (params: {
   description?: string | null
   imageUrl?: string | null
 }) => {
+  const rawImageUrl = String(params.imageUrl || '').trim()
+  // Use the existing scene photo without waiting for the server to render a cover.
+  if (rawImageUrl) return rawImageUrl
+
   const apiBase = API_BASE_URL.replace(/\/+$/, '')
   const locationId = String(params.id || '').trim()
-  const rawImageUrl = String(params.imageUrl || '').trim()
   const queryParams: Record<string, ShareParamValue> = {
     id: locationId,
     name: params.name || undefined,
     area: params.area || undefined,
     description: params.description || undefined
-  }
-
-  if (!locationId && rawImageUrl) {
-    queryParams.image = rawImageUrl
   }
 
   return `${apiBase}${buildSharePath('/api/og/streetlifting-location', queryParams)}`

@@ -28,8 +28,9 @@ export interface CompleteSetDto {
     actionIndex: number;
     setIndex: number;
     actionId: string; // For video lookup
-    actualWeight?: number;
-    actualReps?: number;
+    actualWeight?: number | null;
+    actualReps?: number | null;
+    actualDuration?: number | null;
     rpe?: number;
     notes?: string;
     is_pr?: boolean; // PR flag

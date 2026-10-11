@@ -136,7 +136,9 @@ export function verifyWechatXPayCallbackSignature(input: {
     nonce: string;
     signature: string;
 }) {
-    const { messageToken } = getWechatXPayConfig({ requireMessageToken: true });
+    // URL verification is configured before payment credentials. Only the
+    // message token is needed to authenticate WeChat's callback signature.
+    const messageToken = requiredEnv("WECHAT_XPAY_MESSAGE_TOKEN");
     const expected = createHash("sha1")
         .update([messageToken, input.timestamp, input.nonce].sort().join(""))
         .digest("hex");
@@ -151,12 +153,16 @@ async function getWechatAccessToken() {
         return accessTokenCache.token;
     }
     const config = getWechatXPayConfig();
-    const query = new URLSearchParams({
-        grant_type: "client_credential",
-        appid: config.appId,
-        secret: config.appSecret,
-    });
-    const response = await fetch(`https://api.weixin.qq.com/cgi-bin/token?${query.toString()}`, {
+    // Concurrent main/dev consumers must not invalidate each other's token.
+    const response = await fetch("https://api.weixin.qq.com/cgi-bin/stable_token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            grant_type: "client_credential",
+            appid: config.appId,
+            secret: config.appSecret,
+            force_refresh: false,
+        }),
         cache: "no-store",
     });
     const result = await response.json() as {
@@ -214,4 +220,18 @@ export async function queryWechatXPayOrder(input: { openId: string; outTradeNo: 
         throw new Error(result.errmsg || "查询虚拟支付订单失败");
     }
     return result.order || null;
+}
+
+export async function notifyWechatXPayProvidedGoods(outTradeNo: string) {
+    const config = getWechatXPayConfig();
+    const uri = '/xpay/notify_provide_goods';
+    const body = JSON.stringify({ env: config.env, order_id: outTradeNo });
+    const token = await getWechatAccessToken();
+    const paySig = hmacSha256Hex(config.appKey, `${uri}&${body}`);
+    const response = await fetch(`https://api.weixin.qq.com${uri}?access_token=${encodeURIComponent(token)}&pay_sig=${paySig}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body, cache: 'no-store',
+        signal: AbortSignal.timeout(15000),
+    });
+    const result = await response.json() as { errcode?: number; errmsg?: string };
+    if (!response.ok || result.errcode !== 0) throw new Error(result.errmsg || '微信发货确认失败');
 }

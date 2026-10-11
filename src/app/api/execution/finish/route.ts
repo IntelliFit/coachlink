@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getPlannedDurationSeconds, isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -174,11 +175,13 @@ export async function POST(request: NextRequest) {
                         }
                         const defaultWeight = parseMinWeight(set?.planned_weight);
                         const defaultReps = parseMinReps(set?.planned_reps);
+                        const timed = isTimedTrainingSet(set, action);
                         return {
                             ...set,
                             status: "completed",
-                            actual_weight: set?.actual_weight ?? defaultWeight ?? null,
-                            actual_reps: set?.actual_reps ?? defaultReps ?? null,
+                            actual_weight: timed ? null : set?.actual_weight ?? defaultWeight ?? null,
+                            actual_reps: timed ? null : set?.actual_reps ?? defaultReps ?? null,
+                            ...(timed ? { actual_duration: set?.actual_duration ?? getPlannedDurationSeconds(set, action), e1rm: null, is_auto_pr: false } : {}),
                             completed_at: set?.completed_at ?? completedAt,
                         };
                     });

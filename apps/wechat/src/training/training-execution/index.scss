@@ -1563,6 +1563,25 @@
     grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.05fr) minmax(0, 0.84fr) 112rpx;
     gap: 8rpx;
     align-items: end;
+
+    &.timed {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 0.84fr) 112rpx;
+    }
+  }
+
+  .bodyweight-btn {
+    background: #FFFFFF;
+    color: #CF6D4E;
+    border: 1rpx solid #CF6D4E;
+    border-radius: 16rpx;
+    margin: 0;
+    padding: 0 16rpx;
+    min-height: 48rpx;
+    line-height: 48rpx;
+    font-size: 22rpx;
+
+    &::after { border: none; }
+    &:active { opacity: 0.8; }
   }
 
   .record-input-cell {
@@ -1675,11 +1694,11 @@
   }
 
   .set-secondary-row {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     gap: 8rpx;
     align-items: center;
-    margin-top: 12rpx;
+    margin-top: 16rpx;
   }
 
   .progress-toggle,
@@ -2187,5 +2206,15 @@
     .workout-complete-entry { background: #edf7ef; }
     .workout-complete-title { color: #278052; }
     .workout-complete-hint { color: #58715f; }
+  }
+
+  .error-wrap.execution-status-banner {
+    min-height: 0;
+    margin: 24rpx;
+    padding: 24rpx !important;
+    gap: 16rpx;
+    border: 1rpx solid #ebc0b3;
+    border-radius: 24rpx;
+    background: #fff9f5;
   }
 }

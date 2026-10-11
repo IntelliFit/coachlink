@@ -1,4 +1,5 @@
 import supabase from "@/lib/supabaseClient";
+import { isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import {
     calculateE1RM,
     isNewPR,
@@ -10,6 +11,8 @@ import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
 type ActionConfig = {
     name?: string;
     includesBodyWeight?: boolean;
+    attrs?: string[];
+    type?: string;
 };
 
 export type AutoE1RMCheckResult = {
@@ -43,20 +46,22 @@ async function resolveActionConfig(params: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: coachAction } = await (supabase as any)
             .from("coach_actions")
-            .select('name, "includesBodyWeight"')
+            .select('name, attrs, type, "includesBodyWeight"')
             .eq("id", trimmedActionId)
             .maybeSingle();
         if (coachAction) {
             return {
                 name: coachAction.name || trimmedActionName,
                 includesBodyWeight: coachAction.includesBodyWeight,
+                attrs: coachAction.attrs,
+                type: coachAction.type,
             };
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: studentAction } = await (supabase as any)
             .from("student_actions")
-            .select('name, "includesBodyWeight"')
+            .select('name, attrs, type, "includesBodyWeight"')
             .eq("id", trimmedActionId)
             .eq("user_id", userId)
             .maybeSingle();
@@ -64,6 +69,8 @@ async function resolveActionConfig(params: {
             return {
                 name: studentAction.name || trimmedActionName,
                 includesBodyWeight: studentAction.includesBodyWeight,
+                attrs: studentAction.attrs,
+                type: studentAction.type,
             };
         }
     }
@@ -72,7 +79,7 @@ async function resolveActionConfig(params: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: coachActionByName } = await (supabase as any)
             .from("coach_actions")
-            .select('name, "includesBodyWeight"')
+            .select('name, attrs, type, "includesBodyWeight"')
             .eq("name", trimmedActionName)
             .limit(1)
             .maybeSingle();
@@ -80,13 +87,15 @@ async function resolveActionConfig(params: {
             return {
                 name: coachActionByName.name || trimmedActionName,
                 includesBodyWeight: coachActionByName.includesBodyWeight,
+                attrs: coachActionByName.attrs,
+                type: coachActionByName.type,
             };
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: studentActionByName } = await (supabase as any)
             .from("student_actions")
-            .select('name, "includesBodyWeight"')
+            .select('name, attrs, type, "includesBodyWeight"')
             .eq("name", trimmedActionName)
             .eq("user_id", userId)
             .limit(1)
@@ -95,6 +104,8 @@ async function resolveActionConfig(params: {
             return {
                 name: studentActionByName.name || trimmedActionName,
                 includesBodyWeight: studentActionByName.includesBodyWeight,
+                attrs: studentActionByName.attrs,
+                type: studentActionByName.type,
             };
         }
     }
@@ -245,6 +256,7 @@ export async function handleAutoE1RMCheck(
     }
 
     const actionConfig = await resolveActionConfig({ userId, actionId, actionName });
+    if (isTimedTrainingSet({}, actionConfig) || (actionConfig.type && actionConfig.type !== 'STRENGTH')) return null;
     const effectiveActionName = String(actionConfig.name || actionName || "").trim() || "未知动作";
     const includeBodyWeight = actionConfig.includesBodyWeight !== undefined
         ? actionConfig.includesBodyWeight

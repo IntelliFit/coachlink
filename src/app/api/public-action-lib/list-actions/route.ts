@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { getApiUserId } from "@/lib/getApiUserId";
+import { filterReviewedStreetWorkoutActions } from "@/lib/streetWorkoutImageReview";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -18,13 +19,10 @@ export async function POST(req: Request) {
         const { page = 1, limit = 12, search, type, viewerActionType = "student" } =
             (await req.json()) as ListPublicActionsDto;
 
-        const from = (page - 1) * limit;
-        const to = from + limit - 1;
-
         const buildQuery = (tableName: "community_actions_ranked" | "community_actions") => {
             let query = supabase
                 .from(tableName)
-                .select("*", { count: "exact" });
+                .select("*");
 
             if (tableName === "community_actions_ranked") {
                 query = query
@@ -49,16 +47,29 @@ export async function POST(req: Request) {
                 );
             }
 
-            return query.range(from, to);
+            return query;
         };
 
-        let { data: rows, count, error } = await buildQuery("community_actions_ranked");
+        const fetchVisiblePage = async (tableName: "community_actions_ranked" | "community_actions") => {
+            const rows: any[] = [];
+            for (let from = 0; ; from += 500) {
+                const { data, error } = await buildQuery(tableName).range(from, from + 499);
+                if (error) return { rows: [] as any[], error };
+                rows.push(...(data || []));
+                if ((data || []).length < 500) break;
+            }
+            const visible = await filterReviewedStreetWorkoutActions(supabase, rows);
+            const from = (page - 1) * limit;
+            return { rows: visible.slice(from, from + limit), totalCount: visible.length, error: null };
+        };
+
+        let { rows, totalCount, error } = await fetchVisiblePage("community_actions_ranked");
         if (error) {
             console.warn(
                 "[public-action-lib] list-actions ranked view failed, fallback:",
                 error,
             );
-            ({ data: rows, count, error } = await buildQuery("community_actions"));
+            ({ rows, totalCount, error } = await fetchVisiblePage("community_actions"));
         }
 
         if (error) {
@@ -190,7 +201,7 @@ export async function POST(req: Request) {
             message: "获取成功",
             data: {
                 actions: enriched,
-                totalCount: count || 0,
+                totalCount: totalCount || 0,
                 page,
                 limit,
             },

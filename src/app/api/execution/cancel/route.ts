@@ -1,37 +1,10 @@
+import { executionHasRecordedProgress } from '@coachlink/core/src/executionCancellation';
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { activatePendingPlanRevisionForSource } from "@/lib/planExecutionLifecycle";
 
 const db = serviceRoleSupabase as any;
-
-function executionHasRecordedProgress(execution: any) {
-    if (Number(execution?.completed_sets || 0) > 0) return true;
-    if (String(execution?.session_notes || "").trim()) return true;
-
-    const actionExecutions = Array.isArray(execution?.action_executions)
-        ? execution.action_executions
-        : [];
-
-    return actionExecutions.some((action: any) => {
-        if (Number(action?.completed_sets || 0) > 0) return true;
-        const sets = Array.isArray(action?.sets) ? action.sets : [];
-        return sets.some((set: any) => {
-            const status = String(set?.status || "pending").toLowerCase();
-            if (status !== "pending") return true;
-            return [
-                set?.actual_weight,
-                set?.actual_reps,
-                set?.rpe,
-                set?.actual_distance,
-                set?.actual_duration,
-                set?.diet_content,
-                set?.notes,
-                set?.video_url,
-            ].some((value) => value !== null && value !== undefined && String(value).trim() !== "");
-        });
-    });
-}
 
 /**
  * POST /api/execution/cancel

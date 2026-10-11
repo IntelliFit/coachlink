@@ -89,7 +89,10 @@ class ImpromptuService {
     data: {
       actualWeight?: number | null
       actualReps?: number | null
+      actualDuration?: number | null
       notes?: string
+      rpe?: number | null
+      isPR?: boolean
     }
   ): Promise<any | null> {
     const res = await request({
@@ -101,7 +104,9 @@ class ImpromptuService {
         setIndex,
         actualWeight: data.actualWeight,
         actualReps: data.actualReps,
-        notes: data.notes
+        notes: data.notes,
+        rpe: data.rpe,
+        isPR: data.isPR
       }
     })
     if (res.success && res.data) return res.data

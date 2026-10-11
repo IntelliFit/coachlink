@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { projectPlanCacheProgress } from '@coachlink/core/src/planCacheProgress'
 
 export const TODAY_TRAINING_CACHE_KEY = 'today_training_page_cache_v1'
 const RETENTION_MS = 60 * 24 * 60 * 60 * 1000
@@ -192,6 +193,7 @@ export async function patchExecutionInTodayTrainingCache(
   execution: unknown,
 ) {
   if (!userId || !instanceId || !Number.isFinite(dayIndex) || dayIndex <= 0 || !execution) return
+  if ((execution as any).status === 'preview' || String((execution as any).id || '').startsWith('preview-')) return
   const current = await readTodayTrainingCache(userId)
   if (!current) return
 
@@ -199,13 +201,13 @@ export async function patchExecutionInTodayTrainingCache(
     await persistTodayTrainingCache({
       ...current,
       userId,
-      selfPlanData: {
+      selfPlanData: projectPlanCacheProgress({
         ...current.selfPlanData,
         executionsByDayIndex: {
           ...current.selfPlanData.executionsByDayIndex,
           [dayIndex]: execution,
         },
-      },
+      }),
     })
     return
   }
@@ -220,10 +222,10 @@ export async function patchExecutionInTodayTrainingCache(
     userId,
     coachPlanDataBySubId: {
       ...current.coachPlanDataBySubId,
-      [subscriptionId]: {
+      [subscriptionId]: projectPlanCacheProgress({
         ...block,
         executionsByDayIndex: { ...block.executionsByDayIndex, [dayIndex]: execution },
-      },
+      }),
     },
   })
 }

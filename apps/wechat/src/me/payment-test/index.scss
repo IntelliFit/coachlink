@@ -1,0 +1,9 @@
+.xpay-trial-page {
+  padding: 32rpx; display: flex; flex-direction: column; gap: 24rpx;
+  background: #F7F5F2; min-height: 100vh; color: #302923;
+  .heading { font-size: 36rpx; font-weight: 600; }
+  .message { padding: 24rpx; background: #FFFFFF; border-radius: 16rpx; line-height: 1.6; }
+  button { width: 100%; margin: 0; border-radius: 16rpx; }
+  .primary { background: #CF6D4E; color: #FFFFFF; }
+  .secondary { background: #FFFFFF; border: 1rpx solid #CF6D4E; color: #CF6D4E; }
+}

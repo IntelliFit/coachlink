@@ -1,0 +1,20 @@
+<view class="container">
+  <view class="title">安卓 XPay {{live ? '现网验证' : '沙箱联调'}}</view>
+  <view class="note">{{live ? '真实扣款 · env=0 · 仅验证付款和查单，不发放实际权益' : '独立测试包 · env=1 · 不更改实际会员、钱包或教练分账'}}</view>
+  <view class="card">
+    <view class="label">{{live ? '首笔真实验证：2元AI加油包' : '测试商品（共 8 个）'}}</view>
+    <picker range="{{products}}" range-key="label" value="{{selected}}" bindchange="choose" disabled="{{busy}}">
+      <view class="selection">{{products[selected].label}} ▾</view>
+    </picker>
+    <button id="login" bindtap="login" disabled="{{busy || loggedIn || !ready}}">1. 本人微信登录</button>
+    <button id="pay" bindtap="pay" disabled="{{busy || !ready || !loggedIn}}">2. {{live ? '打开真实支付收银台' : '打开安卓沙箱收银台'}}</button>
+    <button id="query" class="secondary" bindtap="query" disabled="{{busy || !orderId}}">3. 查询支付／发货结果</button>
+  </view>
+  <view class="card">
+    <view id="status" class="status">{{status}}</view>
+    <view class="note">{{live ? '验证范围：现网付款／查单，不是正式收费发布' : '沙箱发货次数：' + deliveries}}</view>
+    <view class="note" wx:if="{{orderId}}">{{orderId}}</view>
+    <view class="note">{{live ? '本人确认微信付款后，点击查单；勿重复购买。订单号已保存，可重开后再查询。' : '先取消一次确认无发货，再完成一次支付并重复查单。发货次数应始终为 1。'}}</view>
+  </view>
+  <button class="secondary" bindtap="logout" disabled="{{busy || !loggedIn}}">退出测试登录</button>
+</view>

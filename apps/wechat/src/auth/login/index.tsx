@@ -14,6 +14,7 @@ import { authService } from '@/services/authService'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import ResetPasswordForm from '@/components/ResetPasswordForm'
+import { LocalDebugLoginPanel } from '@/components/LocalDebugLogin'
 
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
@@ -480,6 +481,7 @@ function Login() {
                 </>
               )}
 
+              {IS_DEV ? <LocalDebugLoginPanel /> : null}
               {IS_DEV && (
                 <View
                   className='dev-onboarding-btn'

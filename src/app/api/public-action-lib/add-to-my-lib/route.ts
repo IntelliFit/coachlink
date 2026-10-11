@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { getApiUserId } from "@/lib/getApiUserId";
+import { filterReviewedStreetWorkoutActions } from "@/lib/streetWorkoutImageReview";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
             .eq("id", actionId)
             .single();
 
-        if (fetchError || !publicAction) {
+        if (fetchError || !publicAction || (await filterReviewedStreetWorkoutActions(supabase, [publicAction])).length === 0) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "公共动作不存在", data: null },
                 { status: 404 },

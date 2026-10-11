@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
             action_name: actionName,
             type: studentAction.type || "STRENGTH",
             item_type: studentAction.type || "STRENGTH",
+            attrs: studentAction.attrs,
             source: "student_extra",          // 标记来源
             source_action_id: actionId,       // 关联学员动作库
             custom_data: customData || {},

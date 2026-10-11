@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { filterReviewedStreetWorkoutActions } from "@/lib/streetWorkoutImageReview";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -29,11 +30,11 @@ export async function POST(req: Request) {
 
         const { data: action, error: actionError } = await supabase
             .from("community_actions")
-            .select("id, like_count")
+            .select("id, like_count, name, detail, type, attrs, canonical_action_id, url")
             .eq("id", actionId)
             .single();
 
-        if (actionError || !action) {
+        if (actionError || !action || (await filterReviewedStreetWorkoutActions(supabase, [action])).length === 0) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "公共动作不存在", data: null },
                 { status: 404 },

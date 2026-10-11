@@ -91,7 +91,7 @@ function BrowseSection({
         ? `&coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
         : ''
       Taro.navigateTo({
-        url: `/training/training-execution?instanceId=${instance.id}&dayIndex=${dayIndex}${coachQuery}`
+        url: `/training/training-execution?instanceId=${instance.id}&dayIndex=${dayIndex}&intent=preview${coachQuery}`
       }).catch(() => {
         Taro.showToast({
           title: '跳转失败',
@@ -241,7 +241,7 @@ function BrowseSection({
             {/* 查看/开始按钮 */}
             <View className='detail-btn' onClick={() => handleViewTraining(activeSelectedDayIndex)}>
               <Text className='btn-text'>
-                {activeSelectedDayIndex === currentDayIndex ? '开始训练' : '查看训练'}
+                查看训练安排
               </Text>
             </View>
           </View>

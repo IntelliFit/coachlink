@@ -74,6 +74,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+    ...(process.env.NODE_ENV === 'development' && process.env.COACHLINK_LOCAL_DEBUG_LOGIN === '1'
+        ? { distDir: '.next-local-debug' } : {}),
     output: 'standalone',
     reactStrictMode: false,
     // Playwright uses the IPv4 loopback host while the local dev server listens
@@ -118,6 +120,8 @@ const nextConfig: NextConfig = {
     pageExtensions: ["ts", "tsx", "js", "jsx", "md", "mdx"],
     typescript: {
         ignoreBuildErrors: true,
+        ...(process.env.NODE_ENV === 'development' && process.env.COACHLINK_LOCAL_DEBUG_LOGIN === '1'
+            ? { tsconfigPath: 'tsconfig.local-debug.json' } : {}),
     },
     experimental: {
         // 大量静态页面并行生成时会显著抬高内存占用；默认限制构建并发，发布机可按资源调高。

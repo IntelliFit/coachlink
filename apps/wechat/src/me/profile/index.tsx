@@ -14,6 +14,7 @@ import { AUTH_SESSION_INVALID_EVENT } from '@/services/authSessionEvents'
 import { clearLocalCache } from '@/utils/clearLocalCache'
 import './index.scss'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
+import { XPayTrialEntry } from '@/components/XPayTrialEntry'
 interface MenuItem {
   key: string
   label: string
@@ -606,6 +607,7 @@ function Profile() {
         )}
 
         <View className='menu-list-card'>
+          <XPayTrialEntry userId={user?.id} />
           {middleMenus.map((item) => (
             <View
               key={item.key}
