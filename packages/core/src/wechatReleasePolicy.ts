@@ -1,5 +1,6 @@
-/** Release policy, not a remote feature flag. Change only with a new reviewed release. */
-export const WECHAT_FREE_RELEASE: boolean = true
+/** Mini-program policy is compiled into its package; API opt-in alone cannot
+ * turn old free packages into paid packages (their free marker stays blocked). */
+export const WECHAT_FREE_RELEASE: boolean = process.env.COACHLINK_WECHAT_PAID_RELEASE !== 'true'
 export const WECHAT_FREE_RELEASE_HEADER = 'x-coachlink-release'
 export const WECHAT_FREE_RELEASE_ID = 'wechat-free-v1'
 // Coach services use Huifu independently of free platform membership.

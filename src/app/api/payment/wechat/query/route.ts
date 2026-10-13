@@ -143,7 +143,8 @@ export async function POST(request: NextRequest) {
         if (String(order.payment_provider || "") === "wechat_xpay") {
             const orderData = (order.order_data || {}) as Record<string, any>;
             if (orderData.xpay_admin_trial === true) await requireXPayTrialUser(request);
-            if (paymentStatus === "pending") {
+            // Never trust a stored paid status alone for an ordinary XPay grant.
+            if (paymentStatus === "pending" || (paymentStatus === "success" && orderData.xpay_admin_trial !== true)) {
                 const xpayOrder = await queryWechatXPayOrder({
                     openId: String(orderData.xpay_openid || ""),
                     outTradeNo: String(orderData.xpay_out_trade_no || ""),
@@ -166,6 +167,14 @@ export async function POST(request: NextRequest) {
                         transactionId: String(xpayOrder?.wxpay_order_id || xpayOrder?.wx_order_id || ""),
                     });
                     paymentStatus = "success";
+                    if (orderData.xpay_admin_trial !== true && xpayStatus !== 4) {
+                        try { await notifyWechatXPayProvidedGoods(String(orderData.xpay_out_trade_no)); }
+                        catch (error) {
+                            // The signed push may have acknowledged delivery concurrently.
+                            const rechecked = await queryWechatXPayOrder({ openId: String(orderData.xpay_openid), outTradeNo: String(orderData.xpay_out_trade_no) });
+                            if (Number(rechecked?.status) !== 4) throw error;
+                        }
+                    }
                 } else if ([5, 8].includes(xpayStatus)) {
                     const refundResult = await markXPayOrderRefunded(order as any, {
                         refundFee: Math.round(Number(xpayOrder?.refund_fee || order.total_amount || 0)),
@@ -185,6 +194,8 @@ export async function POST(request: NextRequest) {
                     latestOrder = { ...order, status: "closed" };
                 } else if (xpayStatus === 7) {
                     paymentStatus = "failed";
+                } else {
+                    paymentStatus = "pending";
                 }
             } else if (paymentStatus === "success") {
                 await fulfillPaidXPayOrder(order as any);

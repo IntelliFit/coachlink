@@ -164,6 +164,7 @@ async function getWechatAccessToken() {
             force_refresh: false,
         }),
         cache: "no-store",
+        signal: AbortSignal.timeout(15000),
     });
     const result = await response.json() as {
         access_token?: string;
@@ -214,6 +215,7 @@ export async function queryWechatXPayOrder(input: { openId: string; outTradeNo: 
         headers: { "Content-Type": "application/json" },
         body,
         cache: "no-store",
+        signal: AbortSignal.timeout(15000),
     });
     const result = await response.json() as WechatXPayOrderQueryResult;
     if (!response.ok || Number(result.errcode || 0) !== 0) {

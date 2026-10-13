@@ -3,13 +3,14 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { request } from '@/utils/request'
 import { isXPayTrialClient } from '@/utils/xpayTrial'
+import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 
 export function XPayTrialEntry({ userId }: { userId?: string | number }) {
   const [allowed, setAllowed] = useState(false)
   useEffect(() => {
     let active = true
     setAllowed(false)
-    if (userId && isXPayTrialClient()) {
+    if (WECHAT_FREE_RELEASE && userId && isXPayTrialClient()) {
       void request({ url: '/api/payment/wechat/xpay/admin-trial', showErrorToast: false })
         .then(result => { if (active) setAllowed(result.success) })
     }

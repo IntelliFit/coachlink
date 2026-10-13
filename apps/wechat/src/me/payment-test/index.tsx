@@ -10,6 +10,7 @@ import './index.scss'
 export default function PaymentTest() {
   const [state, setState] = useState<any>(null)
   const [busy, setBusy] = useState(false)
+  const [queryBusy, setQueryBusy] = useState(false)
   const [message, setMessage] = useState('正在检查登录状态与支付环境…')
   const load = async () => {
     if (!isXPayTrialClient()) { setMessage('请在体验版中进行支付测试'); return }
@@ -25,7 +26,7 @@ export default function PaymentTest() {
     if (!result.success) { setMessage(result.message || '查单失败，请重试查询，勿再次付款'); return }
     setState(result.data)
     setMessage(result.data.deliveryConfirmed
-      ? '通路通过：微信付款已确认、AI 额度已到账、微信发货已确认。可重复查询核对额度不重复增加。'
+      ? '沙箱通路通过：额度已到账、发货已确认。本次未扣真实款。'
       : `订单状态：${result.data.status}。只有付款、额度与发货确认均完成才算通过。`)
   }
   const pay = async () => {
@@ -57,8 +58,14 @@ export default function PaymentTest() {
       <Text>订单：{state.order?.id || '尚未创建'}</Text>
       <Text>状态：{state.order?.status || '无订单'}</Text>
       {state.order?.order_data && <Text>购买前：{state.order.order_data.xpay_trial_balance_before}；到账目标：{Number(state.order.order_data.xpay_trial_balance_before) + 3}</Text>}
-      <Button className='primary' disabled={busy || (state.order && state.order.status !== 'pending')} onClick={pay}>支付验证（取消后可重试）</Button>
-      <Button className='secondary' disabled={busy || !state.order?.id} onClick={async () => { setBusy(true); try { await query() } finally { setBusy(false) } }}>查询订单与发货</Button>
+      <Button className='primary' disabled={Boolean(busy || (state.order && state.order.status !== 'pending'))} onClick={pay}>支付验证（取消后可重试）</Button>
+      <Button className='secondary' loading={queryBusy} onClick={async () => {
+        if (queryBusy) return
+        if (!state.order?.id) { setMessage('尚无订单，请先发起支付验证'); return }
+        setQueryBusy(true)
+        setMessage('正在查询订单与发货…')
+        try { await query() } catch { setMessage('查询失败，请稍后重试，不要再次付款') } finally { setQueryBusy(false) }
+      }}>查询订单与发货</Button>
     </>}
   </View>
 }

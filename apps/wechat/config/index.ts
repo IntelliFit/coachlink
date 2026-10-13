@@ -24,6 +24,7 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
     outputRoot: weappOutputRoot,
     plugins: ['@tarojs/plugin-html'],
     defineConstants: {
+      'process.env.COACHLINK_WECHAT_PAID_RELEASE': JSON.stringify(process.env.COACHLINK_WECHAT_PAID_RELEASE || 'false'),
       ENABLE_INNER_HTML: JSON.stringify(true),
       ENABLE_ADJACENT_HTML: JSON.stringify(true),
       ENABLE_CLONE_NODE: JSON.stringify(true),
