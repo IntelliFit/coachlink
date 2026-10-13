@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
-import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
+import { serviceRoleSupabase } from '@/lib/supabaseClient';
 
 import { createAlipaySdk } from '@/lib/alipaySdk';
 import {
@@ -67,7 +67,8 @@ export async function POST(req: Request) {
     }
 
     // 查询是否已经支付成功
-    const dbClient = userId ? supabase : serviceRoleSupabase;
+    // Payment rows are server-only. Authenticate/authorize here, not via anon DB access.
+    const dbClient = serviceRoleSupabase;
     const { data: existOrder, error: existOrderError } = await dbClient
         .from('alipay_orders')
         .select()
@@ -90,7 +91,9 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    if (isHuifuWebPayment(existOrder) && existOrder.user_id !== userId) {
+    // Preserve guest checkout's existing unguessable-order-ID status lookup,
+    // but never expose a different user's normal order (including paid orders).
+    if (existOrder.order_type !== 'guest_content_purchase' && existOrder.user_id !== userId) {
         return NextResponse.json({ success: false, message: '无权查看此订单', data: null }, { status: 403 });
     }
 

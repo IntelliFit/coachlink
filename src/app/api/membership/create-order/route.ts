@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { yuanToFen, fenToYuan } from "@/lib/moneyUtils";
 import { ApiData } from "@/types/api";
 import {
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Create Internal Order Record
-    const { data: order, error } = await (supabase
+    const { data: order, error } = await (serviceRoleSupabase
         .from("student_membership_orders" as any)
         .insert({
             user_id: session.user.id,
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
     // Use `alipay_orders` as the "Payment Attempt".
     // Store `student_membership_orders.id` inside `alipay_orders.order_data.related_order_id`.
 
-    const { data: alipayOrder, error: alipayError } = await supabase
+    const { data: alipayOrder, error: alipayError } = await serviceRoleSupabase
         .from("alipay_orders")
         .insert({
             subject: product.name,

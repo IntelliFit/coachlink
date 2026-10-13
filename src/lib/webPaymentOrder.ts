@@ -418,7 +418,7 @@ export async function createWebPaymentOrder(req: Request, channel: "alipay" | "w
             { status: 503 },
         );
     }
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await serviceRoleSupabase
             .from("alipay_orders")
             .insert({
                 subject: subjectText,
@@ -687,7 +687,7 @@ export async function createWebPaymentOrder(req: Request, channel: "alipay" | "w
     }
 
     if (!result) {
-        await supabase
+        await serviceRoleSupabase
             .from("alipay_orders")
             .delete()
             .eq("id", order.id);
@@ -698,7 +698,7 @@ export async function createWebPaymentOrder(req: Request, channel: "alipay" | "w
             data: result,
         });
     } else if (createMode === "test") {
-        await supabase
+        await serviceRoleSupabase
             .from("alipay_orders")
             .delete()
             .eq("id", order.id);
