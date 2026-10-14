@@ -1,3 +1,11 @@
+## main/dev 全后端上线与数据库迁移（2026-10-14，已完成）
+
+- 用户追加全部线上迁移/部署授权已执行。固定应用源码27ee1a99（业务79333c49），不可变镜像929921598b70...已更新main130/dev91；六个新Pod实际imageID一致，各3/3Ready且0重启。CCR main/dev/latest/27ee1a9标签已同步。
+- 新套餐接续迁移20261013142403已应用；三项此前已生效迁移经校验补历史。真实线上回滚验证发现last_payment_order_id是text而order_id是uuid，已用CLI生成20261014092030补充迁移，两个变量使用列%TYPE，修复COALESCE兼容并登记。最终五项history存在，服务端专用队列/RPC权限通过。
+- Next生产编译/550页/standalone与push成功，复用已核验依赖缓存，未本机Docker构建。main/dev各26线上检查通过，实际不同SKU预览200；真实数据库事务覆盖接续/幂等/续费/退款/历史保护且探针0。最终付款379/会员27/队列0，无现金支付或既有学员权益/历史改写。
+- 本轮未更新小程序/App安装包或微信提审/正式发布；客户端新入口仍需相应客户端版本。详情docs/work/backend-full-release-2026-10-14.md，证据artifacts/backend-release/2026-10-14。
+- D任务coachlink-backend-release-20261014约115.35MiB/0reparse，主要源码压缩包；自动审批blocked by policy拒绝删除，未绕过，可由用户手动清理本任务目录。D余45.30GiB，远端构建缓存等新增约数GB/余56GiB，旧镜像保留回退。
+
 ## 全部本地代码提交并同步 dev/main（2026-10-14，已完成）
 
 - 当前工作区全部33个代码/文档文件已提交为79333c49，GitHub/Gitee dev/main均非强制快进到该提交；四个远端分支实际ls-remote回读一致，当前dev工作区干净。
