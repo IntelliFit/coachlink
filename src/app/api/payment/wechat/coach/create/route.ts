@@ -4,6 +4,7 @@ import type { ApiData } from "@/types/api";
 import { getApiUserId } from "@/lib/getApiUserId";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { fenToYuan, formatYuan, yuanToFen } from "@/lib/moneyUtils";
+import { assertPackageQueueAvailable, getPackagePurchase, PACKAGE_SWITCH_POLICY } from '@/lib/subscriptionPackageQueue';
 import {
     createHuifuMiniProgramOrder,
     formatHuifuReqDate,
@@ -31,6 +32,8 @@ interface CreateCoachWechatPaymentDto {
     renewAdditionalWeeks?: number;
     subject?: string;
     testAmountFen?: number;
+    productId?: string;
+    months?: number;
 }
 
 interface CreateCoachWechatPaymentResponse {
@@ -39,6 +42,7 @@ interface CreateCoachWechatPaymentResponse {
     paymentProvider: "wechat";
     amount: number;
     paymentParams: ReturnType<typeof parseHuifuPayInfo>;
+    packageSwitchPolicy?: typeof PACKAGE_SWITCH_POLICY;
 }
 
 export async function POST(request: NextRequest) {
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest) {
 
         const { data: subscription, error: subError } = await serviceRoleSupabase
             .from("coach_subscriptions")
-            .select("id, student_id, coach_id, status, monthly_price, product_name, product_tier, subscribed_weeks, coaches(name)")
+            .select("id, student_id, coach_id, status, monthly_price, product_id, product_name, product_tier, subscribed_weeks, coaches(name)")
             .eq("id", subscriptionId)
             .single();
 
@@ -129,6 +133,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const purchase = renew && body.productId
+            ? await getPackagePurchase(coachId, body.productId, Number(body.months ?? renewAdditionalWeeks / 4))
+            : null;
+        const isPackageSwitch = Boolean(purchase && purchase.productId !== subscription.product_id);
+        if (purchase && (purchase.purchasedWeeks !== renewAdditionalWeeks || purchase.amountFen !== yuanToFen(body.amount))) {
+            throw new Error('套餐价格或时长已变更，请刷新后重新选择');
+        }
+        if (isPackageSwitch) await assertPackageQueueAvailable();
+
         // 教练订阅必须保留汇付真实分账闭环。
         const { data: coachRecord } = await serviceRoleSupabase
             .from("coaches")
@@ -161,7 +174,7 @@ export async function POST(request: NextRequest) {
 
         const totalAmountFen = testPricingEnabled && testAmountFen > 0
             ? testAmountFen
-            : renew
+            : purchase ? purchase.amountFen : renew
                 ? yuanToFen(body.amount)
                 : Math.round(Number(subscription.monthly_price || 0));
 
@@ -191,10 +204,13 @@ export async function POST(request: NextRequest) {
             coachName,
             subscriptionId,
             subscription_id: subscriptionId,
-            productName: String(subscription.product_name || "").trim(),
-            product_name: String(subscription.product_name || "").trim(),
-            productTier: String(subscription.product_tier || "").trim(),
-            product_tier: String(subscription.product_tier || "").trim(),
+            productId: purchase?.productId || subscription.product_id,
+            productName: purchase?.productName || String(subscription.product_name || "").trim(),
+            product_name: purchase?.productName || String(subscription.product_name || "").trim(),
+            productTier: purchase?.productTier || String(subscription.product_tier || "").trim(),
+            product_tier: purchase?.productTier || String(subscription.product_tier || "").trim(),
+            packagePurchase: purchase || undefined,
+            packageSwitchPolicy: isPackageSwitch ? PACKAGE_SWITCH_POLICY : undefined,
             durationMonths,
             duration_months: durationMonths,
             renewAdditionalWeeks: renew ? renewAdditionalWeeks : undefined,
@@ -224,13 +240,12 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        await serviceRoleSupabase
-            .from("coach_subscriptions")
-            .update({
-                order_id: order.id,
-                payment_method: "platform_wechat",
-            })
-            .eq("id", subscriptionId);
+        if (!isPackageSwitch) {
+            await serviceRoleSupabase
+                .from("coach_subscriptions")
+                .update({ order_id: order.id, payment_method: "platform_wechat" })
+                .eq("id", subscriptionId);
+        }
 
         try {
             const payResult = await createHuifuMiniProgramOrder({
@@ -264,6 +279,7 @@ export async function POST(request: NextRequest) {
                     paymentProvider: "wechat",
                     amount: fenToYuan(totalAmountFen),
                     paymentParams,
+                    packageSwitchPolicy: isPackageSwitch ? PACKAGE_SWITCH_POLICY : undefined,
                 },
             });
         } catch (error: any) {

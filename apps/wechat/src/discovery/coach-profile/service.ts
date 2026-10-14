@@ -87,6 +87,8 @@ export async function createCoachWechatPayment(reqData: {
   renewAdditionalWeeks?: number
   testAmountFen?: number
   subject?: string
+  productId?: string
+  months?: number
 }) {
   const res = await createCoachWechatPaymentRequest(reqData)
   if (!res.success) {

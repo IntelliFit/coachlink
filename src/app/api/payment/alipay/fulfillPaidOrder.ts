@@ -545,7 +545,9 @@ export async function fulfillSubscriptionAndMaybeCreditWallet(
         return null;
     }
 
-    await fulfillSubscriptionOnPaid(order, String(order.id || ""), userId, provider);
+    const paymentOrderId = String(order.id || '');
+    if (!paymentOrderId) return null;
+    await fulfillSubscriptionOnPaid({ ...order, id: paymentOrderId }, paymentOrderId, userId, provider);
 
     if (requiresHuifuSettlement(order)) {
         const splitResult = await executeBalancePayment(order);
@@ -679,6 +681,7 @@ export async function fulfillSubscriptionOnPaid(
         order_type?: string | null;
         order_data?: unknown;
         user_id?: string | null;
+        total_amount?: number | null;
     },
     orderId: string,
     userId: string,
@@ -703,12 +706,35 @@ export async function fulfillSubscriptionOnPaid(
 
     const { data: sub } = await serviceRoleSupabase
         .from("coach_subscriptions")
-        .select("id, student_id, coach_id, status, start_date, end_date, subscribed_weeks, last_payment_order_id")
+        .select("id, student_id, coach_id, status, start_date, end_date, subscribed_weeks, last_payment_order_id, product_id, product_name, product_tier, tier, payment_data")
         .eq("id", subscriptionId)
         .single();
 
     if (!sub || sub.student_id !== userId) return;
     if (coachId && sub.coach_id !== coachId) return;
+    const needsQueueSupport = Boolean((sub.payment_data as any)?.pending_package_switch || (sub.payment_data as any)?.current_package_activation);
+    const isRenewal = order.order_type === 'subscription_renew' || order.order_type === 'coach_subscription_renew';
+    const legacyPurchase = needsQueueSupport && isRenewal ? {
+        productId: orderData.productId || sub.product_id, productName: orderData.productName || sub.product_name,
+        productTier: orderData.productTier || sub.product_tier,
+        tier: orderData.productTier === 'basic' ? 1 : orderData.productTier === 'standard' ? 2 : orderData.productTier === 'vip' ? 3 : sub.tier,
+        amountFen: Number(order.total_amount || 0), purchasedWeeks: Number(orderData.renewAdditionalWeeks || 0),
+        months: Number(orderData.renewAdditionalWeeks || 0) / 4,
+    } : null;
+    const purchase = orderData.packagePurchase || legacyPurchase;
+    if (isRenewal && purchase) {
+        const { applyPaidPackageRenewal, activateQueuedPackageIfReady } = await import('@/lib/subscriptionPackageQueue');
+        if (!purchase.productId || Number(purchase.purchasedWeeks) <= 0 || Number(purchase.amountFen) <= 0) throw new Error('接续套餐订单资料不完整');
+        const result = await applyPaidPackageRenewal({ subscriptionId, sourceKey: `payment:${order.id}`, purchase,
+            forceQueue: orderData.packageSwitchPolicy === 'after_current' || purchase.productId !== sub.product_id,
+            requireQueueSupport: needsQueueSupport,
+            metadata: { paymentMethod: getPaymentMethod(provider), confirmedBy: 'system', paymentOrderId: order.id } });
+        if (result) {
+            if (result.queued) await activateQueuedPackageIfReady(subscriptionId);
+            else if (result.applied) { await refreshSubscriptionEntitlementSnapshot(subscriptionId); await onRenewalPaid(subscriptionId); }
+            return;
+        }
+    }
     if (sub.last_payment_order_id === order.id) return;
 
     const nowIso = new Date().toISOString();

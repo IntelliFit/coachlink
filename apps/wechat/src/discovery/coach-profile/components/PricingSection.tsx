@@ -34,9 +34,12 @@ export default function PricingSection({
               <Text className='pricing-subscribed-title'>您已订阅该教练</Text>
               <Text className='pricing-subscribed-hint'>
                 {renewMode
-                  ? '续费模式：选择当前套餐的时长并支付即可延长订阅。'
-                  : '如需延长订阅，请点击右侧【续费】。'}
+                  ? '原套餐续费可延长服务；购买其他套餐将在旧权益用完后生效。'
+                  : '续原套餐请点【续费】；可直接购买其他套餐，旧权益用完后接续。'}
               </Text>
+              {(userSubscription?.queued_packages || []).map(item => (
+                <Text key={item.id} className='pricing-subscribed-hint'>待生效：{item.product_name}（{item.purchased_weeks}周），旧权益用完后接续</Text>
+              ))}
             </View>
             {showRenewBtn && !renewMode && onEnterRenewMode && (
               <View className='pricing-renew-btn' onClick={onEnterRenewMode}>

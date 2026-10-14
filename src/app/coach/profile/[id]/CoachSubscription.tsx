@@ -150,6 +150,11 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             throw new Error('创建订阅订单失败');
         }
 
+        if (activeSub && product.id !== activeSub.product_id &&
+            (res.subscriptionOrder.payment_data as any)?.package_switch_policy !== 'after_current') {
+            throw new Error('换套餐服务尚未就绪，请稍后重试');
+        }
+
         setPendingOrder(res.subscriptionOrder);
         return res.subscriptionOrder;
     };
@@ -176,7 +181,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 return;
             }
 
-            if (activeSub && !renewMode) {
+            if (activeSub && !renewMode && product.id === activeSub.product_id) {
                 showToast({ severity: 'info', summary: '您已订阅该教练', detail: '点击上方【续费】即可延长订阅' });
                 return;
             }
@@ -191,6 +196,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             }
 
             if (renewMode || activeSub) {
+                setRenewMode(true);
                 await createPendingOrder(product, duration);
                 setPaymentDialogVisible(true);
                 return;
@@ -412,8 +418,11 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                             您已订阅该教练
                         </div>
                         <div className="text-sm text-surface-500 mt-1">
-                            {renewMode ? '续费模式已开启：请选择任意方案与时长完成续费。' : '如需延长订阅，请点击右侧【续费】。'}
+                            {renewMode ? '原套餐续费可延长服务；购买其他套餐将在旧权益用完后生效。' : '续原套餐请点【续费】；可直接购买其他套餐，旧权益用完后接续。'}
                         </div>
+                        {(activeSub.queued_packages || []).map(item => (
+                            <div key={item.id} className="text-sm text-surface-500 mt-1">待生效：{item.product_name}（{item.purchased_weeks}周），旧权益用完后接续</div>
+                        ))}
                     </div>
                     <div className="flex gap-2 shrink-0">
                         {!renewMode ? (

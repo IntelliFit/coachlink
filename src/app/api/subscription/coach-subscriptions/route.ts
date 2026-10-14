@@ -6,6 +6,7 @@ import { CoachesRow, CoachSubscriptionRow } from '@/types';
 import { getSubscriptionLifecycle } from '@/lib/subscriptionLifecycle';
 import { deriveSubscriptionCarryoverSummaryFromHistory } from '@/lib/subscriptionCarryover';
 import { deriveSubscriptionEntitlementState } from '@/lib/subscriptionEntitlementModel';
+import { activateQueuedPackageIfReady, getQueuedPackages } from '@/lib/subscriptionPackageQueue';
 
 async function embeddingCaochesIntoSubscriptions(subscriptions: CoachSubscriptionRow[]) {
     const coachIds = Array.from(
@@ -114,6 +115,17 @@ export async function POST(req: Request) {
     // - 制定中: active subscription but no plan assigned yet
     // - 未开始: plan assigned but student hasn't started training yet (start_date is null)
     let subs = (subscriptions ?? []) as any[];
+
+    for (let index = 0; index < subs.length; index++) {
+        if (!subs[index]?.payment_data?.pending_package_switch) continue;
+        try {
+            const result = await activateQueuedPackageIfReady(subs[index].id);
+            if (result.subscription) subs[index] = { ...subs[index], ...result.subscription };
+            subs[index].queued_packages = await getQueuedPackages(subs[index].id);
+        } catch (error) {
+            console.error('[coach-subscriptions] package switch deferred', error);
+        }
+    }
 
     // 历史数据自愈：处理“已激活但 pending_renew 未兑现”的旧记录（只生效一次，随后清空 pending_renew）。
     const nowForRenewFix = new Date();

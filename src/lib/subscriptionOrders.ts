@@ -6,6 +6,7 @@ import type { CoachSubscriptionRow } from "@/types";
 import type { Json } from "@/types/database.types";
 import type { CoachSubscriptionOrderRow } from "@/types/subscriptionOrders";
 import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitlementSnapshot";
+import { applyPaidPackageRenewal, activateQueuedPackageIfReady } from '@/lib/subscriptionPackageQueue';
 
 const ORDER_TABLE = "coach_subscription_orders" as any;
 const MISSING_ORDER_TABLE_HINT =
@@ -25,6 +26,7 @@ interface UpsertSubscriptionOrderInput {
     productTier?: string | null;
     purchasedWeeks?: number | null;
     subscribeData?: Json | null;
+    packageSwitchPolicy?: 'after_current';
 }
 
 interface SubmitSubscriptionOrderInput {
@@ -267,6 +269,26 @@ async function applyRenewOrder(
         throw new Error(error?.message || "订阅不存在");
     }
 
+    if (order.product_id) {
+        const result = await applyPaidPackageRenewal({ subscriptionId: subscription.id, sourceKey: `subscription_order:${order.id}`,
+            purchase: { productId: order.product_id, productName: order.product_name || '', productTier: order.product_tier || '',
+                tier: order.tier, amountFen: order.amount_fen, purchasedWeeks: Number(order.purchased_weeks || 0),
+                months: Number(order.purchased_weeks || 0) / 4 }, subscribeData: order.subscribe_data,
+            forceQueue: order.product_id !== subscription.product_id || asObject(order.payment_data).package_switch_policy === 'after_current',
+            requireQueueSupport: Boolean(asObject(subscription.payment_data).pending_package_switch || asObject(subscription.payment_data).current_package_activation),
+            metadata: { paymentMethod: order.payment_method, confirmedBy, paymentOrderId: alipayOrderId || null,
+                paymentData: { ...asObject(order.payment_data), pending_renew: null, latest_subscription_order_id: order.id } },
+        });
+        if (result) {
+            if (result.queued) {
+                const activation = await activateQueuedPackageIfReady(subscription.id);
+                return activation.subscription || result.subscription;
+            }
+            await refreshSubscriptionEntitlementSnapshot(subscription.id);
+            return result.subscription;
+        }
+    }
+
     const nowIso = new Date().toISOString();
     const currentWeeks = Number(subscription.subscribed_weeks || 0);
     const extraWeeks = Number(order.purchased_weeks || 0);
@@ -329,6 +351,7 @@ export async function upsertSubscriptionOrder(
         productTier,
         purchasedWeeks,
         subscribeData,
+        packageSwitchPolicy,
     } = input;
 
     const basePayload = {
@@ -346,7 +369,7 @@ export async function upsertSubscriptionOrder(
         purchased_weeks: purchasedWeeks ?? null,
         subscribe_data: subscribeData ?? null,
         note: null,
-        payment_data: {} as Json,
+        payment_data: (packageSwitchPolicy ? { package_switch_policy: packageSwitchPolicy } : {}) as Json,
         payment_confirmed_by: null,
         payment_confirmed_at: null,
         coach_seen_at: null,
@@ -367,6 +390,10 @@ export async function upsertSubscriptionOrder(
     query = orderType === "renew"
         ? query.eq("subscription_id", subscriptionId || "")
         : query.is("subscription_id", null);
+    if (packageSwitchPolicy) {
+        // Do not rewrite a package snapshot once a payment has been issued.
+        query = query.eq('status', 'pending_payment').is('alipay_order_id', null).eq('product_id', productId || '');
+    }
 
     const { data: existingRows, error: existingError } = await query;
     if (existingError) {
@@ -551,7 +578,9 @@ export async function finalizeSubscriptionOrder(
             order.coach_id,
             input.confirmedBy,
         );
-    } else if (order.order_type === "renew") {
+    } else if (order.order_type === "renew" && asObject(order.payment_data).package_switch_policy !== 'after_current' &&
+        (!order.product_id || order.product_id === subscription.product_id) &&
+        asObject(subscription.payment_data).current_package_activation?.source_key !== `subscription_order:${order.id}`) {
         await onRenewalPaid(subscription.id).catch((automationError) => {
             console.warn("[subscriptionOrders] renewal automation failed:", automationError);
         });

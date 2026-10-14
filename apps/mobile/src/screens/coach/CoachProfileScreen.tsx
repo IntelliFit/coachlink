@@ -231,13 +231,25 @@ export function CoachProfileScreen({ navigation, route }: Props) {
     try {
       if (showRenew) {
         if (!subscription?.id) throw new Error('缺少当前订阅信息，请刷新后重试')
-        if (subscription?.product_id && subscription.product_id !== product.id) {
-          throw new Error('续费只能延长当前套餐；如需切换套餐，请联系教练。')
+        let subscriptionOrderId: string | undefined
+        if (subscription.product_id !== product.id) {
+          const result = await apiClient.request<any>('/api/subscription/create-subscription-order', {
+            method: 'POST', body: { coachId, orderType: 'renew', subscriptionId: subscription.id,
+              tier: product.tier === 'basic' ? 1 : product.tier === 'standard' ? 2 : 3,
+              monthlyPrice: duration.price, productId: product.id, productName: product.name,
+              productTier: product.tier, subscribedWeeks: duration.months * 4 },
+          })
+          const order = result?.subscriptionOrder
+          if (!order?.id || order.payment_data?.package_switch_policy !== 'after_current') {
+            throw new Error('换套餐服务尚未就绪，请稍后重试。')
+          }
+          subscriptionOrderId = order.id
         }
         const waitingParams = await createCoachPaymentWaitingParams({
           coachId,
           coachName: displayCoach?.name || '',
           subscriptionId: subscription.id,
+          subscriptionOrderId,
           amount: duration.price,
           renew: true,
           renewAdditionalWeeks: duration.months * 4,
@@ -630,7 +642,7 @@ function PricingTab({ products, subscription, receivingAccountReady, submitting,
   const isRenewal = ['active', 'expired', 'near_expiry'].includes(subscription?.status || '')
   return (
     <SectionCard title={isRenewal ? '选择续费时长' : '订阅价格'} description="点击时长后创建安全支付订单，并通过系统支付宝完成付款；返回 APP 后会自动同步结果。">
-      {isRenewal ? <Text style={styles.noticeText}>当前为续费模式：只能延长原套餐，训练计划和历史记录不会丢失。</Text> : null}
+      {isRenewal ? <Text style={styles.noticeText}>续原套餐可延长服务；购买其他套餐将在旧权益用完后生效，训练历史保留。</Text> : null}
       {!receivingAccountReady ? <Text style={styles.warningText}>教练收款账户尚未开通，暂时不能通过平台购买或续费。</Text> : null}
       {products.length === 0 ? <Text style={styles.emptyText}>暂无套餐</Text> : null}
       {products.map((product) => (
