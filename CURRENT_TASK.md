@@ -1,3 +1,25 @@
+## Web、后端与小程序体验版同步（2026-10-15，已完成）
+
+- 用户确认范围为Web＋小程序体验版；2026.10.15.2313已实际上传，用户已确认后台体验版就是新版本。AppID wx316e39eb71c0e834，总包10002944/主包1931638字节；固定48561dcc生产编译2899模块/125页，付费策略/HTTPS域名检查通过。
+- 启动无未提交业务代码；Web/API运行源码与27ee1a99相同，复用929921598b70镜像，main130/dev91各3/3Ready，两域首页/健康200，各9后端检查通过，无订单/权益/现金写入。此前必要迁移已生效，不重复构建部署。
+- 收尾发现另一已完成任务新增cancelled状态迁移20261015151937及回执，本次一并提交同步；迁移已线上生效，不重放业务操作。当前提交还包含发布文档与状态记录。
+- typecheck通过，2文件25定向测试通过；lint未配置真实ESLint。小程序自动化同窗口重试超时，无截图/交互验收，不冒称手机支付已验收。官方CLI关闭本任务项目且9420无监听，原用户IDE保留，无mock/storage残留。
+- 回执docs/work/web-wechat-release-2026-10-15.md；D任务coachlink-web-wechat-release-20261015约26MiB保留供复核，验收后可清此目录；小型证据artifacts/web-wechat-release/2026-10-15。未提审/正式发布或构建App。
+
+## BlessingLSH 提前结束旧订阅（2026-10-15 23:21，已完成）
+
+- 用户明确要求结束截图学员旧订阅，让其现有小程序立即购买不同套餐。精准回读昵称与用户b5380575/订阅3a71d6a5；无进行中训练、待支付订单或套餐队列。
+- 北京时间23:20:20，旧订阅active改cancelled，end_date/updated_at同结束时间。独立DB回读及正式API200返回cancelled/expired_cancelled；5计划/36执行/问卷/付款元数据/2付款订单全字段保留，其他159订阅未改。
+- 首次PATCH因线上状态约束仅active/inactive/waiting失败且零写入。CLI创建20261015151937_allow_coach_subscription_cancelled_status，只增cancelled；先ROLLBACK验证，再将约束补充、订阅结束与migration history一起COMMIT。迁移已线上生效，源码纳入同日发布收尾提交，勿重复部署或改为inactive。无需重建应用/上传包。
+- 旧客户端续费拦截与新购买active关系拦截条件已解除；让学员退出教练详情后重进，选329元/3个月重新购买。未操作手机、扣款或发消息，不宣称手机支付验收。
+- 回执docs/work/blessing-subscription-early-end-2026-10-15.md，证据artifacts/blessing-subscription-end/2026-10-15约85KiB。自动审批拒绝包含清理的收尾命令，仅blocked by policy，未执行或绕过；D:/cache/agent-tests/coachlink-blessing-subscription-end-20261015/query-sql.ps1约3.6KiB保留。其他会话WIP与服务保留，无本轮Git提交/推送或客户端发布。
+
+## 本地提交复核与Web/小程序体验版更新（2026-10-15，启动记录，结果见顶部）
+
+- 用户要求检查本地遗漏提交并更新前后端，已确认Web＋小程序体验版范围；不含App包或微信提审/正式发布。
+- 启动工作区干净/dev48561dcc，无未提交业务代码。核对线上镜像与实际运行版本；应用代码无变化时复用现有Web/后端，不重复全量构建。
+- 微信小程序需将已提交新功能交付体验版。先盘点复用DevTools资源，D任务独立生产输出/缓存，验证配置和实际上传回执；C余3.52GiB/D42.24GiB。
+
 ## main/dev 全后端上线与数据库迁移（2026-10-14，已完成）
 
 - 用户追加全部线上迁移/部署授权已执行。固定应用源码27ee1a99（业务79333c49），不可变镜像929921598b70...已更新main130/dev91；六个新Pod实际imageID一致，各3/3Ready且0重启。CCR main/dev/latest/27ee1a9标签已同步。
