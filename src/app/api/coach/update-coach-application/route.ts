@@ -11,6 +11,14 @@ import type {
     UpdateCoachApplicationResponseDto,
 } from "./entity";
 import { sendSystemMessage } from "@/lib/chat";
+import { notifyPlatformOwners } from "@/lib/platformNotice";
+
+const APPLICATION_STATUS_LABELS: Record<string, string> = {
+    pending: "待审核",
+    reviewing: "审核中",
+    needs_info: "待补充材料",
+    rejected: "已驳回",
+};
 import {
     sanitizeCoachTrack,
     sanitizeServiceModes,
@@ -358,6 +366,17 @@ export async function POST(req: Request) {
             .from("users")
             .update({ is_coach: false, coach_status: "pending" })
             .eq("id", existingApplication.user_id);
+
+        // 已通过的教练改资料不打扰；待审/驳回/待补充的申请人重新提交才通知平台。
+        await notifyPlatformOwners({
+            kind: "coach_application_resubmitted",
+            title: "教练申请已更新，待重新审核",
+            fields: [
+                ["申请人", data?.name || existingApplication.name],
+                ["原状态", APPLICATION_STATUS_LABELS[existingApplication.status] || existingApplication.status],
+            ],
+            adminPath: "/admin/coach-applications",
+        });
     }
 
     // 重要！必须声明接口范型位 ApiData<返回参数的接口类型>

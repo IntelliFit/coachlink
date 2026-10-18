@@ -5,6 +5,7 @@ import type { ApiData } from "@/types/api";
 import type { WithdrawDto, WithdrawResponse } from "../entity";
 import { fenToYuan, formatYuanFromFen, subtractFen, yuanToFen } from "@/lib/moneyUtils";
 import { calculateRefundProtectedAmountFen, getWithdrawableWalletAmounts } from "@/lib/coachWalletLock";
+import { getNoticeUserName, notifyPlatformOwners } from "@/lib/platformNotice";
 
 const normalizePayeeType = (input?: string | null) => {
     if (!input) return "ALIPAY_LOGON_ID";
@@ -127,6 +128,16 @@ export async function POST(req: Request) {
             .eq("id", withdrawal.id);
         return NextResponse.json({ success: false, message: "钱包扣款失败", data: null }, { status: 500 });
     }
+
+    await notifyPlatformOwners({
+        kind: "withdrawal_pending",
+        title: "教练提现申请待打款（支付宝）",
+        fields: [
+            ["教练", await getNoticeUserName(session.user.id)],
+            ["金额", formatYuanFromFen(amountFen)],
+        ],
+        adminPath: "/admin/withdrawals",
+    });
 
     return NextResponse.json<ApiData<WithdrawResponse>>({
         success: true,
