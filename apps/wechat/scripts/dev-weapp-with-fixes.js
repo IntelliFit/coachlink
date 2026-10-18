@@ -14,6 +14,7 @@ const { ensureRootCompArtifacts } = require('./ensure-root-comp-artifacts')
 // session alive instead of dying mid-build and leaving a half-written dist/.
 const WATCH_HEAP_MB = process.env.WEAPP_WATCH_HEAP_MB || '8192'
 const MAX_RESTARTS = 5
+const MIN_UPTIME_FOR_RESTART_MS = 60 * 1000
 
 function getWatchEnv(watchMode) {
   const env = { ...process.env }
@@ -98,6 +99,7 @@ if (fs.existsSync(distAppJson)) {
   ensureRootCompArtifacts(path.join(root, outputRoot))
 }
 function startTaro() {
+  const startedAt = Date.now()
   const nodeOptions = [process.env.NODE_OPTIONS, `--max-old-space-size=${WATCH_HEAP_MB}`].filter(Boolean).join(' ')
   const taro = spawn('npx', ['taro', 'build', '--type', 'weapp', '--watch'], {
     cwd: root,
@@ -115,10 +117,12 @@ function startTaro() {
     if (debounceTimer) clearTimeout(debounceTimer)
     console.log('[dev-weapp] Taro closed:', code)
     // 0 = normal exit, null = killed by a signal (Ctrl+C): stop. Anything else is a crash (134 = out of memory).
-    if (code && restartCount < MAX_RESTARTS) {
+    // Only restart a watch that had been running for a while; an immediate failure would just loop.
+    const ranLongEnough = Date.now() - startedAt > MIN_UPTIME_FOR_RESTART_MS
+    if (code && ranLongEnough && restartCount < MAX_RESTARTS) {
       restartCount += 1
-      console.log(`[dev-weapp] Restarting Taro watch (${restartCount}/${MAX_RESTARTS})...`)
-      startTaro()
+      console.log(`[dev-weapp] Restarting Taro watch in 3s (${restartCount}/${MAX_RESTARTS})...`)
+      setTimeout(startTaro, 3000)
       return
     }
     process.exit(code || 0)
