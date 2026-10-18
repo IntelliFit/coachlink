@@ -9,7 +9,6 @@ const { ensureWorkspaceDeps } = require('./ensure-workspace-deps')
 const root = path.join(__dirname, '..')
 const mode = process.argv[2] || 'local'
 const { ensureRootCompArtifacts } = require('./ensure-root-comp-artifacts')
-const { createDevtoolsRefresher } = require('./devtools-refresh')
 
 // Taro's watch mode leaks memory on every rebuild; a bigger heap plus auto-restart keeps a long
 // session alive instead of dying mid-build and leaving a half-written dist/.
@@ -43,7 +42,6 @@ let pendingFix = false
 let debounceTimer = null
 let buildCount = 0
 let restartCount = 0
-let refreshDevtools = () => {}
 
 function runFixScripts(reason = 'build') {
   if (isFixing) {
@@ -60,7 +58,6 @@ function runFixScripts(reason = 'build') {
     execSync('node scripts/fix-weapp-comp-path.js', { cwd: root, stdio: 'inherit' })
     execSync('node scripts/copy-comp-to-subpackages.js', { cwd: root, stdio: 'inherit' })
     console.log('[dev-weapp] All fixes applied.')
-    refreshDevtools()
   } catch (error) {
     console.error('[dev-weapp] Fix scripts error:', error.message)
   } finally {
@@ -100,8 +97,6 @@ ensureWorkspaceDeps()
 if (fs.existsSync(distAppJson)) {
   ensureRootCompArtifacts(path.join(root, outputRoot))
 }
-refreshDevtools = createDevtoolsRefresher({ projectDir: root, distDir: path.join(root, outputRoot) })
-
 function startTaro() {
   const nodeOptions = [process.env.NODE_OPTIONS, `--max-old-space-size=${WATCH_HEAP_MB}`].filter(Boolean).join(' ')
   const taro = spawn('npx', ['taro', 'build', '--type', 'weapp', '--watch'], {
