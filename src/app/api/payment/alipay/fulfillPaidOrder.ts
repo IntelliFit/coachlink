@@ -751,17 +751,41 @@ export async function fulfillSubscriptionOnPaid(
         update.status = "active";
     }
 
-    if (order.order_type === "subscription_renew" || order.order_type === "coach_subscription_renew") {
-        const weeks = Number(orderData.renewAdditionalWeeks ?? 0);
-        if (weeks > 0) {
-            update.subscribed_weeks = Number(sub.subscribed_weeks || 0) + weeks;
+    const renewWeeks = order.order_type === "subscription_renew" || order.order_type === "coach_subscription_renew"
+        ? Number(orderData.renewAdditionalWeeks ?? 0)
+        : 0;
+
+    // Payment callbacks, polling and the return page can all arrive at once.
+    // The write only lands while this payment is still unrecorded and the
+    // weeks are unchanged since the read; otherwise re-read and decide again.
+    let current: { subscribed_weeks?: number | null; last_payment_order_id?: string | null } = sub;
+    let recorded = false;
+    for (let attempt = 0; attempt < 3 && !recorded; attempt += 1) {
+        if (current.last_payment_order_id === order.id) return;
+        const weeksBefore = current.subscribed_weeks ?? null;
+        const attemptUpdate = renewWeeks > 0
+            ? { ...update, subscribed_weeks: Number(weeksBefore || 0) + renewWeeks }
+            : update;
+        let query = serviceRoleSupabase
+            .from("coach_subscriptions")
+            .update(attemptUpdate)
+            .eq("id", subscriptionId)
+            .or(`last_payment_order_id.is.null,last_payment_order_id.neq.${order.id}`);
+        query = weeksBefore === null ? query.is("subscribed_weeks", null) : query.eq("subscribed_weeks", weeksBefore);
+        const { data: written, error: writeError } = await query.select("id");
+        if (writeError) throw new Error(writeError.message);
+        recorded = Array.isArray(written) && written.length > 0;
+        if (!recorded) {
+            const { data: fresh } = await serviceRoleSupabase
+                .from("coach_subscriptions")
+                .select("subscribed_weeks, last_payment_order_id")
+                .eq("id", subscriptionId)
+                .single();
+            if (!fresh) return;
+            current = fresh;
         }
     }
-
-    await serviceRoleSupabase
-        .from("coach_subscriptions")
-        .update(update)
-        .eq("id", subscriptionId);
+    if (!recorded) throw new Error("订阅续费正在被同时处理，请稍后重试");
 
     if (order.order_type === "subscription_renew" || order.order_type === "coach_subscription_renew") {
         await refreshSubscriptionEntitlementSnapshot(subscriptionId);

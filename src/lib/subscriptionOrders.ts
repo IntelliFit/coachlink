@@ -81,6 +81,60 @@ function asObject(value: Json | null | undefined): Record<string, any> {
     return value as Record<string, any>;
 }
 
+const APPLIED_ORDER_IDS_KEY = "applied_subscription_order_ids";
+const APPLIED_ORDER_IDS_LIMIT = 50;
+const WEEKS_UPDATE_ATTEMPTS = 3;
+
+/** Whether this order's weeks were already added to the subscription (payment callbacks can race). */
+function hasAppliedOrder(subscription: { payment_data?: Json | null } | null | undefined, orderId: string) {
+    const data = asObject(subscription?.payment_data);
+    const applied = Array.isArray(data[APPLIED_ORDER_IDS_KEY]) ? data[APPLIED_ORDER_IDS_KEY] : [];
+    return applied.includes(orderId);
+}
+
+function withAppliedOrder(paymentData: Record<string, any>, previous: Json | null | undefined, orderId: string) {
+    const applied = asObject(previous)[APPLIED_ORDER_IDS_KEY];
+    const list = Array.isArray(applied) ? applied.filter((id: unknown) => id !== orderId) : [];
+    return { ...paymentData, [APPLIED_ORDER_IDS_KEY]: [...list, orderId].slice(-APPLIED_ORDER_IDS_LIMIT) };
+}
+
+async function fetchSubscriptionById(subscriptionId: string): Promise<CoachSubscriptionRow> {
+    const { data, error } = await serviceRoleSupabase
+        .from("coach_subscriptions")
+        .select("*")
+        .eq("id", subscriptionId)
+        .single();
+    if (error || !data) throw new Error(error?.message || "订阅不存在");
+    return data as CoachSubscriptionRow;
+}
+
+/**
+ * Adds an order's weeks exactly once. The write is conditional on the weeks
+ * just read, so concurrent callbacks for the same or another order re-read
+ * and retry instead of overwriting each other.
+ */
+async function addOrderWeeksToSubscription(
+    subscriptionId: string,
+    order: CoachSubscriptionOrderRow,
+    buildUpdate: (subscription: CoachSubscriptionRow) => Record<string, unknown>,
+): Promise<{ subscription: CoachSubscriptionRow; applied: boolean }> {
+    for (let attempt = 0; attempt < WEEKS_UPDATE_ATTEMPTS; attempt += 1) {
+        const subscription = await fetchSubscriptionById(subscriptionId);
+        if (hasAppliedOrder(subscription, order.id)) return { subscription, applied: false };
+        const currentWeeks = Number(subscription.subscribed_weeks || 0);
+        const update = buildUpdate(subscription);
+        update.payment_data = withAppliedOrder(asObject(update.payment_data as Json), subscription.payment_data as Json, order.id) as Json;
+        let query = serviceRoleSupabase.from("coach_subscriptions").update(update).eq("id", subscriptionId);
+        query = subscription.subscribed_weeks === null || subscription.subscribed_weeks === undefined
+            ? query.is("subscribed_weeks", null)
+            : query.eq("subscribed_weeks", currentWeeks);
+        const { data, error } = await query.select();
+        if (error) throw new Error(error.message || "更新订阅额度失败");
+        if (Array.isArray(data) && data.length > 0) return { subscription: data[0] as CoachSubscriptionRow, applied: true };
+    }
+    throw new Error("订阅额度正在被同时更新，请稍后重试");
+}
+
 async function fetchOrderById(orderId: string): Promise<CoachSubscriptionOrderRow | null> {
     const { data, error } = await serviceRoleSupabase
         .from(ORDER_TABLE)
@@ -247,7 +301,28 @@ async function activateSubscribeOrder(
         last_payment_order_id: alipayOrderId || null,
     };
 
-    return upsertSubscriptionRow(order.student_id, order.coach_id, subscriptionPayload);
+    const existing = await fetchLatestSubscriptionForPair(order.student_id, order.coach_id);
+    if (existing && hasAppliedOrder(existing, order.id)) return existing;
+    if (existing) {
+        const isRunning = String(existing.status || "").toLowerCase() === "active" &&
+            Number(existing.subscribed_weeks || 0) > 0;
+        // A new purchase while the old one is still running adds to it; only an
+        // ended subscription starts a fresh period (start_date set on first workout).
+        const { subscription } = await addOrderWeeksToSubscription(existing.id, order, (current) => isRunning
+            ? {
+                ...subscriptionPayload,
+                start_date: current.start_date,
+                subscribed_weeks: Number(current.subscribed_weeks || 0) + Number(order.purchased_weeks || 0),
+            }
+            : { ...subscriptionPayload });
+        return subscription;
+    }
+
+    const created = await upsertSubscriptionRow(order.student_id, order.coach_id, {
+        ...subscriptionPayload,
+        payment_data: withAppliedOrder(asObject(subscriptionPayload.payment_data as Json), null, order.id) as Json,
+    });
+    return created;
 }
 
 async function applyRenewOrder(
@@ -290,40 +365,28 @@ async function applyRenewOrder(
     }
 
     const nowIso = new Date().toISOString();
-    const currentWeeks = Number(subscription.subscribed_weeks || 0);
     const extraWeeks = Number(order.purchased_weeks || 0);
-    const nextPaymentData = {
-        ...asObject(subscription.payment_data),
-        ...asObject(order.payment_data),
-        pending_renew: null,
-        latest_subscription_order_id: order.id,
-    };
-
-    const updateData: Record<string, unknown> = {
-        status: "active",
-        subscribed_weeks: currentWeeks + extraWeeks,
-        payment_method: order.payment_method,
-        payment_confirmed_by: confirmedBy,
-        payment_confirmed_at: nowIso,
-        coach_seen_at: confirmedBy === "system" ? null : nowIso,
-        payment_data: nextPaymentData as Json,
-    };
-
-    if (alipayOrderId) {
-        updateData.last_payment_order_id = alipayOrderId;
-        updateData.order_id = alipayOrderId;
-    }
-
-    const { data: updated, error: updateError } = await serviceRoleSupabase
-        .from("coach_subscriptions")
-        .update(updateData)
-        .eq("id", subscription.id)
-        .select()
-        .single();
-
-    if (updateError || !updated) {
-        throw new Error(updateError?.message || "续费订阅更新失败");
-    }
+    const { subscription: updated } = await addOrderWeeksToSubscription(subscription.id, order, (current) => {
+        const updateData: Record<string, unknown> = {
+            status: "active",
+            subscribed_weeks: Number(current.subscribed_weeks || 0) + extraWeeks,
+            payment_method: order.payment_method,
+            payment_confirmed_by: confirmedBy,
+            payment_confirmed_at: nowIso,
+            coach_seen_at: confirmedBy === "system" ? null : nowIso,
+            payment_data: {
+                ...asObject(current.payment_data as Json),
+                ...asObject(order.payment_data),
+                pending_renew: null,
+                latest_subscription_order_id: order.id,
+            } as Json,
+        };
+        if (alipayOrderId) {
+            updateData.last_payment_order_id = alipayOrderId;
+            updateData.order_id = alipayOrderId;
+        }
+        return updateData;
+    });
 
     const entitlementModel = await refreshSubscriptionEntitlementSnapshot(subscription.id);
     if (entitlementModel?.displayEndDate) {
