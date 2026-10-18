@@ -431,3 +431,11 @@
 - **统一规则**：前端只调用 Next.js API，不直连 Supabase；服务端默认客户端用 service key；public 表对 anon/authenticated 无直接权限，新表同样适用（默认权限已收回）。
 - **改动前自检**：新页面是否在 `use client` 文件里 import 了 supabaseClient？构建参数是否引入了 NEXT_PUBLIC_ 的数据库密钥？新建表是否需要客户端直连（答案应为否）？
 - **典型案例**（2026-10-18）：知识库节点编辑页、/test 页；已移除并收紧服务端客户端与表权限。
+
+## 36) 按成员查聊天会话用 maybeSingle：存在已归档旧会话时报错，系统消息静默发不出
+
+- **现象**：「教链小助手」给某些用户发的系统消息（审核结果、新订单、平台待办）没有出现在消息列表里，接口也不报错。
+- **根因**：`getSystemChatroom` 只按 `contains('members', [a, b])` 查找，再 `.maybeSingle()`。同一对用户留有已归档的旧会话（或成员数组包含更多人）时返回多行，`maybeSingle` 报错，调用方只记日志后返回 false。`getOrCreatePrivateChatroom` 也是同样写法。
+- **统一规则**：按成员找私聊必须同时加 `.eq('is_archived', false)`、`.contains(members)` + `.containedBy(members)`，再 `.order('created_at').limit(1).maybeSingle()`；与 `/api/chat/create-chatroom` 保持一致。
+- **改动前自检**：查询会话时是否可能命中已归档行或多人会话？`maybeSingle` 前是否有 `limit(1)`？发送失败时调用方是否只吞掉了错误？
+- **典型案例**（2026-10-18）：创始人账号与小助手有 1 个已归档 + 1 个正常会话；已修复 `getSystemChatroom`，`getOrCreatePrivateChatroom` 待同样修复。

@@ -14,10 +14,16 @@ export async function getAdmin() {
 
 export async function getSystemChatroom(adminId: string, userId: string) {
     const members = [adminId, userId];
+    // 只取未归档、成员恰好是这两人的会话；用户可能还留着一个已归档的旧会话，
+    // 不加过滤时 maybeSingle 会因多行报错，导致系统消息发不出去。
     const { data: chatroom, error } = await supabase
         .from('chat_rooms')
         .select('*')
+        .eq('is_archived', false)
         .contains('members', members)
+        .containedBy('members', members)
+        .order('created_at', { ascending: true })
+        .limit(1)
         .maybeSingle();
     
     if (error) {
