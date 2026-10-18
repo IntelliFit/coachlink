@@ -8,6 +8,7 @@ import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancel
 import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, getTrainingSetVolume, formatRecordedTrainingSet, inheritedTimedSetDefaults } from '@coachlink/core/src/trainingSetMetrics'
 import RecordCompletionButton from '@/components/RecordCompletionButton'
 import { formatPosterSetText } from './posterSetText'
+import { previousCompletedWeight } from './setDefaults'
 import { resolveWeappImageThumbnailUrl } from '@/utils/mediaUrl'
 import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
@@ -740,7 +741,11 @@ function TrainingExecution() {
     }
 
     const timed = isTimedTrainingSet(set, options?.action)
-    const defaultWeight = timed ? null : getSetWeightDefault(set)
+    const plannedWeight = timed ? null : getSetWeightDefault(set)
+    // No concrete kg in the plan (e.g. "9RM"): start from the weight used on the previous set.
+    const defaultWeight = timed || plannedWeight !== null || set.status === 'completed'
+      ? plannedWeight
+      : previousCompletedWeight(options?.action?.sets, set)
     const defaultReps = timed ? getActualDurationSeconds(set) ?? (set.status === 'completed' ? null : getPlannedDurationSeconds(set, options?.action)) : getSetRepsDefault(set)
     setWeight(defaultWeight)
     setWeightInput(formatInputValue(defaultWeight))
@@ -2961,7 +2966,7 @@ function TrainingExecution() {
                                               type="digit"
                                               className="record-inline-input"
                                               value={weightInput}
-                                              placeholder={String(set.planned_weight || '0')}
+                                              placeholder={set.planned_weight ? String(set.planned_weight) : '填重量'}
                                               onInput={(e) => {
                                                 const rawValue = e.detail.value
                                                 const parsed = parseInputNumber(rawValue, 'float')
