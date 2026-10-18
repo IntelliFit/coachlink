@@ -1442,43 +1442,7 @@ $dark-warning-bg: #3a302d;
   }
 }
 
-// ── 底部导航栏 ──
-.page-theme-root--dark .bottom-nav,
-.bottom-nav--dark {
-  background: $dark-surface !important;
-  border-color: $dark-border !important;
-  box-shadow: 0 12rpx 36rpx rgba(0, 0, 0, 0.28) !important;
-
-  .nav-icon {
-    color: $dark-text2 !important;
-  }
-
-  .nav-label {
-    color: $dark-text2 !important;
-  }
-
-  .nav-icon-active {
-    color: $dark-accent !important;
-  }
-
-  .nav-item:not(.nav-active):active {
-    background: rgba(207, 109, 78, 0.08) !important;
-  }
-
-  .nav-active {
-    background: #ffffff !important;
-    box-shadow: 0 6rpx 18rpx rgba(0, 0, 0, 0.22) !important;
-
-    .nav-icon,
-    .nav-label {
-      color: #111827 !important;
-    }
-
-    .nav-msg-badge {
-      border-color: #111827 !important;
-    }
-  }
-}
+// ── 底部导航栏：由 BottomNav.scss 的 v1 设计变量统一处理深色 ──
 
 // ── 导航栏下方的实色填充 ──
 .page-theme-root--dark {

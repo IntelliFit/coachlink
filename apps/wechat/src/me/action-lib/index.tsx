@@ -13,7 +13,7 @@ import {
 import type { PublicActionItemDto } from '@/types/action'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
-import { resolveWeappMediaUrl } from '@/utils/mediaUrl'
+import { resolveWeappImageThumbnailUrl } from '@/utils/mediaUrl'
 import { impromptuService } from '@/services/impromptuService'
 import { authService } from '@/services/authService'
 import {
@@ -858,7 +858,7 @@ export default function ActionLibPage() {
           const isPublishing = publishingActionId === action.id
           const selected = isSelectedAction(action)
           const meta = getActionMeta(action)
-          const referenceImageUrl = resolveWeappMediaUrl(action.reference_image_url)
+          const referenceImageUrl = resolveWeappImageThumbnailUrl(action.reference_image_url)
           return (
             <View key={action.id} className={`mine-card ${selected ? 'selected' : ''}`}>
               {referenceImageUrl ? (
@@ -937,7 +937,7 @@ export default function ActionLibPage() {
           const isLiking = likingPublicId === action.id
           const selected = isSelectedAction(action)
           const meta = getActionMeta(action)
-          const referenceImageUrl = resolveWeappMediaUrl(action.reference_image_url)
+          const referenceImageUrl = resolveWeappImageThumbnailUrl(action.reference_image_url)
           return (
             <View key={action.id} className={`public-card ${selected ? 'selected' : ''}`}>
               <View className='card-marker'><Text>{action.url ? '演示' : '要点'}</Text></View>

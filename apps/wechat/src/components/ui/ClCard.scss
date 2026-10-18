@@ -1,0 +1,25 @@
+@use '../../styles/tokens' as *;
+
+.cl-card {
+  box-sizing: border-box;
+  background: var(--cl-card);
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-card;
+  overflow: hidden;
+
+  &--pad-md {
+    padding: $cl-card-padding;
+  }
+
+  &--pad-sm {
+    padding: $cl-space-3;
+  }
+
+  &--pad-none {
+    padding: 0;
+  }
+
+  &--pressed {
+    opacity: 0.9;
+  }
+}

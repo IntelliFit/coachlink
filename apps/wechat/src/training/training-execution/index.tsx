@@ -7,6 +7,7 @@ import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type Tra
 import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation'
 import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, getTrainingSetVolume, formatRecordedTrainingSet, inheritedTimedSetDefaults } from '@coachlink/core/src/trainingSetMetrics'
 import RecordCompletionButton from '@/components/RecordCompletionButton'
+import { formatPosterSetText } from './posterSetText'
 import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { trainingService } from '@/services/trainingService'
@@ -2464,7 +2465,7 @@ function TrainingExecution() {
             setNumber: Number(set.set_number || set.set_index || setIndex + 1),
             weightText,
             repsText,
-            recordText: formatRecordedTrainingSet(set, action).replace(' / 无外加负重', ''),
+            recordText: formatPosterSetText(set, action),
             isPr: !!set.is_pr
           }
         }),

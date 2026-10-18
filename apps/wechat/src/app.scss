@@ -1,3 +1,4 @@
+@use './styles/tokens-css.scss';
 @use './components/BottomNav.scss';
 @use './styles/theme-dark.scss';
 
@@ -8,21 +9,18 @@
 /* ==================== 全局字体 ==================== */
 page {
   font-family: 'Noto Sans SC', 'Source Han Sans SC', 'Source Han Sans CN', 'PingFang SC', -apple-system-font, 'Helvetica Neue', sans-serif;
-  --bg-page: linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%);
-  --bg-card: #FFFFFF;
-  --primary: #CF6D4E;
-  --text-primary: #111827;
-  --text-secondary: #6B7280;
-  --text-tertiary: #9CA3AF;
 }
 
-.app-root.theme-dark {
-  --bg-page: linear-gradient(180deg, #20201f 0%, #181817 48%, #121211 100%);
-  --bg-card: #242321;
-  --primary: #CF6D4E;
-  --text-primary: #f3f0ea;
-  --text-secondary: #d2ccc3;
-  --text-tertiary: #9f988e;
+/* Legacy variables used by pages not yet migrated; they now follow the v1 tokens (tokens-css.scss). */
+page,
+.app-root.theme-dark,
+.page-theme-root--dark {
+  --bg-page: var(--cl-paper);
+  --bg-card: var(--cl-card);
+  --primary: var(--cl-clay);
+  --text-primary: var(--cl-ink);
+  --text-secondary: var(--cl-ink-2);
+  --text-tertiary: var(--cl-ink-3);
 }
 
 /* ==================== 带底部导航栏的页面布局（全局） ====================
@@ -132,14 +130,14 @@ $bottom-nav-height-rpx: 140rpx;
   text-align: center;
   font-size: 30rpx;
   &.primary {
-    background: #cf6d4e;
+    background: var(--cl-clay-strong);
     color: #fff;
   }
 }
 
 /* Prevent NutUI primary buttons from falling back to the platform green. */
 .nut-button--primary {
-  background: #CF6D4E !important;
-  border-color: #CF6D4E !important;
-  color: #FFFFFF !important;
+  background: var(--cl-clay-strong) !important;
+  border-color: var(--cl-clay-strong) !important;
+  color: var(--cl-on-accent) !important;
 }

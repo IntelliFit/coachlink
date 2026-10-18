@@ -1,0 +1,81 @@
+@use '../../styles/tokens' as *;
+
+.cl-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  height: $cl-chip-height;
+  padding: 0 $cl-space-4;
+  border-radius: $cl-radius-pill;
+  background: var(--cl-sunk);
+  color: var(--cl-ink-2);
+
+  &--selected {
+    background: var(--cl-selected-bg);
+    color: var(--cl-selected-text);
+
+    .cl-chip__label {
+      font-weight: 500;
+    }
+  }
+
+  &--pressed {
+    opacity: 0.85;
+  }
+}
+
+.cl-chip__label {
+  color: inherit;
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+  white-space: nowrap;
+}
+
+.cl-tag {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 0 $cl-space-2;
+  border-radius: 8rpx;
+  border: 2rpx solid transparent;
+
+  &--neutral {
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+  }
+
+  &--clay {
+    background: var(--cl-clay-soft);
+    color: var(--cl-clay-text);
+  }
+
+  &--warn {
+    background: var(--cl-warn-bg);
+    color: var(--cl-warn-text);
+  }
+
+  &--done {
+    background: var(--cl-done-soft);
+    color: var(--cl-done);
+  }
+
+  &--outline {
+    border-color: var(--cl-ink);
+    color: var(--cl-ink);
+  }
+
+  &--solid {
+    background: var(--cl-clay);
+    color: var(--cl-on-accent);
+  }
+}
+
+.cl-tag__label {
+  color: inherit;
+  font-size: $cl-font-tag;
+  line-height: $cl-line-tag;
+  font-weight: 500;
+  white-space: nowrap;
+}
