@@ -9,6 +9,12 @@ const { ensureWorkspaceDeps } = require('./ensure-workspace-deps')
 const root = path.join(__dirname, '..')
 const mode = process.argv[2] || 'local'
 const { ensureRootCompArtifacts } = require('./ensure-root-comp-artifacts')
+const { createDevtoolsRefresher } = require('./devtools-refresh')
+
+// Taro's watch mode leaks memory on every rebuild; a bigger heap plus auto-restart keeps a long
+// session alive instead of dying mid-build and leaving a half-written dist/.
+const WATCH_HEAP_MB = process.env.WEAPP_WATCH_HEAP_MB || '8192'
+const MAX_RESTARTS = 5
 
 function getWatchEnv(watchMode) {
   const env = { ...process.env }
@@ -36,6 +42,8 @@ let isFixing = false
 let pendingFix = false
 let debounceTimer = null
 let buildCount = 0
+let restartCount = 0
+let refreshDevtools = () => {}
 
 function runFixScripts(reason = 'build') {
   if (isFixing) {
@@ -52,6 +60,7 @@ function runFixScripts(reason = 'build') {
     execSync('node scripts/fix-weapp-comp-path.js', { cwd: root, stdio: 'inherit' })
     execSync('node scripts/copy-comp-to-subpackages.js', { cwd: root, stdio: 'inherit' })
     console.log('[dev-weapp] All fixes applied.')
+    refreshDevtools()
   } catch (error) {
     console.error('[dev-weapp] Fix scripts error:', error.message)
   } finally {
@@ -91,25 +100,39 @@ ensureWorkspaceDeps()
 if (fs.existsSync(distAppJson)) {
   ensureRootCompArtifacts(path.join(root, outputRoot))
 }
-const taro = spawn('npx', ['taro', 'build', '--type', 'weapp', '--watch'], {
-  cwd: root,
-  stdio: ['inherit', 'pipe', 'pipe'],
-  shell: true,
-  env: { ...watchEnv, FORCE_COLOR: '1' }
-})
+refreshDevtools = createDevtoolsRefresher({ projectDir: root, distDir: path.join(root, outputRoot) })
 
-taro.stdout.on('error', () => {})
-taro.stderr.on('error', () => {})
-wireStream(taro.stdout, (msg) => process.stdout.write(msg))
-wireStream(taro.stderr, (msg) => process.stderr.write(msg))
+function startTaro() {
+  const nodeOptions = [process.env.NODE_OPTIONS, `--max-old-space-size=${WATCH_HEAP_MB}`].filter(Boolean).join(' ')
+  const taro = spawn('npx', ['taro', 'build', '--type', 'weapp', '--watch'], {
+    cwd: root,
+    stdio: ['inherit', 'pipe', 'pipe'],
+    shell: true,
+    env: { ...watchEnv, NODE_OPTIONS: nodeOptions, FORCE_COLOR: '1' }
+  })
+
+  taro.stdout.on('error', () => {})
+  taro.stderr.on('error', () => {})
+  wireStream(taro.stdout, (msg) => process.stdout.write(msg))
+  wireStream(taro.stderr, (msg) => process.stderr.write(msg))
+
+  taro.on('close', (code) => {
+    if (debounceTimer) clearTimeout(debounceTimer)
+    console.log('[dev-weapp] Taro closed:', code)
+    // 0 = normal exit, null = killed by a signal (Ctrl+C): stop. Anything else is a crash (134 = out of memory).
+    if (code && restartCount < MAX_RESTARTS) {
+      restartCount += 1
+      console.log(`[dev-weapp] Restarting Taro watch (${restartCount}/${MAX_RESTARTS})...`)
+      startTaro()
+      return
+    }
+    process.exit(code || 0)
+  })
+}
+
+startTaro()
 
 // If dist already exists (warm start), run one initial fix once.
 if (fs.existsSync(distAppJson)) {
   scheduleFix('initial')
 }
-
-taro.on('close', (code) => {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  console.log('[dev-weapp] Taro closed:', code)
-  process.exit(code || 0)
-})
