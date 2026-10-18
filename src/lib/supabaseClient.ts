@@ -23,13 +23,18 @@ function getEnv() {
 let _supabase: SupabaseClient<Database> | null = null;
 let _serviceRoleSupabase: SupabaseClient<Database> | null = null;
 
+// The default client is used only by server code, which authenticates the
+// caller itself (NextAuth / app JWT) and never carries a Supabase Auth session.
+// It therefore uses the service key when one is configured, so the database can
+// deny the public anon role entirely without breaking any API route.
 function getSupabase(): SupabaseClient<Database> {
     if (!_supabase) {
-        const { url, anonKey } = getEnv();
-        if (!url || !anonKey) {
-            throw new Error('Supabase URL and anon key are required. Set NEXT_SUPABASE_URL / NEXT_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+        const { url, anonKey, serviceKey } = getEnv();
+        const key = serviceKey || anonKey;
+        if (!url || !key) {
+            throw new Error('Supabase URL and a service or anon key are required. Set NEXT_SUPABASE_URL and NEXT_SUPABASE_SERVICE_ROLE_KEY.');
         }
-        _supabase = createClient<Database>(url, anonKey);
+        _supabase = createClient<Database>(url, key);
     }
     return _supabase;
 }
