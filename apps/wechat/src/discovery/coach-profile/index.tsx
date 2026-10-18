@@ -29,6 +29,7 @@ import ContentSection from './components/ContentSection'
 import PricingSection from './components/PricingSection'
 import ReviewsSection from './components/ReviewsSection'
 import { authService } from '@/services/authService'
+import { previewCoachPackageSwitch } from '@/services/paymentService'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 
@@ -252,10 +253,16 @@ export default function CoachProfile() {
     renew?: boolean
     renewAdditionalWeeks?: number
     testAmountFen?: number
+    productId?: string
+    months?: number
+    packageSwitch?: boolean
   }) => {
     if (WECHAT_COACH_PURCHASE_PAUSED) {
       Taro.showToast({ title: WECHAT_PURCHASE_PAUSED_MESSAGE, icon: 'none' })
       return
+    }
+    if (params.packageSwitch && params.productId && params.months) {
+      await previewCoachPackageSwitch({ coachId, subscriptionId: params.subscriptionId, productId: params.productId, months: params.months })
     }
     const ok = await ensureWechatOpenid()
     if (!ok) return
@@ -267,6 +274,8 @@ export default function CoachProfile() {
       renew: params.renew,
       renewAdditionalWeeks: params.renewAdditionalWeeks,
       testAmountFen: params.testAmountFen,
+      productId: params.productId,
+      months: params.months,
       subject: `订阅教练 ${coachDisplayName}`.trim()
     })
 
@@ -275,6 +284,9 @@ export default function CoachProfile() {
       return
     }
 
+    if (params.packageSwitch && payment.packageSwitchPolicy !== 'after_current') {
+      throw new Error('支付服务尚未支持接续套餐，请稍后重试')
+    }
     const paymentResult = await requestCoachWechatPayment(payment.paymentParams)
     navigateToPaymentWaiting({
       orderId: payment.orderId,
@@ -339,7 +351,8 @@ export default function CoachProfile() {
       })
       return
     }
-    if (showRenewBtn && !renewMode) {
+    const isDifferentPackage = showRenewBtn && product.id !== userSubscription?.product_id
+    if (showRenewBtn && !renewMode && !isDifferentPackage) {
       Taro.showToast({
         title: '您已订阅该教练，点击【续费】即可延长订阅并且可以续订',
         icon: 'none',
@@ -357,22 +370,21 @@ export default function CoachProfile() {
       return
     }
 
-    if (showRenewBtn && renewMode) {
-      if (userSubscription?.product_id && product.id !== userSubscription.product_id) {
-        Taro.showToast({
-          title: '续费只延长当前套餐，切换套餐请重新购买或联系教练',
-          icon: 'none',
-          duration: 2500
-        })
-        return
-      }
+    if (showRenewBtn && (renewMode || isDifferentPackage)) {
       if (userSubscription?.id) {
-        await startCoachWechatPayment({
-          subscriptionId: userSubscription.id,
-          amount: duration.price,
-          renew: true,
-          renewAdditionalWeeks: duration.months * 4
-        })
+        try {
+          if (isDifferentPackage) {
+            const { confirm } = await Taro.showModal({ title: '购买接续套餐',
+              content: `${product.name}，${duration.months}个月，¥${duration.price}。旧套餐权益用完后生效，当前训练和历史记录保留。`,
+              confirmText: '继续购买', confirmColor: '#CF6D4E' })
+            if (!confirm) return
+          }
+          await startCoachWechatPayment({ subscriptionId: userSubscription.id, amount: duration.price,
+            renew: true, renewAdditionalWeeks: duration.months * 4,
+            productId: product.id, months: duration.months, packageSwitch: isDifferentPackage })
+        } catch (error: any) {
+          Taro.showToast({ title: error?.message || '无法购买套餐，请稍后重试', icon: 'none' })
+        }
         return
       }
       return

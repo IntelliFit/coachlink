@@ -255,7 +255,9 @@ export default function ImpromptuTrainingPage() {
                     const action = actions.find(a => a.id === item.actionId);
                     // 转换参数
                     const sets = Number(item.params?.['组数'] || 1);
-                    const reps = Number(item.params?.['次数'] || 1);
+                    const duration = Number(item.params?.['持续时间']);
+                    const timed = Number.isFinite(duration) && duration > 0 && item.params?.['次数'] == null;
+                    const reps = timed ? `${duration}秒` : Number(item.params?.['次数'] || 1);
                     // ActionSetForm 内部存储“休息时间”为秒，这里不能再乘 60
                     const restSecondsRaw = Number(item.params?.['休息时间'] || 90);
                     const restSeconds = Number.isFinite(restSecondsRaw) && restSecondsRaw > 0
@@ -269,9 +271,10 @@ export default function ImpromptuTrainingPage() {
                     return {
                         actionId: item.actionId,
                         actionName: action?.name || '未知动作',
+                        attrs: action?.attrs,
                         sets: sets,
                         reps: reps,
-                        weight: load,
+                        weight: timed ? null : load,
                         restSeconds,
                     };
                 })

@@ -11,6 +11,8 @@
     },
     "scripts": {
         "dev": "node scripts/start-dev.mjs",
+        "dev:debug-login": "node scripts/start-local-debug.mjs",
+        "weapp:debug-login": "node apps/wechat/scripts/build-local-debug.cjs",
         "build": "node scripts/build-prod.js",
         "start": "node scripts/start-prod.mjs",
         "dev:custom": "node scripts/start-dev.mjs",

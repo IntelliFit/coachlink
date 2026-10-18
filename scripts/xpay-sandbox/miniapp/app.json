@@ -1,0 +1,5 @@
+{
+  "pages": ["pages/index/index"],
+  "window": { "navigationBarTitleText": "CoachLink 安卓沙箱", "navigationBarBackgroundColor": "#FFFFFF" },
+  "sitemapLocation": "sitemap.json"
+}

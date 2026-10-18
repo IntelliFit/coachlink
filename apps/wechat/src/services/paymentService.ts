@@ -110,6 +110,7 @@ export interface CreateCoachWechatPaymentResponse {
   paymentProvider: 'wechat'
   amount: number
   paymentParams: CoachWechatPaymentParams
+  packageSwitchPolicy?: 'after_current'
 }
 
 export interface CreateMembershipWechatPaymentResponse {
@@ -170,6 +171,8 @@ export async function createCoachWechatPayment(params: {
   renewAdditionalWeeks?: number
   subject?: string
   testAmountFen?: number
+  productId?: string
+  months?: number
 }): Promise<{ success: boolean; data?: CreateCoachWechatPaymentResponse; message?: string }> {
   if (WECHAT_COACH_PURCHASE_PAUSED) return { success: false, message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   const res = await request<CreateCoachWechatPaymentResponse>({
@@ -185,6 +188,13 @@ export async function createCoachWechatPayment(params: {
   return {
     success: true,
     data: res.data
+  }
+}
+
+export async function previewCoachPackageSwitch(params: { coachId: string; subscriptionId: string; productId: string; months: number }) {
+  const response = await request<{ packageSwitchPolicy: string }>({ url: '/api/subscription/package-switch-preview', method: 'POST', data: params })
+  if (!response.success || response.data?.packageSwitchPolicy !== 'after_current') {
+    throw new Error(response.message || '换套餐服务尚未就绪，请稍后重试')
   }
 }
 

@@ -44,6 +44,7 @@ export interface QueryCoachSubscription {
   product_name?: string | null
   product_tier?: string | null
   monthly_price?: number | null
+  queued_packages?: Array<{ id: string; product_name: string; purchased_weeks: number }>
 }
 
 /** 定价 - 时长选项 */

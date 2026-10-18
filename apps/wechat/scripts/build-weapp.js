@@ -10,7 +10,11 @@ function getBuildEnv(buildMode) {
     return {
       ...process.env,
       NODE_ENV: 'production',
-      WEAPP_OUTPUT_ROOT: 'dist-release',
+      // Taro joins this value to appRoot, so use a relative path even when the
+      // caller specifies an absolute task directory outside the workspace.
+      WEAPP_OUTPUT_ROOT: process.env.WEAPP_OUTPUT_ROOT
+        ? path.relative(process.cwd(), path.resolve(process.cwd(), process.env.WEAPP_OUTPUT_ROOT))
+        : 'dist-release',
     }
   }
 
@@ -43,7 +47,7 @@ execSync('npx taro build --type weapp', {
   env,
 })
 
-ensureRootCompArtifacts(path.join(process.cwd(), env.WEAPP_OUTPUT_ROOT || 'dist'))
+ensureRootCompArtifacts(path.resolve(process.cwd(), env.WEAPP_OUTPUT_ROOT || 'dist'))
 
 execSync('node scripts/fix-weapp-wxml.js', {
   cwd: process.cwd(),

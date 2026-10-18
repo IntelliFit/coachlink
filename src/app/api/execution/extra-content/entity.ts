@@ -10,14 +10,10 @@ export interface AddExtraSetDto {
 }
 
 export interface AddExtraSetResponseDto {
-    success: boolean;
-    data?: {
-        executionId: string;
-        actionIndex: number;
-        newSetIndex: number;
-        totalSets: number;
-    };
-    message?: string;
+    executionId: string;
+    actionIndex: number;
+    newSetIndex: number;
+    totalSets: number;
 }
 
 // Add Extra Exercise (添加额外动作)
@@ -36,14 +32,10 @@ export interface AddExtraExerciseDto {
 }
 
 export interface AddExtraExerciseResponseDto {
-    success: boolean;
-    data?: {
-        executionId: string;
-        newActionIndex: number;
-        actionName: string;
-        setsCount: number;
-    };
-    message?: string;
+    executionId: string;
+    newActionIndex: number;
+    actionName: string;
+    setsCount: number;
 }
 
 // Delete Extra Set (删除学员自行添加的组)

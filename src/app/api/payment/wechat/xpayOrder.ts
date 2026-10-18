@@ -1,6 +1,6 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { getWechatXPayConfig } from "@/lib/wechatXPay";
-import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
+import { fulfillXPayAdminTrial } from '@/lib/wechatXPayAdminTrial';
 
 function asObject(value: unknown): Record<string, any> {
     return value && typeof value === "object" && !Array.isArray(value)
@@ -50,20 +50,23 @@ export async function fulfillPaidXPayOrder(order: Record<string, any>) {
     }
     if (order.order_type === "student_membership") {
         const orderData = asObject(order.order_data);
-        await fulfillStudentMembershipOrderOnPaid({
-            relatedOrderId: String(orderData.related_order_id || ""),
-            productKey: String(orderData.product_key || ""),
-            userId,
-        });
+        if (orderData.xpay_admin_trial === true) {
+            await fulfillXPayAdminTrial(order);
+            return;
+        }
+        // Grant and idempotency receipt commit together, after verified payment.
+        const { error } = await (serviceRoleSupabase as any).rpc('fulfill_wechat_xpay_membership', { p_payment_id: order.id });
+        if (error) throw new Error(`虚拟支付权益发放失败：${error.message}`);
     }
     if (order.order_type === "motion_effect_export") {
         const jobId = String(asObject(order.order_data).job_id || "");
         if (jobId) {
-            await (serviceRoleSupabase.from("tool_video_render_jobs") as any)
+            const { error } = await (serviceRoleSupabase.from("tool_video_render_jobs") as any)
                 .update({ payment_status: "paid", status: "awaiting_upload" })
                 .eq("id", jobId)
                 .eq("payment_order_id", order.id)
                 .eq("status", "awaiting_payment");
+            if (error) throw new Error(`动作特效权益发放失败：${error.message}`);
         }
     }
 }

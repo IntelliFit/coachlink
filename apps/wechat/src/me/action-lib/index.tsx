@@ -228,7 +228,9 @@ export default function ActionLibPage() {
   const initialTab: TabKey = isPlanSelectionMode
     ? 'public'
     : isImpromptuSelectionMode
-      ? (requestedTab === 'mine' || requestedTab === 'public' ? requestedTab : 'frequent')
+      ? (requestedTab === 'mine' || requestedTab === 'public' || requestedTab === 'frequent'
+          ? requestedTab
+          : requestedMode === 'STRENGTH' ? 'frequent' : 'public')
       : requestedTab === 'public' ? 'public' : 'mine'
   const [libraryMode, setLibraryMode] = useState<LibraryMode>(requestedMode)
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
@@ -273,11 +275,13 @@ export default function ActionLibPage() {
     if (isPlanSelectionMode) {
       setActiveTab('public')
     } else if (isImpromptuSelectionMode) {
-      setActiveTab(requestedTab === 'mine' || requestedTab === 'public' ? requestedTab : 'frequent')
+      setActiveTab(requestedTab === 'mine' || requestedTab === 'public' || requestedTab === 'frequent'
+        ? requestedTab
+        : requestedMode === 'STRENGTH' ? 'frequent' : 'public')
     } else if (router.params?.tab === 'public') {
       setActiveTab('public')
     }
-  }, [isImpromptuSelectionMode, isPlanSelectionMode, requestedTab, router.params?.tab])
+  }, [isImpromptuSelectionMode, isPlanSelectionMode, requestedMode, requestedTab, router.params?.tab])
 
   const loadActions = useCallback(async (search = mySearchTermRef.current) => {
     try {
@@ -456,6 +460,9 @@ export default function ActionLibPage() {
   const handleSelectSystemLibrary = (type: LibraryMode) => {
     if (libraryMode === type) return
     setLibraryMode(type)
+    if (activeTab === 'frequent' && !frequentActions.some(action => matchesLibraryMode(action, type))) {
+      setActiveTab('public')
+    }
     setPublicSearchTerm('')
     setMySearchTerm('')
     setSelectedPublicPreset('all')
@@ -840,7 +847,7 @@ export default function ActionLibPage() {
       return (
         <View className='empty-state'>
           <Text className='empty-title'>{activeTab === 'frequent' ? '还没有常用动作' : '没有匹配动作'}</Text>
-          <Text className='empty-desc'>{activeTab === 'frequent' ? '完成训练后会按使用频次自动整理' : '换个分类、器械或关键词试试'}</Text>
+          <Text className='empty-desc'>{activeTab === 'frequent' ? '常用来自个人动作和训练记录；点上方「公共动作」查看完整动作库' : '换个分类、器械或关键词试试'}</Text>
         </View>
       )
     }
@@ -913,10 +920,12 @@ export default function ActionLibPage() {
     }
 
     if (displayedPublicActions.length === 0) {
+      const streetReviewPending = libraryMode === 'STREET' && !publicSearchTerm &&
+        !publicActions.some(action => isStreetWorkoutAction(action))
       return (
         <View className='empty-state'>
-          <Text className='empty-title'>没有匹配动作</Text>
-          <Text className='empty-desc'>换个肌群、器械或关键词试试</Text>
+          <Text className='empty-title'>{streetReviewPending ? '街健动作正在核验' : '没有匹配动作'}</Text>
+          <Text className='empty-desc'>{streetReviewPending ? '示范图片正在核验，确认动作准确后会逐步恢复' : '换个肌群、器械或关键词试试'}</Text>
         </View>
       )
     }
@@ -1101,7 +1110,7 @@ export default function ActionLibPage() {
             <Text className='section-count'>
               {activeTab === 'public'
                 ? displayedPublicActions.length
-                : activeTab === 'frequent' ? displayedFrequentActions.length : displayedMineActions.length} 个动作
+                : activeTab === 'frequent' ? displayedFrequentActions.length : displayedMineActions.length} 个{activeTab === 'frequent' ? '常用' : ''}动作
             </Text>
           </View>
           {checkingCurrentImpromptu ? (

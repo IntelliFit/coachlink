@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
         const { data: studentAction } = await supabase
             .from("student_actions")
-            .select("id, name, type")
+            .select("id, name, type, attrs")
             .eq("id", actionId)
             .eq("user_id", userId)
             .single();
@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
             action_id: actionId,
             action_name: actionName,
             type: studentAction.type || "STRENGTH",
+            attrs: studentAction.attrs,
             source: "student_extra",
             source_action_id: actionId,
             sets: newSets,

@@ -1704,7 +1704,7 @@ export default function StreetliftingLocations() {
             <View className='sheet-header'>
               <Text className='sheet-title'>分享这个单杠点位</Text>
               <View className='sheet-close' onClick={handleCloseShareSheet}>
-                <Text>脳</Text>
+                <Text>×</Text>
               </View>
             </View>
 

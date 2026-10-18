@@ -16,6 +16,7 @@ import { useToastContext } from '@/context/ToastContext';
 import SetVideoUploader from './SetVideoUploader';
 import type { SetItemProps, SetRecord } from '@/types/training-execution';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, formatRecordedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 
 const parseMinReps = (plannedReps: string | number | undefined): number => {
     if (!plannedReps) return 5;
@@ -57,12 +58,13 @@ const SetItem: React.FC<SetItemProps> = ({
     disabled = false,
     readOnly = false
 }) => {
+    const timed = isTimedTrainingSet(set);
     const [isEditing, setIsEditing] = useState(false);
     const [weight, setWeight] = useState<number>(
         set.actual_weight ?? parseMinWeight(set.planned_weight)
     );
     const [reps, setReps] = useState<number>(
-        set.actual_reps ?? parseMinReps(set.planned_reps)
+        timed ? getActualDurationSeconds(set) ?? (set.status === 'completed' ? 0 : getPlannedDurationSeconds(set) ?? 0) : set.actual_reps ?? parseMinReps(set.planned_reps)
     );
 
     // 视频相关状态
@@ -123,25 +125,29 @@ const SetItem: React.FC<SetItemProps> = ({
 
     const handleComplete = useCallback(() => {
         if (disabled) return;
+        if (reps <= 0) return;
         onUpdate({
-            actual_weight: weight,
-            actual_reps: reps
+            actual_weight: timed ? null : weight,
+            actual_reps: timed ? null : reps,
+            actual_duration: timed ? reps : undefined,
         });
         setIsEditing(false);
-    }, [weight, reps, onUpdate, disabled]);
+    }, [weight, reps, onUpdate, disabled, timed]);
 
     const handleMarkCompleted = useCallback(() => {
         if (disabled) return;
+        if (reps <= 0) return;
         const completedData: SetRecord = {
             ...set,
-            actual_weight: weight,
-            actual_reps: reps,
+            actual_weight: timed ? null : weight,
+            actual_reps: timed ? null : reps,
+            actual_duration: timed ? reps : undefined,
             status: 'completed',
             completed_at: new Date().toISOString()
         };
         onComplete(completedData);
         setIsEditing(false);
-    }, [set, weight, reps, onComplete, disabled]);
+    }, [set, weight, reps, onComplete, disabled, timed]);
 
     const handleSkip = useCallback(() => {
         if (disabled || readOnly) return;
@@ -160,12 +166,12 @@ const SetItem: React.FC<SetItemProps> = ({
 
     const cancelEdit = useCallback(() => {
         setWeight(set.actual_weight ?? parseMinWeight(set.planned_weight));
-        setReps(set.actual_reps ?? parseMinReps(set.planned_reps));
+        setReps(timed ? getActualDurationSeconds(set) ?? (set.status === 'completed' ? 0 : getPlannedDurationSeconds(set) ?? 0) : set.actual_reps ?? parseMinReps(set.planned_reps));
         setIsEditing(false);
         if (set.status === 'in_progress') {
             onUpdate({ status: 'pending' });
         }
-    }, [set, onUpdate]);
+    }, [set, onUpdate, timed]);
 
     const renderCheckbox = () => (
         <button
@@ -186,7 +192,7 @@ const SetItem: React.FC<SetItemProps> = ({
         if (isEditing) {
             return (
                 <div className="flex align-items-center gap-2">
-                    <AeroInputNumber
+                    {!timed && <AeroInputNumber
                         inputRef={weightInputRef}
                         value={weight}
                         onValueChange={(e) => setWeight(e.value ?? 0)}
@@ -194,20 +200,24 @@ const SetItem: React.FC<SetItemProps> = ({
                         step={2.5}
                         suffix=" kg"
                         className="w-5rem"
-                    />
-                    <span className="text-surface-foreground">×</span>
+                    />}
+                    {!timed && <button type="button" onClick={() => setWeight(0)} className="bg-white border-1 border-surface-border border-round px-2 py-1">自重 / 无负重</button>}
+                    {!timed && <span className="text-surface-foreground">×</span>}
                     <AeroInputNumber
                         value={reps}
                         onValueChange={(e) => setReps(e.value ?? 0)}
                         min={0}
                         step={1}
-                        suffix=" 次"
+                        suffix={timed ? ' 秒' : ' 次'}
                         className="w-5rem"
                     />
                 </div>
             );
         }
 
+        if (timed) {
+            return <span onClick={startEditing}>{set.status === 'completed' ? formatRecordedTrainingSet(set) : `保持 ${getPlannedDurationSeconds(set) ?? '-'} 秒`}</span>;
+        }
         return (
             <div
                 onClick={startEditing}
@@ -216,7 +226,7 @@ const SetItem: React.FC<SetItemProps> = ({
                     }`}
             >
                 <span className="font-medium">
-                    {weight ? `${weight}kg` : '-'}
+                    {weight === 0 ? '自重 / 无负重' : `${weight}kg`}
                 </span>
                 <span className="text-surface-foreground">×</span>
                 <span className="font-medium">

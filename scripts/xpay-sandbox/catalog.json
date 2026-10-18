@@ -1,0 +1,10 @@
+[
+  { "id": "m_basic_1990", "name": "基础月卡", "price": 1990 },
+  { "id": "m_premium_3990", "name": "高级月卡", "price": 3990 },
+  { "id": "ai_pack_200", "name": "AI导入加油包", "price": 200 },
+  { "id": "storage_990", "name": "存储扩容包", "price": 990 },
+  { "id": "motion_p_290", "name": "动作特效标准", "price": 290 },
+  { "id": "motion_p_490", "name": "动作特效高清", "price": 490 },
+  { "id": "motion_p_480", "name": "动作特效标准加急", "price": 480 },
+  { "id": "motion_p_680", "name": "动作特效高清加急", "price": 680 }
+]

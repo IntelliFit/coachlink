@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { openActionTeaching } from '@/utils/actionTeaching'
+import { buildPlannedSetPreviews } from '@/utils/planSetPrescriptions'
 import { List, Target } from '@nutui/icons-react-taro'
 import {
   buildDayModuleModel,
@@ -33,6 +35,7 @@ interface TodayTrainingCardProps {
   onOpenExecution?: (dayIndex: number, focusAction?: number) => void
   embeddedInSchedule?: boolean
   compact?: boolean
+  executionLabel?: string
 }
 
 function TodayTrainingCard({
@@ -51,11 +54,13 @@ function TodayTrainingCard({
   onDeleteLightweightTask,
   onOpenExecution,
   embeddedInSchedule = false,
-  compact = false
+  compact = false,
+  executionLabel = '查看计划'
 }: TodayTrainingCardProps) {
   const [showAllTasks, setShowAllTasks] = useState(false)
   const [showAllStrengthTasks, setShowAllStrengthTasks] = useState(false)
   const [infoTask, setInfoTask] = useState<NormalizedDayTask | null>(null)
+  const [expandedPrescriptions, setExpandedPrescriptions] = useState<Record<string, boolean>>({})
 
   const moduleModel = useMemo(
     () =>
@@ -122,7 +127,7 @@ function TodayTrainingCard({
     const focusQuery = typeof focusAction === 'number' ? `&focusAction=${focusAction}` : ''
 
     Taro.navigateTo({
-      url: `/training/training-execution?instanceId=${instanceId}&dayIndex=${dayIndex}${coachQuery}${focusQuery}`
+      url: `/training/training-execution?instanceId=${instanceId}&dayIndex=${dayIndex}&intent=preview${coachQuery}${focusQuery}`
     }).catch(() => {
       Taro.showToast({
         title: '跳转失败',
@@ -155,16 +160,42 @@ function TodayTrainingCard({
         <View className='compact-training-card'>
           {strengthTasks.length > 0 && (
             <View className='compact-training-list'>
-              {strengthTasks.map((task) => (
-                <View key={`${task.executionIndex}-${task.actionId}`} className='compact-training-row'
-                  onClick={() => openExecution(task.executionIndex)}>
-                  <Text className='compact-training-name'>{task.title}</Text>
-                  <Text className={`compact-training-count ${task.isCompleted ? 'completed' : ''}`}>
-                    {task.completedSetCount}/{task.setCount}组
-                  </Text>
-                  <Text className='compact-training-chevron'>›</Text>
-                </View>
-              ))}
+              {strengthTasks.map((task) => {
+                const key = `${task.executionIndex}-${task.actionId}`
+                const meta = buildStrengthMeta(task)
+                const prescriptions = task.executionItem?.sets?.length
+                  ? task.executionItem.sets
+                  : buildPlannedSetPreviews({ params: task.params, sets: task.setCount })
+                const hasCustomSets = Array.isArray(task.params?.setPrescriptions) || Array.isArray(task.params?.set_prescriptions)
+                const openTeaching = () => openActionTeaching({
+                  ...actions[task.actionId], id: task.actionId, name: task.title,
+                  detail: task.detailText, url: task.demoVideoUrl
+                }, { instanceId, dayIndex, actionIndex: task.index, coachNote: task.noteText })
+                return (
+                  <View key={key} className='compact-training-row'>
+                    <View className='compact-action-heading'>
+                      <Text className='compact-training-name' onClick={openTeaching}>{task.title}</Text>
+                      <Text className='compact-task-link primary' onClick={openTeaching}>动作讲解</Text>
+                    </View>
+                    <Text className='compact-prescription'>
+                      {hasCustomSets ? `${task.setCount}组 · 逐组安排见下方` : [meta.summary, meta.loadText, meta.restText].filter(Boolean).join(' · ')}
+                    </Text>
+                    {!!task.noteText && <Text className='compact-coach-note'>教练要求：{task.noteText}</Text>}
+                    <View className='compact-action-heading'>
+                      <Text className='compact-task-link' onClick={() => setExpandedPrescriptions(prev => ({ ...prev, [key]: !prev[key] }))}>
+                        {expandedPrescriptions[key] ? '收起逐组安排' : '查看逐组安排'}
+                      </Text>
+                      <Text className={`compact-training-count ${task.isCompleted ? 'completed' : ''}`}>{task.completedSetCount}/{task.setCount}组完成</Text>
+                    </View>
+                    {expandedPrescriptions[key] && prescriptions.map((set: any) => (
+                      <Text key={set.set_number} className='compact-set-prescription'>
+                        第{set.set_number}组 · {[set.planned_weight, set.planned_reps ? `${set.planned_reps}${/^\d+(?:\.\d+)?$/.test(String(set.planned_reps)) ? set.planned_target_unit || '次' : ''}` : '', set.planned_intensity,
+                          set.planned_rest_seconds ? `休息${set.planned_rest_seconds}秒` : ''].filter(Boolean).join(' · ') || '按动作要求完成'}
+                      </Text>
+                    ))}
+                  </View>
+                )
+              })}
             </View>
           )}
           {lightweightTasks.length > 0 && (
@@ -332,7 +363,7 @@ function TodayTrainingCard({
                   }`}
                   onClick={() => openExecution()}
                 >
-                  <Text>{trainingCompleted ? '查看训练记录' : trainingInProgress ? '继续训练' : '开始训练'}</Text>
+                  <Text>{executionLabel}</Text>
                 </View>
               </View>
             )}

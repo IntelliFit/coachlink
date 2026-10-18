@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from '@/lib/getApiUserId';
+import { assertPackageQueueAvailable, getPackagePurchase } from '@/lib/subscriptionPackageQueue';
 import {
     getSubscriptionOrderMissingTableMessage,
     isSubscriptionOrderTableMissingError,
@@ -14,8 +15,8 @@ import type {
 } from "./entity";
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const userId = await getApiUserId(req);
+    if (!userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -23,7 +24,6 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
     const {
         coachId,
         orderType,
@@ -59,6 +59,9 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
+    if (!['subscribe', 'renew'].includes(orderType)) return NextResponse.json({ success: false, message: '订单类型无效', data: null }, { status: 400 });
+    let packageSwitchPolicy: 'after_current' | undefined;
+    let purchase: Awaited<ReturnType<typeof getPackagePurchase>> | null = null;
     if (orderType === "renew") {
         if (!subscriptionId) {
             return NextResponse.json<ApiData<CreateSubscriptionOrderResponseDto>>({
@@ -70,7 +73,7 @@ export async function POST(req: Request) {
 
         const { data: subscription, error: subscriptionError } = await supabase
             .from("coach_subscriptions")
-            .select("id, student_id, coach_id")
+            .select("id, student_id, coach_id, product_id, status")
             .eq("id", subscriptionId)
             .single();
 
@@ -88,6 +91,17 @@ export async function POST(req: Request) {
                 message: "无权为该订阅创建续费订单",
                 data: null,
             }, { status: 403 });
+        }
+        if (productId && productId !== subscription.product_id) {
+            try {
+                if (!['active', 'expired', 'near_expiry'].includes(String(subscription.status))) throw new Error('请刷新订阅状态后重试');
+                await assertPackageQueueAvailable();
+                purchase = await getPackagePurchase(coachId, productId, Number(subscribedWeeks) / 4);
+                if (purchase.amountFen !== yuanToFen(monthlyPrice)) throw new Error('套餐价格已变更，请刷新后重新选择');
+                packageSwitchPolicy = 'after_current';
+            } catch (error) {
+                return NextResponse.json({ success: false, message: error instanceof Error ? error.message : '无法核对接续套餐', data: null }, { status: 400 });
+            }
         }
     } else {
         const { data: activeSub } = await supabase
@@ -113,13 +127,14 @@ export async function POST(req: Request) {
             coachId,
             orderType,
             subscriptionId: subscriptionId || null,
-            tier,
-            amountFen: yuanToFen(monthlyPrice),
-            productId: productId || null,
-            productName: productName || null,
-            productTier: productTier || null,
-            purchasedWeeks: subscribedWeeks ?? null,
+            tier: purchase?.tier ?? tier,
+            amountFen: purchase?.amountFen ?? yuanToFen(monthlyPrice),
+            productId: purchase?.productId ?? productId ?? null,
+            productName: purchase?.productName ?? productName ?? null,
+            productTier: purchase?.productTier ?? productTier ?? null,
+            purchasedWeeks: purchase?.purchasedWeeks ?? subscribedWeeks ?? null,
             subscribeData: subscribeData ?? null,
+            packageSwitchPolicy,
         });
 
         return NextResponse.json<ApiData<CreateSubscriptionOrderResponseDto>>({

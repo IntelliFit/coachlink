@@ -14,12 +14,13 @@ export async function validateExecutionSubscriptionAccess(params: {
     instanceId: string;
     studentId: string;
     dayIndex?: number | null;
+    forWrite?: boolean;
 }): Promise<ExecutionSubscriptionAccess> {
     const { instanceId, studentId, dayIndex } = params;
 
     const { data: instance, error: instanceError } = await supabase
         .from("coach_plan_instances")
-        .select("coach_subscription_id, training_days, start_execution_day, created_at")
+        .select("student_id, coach_subscription_id, training_days, start_execution_day, created_at")
         .eq("id", instanceId)
         .maybeSingle();
 
@@ -43,6 +44,9 @@ export async function validateExecutionSubscriptionAccess(params: {
         | string
         | null;
     if (!subscriptionId) {
+        if ((instance as any).student_id !== studentId) {
+            return { allowed: false, status: 403, message: '无权访问此计划', maxAccessibleDayIndex: null };
+        }
         return {
             allowed: true,
             status: 200,
@@ -52,7 +56,7 @@ export async function validateExecutionSubscriptionAccess(params: {
 
     const { data: subscription, error: subscriptionError } = await supabase
         .from("coach_subscriptions")
-        .select("id, student_id, status, start_date, end_date, subscribed_weeks")
+        .select("id, student_id, status, start_date, end_date, subscribed_weeks, payment_data")
         .eq("id", subscriptionId)
         .eq("student_id", studentId)
         .maybeSingle();
@@ -71,6 +75,12 @@ export async function validateExecutionSubscriptionAccess(params: {
             message: "无权访问此计划",
             maxAccessibleDayIndex: null,
         };
+    }
+
+    const activation = (subscription.payment_data as any)?.current_package_activation;
+    if (params.forWrite !== false && activation?.activated_at && instance.created_at &&
+        new Date(instance.created_at).getTime() < new Date(activation.activated_at).getTime()) {
+        return { allowed: false, status: 403, message: '新套餐已生效，请使用新套餐的训练计划；原训练记录仍可查看', maxAccessibleDayIndex: null };
     }
 
     const { data: completedExecutions, error: completedExecutionsError } = await supabase

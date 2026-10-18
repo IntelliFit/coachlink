@@ -5,7 +5,7 @@ function getWeappOutputRoot() {
 }
 
 function getWeappDistDir() {
-  return path.join(__dirname, '..', getWeappOutputRoot())
+  return path.resolve(__dirname, '..', getWeappOutputRoot())
 }
 
 module.exports = {

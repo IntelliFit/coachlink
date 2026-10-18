@@ -1,4 +1,5 @@
 import { buildPlanDayFacts } from '@/lib/planDayFacts';
+import { canStartPlanDay, normalizePlanDays, selectPlanAttempt, trainingEntry } from '@coachlink/core/src/trainingAccess';
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { GetInstanceDto, GetInstanceResponseDto } from "./entity";
@@ -530,7 +531,7 @@ export async function POST(req: Request) {
                     const existingLoad = params.load;
                     const intensityConfig = normalizeIntensityConfig(params);
                     const legacyRm = params["强度"] ?? set.intensity;
-                    const shouldRefreshExistingLoad = hasDynamicIntensityTarget({
+                    const shouldRefreshExistingLoad = params.fixedLoadOverride === true ? false : hasDynamicIntensityTarget({
                         intensityConfig,
                         legacyRm,
                     });
@@ -655,14 +656,6 @@ export async function POST(req: Request) {
     // otherwise a completed attempt must win over a newer empty/abandoned
     // replacement created while confirming an older timed-out workout.
     const executionsByDayIndex: Record<number, any> = {};
-    const executionPriority = (execution: any) => {
-        const status = String(execution?.status || "").toLowerCase();
-        if (status === "in_progress") return 4;
-        if (status === "completed") return 3;
-        if (status === "abandoned") return 2;
-        if (status === "timed_out") return 1;
-        return 0;
-    };
     for (const exec of executionsList || []) {
         const di = Number(exec?.day_index ?? 0);
         if (!di) continue;
@@ -671,17 +664,7 @@ export async function POST(req: Request) {
             executionsByDayIndex[di] = exec;
             continue;
         }
-        const prevTime = prev?.started_at
-            ? new Date(prev.started_at).getTime()
-            : 0;
-        const curTime = exec?.started_at
-            ? new Date(exec.started_at).getTime()
-            : 0;
-        const prevPriority = executionPriority(prev);
-        const curPriority = executionPriority(exec);
-        if (curPriority > prevPriority || (curPriority === prevPriority && curTime >= prevTime)) {
-            executionsByDayIndex[di] = exec;
-        }
+        executionsByDayIndex[di] = selectPlanAttempt([prev, exec]);
     }
 
     // 7. Derive progress day info
@@ -718,9 +701,7 @@ export async function POST(req: Request) {
         (instance as any).stored_start_execution_day = storedStartExecutionDay;
     }
     const planDays =
-        (Array.isArray(instance.training_days)
-            ? (instance.training_days as any[])
-            : [])
+        normalizePlanDays(Array.isArray(instance.training_days) ? instance.training_days as any[] : [])
             .slice()
             .filter((d) => getDayIndex(d) >= startExecutionDay)
             .sort((a, b) => getDayIndex(a) - getDayIndex(b));
@@ -796,24 +777,6 @@ export async function POST(req: Request) {
     const todayCompleted = !!todayExecution;
     const todayExecutionId = todayExecution?.id;
 
-    // nextDayIndex (legacy): first incomplete training day
-    let nextDayIndex = startExecutionDay;
-    for (const day of trainingOnlyDays) {
-        const di = getDayIndex(day);
-        if (!completedDaySet.has(di)) {
-            nextDayIndex = di;
-            break;
-        }
-    }
-    if (
-        trainingOnlyDays.length > 0 &&
-        trainingOnlyDays.every((d) => completedDaySet.has(getDayIndex(d)))
-    ) {
-        nextDayIndex = getDayIndex(trainingOnlyDays[0]);
-    }
-    if (trainingOnlyDays.length === 0) {
-        nextDayIndex = startExecutionDay;
-    }
     timings["7_next_day"] = performance.now() - nextDayStart;
 
     const { recommendedDayIndex, resolvedDays } = deriveStrictSequentialProgressDay(
@@ -828,6 +791,11 @@ export async function POST(req: Request) {
             today: todayStart,
         },
     );
+
+    // Legacy alias uses the same sequence decision, including explicit skipped days.
+    const nextDayIndex = planDays.find(day => canStartPlanDay({ trainingDays: planDays,
+        progressDayIndex: recommendedDayIndex, targetDayIndex: getDayIndex(day), executionsByDayIndex: progressFacts,
+    }))?.dayIndex ?? recommendedDayIndex;
 
     // missingDays: unresolved training days before recommended pointer
     const missingDays = trainingOnlyDays
@@ -887,6 +855,10 @@ export async function POST(req: Request) {
                 : undefined,
             nextDayIndex,
             recommendedDayIndex,
+            entryDecisions: Object.fromEntries(planDays.map(day => [getDayIndex(day), trainingEntry({
+                trainingDays: planDays, progressDayIndex: recommendedDayIndex, targetDayIndex: getDayIndex(day),
+                execution: executionsByDayIndex[getDayIndex(day)], executionsByDayIndex: progressFacts,
+            })])),
             completedDays,
             resolvedDays,
             missingDays,

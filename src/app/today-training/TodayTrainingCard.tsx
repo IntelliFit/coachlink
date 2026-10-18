@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Info, Play, RotateCcw, Video } from 'lucide-react';
+import { CheckCircle, Info, Play, RotateCcw } from 'lucide-react';
 import ExecutionPlanNoticeDialog from '@/components/plan/ExecutionPlanNoticeDialog';
 import {
     hasReadExecutionPlanNotice,
@@ -18,6 +18,7 @@ import {
     type NormalizedDayTask,
 } from './lib/dayModules';
 import { formatBeijingDate } from '@/lib/beijingTime';
+import { trainingEntry } from '@coachlink/core/src/trainingAccess';
 
 interface TodayTrainingCardProps {
     day: any;
@@ -39,6 +40,9 @@ interface TodayTrainingCardProps {
     userId?: string | null;
     executionNotice?: string | null;
     planName?: string | null;
+    trainingDays: any[];
+    progressDayIndex: number;
+    executionsByDayIndex?: Record<number, any>;
 }
 
 const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
@@ -58,12 +62,16 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
     userId,
     executionNotice,
     planName,
+    trainingDays,
+    progressDayIndex,
+    executionsByDayIndex,
 }) => {
     const router = useRouter();
     const [showAllTasks, setShowAllTasks] = useState(false);
     const [showAllStrengthTasks, setShowAllStrengthTasks] = useState(false);
     const [infoDialog, setInfoDialog] = useState<{ title: string; detail: string } | null>(null);
     const [noticeVisible, setNoticeVisible] = useState(false);
+    const [teachingTask, setTeachingTask] = useState<NormalizedDayTask | null>(null);
     const [pendingExecutionUrl, setPendingExecutionUrl] = useState<string | null>(null);
     const moduleModel = useMemo(() => buildDayModuleModel({
         day,
@@ -116,9 +124,10 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
 
     const openExecution = (focusAction?: number, requiresNotice = true) => {
         const focusQuery = typeof focusAction === 'number' ? `&focusAction=${focusAction}` : '';
-        const nextUrl = `/training-execution/${instanceId}?dayIndex=${dayIndex}${focusQuery}`;
+        const entry = trainingEntry({ trainingDays, progressDayIndex, targetDayIndex: dayIndex, execution, executionsByDayIndex });
+        const nextUrl = `/training-execution/${instanceId}?dayIndex=${dayIndex}&intent=${entry.intent}${focusQuery}`;
 
-        if (requiresNotice && !hasReadExecutionPlanNotice({ instanceId, userId })) {
+        if (entry.intent === 'execute' && requiresNotice && !hasReadExecutionPlanNotice({ instanceId, userId })) {
             setPendingExecutionUrl(nextUrl);
             setNoticeVisible(true);
             return;
@@ -130,7 +139,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
     const confirmExecutionNotice = () => {
         markExecutionPlanNoticeRead({ instanceId, userId });
         setNoticeVisible(false);
-        router.push(pendingExecutionUrl || `/training-execution/${instanceId}?dayIndex=${dayIndex}`);
+        if (pendingExecutionUrl) router.push(pendingExecutionUrl);
     };
 
     const headerSubtitle = subheading || `第${dayIndex}天 · ${moduleCount} 个任务模块`;
@@ -272,19 +281,19 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                                     {meta.restText ? ` · ${meta.restText}` : ''}
                                                 </div>
                                             </div>
-                                            {task.demoVideoUrl && (
+                                            {(
                                                 <button
                                                     type="button"
-                                                    onClick={() => window.open(task.demoVideoUrl || '', '_blank')}
+                                                    onClick={() => setTeachingTask(task)}
                                                     className="rounded-2xl p-2 text-blue-600 transition-colors hover:bg-blue-50 active:scale-[0.98]"
-                                                    title="查看演示视频"
+                                                    title="查看动作讲解"
                                                 >
-                                                    <Video className="w-4 h-4" />
+                                                    动作讲解
                                                 </button>
                                             )}
                                         </div>
                                         {task.noteText && (
-                                            <div className="mt-2 rounded-2xl border border-amber-200/60 bg-amber-50 px-3 py-2 text-xs text-amber-800 line-clamp-2">
+                                            <div className="mt-2 rounded-2xl border border-amber-200/60 bg-amber-50 px-3 py-2 text-xs text-amber-800 whitespace-pre-wrap">
                                                 {task.noteText}
                                             </div>
                                         )}
@@ -326,7 +335,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                             ) : (
                                 <Button
                                     id="guide-start-training"
-                                    label="开始训练"
+                                    label={trainingEntry({ trainingDays, progressDayIndex, targetDayIndex: dayIndex, execution, executionsByDayIndex }).label}
                                     icon={<Play className="w-5 h-5" />}
                                     onClick={() => openExecution()}
                                     className="w-full sm:w-auto"
@@ -494,6 +503,18 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                 <div className="whitespace-pre-wrap text-sm leading-relaxed text-surface-700">
                     {infoDialog?.detail || ''}
                 </div>
+            </Dialog>
+
+            <Dialog header={teachingTask?.title || '动作讲解'} visible={!!teachingTask}
+                onHide={() => setTeachingTask(null)} draggable={false} className="w-[min(92vw,640px)]">
+                {teachingTask && <div className="space-y-4">
+                    {!!teachingTask.noteText && <div className="whitespace-pre-wrap"><strong>本次教练要求</strong><p>{teachingTask.noteText}</p></div>}
+                    {!!teachingTask.detailText && <div className="whitespace-pre-wrap"><strong>动作说明</strong><p>{teachingTask.detailText}</p></div>}
+                    {teachingTask.demoVideoUrl && (/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(teachingTask.demoVideoUrl)
+                        ? <video controls playsInline src={teachingTask.demoVideoUrl} className="w-full rounded-xl" />
+                        : <a href={teachingTask.demoVideoUrl} target="_blank" rel="noopener noreferrer" className="text-[#CF6D4E] underline">打开外部演示视频</a>)}
+                    {!teachingTask.detailText && !teachingTask.demoVideoUrl && <p>这个动作暂未提供讲解素材。</p>}
+                </div>}
             </Dialog>
 
             <ExecutionPlanNoticeDialog

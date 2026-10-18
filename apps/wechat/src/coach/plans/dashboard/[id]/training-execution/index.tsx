@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { resolveTrainingIntent } from '@coachlink/core/src/trainingAccess'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
@@ -9,8 +10,7 @@ function CoachDashboardTrainingExecution() {
   const params = Taro.getCurrentInstance().router?.params || {}
   const planId = String(params.id || params.planId || '').trim()
   const dayIndexRaw = String(params.dayIndex || params.day || '1')
-  const readOnlyParam = String(params.readOnly || '').toLowerCase()
-  const isReadOnly = readOnlyParam === 'true' || readOnlyParam === '1'
+  const intent = resolveTrainingIntent(params.intent, params.readOnly)
   const coachId = params.coachId ? decodeURIComponent(String(params.coachId)) : ''
   const coachName = params.coachName ? decodeURIComponent(String(params.coachName)) : ''
 
@@ -31,7 +31,7 @@ function CoachDashboardTrainingExecution() {
     const coachQuery = coachId
       ? `&coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
       : ''
-    const readOnlyQuery = `&readOnly=${isReadOnly ? 'true' : 'false'}`
+    const readOnlyQuery = `&intent=${intent}`
     const targetUrl = `/training/training-execution?instanceId=${encodeURIComponent(planId)}&dayIndex=${dayIndex}${readOnlyQuery}${coachQuery}`
 
     Taro.redirectTo({ url: targetUrl }).catch((redirectError) => {
@@ -42,7 +42,7 @@ function CoachDashboardTrainingExecution() {
         Taro.showToast({ title: '跳转失败', icon: 'none' })
       })
     })
-  }, [coachId, coachName, dayIndex, isReadOnly, planId])
+  }, [coachId, coachName, dayIndex, intent, planId])
 
   return (
     <View className={`training-execution-entry-page theme-${effectiveTheme}`}>

@@ -10,7 +10,7 @@ const ROOT_DIR = path.resolve(PROJECT_DIR, '..')
 const PROJECT_CONFIG_PATH = path.join(PROJECT_DIR, 'project.config.json')
 const DEFAULT_ENV_FILE = path.join(PROJECT_DIR, '.env.weapp-release.local')
 const DEFAULT_AUDIT_CONFIG = path.join(PROJECT_DIR, 'release.weapp.json')
-const RELEASE_DIR = path.join(PROJECT_DIR, 'dist-release')
+const RELEASE_DIR = path.resolve(PROJECT_DIR, process.env.WEAPP_RELEASE_DIR || 'dist-release')
 const DEPLOY_DIR = path.join(PROJECT_DIR, 'deploy_versions')
 const LATEST_DEPLOY_PATH = path.join(DEPLOY_DIR, 'latest-weapp-release.json')
 

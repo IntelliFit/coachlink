@@ -70,6 +70,12 @@ import type {
 } from "../api/execution/extra-content/entity";
 
 class ExecutionService extends BaseService {
+    async cancelExecution(executionId: string) {
+        const res = await this.post<{ success: boolean; message?: string; data?: { executionId: string; instanceId: string; dayIndex: number } }>('cancel', { executionId });
+        if (!res.data?.success || !res.data.data) throw new Error(res.data?.message || '取消训练失败');
+        return res.data.data;
+    }
+
     async recordCompletion(input: import('@coachlink/core/src/completionDate').RecordPlanCompletionInput) {
         const res = await this.post<any>('record-completion', input);
         if (!res.data?.success || !res.data.data) throw new Error(res.data?.message || '补记失败');

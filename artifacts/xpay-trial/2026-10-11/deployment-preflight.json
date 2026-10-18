@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "1f9ecf1bc169e3d173f66aa3acb0fe79ee85a63e",
+  "miniappBuildCommit": "aae107b67d23342027d482f32b499841efb5bc52",
+  "uploadedVersion": "2026.10.11.0905",
+  "uploadBytes": 5757294,
+  "mainPackageBytes": 1934113,
+  "experienceSelectionVerified": false,
+  "devGeneration": 87,
+  "devReadyReplicas": 3,
+  "devImageDigest": "sha256:521a63213cf09b47f5cdb4ba3777d0f99f419c7772b3eb13b6ce39cdc7bc0209",
+  "mainGenerationUnchanged": 128,
+  "checks": [
+    { "name": "dev sandbox configuration", "passed": true },
+    { "name": "unbound administrator denied", "passed": true, "http": 403 },
+    { "name": "ordinary free membership purchase closed", "passed": true, "http": 403 },
+    { "name": "forged trial header without login rejected", "passed": true, "http": 401 },
+    { "name": "Huifu coach route still requires authentication", "passed": true, "http": 401 },
+    { "name": "local debug token rejected", "passed": true },
+    { "name": "unsigned notification rejected", "passed": true, "http": 403 },
+    { "name": "public dev signed notification verification echoes correctly", "passed": true, "http": 200 },
+    { "name": "public dev /api/healthy", "passed": true, "http": 200 },
+    { "name": "public main /api/healthy", "passed": true, "http": 200 }
+  ],
+  "checksPassed": true,
+  "paymentReady": false,
+  "blockers": ["The only administrator has no WeChat binding. The intended test account has not been identified."],
+  "unitTestsPassed": 633,
+  "unitTestFiles": 88,
+  "uiScreenshotVerified": false,
+  "ordersCreated": 0,
+  "realPayments": 0,
+  "actualEntitlementWrites": 0
+}

@@ -157,7 +157,11 @@ export async function createWebPaymentOrder(req: Request, channel: "alipay" | "w
 
     // For subscription payments, never trust client-provided totalAmount.
     // We validate ownership/coaching relation and, for initial subscription, override amount from DB.
-    const od: any = orderData || {};
+    const od: any = { ...(orderData || {}) };
+    // Package-switch instructions are written only by validated server checkout.
+    // Legacy callers must not inject fulfillment metadata through orderData.
+    delete od.packageSwitchPolicy;
+    delete od.packagePurchase;
     const subscriptionId = od.subscriptionId as string | undefined;
     const subscriptionOrderId = od.subscriptionOrderId as string | undefined;
     const coachId = od.coachId as string | undefined;
@@ -418,7 +422,7 @@ export async function createWebPaymentOrder(req: Request, channel: "alipay" | "w
             { status: 503 },
         );
     }
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await serviceRoleSupabase
             .from("alipay_orders")
             .insert({
                 subject: subjectText,
@@ -687,7 +691,7 @@ export async function createWebPaymentOrder(req: Request, channel: "alipay" | "w
     }
 
     if (!result) {
-        await supabase
+        await serviceRoleSupabase
             .from("alipay_orders")
             .delete()
             .eq("id", order.id);
@@ -698,7 +702,7 @@ export async function createWebPaymentOrder(req: Request, channel: "alipay" | "w
             data: result,
         });
     } else if (createMode === "test") {
-        await supabase
+        await serviceRoleSupabase
             .from("alipay_orders")
             .delete()
             .eq("id", order.id);

@@ -1,6 +1,7 @@
 import supabase from "@/lib/supabaseClient";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
+import { activateQueuedPackageIfReady } from '@/lib/subscriptionPackageQueue';
 
 /**
  * 更新订阅的预计完成日期（B1：按训练日 credits 消耗）
@@ -69,6 +70,7 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
       .update({ end_date: nextEndDate } as any)
       .eq("id", instance.coach_subscription_id);
     if (updateError) throw updateError;
+    await activateQueuedPackageIfReady(instance.coach_subscription_id);
 
     console.log(
       `Updated subscription ${instance.coach_subscription_id}: ` +

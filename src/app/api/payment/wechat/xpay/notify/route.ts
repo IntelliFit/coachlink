@@ -51,11 +51,11 @@ export async function POST(request: NextRequest) {
             const order = await findXPayOrderByOutTradeNo(outTradeNo);
             if (!order) return new Response("", { status: 404 });
             const goods = body.GoodsInfo || {};
-            const payment = body.WechatPayInfo || {};
+            const payment = body.WeChatPayInfo || body.WechatPayInfo || {};
             validateXPayOrderMatch(order, {
                 outTradeNo,
                 openId: String(body.openid || body.OpenId || ""),
-                env: Number(body.env),
+                env: Number(body.Env ?? body.env),
                 productId: String(goods.ProductId || ""),
                 quantity: Number(goods.Quantity),
                 originalPrice: Number(goods.OrigPrice),

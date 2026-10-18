@@ -1,6 +1,7 @@
 import Taro from '@tarojs/taro'
 import { AUTH_SESSION_INVALID_EVENT } from '../services/authSessionEvents'
 import { resolveApiBaseUrl } from './apiBaseUrl'
+import { isXPayTrialClient } from './xpayTrial'
 import { WECHAT_PURCHASE_PAUSED_MESSAGE, isWechatPurchasePaused, wechatReleaseHeaders, wechatCoachPurchaseHeaders } from '@coachlink/core'
 
 // 同一个上传包按微信 develop/trial/release 运行环境选择对应 API。
@@ -89,6 +90,8 @@ async function validateAuthToken(token: string): Promise<AuthTokenStatus> {
 }
 
 async function recoverWechatSession(rejectedToken: string): Promise<string | null> {
+  // Never replace a selected debug identity with the operator's WeChat account.
+  if (rejectedToken.startsWith('cldev.')) return null
   if (wechatSessionRecoveryPromise) return wechatSessionRecoveryPromise
 
   wechatSessionRecoveryPromise = (async () => {
@@ -199,7 +202,9 @@ function getNetworkFailureMessage(error: any) {
  */
 export async function request<T = any>(options: RequestOptions): Promise<ApiResponse<T>> {
   const { url, method = 'GET', data, header = {}, showErrorToast: showErrorToastOpt = true } = options
-  if (method === 'POST' && isWechatPurchasePaused(url)) {
+  const adminTrialRequest = url === '/api/payment/wechat/membership/create'
+    && header['x-coachlink-xpay-admin-trial'] === '1' && isXPayTrialClient()
+  if (method === 'POST' && isWechatPurchasePaused(url) && !adminTrialRequest) {
     showErrorToast(WECHAT_PURCHASE_PAUSED_MESSAGE, showErrorToastOpt)
     return { success: false, message: WECHAT_PURCHASE_PAUSED_MESSAGE }
   }
@@ -229,9 +234,7 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
   if (data) {
     console.log('📤 请求数据:', data)
   }
-  if (token) {
-    console.log('🔑 携带token:', token.substring(0, 20) + '...')
-  }
+  if (token) console.log('🔑 已携带登录凭证')
 
   try {
     const executeRequest = (authToken: string | null) => Taro.request({
@@ -248,6 +251,12 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
     let activeToken = token
     let authTokenStatus: AuthTokenStatus | null = null
     let response = await executeRequest(activeToken)
+
+    // A request from the previous account must not retry under, or clear, the
+    // newly selected debug identity (or the restored original identity).
+    if (String(Taro.getStorageSync('token') || '') !== String(activeToken || '')) {
+      return { success: false, message: '账号已切换，请在当前页面重试' }
+    }
 
     if (activeToken && responseIndicatesInvalidAuth(response, true)) {
       authTokenStatus = await validateAuthToken(activeToken)

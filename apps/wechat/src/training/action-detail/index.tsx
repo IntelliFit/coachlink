@@ -4,6 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { isLikelyVideoUrl, resolveWeappMediaUrl } from '@/utils/mediaUrl'
+import { trainingService } from '@/services/trainingService'
 
 interface ActionDetailData {
   id: string
@@ -13,6 +14,7 @@ interface ActionDetailData {
   attrs?: string[] | null
   type?: string | null
   url?: string | null
+  video_url?: string | null
   reference_image_url?: string | null
 }
 
@@ -21,22 +23,53 @@ export default function ActionDetailPage() {
   const router = useRouter()
   const id = router.params?.id || ''
   const [action, setAction] = useState<ActionDetailData | null>(null)
+  const [coachNote, setCoachNote] = useState('')
+  const [loading, setLoading] = useState(true)
+  const instanceId = router.params?.instanceId || ''
+  const dayIndex = Number(router.params?.dayIndex || 0)
+  const actionIndex = Number(router.params?.actionIndex ?? -1)
 
   const cacheKey = useMemo(() => (id ? `action_detail_${id}` : ''), [id])
   const positions = action?.positions ?? []
   const attrs = action?.attrs ?? []
   const referenceImageUrl = resolveWeappMediaUrl(action?.reference_image_url)
-  const demoUrl = resolveWeappMediaUrl(action?.url)
+  const demoUrl = resolveWeappMediaUrl(action?.url || action?.video_url)
 
   useEffect(() => {
-    if (!cacheKey) return
-    const cache = Taro.getStorageSync(cacheKey)
-    if (cache && typeof cache === 'object') {
-      setAction(cache as ActionDetailData)
-      return
+    let disposed = false
+    let receivedContext = false
+    const channel = Taro.getCurrentInstance().page?.getOpenerEventChannel?.()
+    const receive = (data: { action: ActionDetailData; coachNote?: string }) => {
+      if (disposed || data.action?.id !== id) return
+      receivedContext = true
+      setAction(data.action)
+      setCoachNote(data.coachNote || '')
+      setLoading(false)
     }
-    setAction(null)
-  }, [cacheKey])
+    channel?.on('teaching', receive)
+    // Older action-library routes still provide the existing action-detail cache.
+    if (!receivedContext && !instanceId && cacheKey) {
+      const cache = Taro.getStorageSync(cacheKey)
+      if (cache && typeof cache === 'object') setAction(cache)
+    }
+    const loadFallback = async () => {
+      if (receivedContext || !instanceId) { setLoading(false); return }
+      try {
+        const result = await trainingService.getInstanceResult({ id: instanceId }, { showErrorToast: false })
+        if (disposed || receivedContext) return
+        const data = result.data
+        const found = data?.actions?.[id]
+        if (found) setAction({ ...found, id })
+        const day = data?.instance?.training_days?.find(item => Number(item.dayIndex) === dayIndex)
+        const item = day?.actionSets?.[actionIndex] as any
+        if (item && (item.action_id || item.actionId) === id) setCoachNote(item.params?.note || item.note || '')
+      } finally {
+        if (!disposed) setLoading(false)
+      }
+    }
+    void loadFallback().catch(() => { if (!disposed) setLoading(false) })
+    return () => { disposed = true; channel?.off('teaching', receive) }
+  }, [cacheKey, id, instanceId, dayIndex, actionIndex])
 
   const handleCopyVideoUrl = () => {
     if (!demoUrl) return
@@ -79,6 +112,13 @@ export default function ActionDetailPage() {
       <View className="action-card">
         <Text className="title">{action?.name || '动作详情'}</Text>
         {action?.type ? <Text className="type-tag">{action.type}</Text> : null}
+        {!!coachNote && <View className="section">
+          <Text className="section-title">本次教练要求</Text>
+          <Text className="section-content">{coachNote}</Text>
+        </View>}
+        {action && !action.detail && !demoUrl && !referenceImageUrl && <View className="section">
+          <Text className="section-content">这个动作暂未提供讲解素材。</Text>
+        </View>}
 
         {referenceImageUrl ? (
           <View className="section">
@@ -136,7 +176,7 @@ export default function ActionDetailPage() {
 
         {!action ? (
           <View className="empty-state">
-            <Text className="empty-text">未找到动作详情，请返回动作库重新进入。</Text>
+            <Text className="empty-text">{loading ? '正在读取动作讲解…' : '暂未读到动作详情，请返回后重试。'}</Text>
             {id ? <Text className="id-hint">动作 ID: {id}</Text> : null}
           </View>
         ) : null}

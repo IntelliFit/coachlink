@@ -49,6 +49,7 @@ export async function createCoachPaymentWaitingParams(params: {
   amount?: number
   renew?: boolean
   renewAdditionalWeeks?: number
+  subscriptionOrderId?: string
 }): Promise<PaymentWaitingParams> {
   const amount = Number(params.amount || 0)
   if (!params.subscriptionId) {
@@ -72,6 +73,7 @@ export async function createCoachPaymentWaitingParams(params: {
         orderData: {
           coachId: params.coachId,
           subscriptionId: params.subscriptionId,
+          subscriptionOrderId: params.subscriptionOrderId,
           renewAdditionalWeeks: params.renew ? params.renewAdditionalWeeks : undefined,
         },
         returnUrlOnly: true,

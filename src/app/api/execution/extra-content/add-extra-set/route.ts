@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { inheritedTimedSetDefaults, isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest) {
             set_index: newSetIndex,
             planned_weight: plannedWeight,
             planned_reps: plannedReps,
+            ...inheritedTimedSetDefaults([...currentSets].reverse().find((s: any) => isTimedTrainingSet(s, actionExecutions[actionIndex])), actionExecutions[actionIndex]),
             planned_rest_seconds: inheritedRestSeconds,
             rest_seconds: inheritedRestSeconds,
             status: "pending",

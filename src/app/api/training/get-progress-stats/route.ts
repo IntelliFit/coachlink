@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getTrainingSetVolume } from '@coachlink/core/src/trainingSetMetrics';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import type { GetProgressStatsDto, GetProgressStatsResponseDto } from './entity';
@@ -63,10 +64,7 @@ export async function POST(request: Request) {
             const setVol = sets.reduce((setSum: number, set: any) => {
                 if (set.status !== 'completed') return setSum;
                 
-                const weight = Number(set.actual_weight || set.planned_weight || 0);
-                const reps = Number(set.actual_reps || 0);
-                
-                return setSum + (weight * reps);
+                return setSum + getTrainingSetVolume(set, exercise);
             }, 0);
             return exSum + setVol;
         }, 0);

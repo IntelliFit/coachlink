@@ -10,6 +10,7 @@ import type {
     PRRecord,
 } from "./entity";
 import { PR_THRESHOLD_KG } from "@/lib/e1rmCalculator";
+import { filterTimedStrengthRecords } from '@/lib/filterTimedStrengthRecords';
 
 export async function POST(req: Request) {
     const authResult = await getAuthUser(req);
@@ -93,7 +94,8 @@ export async function POST(req: Request) {
 
     // Map to response format with new column names
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mappedRecords: PRRecord[] = ((records || []) as any[]).map((r) => ({
+    const measuredRecords = await filterTimedStrengthRecords(supabase, targetUserId, (records || []) as any[]);
+    const mappedRecords: PRRecord[] = measuredRecords.map((r) => ({
         id: r.id,
         exercise_name: r.exercise_name,
         weight: r.weight ?? r.max_weight, // Fallback for pre-migration

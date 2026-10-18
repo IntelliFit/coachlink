@@ -79,6 +79,7 @@ function startOfDayTime(dateValue: Date | string) {
 
 export function buildWeekStripCells(params: {
   now?: Date
+  today?: Date
   trainingDays: any[]
   scheduleModel: {
     scheduleByDayIndex: Map<number, { displayDate: Date; hidden?: boolean }>
@@ -106,7 +107,7 @@ export function buildWeekStripCells(params: {
   } = params
 
   const weekStart = getSundayWeekStart(now)
-  const todayKey = toDateKey(startOfDayTime(now))
+  const todayKey = toDateKey(startOfDayTime(params.today || now))
 
   const dayIndexesByDateKey = new Map<string, number[]>()
   if (scheduleModel.dayIndexesByDateKey) {

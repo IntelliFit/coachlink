@@ -6,6 +6,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { buildDatedKey, cosDownloadFile, cosRemove, cosUpload, cosUploadFile } from "@/lib/cos";
 import type { ApiData } from "@/types/api";
 import type { UploadSetVideoResponseDto } from "../upload-set-video/entity";
+import { prepareImpromptuSetVideo, persistImpromptuSetVideo, ImpromptuSetVideoError } from '../../impromptu/_helpers/setVideoUpload';
 import {
     prepareSetVideoUpload,
     persistSetVideoUpload,
@@ -21,6 +22,8 @@ const UPLOAD_ID_PATTERN = /^[a-zA-Z0-9_-]{8,96}$/;
 const TEMP_CHUNK_BUCKET = "videos";
 
 interface CompleteChunkedUploadBody {
+    executionType?: 'plan' | 'impromptu';
+    actionIndex?: number;
     uploadId?: string;
     executionId?: string;
     actionId?: string;
@@ -238,13 +241,16 @@ async function handleComplete(req: Request, userId: string) {
     const uploadDir = getUploadDir(userId, uploadId);
     const mergedPath = join(uploadDir, "merged-video");
 
-    const prepared = await prepareSetVideoUpload({
+    const videoInput = {
         userId,
         executionId: String(body.executionId || ""),
         actionId: String(body.actionId || ""),
         setNumber: body.setNumber,
         fileSizeBytes: totalSize,
-    });
+    };
+    const impromptuPrepared = body.executionType === 'impromptu'
+        ? await prepareImpromptuSetVideo({ ...videoInput, actionIndex: body.actionIndex }) : null;
+    const prepared = impromptuPrepared ? null : await prepareSetVideoUpload(videoInput);
 
     try {
         await downloadAndMergeChunks(userId, uploadId, uploadDir, totalChunks, totalSize, mergedPath);
@@ -257,17 +263,15 @@ async function handleComplete(req: Request, userId: string) {
         const storagePath = buildDatedKey(
             getFileExtension(body.fileName),
             userId,
-            "executions",
+            impromptuPrepared ? 'impromptu-executions' : 'executions',
         );
         const uploaded = await cosUploadFile("videos", storagePath, mergedPath, {
             contentType: normalizeContentType(body.contentType),
         });
 
-        const data = await persistSetVideoUpload({
-            prepared,
-            videoUrl: uploaded.url,
-            storagePath,
-        });
+        const data = impromptuPrepared
+            ? await persistImpromptuSetVideo({ prepared: impromptuPrepared, videoUrl: uploaded.url, storagePath })
+            : await persistSetVideoUpload({ prepared: prepared!, videoUrl: uploaded.url, storagePath });
 
         return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
             success: true,
@@ -306,7 +310,7 @@ export async function POST(req: Request) {
 
         throw new SetVideoUploadError("上传动作参数错误", 400);
     } catch (error) {
-        const status = error instanceof SetVideoUploadError ? error.status : 500;
+        const status = error instanceof SetVideoUploadError || error instanceof ImpromptuSetVideoError ? error.status : 500;
         const message = error instanceof Error ? error.message : "服务器错误";
         console.error("[upload-set-video-chunk] failed:", error);
         return NextResponse.json<ApiData<null>>({

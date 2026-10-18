@@ -76,6 +76,7 @@ export async function POST(req: Request) {
             instanceId: data.instance_id,
             studentId: userId,
             dayIndex: data.day_index,
+            forWrite: false,
         });
         if (!accessDecision.allowed) {
             return NextResponse.json<ApiData<GetExecutionResponseDto>>({

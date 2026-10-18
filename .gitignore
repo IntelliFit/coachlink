@@ -43,6 +43,7 @@ tsconfig.tsbuildinfo
 # WeChat mini-program (`apps/wechat/`) build outputs — keep repo lean; rebuild locally
 apps/wechat/dist/
 apps/wechat/dist-release/
+apps/wechat/dist-local-debug/
 apps/wechat/dist-sizecheck/
 apps/wechat/deploy_versions/
 apps/wechat/.openclaw/
@@ -84,4 +85,7 @@ output/
 /artifacts/
 /deploy/k8s/motion-effects-worker/main/.env.worker
 __pycache__/
+.next-local-debug/
 *.pyc
+apps/wechat/dist-training-entry/
+apps/wechat/dist-training-v3/

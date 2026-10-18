@@ -18,6 +18,7 @@ export interface CoachSubscriptionGetResponseDto {
 }
 
 export interface QueryCoachSubscription extends CoachSubscriptionRow {
+    queued_packages?: Array<{ id: string; product_name: string; purchased_weeks: number }>;
     coach: CoachesRow | null;
     subscribed_weeks?: number | null;
     /** Whether a plan instance has been assigned under this subscription (coach_plan_instances exists) */

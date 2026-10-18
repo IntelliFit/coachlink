@@ -103,6 +103,11 @@ export async function registerNodeRuntime() {
 
     await patchResponseJson();
 
+    if (process.env.NODE_ENV === 'development' && process.env.COACHLINK_LOCAL_DEBUG_LOGIN === '1') {
+        console.info('[BackgroundJobs] disabled for isolated local debug login');
+        return;
+    }
+
     const key = "__coachlinkBackgroundJobsStarted";
     if ((globalThis as unknown as Record<string, boolean>)[key]) return;
     (globalThis as unknown as Record<string, boolean>)[key] = true;

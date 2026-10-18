@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { trainingEntry } from '@coachlink/core/src/trainingAccess'
 import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
@@ -17,10 +18,12 @@ function PlanCurrent() {
   const [coachInstance, setCoachInstance] = useState<PlanInstance | null>(null)
   const [coachDayIndex, setCoachDayIndex] = useState(1)
   const [coachCompletionDates, setCoachCompletionDates] = useState<Record<number, string>>({})
+  const [coachExecutions, setCoachExecutions] = useState<Record<number, any>>({})
 
   const [selfInstance, setSelfInstance] = useState<PlanInstance | null>(null)
   const [selfDayIndex, setSelfDayIndex] = useState(1)
   const [selfCompletionDates, setSelfCompletionDates] = useState<Record<number, string>>({})
+  const [selfExecutions, setSelfExecutions] = useState<Record<number, any>>({})
 
   const [planMode, setPlanMode] = useState<'coach' | 'self'>('coach')
 
@@ -72,32 +75,16 @@ function PlanCurrent() {
 
       if (coachRes?.instance) {
         setCoachInstance(coachRes.instance)
-        try {
-          const nextDayData = await trainingService.getNextTrainingDay({ instanceId: coachRes.instance.id })
-          if (nextDayData) {
-            setCoachDayIndex(nextDayData.nextDayIndex)
-            setCoachCompletionDates(nextDayData.completionDates || {})
-          } else {
-            setCoachDayIndex(coachRes.instance.start_execution_day || 1)
-          }
-        } catch {
-          setCoachDayIndex(coachRes.instance.start_execution_day || 1)
-        }
+        setCoachDayIndex(coachRes.recommendedDayIndex || coachRes.instance.start_execution_day || 1)
+        setCoachCompletionDates(coachRes.completionDates || {})
+        setCoachExecutions(coachRes.executionsByDayIndex || {})
       }
 
       if (selfRes?.instance) {
         setSelfInstance(selfRes.instance)
-        try {
-          const nextDayData = await trainingService.getNextTrainingDay({ instanceId: selfRes.instance.id })
-          if (nextDayData) {
-            setSelfDayIndex(nextDayData.nextDayIndex)
-            setSelfCompletionDates(nextDayData.completionDates || {})
-          } else {
-            setSelfDayIndex(selfRes.instance.start_execution_day || 1)
-          }
-        } catch {
-          setSelfDayIndex(selfRes.instance.start_execution_day || 1)
-        }
+        setSelfDayIndex(selfRes.recommendedDayIndex || selfRes.instance.start_execution_day || 1)
+        setSelfCompletionDates(selfRes.completionDates || {})
+        setSelfExecutions(selfRes.executionsByDayIndex || {})
       }
 
       if (coachRes?.instance) setPlanMode('coach')
@@ -143,8 +130,11 @@ function PlanCurrent() {
     const coachQuery = coachId
       ? `&coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
       : ''
+    const executions = planMode === 'coach' ? coachExecutions : selfExecutions
+    const { intent } = trainingEntry({ trainingDays: instance?.training_days || [], progressDayIndex: currentDayIndex,
+      targetDayIndex: dayIndex, execution: executions[dayIndex], executionsByDayIndex: executions })
     Taro.navigateTo({
-      url: `/training/training-execution?instanceId=${instanceId}&dayIndex=${dayIndex}${coachQuery}`
+      url: `/training/training-execution?instanceId=${instanceId}&dayIndex=${dayIndex}&intent=${intent}${coachQuery}`
     }).catch(() => {
       Taro.showToast({ title: '跳转失败', icon: 'none' })
     })

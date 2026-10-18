@@ -1,3 +1,4 @@
+import { isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
                 if (exercise.sets && Array.isArray(exercise.sets)) {
                     exercise.sets.forEach((set: any) => {
                         if (
-                            set.status === "completed" && set.actual_weight &&
+                            !isTimedTrainingSet(set, exercise) && set.status === "completed" && set.actual_weight &&
                             set.actual_reps
                         ) {
                             exercisesToUpdate.push({

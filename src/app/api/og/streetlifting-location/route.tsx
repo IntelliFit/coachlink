@@ -19,7 +19,12 @@ function trimText(value: string, maxLength: number) {
 }
 
 async function getLocationFromApi(req: NextRequest, id: string) {
-  const origin = new URL(req.url).origin;
+  const requestUrl = new URL(req.url);
+  // Behind the HTTPS proxy, Next can give the internal HTTP listener an HTTPS URL.
+  if (["localhost", "127.0.0.1", "0.0.0.0", "[::1]"].includes(requestUrl.hostname)) {
+    requestUrl.protocol = "http:";
+  }
+  const origin = requestUrl.origin;
   const resp = await fetch(`${origin}/api/streetlifting-index/locations/get`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -29,7 +34,7 @@ async function getLocationFromApi(req: NextRequest, id: string) {
 
   if (!resp?.ok) return null;
   const json = await resp.json().catch(() => null);
-  return json?.success && json?.data ? json.data : null;
+  return json?.success && json?.data?.location ? json.data.location : null;
 }
 
 export async function GET(req: NextRequest) {

@@ -1,3 +1,4 @@
+import { isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
 
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 exercise.sets?.forEach((set: any) => {
-                    if (set.is_breakthrough && set.status === 'completed') {
+                    if (set.is_breakthrough && set.status === 'completed' && !isTimedTrainingSet(set, exercise)) {
                         const weight = set.actual_weight || 0;
                         const reps = set.actual_reps || 0;
 

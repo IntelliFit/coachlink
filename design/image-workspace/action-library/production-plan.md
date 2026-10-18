@@ -1,5 +1,7 @@
 # Standard Action Sequence Image Production Plan
 
+> 2026-10-07 user correction: the existing anatomy style stays consistent, but pose count follows the exercise. Static/isometric holds default to ONE informative posture. Dynamic exercises use extra key positions only when they explain real movement. Do not repeat identical poses or force three frames. The older fixed-three-frame pilot instructions below are historical.
+
 Generated at: 2026-06-20T19:12:09.140Z
 
 ## Source Of Truth
@@ -12,7 +14,7 @@ Generated at: 2026-06-20T19:12:09.140Z
 ## Pilot Scope
 
 - Generate 50 exercise sequence images first.
-- Each image is one horizontal 3-key-frame sequence: start -> transition/midpoint/eccentric -> finish/concentric/end.
+- Static/isometric actions use one clear posture. Dynamic actions use only the distinct key positions needed to explain the exercise; a midpoint is optional and must add information.
 - Each frame uses the same CoachLink anatomy model and marks trained muscles directly on the figure: red for primary muscles, orange for secondary/assisting muscles.
 - Full rollout target remains all `canonical_actions` standard actions; non-visual habit/diet/cardio rows need a separate treatment decision before image generation.
 
@@ -110,7 +112,7 @@ Generated at: 2026-06-20T19:12:09.140Z
 
 ## Global Prompt Contract
 
-Use the CoachLink v4 anatomy model: barefoot adult male, natural faceless mannequin head, translucent white/gray body and skeleton. The sequence image itself may add red/orange muscle highlights for the current action only. Use no text, labels, watermarks, logos, or UI chrome inside generated images. Keep camera angle consistent across the three frames.
+Use the CoachLink v4 anatomy model: barefoot adult male, natural faceless mannequin head, translucent white/gray body and skeleton. The illustration may add red/orange muscle highlights for the current action only. Use no text, labels, watermarks, logos, or UI chrome inside generated images. Static holds use one informative posture without duplicates. When multiple positions are useful for a dynamic action, keep the camera angle consistent and show actual distinct positions.
 
 ## Output Naming
 

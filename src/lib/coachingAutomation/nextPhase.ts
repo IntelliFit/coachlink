@@ -3,6 +3,7 @@ import { sendSystemMessage } from "@/lib/chat";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 import { buildArchiveEntitlementPatch } from "@/lib/subscriptionEntitlement";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { activateQueuedPackageIfReady } from '@/lib/subscriptionPackageQueue';
 import { createAutomationJob, isTerminalJob, markAutomationJob } from "./jobs";
 import { resolveAutomationPolicy } from "./policy";
 
@@ -97,6 +98,9 @@ export async function onPlanProgressChanged(instanceId: string, triggerSource = 
   if (error || !instance?.coach_subscription_id) {
     return { success: false, reason: error?.message || "instance_not_found" };
   }
+
+  const packageResult = await activateQueuedPackageIfReady(String(instance.coach_subscription_id));
+  if (packageResult.activated) return { success: true, reason: 'package_switch_needs_coach_plan' };
 
   if (instance.status !== "completed") {
     return { success: false, reason: "instance_not_completed" };

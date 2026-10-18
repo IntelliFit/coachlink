@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { rejectWechatPurchase } from '@/lib/wechatFreeRelease';
-import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { CreateAlipayOrderResponseDto } from "../entity";
 import { createAlipaySdk } from "@/lib/alipaySdk";
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
     const alipaySdk = createAlipaySdk();
 
     const totalAmountFen = yuanToFen(resolvedTotalAmount);
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await serviceRoleSupabase
         .from("alipay_orders")
         .insert({
             subject: subjectText,
@@ -165,14 +165,14 @@ export async function POST(req: Request) {
     }
 
     if (!result) {
-        await supabase.from("alipay_orders").delete().eq("id", order.id);
+        await serviceRoleSupabase.from("alipay_orders").delete().eq("id", order.id);
         return NextResponse.json({
             success: false,
             message: "无法创建订单",
             data: result,
         });
     } else if (createMode === "test") {
-        await supabase.from("alipay_orders").delete().eq("id", order.id);
+        await serviceRoleSupabase.from("alipay_orders").delete().eq("id", order.id);
     }
 
     return NextResponse.json<ApiData<CreateAlipayOrderResponseDto>>({

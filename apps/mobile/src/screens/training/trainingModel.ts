@@ -6,6 +6,9 @@ export type NormalizedSet = {
   plannedReps?: string | number | null
   actualWeight?: string | number | null
   actualReps?: string | number | null
+  actualDuration?: number | null
+  plannedTargetType?: string | null
+  plannedTargetUnit?: string | null
   rpe?: string | number | null
   plannedRestSeconds?: number | null
   notes?: string | null
@@ -20,6 +23,7 @@ export type NormalizedActionExecution = {
   actionIndex: number
   actionId?: string
   actionName: string
+  attrs?: string[] | null
   itemType: 'STRENGTH' | 'DIET' | 'CARDIO' | 'HABIT'
   status?: string
   completed?: boolean
@@ -67,6 +71,7 @@ export function normalizeExecution(raw: any) {
       actionIndex,
       actionId: action.action_id || action.actionId || actionDetail.id,
       actionName,
+      attrs: action.attrs ?? actionDetail.attrs ?? null,
       itemType: normalizeTrainingItemType(
         action.item_type || action.itemType || action.type || actionDetail.type,
       ),
@@ -86,6 +91,9 @@ export function normalizeExecution(raw: any) {
         plannedReps: set.planned_reps ?? set.plannedReps ?? set.reps ?? null,
         actualWeight: set.actual_weight ?? set.actualWeight ?? null,
         actualReps: set.actual_reps ?? set.actualReps ?? null,
+        actualDuration: set.actual_duration ?? set.actualDuration ?? null,
+        plannedTargetType: set.planned_target_type ?? set.plannedTargetType ?? null,
+        plannedTargetUnit: set.planned_target_unit ?? set.plannedTargetUnit ?? null,
         rpe: set.rpe ?? null,
         plannedRestSeconds: (() => {
           const value = Number(

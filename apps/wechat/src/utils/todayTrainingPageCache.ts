@@ -1,6 +1,10 @@
 import Taro from '@tarojs/taro'
 import type { PlanInstance } from '@/services/trainingService'
 import { authService } from '@/services/authService'
+import { projectPlanCacheProgress as refreshProgress } from '@coachlink/core/src/planCacheProgress'
+
+let executionCacheRevision = 0
+export const getExecutionCacheRevision = () => executionCacheRevision
 
 /** 今日训练页展示数据：本地优先（与学员端 60 天缓存策略一致） */
 export const TODAY_TRAINING_PAGE_CACHE_KEY = 'today_training_page_cache_v1'
@@ -109,7 +113,8 @@ export function patchExecutionInTodayTrainingPageCache(
   dayIndex: number,
   execution: any
 ) {
-  if (!userId || !instanceId || !execution) return
+  if (!userId || !instanceId || !execution || execution.status === 'preview' || String(execution.id || '').startsWith('preview-')) return
+  executionCacheRevision += 1
   const di = Number(dayIndex)
   if (!Number.isFinite(di) || di <= 0) return
 
@@ -119,6 +124,8 @@ export function patchExecutionInTodayTrainingPageCache(
   const ex = execution && typeof execution === 'object' ? { ...execution } : execution
 
   if (cur.selfInstance?.id === instanceId) {
+    const next = refreshProgress({ instance: cur.selfInstance, actions: cur.selfActions,
+      executionsByDayIndex: { ...(cur.selfExecutionsByDayIndex || {}), [di]: ex } })
     persistTodayTrainingPageCache({
       userId,
       coachSubscriptions: cur.coachSubscriptions,
@@ -126,9 +133,9 @@ export function patchExecutionInTodayTrainingPageCache(
       activeCoachSubscriptionId: cur.activeCoachSubscriptionId,
       selfInstance: cur.selfInstance,
       selfActions: cur.selfActions,
-      selfDayIndex: cur.selfDayIndex,
-      selfTodayCompleted: cur.selfTodayCompleted,
-      selfCompletionDates: cur.selfCompletionDates,
+      selfDayIndex: next.dayIndex,
+      selfTodayCompleted: next.todayCompleted,
+      selfCompletionDates: next.completionDates,
       selfExecutionsByDayIndex: { ...(cur.selfExecutionsByDayIndex || {}), [di]: ex },
       selfMissingDays: cur.selfMissingDays,
       planMode: cur.planMode,
@@ -142,10 +149,10 @@ export function patchExecutionInTodayTrainingPageCache(
   for (const subId of Object.keys(coachPlanDataBySubId)) {
     const block = coachPlanDataBySubId[subId]
     if (block?.instance?.id === instanceId) {
-      coachPlanDataBySubId[subId] = {
+      coachPlanDataBySubId[subId] = refreshProgress({
         ...block,
         executionsByDayIndex: { ...(block.executionsByDayIndex || {}), [di]: ex }
-      }
+      })
       hit = true
       break
     }
@@ -177,6 +184,7 @@ export function removeExecutionFromTodayTrainingPageCache(
   dayIndex: number
 ) {
   if (!userId || !instanceId) return
+  executionCacheRevision += 1
   const di = Number(dayIndex)
   if (!Number.isFinite(di) || di <= 0) return
 
@@ -186,6 +194,7 @@ export function removeExecutionFromTodayTrainingPageCache(
   if (cur.selfInstance?.id === instanceId) {
     const selfExecutionsByDayIndex = { ...(cur.selfExecutionsByDayIndex || {}) }
     delete selfExecutionsByDayIndex[di]
+    const next = refreshProgress({ instance: cur.selfInstance, actions: cur.selfActions, executionsByDayIndex: selfExecutionsByDayIndex })
     persistTodayTrainingPageCache({
       userId,
       coachSubscriptions: cur.coachSubscriptions,
@@ -193,9 +202,9 @@ export function removeExecutionFromTodayTrainingPageCache(
       activeCoachSubscriptionId: cur.activeCoachSubscriptionId,
       selfInstance: cur.selfInstance,
       selfActions: cur.selfActions,
-      selfDayIndex: cur.selfDayIndex,
-      selfTodayCompleted: cur.selfTodayCompleted,
-      selfCompletionDates: cur.selfCompletionDates,
+      selfDayIndex: next.dayIndex,
+      selfTodayCompleted: next.todayCompleted,
+      selfCompletionDates: next.completionDates,
       selfExecutionsByDayIndex,
       selfMissingDays: cur.selfMissingDays,
       planMode: cur.planMode,
@@ -211,7 +220,7 @@ export function removeExecutionFromTodayTrainingPageCache(
     if (block?.instance?.id !== instanceId) continue
     const executionsByDayIndex = { ...(block.executionsByDayIndex || {}) }
     delete executionsByDayIndex[di]
-    coachPlanDataBySubId[subId] = { ...block, executionsByDayIndex }
+    coachPlanDataBySubId[subId] = refreshProgress({ ...block, executionsByDayIndex })
     hit = true
     break
   }

@@ -24,6 +24,7 @@ import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
+import { XPayTrialEntry } from '@/components/XPayTrialEntry'
 
 interface ProfileActionItem {
   key: string
@@ -378,6 +379,7 @@ function CoachMyProfile() {
   return (
     <View className={`coach-my-profile-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className='profile-scroll'>
+        <XPayTrialEntry userId={user?.id} />
         <View className='hero-card'>
           <View className='hero-top'>
             <View className='avatar-shell'>
