@@ -1,7 +1,6 @@
 import defaultSupabase from "@/lib/supabaseClient";
 import { findDoubleChargedCarriedDays } from "@/lib/subscriptionCarriedProgress";
-import { deriveSubscriptionCarryoverSummaryFromHistory } from "@/lib/subscriptionCarryover";
-import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
+import { deriveSubscriptionBalance } from "@/lib/subscriptionBalance";
 import { readAllRowsByIdChunks, readAllRowsByKeyset } from "@/lib/supabaseKeysetPages";
 
 const PLAN_STATUSES = ["active", "paused", "completed", "scheduled", "archived"];
@@ -105,34 +104,15 @@ export async function runSubscriptionExpiryCheck(
         const weeks = Number(sub?.subscribed_weeks || 0);
         if (!weeks || weeks <= 0) continue;
         const subInstances = instancesBySub.get(sub.id) || [];
-        const current = subInstances.find((instance) => String(instance?.status || "").toLowerCase() !== "archived");
-        if (!current?.training_days) continue;
         const subExecutions = subInstances.flatMap((instance) => executionsByInstance.get(instance.id) || []);
 
         let model;
         try {
-            const carryover = deriveSubscriptionCarryoverSummaryFromHistory({
-                subscribedWeeks: weeks,
-                instances: subInstances,
-                executions: subExecutions,
-                excludeInstanceId: String(current.id || ""),
-                createdBefore: current.created_at || null,
-                subscriptionStartDate: sub?.start_date || null,
-            });
-            model = deriveSubscriptionEntitlementState({
-                subscription: sub,
-                planInstance: current,
-                executions: (executionsByInstance.get(current.id) || []).map((execution) => ({
-                    day_index: execution.day_index,
-                    status: execution.status,
-                    completed_at: execution.completed_at || null,
-                    updated_at: execution.updated_at || null,
-                    started_at: execution.started_at || null,
-                    created_at: execution.created_at || null,
-                })),
-                effectiveSubscribedWeeks: carryover.remainingWeeks,
-                now,
-            });
+            // Same rule as the student's training gate; an older completed plan
+            // next to the running one must not be mistaken for the current plan.
+            const balance = deriveSubscriptionBalance({ subscription: sub, instances: subInstances, executions: subExecutions, now });
+            if (!balance) continue;
+            model = balance.state;
         } catch (error) {
             // Unknown history is not unused or used-up credit; leave this subscription untouched.
             console.error("[subscription-expiry] skipped subscription with unreadable plan history:", { subscriptionId: sub.id, error });

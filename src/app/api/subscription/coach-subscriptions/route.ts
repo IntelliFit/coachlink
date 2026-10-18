@@ -6,6 +6,7 @@ import { CoachesRow, CoachSubscriptionRow } from '@/types';
 import { getSubscriptionLifecycle } from '@/lib/subscriptionLifecycle';
 import { deriveSubscriptionCarryoverSummaryFromHistory } from '@/lib/subscriptionCarryover';
 import { deriveSubscriptionEntitlementState } from '@/lib/subscriptionEntitlementModel';
+import { pickCurrentPlanInstance } from '@/lib/subscriptionBalance';
 import { activateQueuedPackageIfReady, getQueuedPackages } from '@/lib/subscriptionPackageQueue';
 
 async function embeddingCaochesIntoSubscriptions(subscriptions: CoachSubscriptionRow[]) {
@@ -406,12 +407,16 @@ export async function POST(req: Request) {
                     .in('status', ['active', 'paused', 'completed', 'scheduled', 'archived'])
                     .order('created_at', { ascending: false });
 
-                const latestInstanceBySub = new Map<string, any>();
+                const instancesBySub = new Map<string, any[]>();
                 for (const inst of (instances || []) as any[]) {
                     const sid = inst?.coach_subscription_id;
                     if (!sid) continue;
-                    if (String(inst?.status || '').toLowerCase() === 'archived') continue;
-                    if (!latestInstanceBySub.has(sid)) latestInstanceBySub.set(sid, inst);
+                    instancesBySub.set(sid, [...(instancesBySub.get(sid) || []), inst]);
+                }
+                const latestInstanceBySub = new Map<string, any>();
+                for (const [sid, list] of instancesBySub) {
+                    const current = pickCurrentPlanInstance(list);
+                    if (current) latestInstanceBySub.set(sid, current);
                 }
 
                 const instanceIds = ((instances || []) as any[]).map((i: any) => i.id).filter(Boolean);

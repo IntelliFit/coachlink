@@ -1,6 +1,7 @@
 import supabase from "@/lib/supabaseClient";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
+import { pickCurrentPlanInstance } from "@/lib/subscriptionBalance";
 
 export async function refreshSubscriptionEntitlementSnapshot(
   subscriptionId: string,
@@ -40,9 +41,7 @@ async function refreshSubscriptionEntitlementSnapshotChecked(
     .order("created_at", { ascending: false });
   if (instancesError) throw new Error(`读取订阅计划失败: ${instancesError.message}`);
 
-  const latestInstance = ((instances || []) as any[]).find(
-    (instance) => String(instance?.status || "").toLowerCase() !== "archived",
-  );
+  const latestInstance = pickCurrentPlanInstance((instances || []) as any[]);
 
   if (!latestInstance?.id) return null;
 

@@ -1,31 +1,19 @@
 import { createAiInstanceForSubscription } from "@/app/api/plan-lib/create-ai-instance/service";
 import { sendSystemMessage } from "@/lib/chat";
-import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import { loadSubscriptionBalance } from "@/lib/subscriptionBalance";
 import { buildArchiveEntitlementPatch } from "@/lib/subscriptionEntitlement";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { activateQueuedPackageIfReady } from '@/lib/subscriptionPackageQueue';
 import { createAutomationJob, isTerminalJob, markAutomationJob } from "./jobs";
 import { resolveAutomationPolicy } from "./policy";
 
-/** Remaining paid service weeks across the whole subscription; 0 when inactive. */
+/** Remaining paid service weeks, by the same rule as the student's training gate; 0 when inactive. */
 async function getRemainingServiceWeeks(subscriptionId: string) {
-  const { data: sub } = await (serviceRoleSupabase as any)
-    .from("coach_subscriptions")
-    .select("id, status, start_date, subscribed_weeks")
-    .eq("id", subscriptionId)
-    .maybeSingle();
-  if (!sub) return 0;
-  if (String(sub.status || "").toLowerCase() !== "active") return 0;
-
-  const subscribedWeeks = Number(sub.subscribed_weeks || 0);
-  if (!Number.isFinite(subscribedWeeks) || subscribedWeeks <= 0) return 0;
-
-  const carryover = await getSubscriptionCarryoverSummary({
-    subscriptionId,
-    subscribedWeeks,
-    subscriptionStartDate: sub.start_date || null,
-  });
-  return Math.max(0, Number(carryover.remainingWeeks || 0));
+  const balance = await loadSubscriptionBalance(subscriptionId);
+  const sub = balance?.subscription;
+  if (!sub || String(sub.status || "").toLowerCase() !== "active") return 0;
+  if (!(Number(sub.subscribed_weeks || 0) > 0)) return 0;
+  return Math.max(0, Number(balance.state?.remainingServiceWeeks ?? sub.subscribed_weeks ?? 0));
 }
 
 async function getStudentDisplayName(studentId: string | null | undefined) {

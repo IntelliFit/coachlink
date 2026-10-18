@@ -45,8 +45,11 @@ vi.mock('@/lib/coachingAutomation/jobs', () => ({
   isTerminalJob: (job: any) => ['succeeded', 'skipped', 'needs_coach_review'].includes(job?.status),
   markAutomationJob: async (_id: string, status: string, values: any = {}) => { mocks.marks.push({ status, values }); },
 }));
-vi.mock('@/lib/subscriptionCarryover', () => ({
-  getSubscriptionCarryoverSummary: async () => ({ remainingWeeks: mocks.remainingWeeks, exhausted: mocks.remainingWeeks <= 0 }),
+vi.mock('@/lib/subscriptionBalance', () => ({
+  loadSubscriptionBalance: async () => ({
+    subscription: { id: 'sub-1', status: 'active', subscribed_weeks: 12 },
+    state: { remainingServiceWeeks: mocks.remainingWeeks },
+  }),
 }));
 vi.mock('@/app/api/plan-lib/create-ai-instance/service', () => ({
   createAiInstanceForSubscription: vi.fn(async (input: any) => {
