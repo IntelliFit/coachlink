@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
 import { Dropdown } from 'primereact/dropdown';
-import { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { planLibService } from '@/app/service/planLibService';
 import { useToastContext } from '@/context/ToastContext';
 

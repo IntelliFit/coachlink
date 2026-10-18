@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Users, Loader2 } from 'lucide-react';
-import supabase from '@/lib/supabaseClient';
 
 // Aero design system constants
 const AERO_CONTAINER = "max-w-2xl mx-auto px-4";
@@ -40,14 +39,8 @@ export default function EditNodePage() {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     useEffect(() => {
-        // Get current user
-        supabase.auth.getUser().then(({ data }) => {
-            setCurrentUserId(data.user?.id || null);
-        });
-
         // Fetch node data
         const fetchNode = async () => {
             try {
