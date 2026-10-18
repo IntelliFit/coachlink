@@ -12,6 +12,7 @@ import {
     deriveLegacyFieldsFromMaterials,
     normalizeCoachApplicationMaterials,
 } from '@/lib/coachApplicationMaterials';
+import { notifyPlatformOwners } from '@/lib/platformNotice';
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
@@ -108,6 +109,19 @@ export async function POST(req: Request) {
             is_coach: false,
         })
         .eq('id', userId);
+
+    await notifyPlatformOwners({
+        kind: 'coach_application_new',
+        title: '新的教练申请',
+        fields: [
+            ['申请人', body.name],
+            ['头衔', body.title],
+            ['从业年限', body.yearsExperience],
+            ['城市', [body.province, body.city].filter(Boolean).join(' ')],
+            ['联系电话', body.contactPhone],
+        ],
+        adminPath: '/admin/coach-applications',
+    });
 
     // 重要！必须声明接口范型位 ApiData<返回参数的接口类型>
     return NextResponse.json<ApiData<CreateCoachApplicationResponseDto>>({

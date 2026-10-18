@@ -1,3 +1,18 @@
+## 订阅修复上线与 anon key 收口（2026-10-18）
+
+- 用户授权最高权限后上线：镜像 `coachlink@sha256:1507a5f3…`（源码 be98b37d，含订阅修复与远端 13 个新提交的合并），main/dev 各 3/3；两域 healthy/login 200，匿名调过期接口 401，进程内过期任务 interval=3600000 已启动，首轮取消热身研究员8254（10/14 列出的 8 个全部已取消）。main 受“需 PR + 2 个审批”保护，PR https://github.com/IntelliFit/coachlink/pull/46 待用户审批合并；镜像由服务器按 10/14 方式从覆盖后的源码构建，未传 NEXT_PUBLIC_SUPABASE_ANON_KEY。
+- 引体练习生第二阶段已发：4 周 12 练，外挂 1RM 67.5kg、体重 74kg，负重引体用固定重量（fixedLoadOverride），已同步动作库并私信通知。
+- anon key 泄露：10/06、10/14 构建把 anon key 打进前端 JS；用 anon key 可读 users（手机号、密码哈希、openid）等核心表，核心表多数未开 RLS。已改：前端不再引用 supabaseClient；服务端默认客户端改用 service key（4cd3c227，第二个镜像构建中）；迁移 `20261018120000_lock_down_public_tables_from_client_roles.sql` 待 4cd3c227 上线后执行（本机与服务器都没有 Supabase 管理令牌，需用户在 SQL Editor 执行或提供令牌）。
+- 剩余：唐、轻训大王的新计划待起草确认；小程序端改动需单独上传体验版。
+
+## UI 改版第 0 批（2026-10-18，进行中，分支未提交未推送）
+
+- 用户确认按"设计领先一批、分批开发、整批发版"推进。设计稿画布 https://claude.ai/artifact/TK5ukQQrZr5ycHg6ToNrBa （暖纸·陶土规范、小程序 9 页、网页发现页）；已定：主按钮 #B4553A、底部 5 个 Tab、不改分包结构。
+- 代码在独立 worktree D:/projects_mjw/coachlink-ui-refresh，分支 feat/ui-refresh（基于 main be98b37d），node_modules 用目录联接共享主检出。主检出未切分支。
+- 注意：weapp-automation 的 D:/projects_mjw/_slots/coachlink-1 当前是指向该 worktree 的目录联接（用于独立 DevTools 窗口验收），不是普通槽位；第 0 批结束后拆除。
+- 第 0 批内容：设计变量 styles/_tokens.scss + tokens-css.scss（含深色）、旧 --bg-page 等变量改指新值；components/ui 公共组件；底部导航改白色贴底栏并去掉 300ms 轮询；打卡图组标签次数被截断（改紧凑写法+先缩字号）；动作示意图改用 COS imageMogr2 缩略图（原图约 1.5MB/张）。
+- 第 1 批（定稿页面）实施训练执行页时必须对照 DECISIONS 2026-10-07「训练重设计必须完整保留逐组能力」及 docs/work/today-training-home-v3-redesign-2026-10-07.md 保留矩阵。
+
 ## 订阅链路代码修复批次（2026-10-13，本地完成，未提交未部署）
 
 - 2026-10-18 用户确认后已执行方案 A：9 个 8/20 前被接续替换的旧版本改为 no_charge（备份 artifacts/subscription-system-audit/2026-10-18/plan-a-backup.json），6 个订阅额度恢复（鞑靼 30 次可见满 84 天、力量观察员6380 12 次）。10/14 列出的 8 个待取消订阅中 7 个已于 10/15 被线上旧任务取消，剩热身研究员8254 待新任务取消（本机实跑被权限拦截）。新增：续费提醒跳过已有新计划的订阅；两个手动过期接口改为仅管理员。引体练习生 8 周计划 10/18 已结束、未发下一阶段（剩 12 次）；唐、轻训大王、引体练习生的新计划待起草后与用户确认。代码仍未提交未部署；用户已在 Apollo 加 SUBSCRIPTION_EXPIRY_CHECK_INTERVAL_MS。

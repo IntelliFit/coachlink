@@ -1,3 +1,10 @@
+## 订阅修复上线与 anon key 收口（2026-10-18）
+
+- 用户授权最高权限后上线：镜像 `coachlink@sha256:1507a5f3…`（源码 be98b37d，含订阅修复与远端 13 个新提交的合并），main/dev 各 3/3；两域 healthy/login 200，匿名调过期接口 401，进程内过期任务 interval=3600000 已启动，首轮取消热身研究员8254（10/14 列出的 8 个全部已取消）。main 受“需 PR + 2 个审批”保护，PR https://github.com/IntelliFit/coachlink/pull/46 待用户审批合并；镜像由服务器按 10/14 方式从覆盖后的源码构建，未传 NEXT_PUBLIC_SUPABASE_ANON_KEY。
+- 引体练习生第二阶段已发：4 周 12 练，外挂 1RM 67.5kg、体重 74kg，负重引体用固定重量（fixedLoadOverride），已同步动作库并私信通知。
+- anon key 泄露：10/06、10/14 构建把 anon key 打进前端 JS；用 anon key 可读 users（手机号、密码哈希、openid）等核心表，核心表多数未开 RLS。已改：前端不再引用 supabaseClient；服务端默认客户端改用 service key（4cd3c227，第二个镜像构建中）；迁移 `20261018120000_lock_down_public_tables_from_client_roles.sql` 待 4cd3c227 上线后执行（本机与服务器都没有 Supabase 管理令牌，需用户在 SQL Editor 执行或提供令牌）。
+- 剩余：唐、轻训大王的新计划待起草确认；小程序端改动需单独上传体验版。
+
 ## 订阅链路代码修复批次（2026-10-13，本地完成，未提交未部署）
 
 - 2026-10-18 用户确认后已执行方案 A：9 个 8/20 前被接续替换的旧版本改为 no_charge（备份 artifacts/subscription-system-audit/2026-10-18/plan-a-backup.json），6 个订阅额度恢复（鞑靼 30 次可见满 84 天、力量观察员6380 12 次）。10/14 列出的 8 个待取消订阅中 7 个已于 10/15 被线上旧任务取消，剩热身研究员8254 待新任务取消（本机实跑被权限拦截）。新增：续费提醒跳过已有新计划的订阅；两个手动过期接口改为仅管理员。引体练习生 8 周计划 10/18 已结束、未发下一阶段（剩 12 次）；唐、轻训大王、引体练习生的新计划待起草后与用户确认。代码仍未提交未部署；用户已在 Apollo 加 SUBSCRIPTION_EXPIRY_CHECK_INTERVAL_MS。

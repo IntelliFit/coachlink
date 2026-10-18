@@ -5,6 +5,7 @@ import type { ApiData } from '@/types/api';
 import type { SubmitFeedbackResponseDto } from './entity';
 import { normalizeFeedbackSubmission } from '@/lib/feedbackSubmission';
 import { currentTraceContext } from '@/lib/observability/requestContext';
+import { getNoticeUserName, notifyPlatformOwners } from '@/lib/platformNotice';
 
 export async function POST(req: Request) {
     const auth = await getAuthUser(req);
@@ -70,6 +71,18 @@ export async function POST(req: Request) {
                 }
             }, { status: 500 });
         }
+
+        await notifyPlatformOwners({
+            kind: 'feedback_new',
+            title: '新的用户反馈',
+            fields: [
+                ['用户', await getNoticeUserName(userId)],
+                ['类型', value.category],
+                ['内容', value.content],
+                ['页面', value.pagePath],
+            ],
+            adminPath: '/admin/feedback',
+        });
 
         return NextResponse.json<ApiData<SubmitFeedbackResponseDto>>({
             success: true,
