@@ -1,5 +1,6 @@
 ## 订阅修复上线与 anon key 收口（2026-10-18）
 
+- 2026-10-18 续：剩余额度统一为 `src/lib/subscriptionBalance.ts`（当前计划：进行中 > 已排期 > 已完成，取最新；历史版本按接续汇总 + 当前计划按自身完成扣），过期任务、下一阶段提醒、额度快照、教练订阅列表改用它；102 个进行中订阅各路径结果一致（此前 6 个不一致，其中过期任务把旧完成计划当当前，例如 23 周算成 36 周）。续费/订阅到账加订单级幂等（payment_data.applied_subscription_order_ids）与按读取周数的条件写，进行中订阅再次订阅改为累加不覆盖；支付宝旧续费路径同样条件写。第三个镜像（9d62d437 的 7 个文件，不含另一会话的 e7b71613/620280d3）构建中。
 - 用户授权最高权限后上线：镜像 `coachlink@sha256:1507a5f3…`（源码 be98b37d，含订阅修复与远端 13 个新提交的合并），main/dev 各 3/3；两域 healthy/login 200，匿名调过期接口 401，进程内过期任务 interval=3600000 已启动，首轮取消热身研究员8254（10/14 列出的 8 个全部已取消）。main 受“需 PR + 2 个审批”保护，PR https://github.com/IntelliFit/coachlink/pull/46 待用户审批合并；镜像由服务器按 10/14 方式从覆盖后的源码构建，未传 NEXT_PUBLIC_SUPABASE_ANON_KEY。
 - 引体练习生第二阶段已发：4 周 12 练，外挂 1RM 67.5kg、体重 74kg，负重引体用固定重量（fixedLoadOverride），已同步动作库并私信通知。
 - anon key 泄露：10/06、10/14 构建把 anon key 打进前端 JS；用 anon key 可读 users（手机号、密码哈希、openid）等核心表，核心表多数未开 RLS。已改：前端不再引用 supabaseClient；服务端默认客户端改用 service key（4cd3c227，第二个镜像构建中）；迁移 `20261018120000_lock_down_public_tables_from_client_roles.sql` 待 4cd3c227 上线后执行（本机与服务器都没有 Supabase 管理令牌，需用户在 SQL Editor 执行或提供令牌）。
