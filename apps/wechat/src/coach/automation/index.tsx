@@ -36,7 +36,7 @@ const feedbackOptions = [
 ]
 
 const nextPhaseOptions = [
-  { value: 'draft_notify', label: '草稿并通知' },
+  { value: 'draft_notify', label: '提醒教练' },
   { value: 'auto_publish_if_credits', label: '额度足够自动发布' },
   { value: 'off', label: '关闭' }
 ]
@@ -59,8 +59,8 @@ const settingGuide = [
   },
   {
     title: '下一阶段',
-    value: '建议草稿通知',
-    body: '当前阶段完成后，有额度则生成下一阶段草稿；额度不足时提醒续费。'
+    value: '建议提醒教练',
+    body: '当前阶段完成后，提醒教练安排下一阶段并附剩余周数；额度用完时提醒引导续费。'
   },
   {
     title: '风险保护',
@@ -72,7 +72,7 @@ const settingGuide = [
 const scenarioGuide = [
   {
     title: '普通线上教练',
-    settings: '首个计划自动发放；反馈和下一阶段都先生成草稿；风险保护严格。'
+    settings: '首个计划自动发放；反馈先生成草稿，下一阶段提醒教练安排；风险保护严格。'
   },
   {
     title: '新教练或高客单学员',
@@ -84,7 +84,7 @@ const scenarioGuide = [
   },
   {
     title: '康复/疼痛/伤病倾向',
-    settings: '不要开自动应用，反馈调整和下一阶段都保持草稿确认。'
+    settings: '不要开自动应用，反馈调整保持草稿确认，下一阶段由教练安排。'
   },
   {
     title: '尽量全自动',
@@ -267,7 +267,7 @@ export default function CoachAutomationPage() {
             <Text className='guide-kicker'>推荐默认</Text>
             <Text className='panel-title'>不知道怎么选，就保持默认</Text>
             <Text className='guide-copy'>
-              默认会自动发首个计划，反馈和下一阶段先生成草稿提醒教练确认，疼痛和伤病风险永远不会自动应用。
+              默认会自动发首个计划，反馈先生成草稿提醒教练确认，阶段完成时提醒教练安排下一阶段，疼痛和伤病风险永远不会自动应用。
             </Text>
           </View>
 

@@ -6,8 +6,10 @@ import type {
     CheckSubscriptionDto,
     CheckSubscriptionResponseDto,
 } from "./entity";
-import { deriveSubscriptionCarryoverSummaryFromHistory } from "@/lib/subscriptionCarryover";
-import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
+import { authorizeMaintenanceRequest } from "@/lib/maintenanceAuth";
+import { runSubscriptionExpiryCheckOnce } from "@/lib/subscriptionExpiryCheck";
+
+const EXPIRY_SECRET_ENV = "SUBSCRIPTION_EXPIRY_CRON_SECRET";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -126,241 +128,35 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-    // 处理订阅到期逻辑 - 这个端点可以由定时任务调用，检查所有订阅的到期情况
+    // Manual trigger for the shared expiry job; scheduled runs happen in-process
+    // (src/instrumentation-node.ts). Admins (or the cron secret) only.
     const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    const action = url.searchParams.get("action");
 
-    if (action === 'check-expired') {
-        // B1: 按“训练日次数 credits”判断订阅是否到期（次数用完才过期）。
-        // end_date 仅用于 UI 显示的“预计完成日”，不是硬日历到期。
-        const nowIso = new Date().toISOString();
-
-        // Fetch active candidates (started only); cancelled/expired ignored.
-        // NOTE: start_date is set at first execution start.
-        const { data: candidates, error } = await supabase
-            .from("coach_subscriptions")
-            .select("id, student_id, coach_id, status, start_date, end_date, subscribed_weeks")
-            .eq("status", "active")
-            .not("start_date", "is", null)
-            .gt("subscribed_weeks", 0);
-
-        if (error) {
-            console.error("检查过期订阅失败:", error);
-            return NextResponse.json({
-                success: false,
-                message: "检查过期订阅失败",
-                data: null,
-            }, { status: 500 });
+    if (action === "check-expired") {
+        const auth = await authorizeMaintenanceRequest(req, EXPIRY_SECRET_ENV);
+        if (auth.ok === false) {
+            return NextResponse.json({ success: false, message: auth.message, data: null }, { status: auth.status });
         }
 
-        if (candidates && candidates.length > 0) {
-            const candidateIds = candidates.map((c: any) => c.id);
-            const toExpire: Array<{ id: string; end_date: string }> = [];
-            const toRefresh: Array<{ id: string; end_date: string }> = [];
-            const toAutoCancelByModel: Array<{ id: string; student_id: string | null }> = [];
-
-            // Load latest plan instance per subscription (needed for credit scope)
-            const { data: instances } = await supabase
-                .from("coach_plan_instances")
-                .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy")
-                .in("coach_subscription_id", candidateIds)
-                .in("status", ["active", "paused", "completed", "scheduled", "archived"])
-                .order("created_at", { ascending: false });
-
-            const latestInstanceBySub = new Map<string, any>();
-            for (const inst of (instances || []) as any[]) {
-                const sid = inst?.coach_subscription_id;
-                if (!sid) continue;
-                if (String(inst?.status || "").toLowerCase() === "archived") continue;
-                if (!latestInstanceBySub.has(sid)) latestInstanceBySub.set(sid, inst);
-            }
-
-            const instanceIds = ((instances || []) as any[]).map((i: any) => i.id).filter(Boolean);
-            const { data: completedExecs } = instanceIds.length > 0
-                ? await supabase
-                    .from("plan_instance_executions")
-                    .select("instance_id, day_index, status, started_at, completed_at, created_at")
-                    .in("instance_id", instanceIds)
-                    .eq("status", "completed")
-                : { data: [] as any[] };
-
-            const execsByInstance = new Map<string, any[]>();
-            (completedExecs || []).forEach((e: any) => {
-                const arr = execsByInstance.get(e.instance_id) || [];
-                arr.push(e);
-                execsByInstance.set(e.instance_id, arr);
-            });
-
-            for (const sub of candidates as any[]) {
-                const weeks = Number(sub?.subscribed_weeks || 0);
-                if (!weeks || weeks <= 0) continue;
-
-                const inst = latestInstanceBySub.get(sub.id);
-                if (!inst?.training_days) continue;
-
-                const subInstances = (instances || []).filter((item: any) =>
-                    item?.coach_subscription_id === sub.id
-                );
-                const carryover = deriveSubscriptionCarryoverSummaryFromHistory({
-                    subscribedWeeks: weeks,
-                    instances: subInstances as any[],
-                    executions: (completedExecs || []) as any[],
-                    excludeInstanceId: String(inst.id || ""),
-                    createdBefore: inst.created_at || null,
-                    subscriptionStartDate: sub?.start_date || null,
-                });
-
-                const instanceExecutions = ((execsByInstance.get(inst.id) || []) as any[]).map((e) => ({
-                    day_index: e.day_index,
-                    status: e.status,
-                    completed_at: e.completed_at || null,
-                    updated_at: e.updated_at || null,
-                    started_at: e.started_at || null,
-                    created_at: e.created_at || null,
-                }));
-
-                const model = deriveSubscriptionEntitlementState({
-                    subscription: sub,
-                    planInstance: inst,
-                    executions: instanceExecutions as any[],
-                    effectiveSubscribedWeeks: carryover.remainingWeeks,
-                    now: new Date(nowIso),
-                });
-
-                if (model.totalCredits <= 0) {
-                    // Nothing to consume; do not expire.
-                    continue;
-                }
-
-                if (model.remainingCredits === 0) {
-                    toExpire.push({
-                        id: sub.id,
-                        end_date: model.displayEndDate || nowIso,
-                    });
-                    if (model.shouldAutoCancel) {
-                        toAutoCancelByModel.push({
-                            id: sub.id,
-                            student_id: sub.student_id || null,
-                        });
-                    }
-                    continue;
-                }
-
-                if (model.displayEndDate) {
-                    toRefresh.push({ id: sub.id, end_date: model.displayEndDate });
-                }
-            }
-
-            if (toRefresh.length > 0) {
-                await Promise.all(
-                    toRefresh.map((r) =>
-                        supabase
-                            .from("coach_subscriptions")
-                            .update({ end_date: r.end_date, updated_at: nowIso })
-                            .eq("id", r.id),
-                    ),
-                );
-            }
-
-            if (toExpire.length > 0) {
-                // Do not update status (DB constraint). Instead, set end_date to now so UI shows “已到期/已结束”.
-                const expireResults = await Promise.all(
-                    toExpire.map((item) =>
-                        supabase
-                            .from("coach_subscriptions")
-                            .update({
-                                end_date: item.end_date,
-                                updated_at: nowIso,
-                            })
-                            .eq("id", item.id),
-                    ),
-                );
-
-                const updateError = expireResults.find((result) => result.error)?.error;
-
-                if (updateError) {
-                    console.error("更新订阅结束时间失败:", updateError);
-                    return NextResponse.json({
-                        success: false,
-                        message: "更新订阅结束时间失败",
-                        data: null,
-                    }, { status: 500 });
-                }
-
-                const studentIds = (candidates as any[])
-                    .filter((c) => toAutoCancelByModel.some((item) => item.id === c.id))
-                    .map((c) => c.student_id)
-                    .filter(Boolean);
-
-                // 同时清空这些学生的 invitation_coach_id
-                const { error: userUpdateError } = studentIds.length > 0
-                    ? await supabase
-                        .from("users")
-                        .update({
-                            invitation_coach_id: null,
-                        })
-                        .in("id", studentIds)
-                    : { error: null };
-
-                if (userUpdateError) {
-                    console.error("更新用户邀请教练ID失败:", userUpdateError);
-                }
-            }
-
-            // 9b. 超过宽限期自动取消订阅关系
-            let cancelledCount = 0;
-            try {
-                const toCancel = toAutoCancelByModel;
-
-                if (toCancel.length > 0) {
-                    const cancelIds = toCancel.map((r: any) => r.id).filter(Boolean);
-                    const cancelStudentIds = toCancel
-                        .map((r: any) => r.student_id)
-                        .filter(Boolean);
-
-                    const { error: cancelError } = await supabase
-                        .from("coach_subscriptions")
-                        .update({
-                            status: "cancelled",
-                            updated_at: nowIso,
-                        })
-                        .in("id", cancelIds);
-
-                    if (!cancelError) {
-                        cancelledCount = cancelIds.length;
-                    }
-
-                    if (cancelStudentIds.length > 0) {
-                        await supabase
-                            .from("users")
-                            .update({
-                                invitation_coach_id: null,
-                            })
-                            .in("id", cancelStudentIds);
-                    }
-                }
-            } catch (e) {
-                console.error("自动取消超宽限订阅失败:", e);
-            }
-
+        const result = await runSubscriptionExpiryCheckOnce();
+        if (result.ok === false) {
             return NextResponse.json({
-                success: true,
-                message:
-                    `成功处理了 ${toExpire.length} 个订阅（进入宽限 ${toExpire.length}，刷新 ${toRefresh.length} 个预计完成日，自动取消 ${cancelledCount}）`,
-                data: {
-                    expiredCount: toExpire.length,
-                    refreshedCount: toRefresh.length,
-                    expiredSubscriptionIds: toExpire.map((item) => item.id),
-                },
-            });
+                success: false,
+                message: result.stage === "write" ? result.message : `暂时无法核对订阅数据，未调整订阅（${result.message}）`,
+                data: null,
+            }, { status: result.stage === "write" ? 500 : 503 });
         }
 
         return NextResponse.json({
             success: true,
-            message: "没有发现过期的订阅",
+            message: result.expiredCount + result.refreshedCount === 0
+                ? "没有发现过期的订阅"
+                : `成功处理了 ${result.expiredCount} 个订阅（进入宽限 ${result.expiredCount}，刷新 ${result.refreshedCount} 个预计完成日，自动取消 ${result.cancelledCount}，待人工核对 ${result.heldForReviewIds.length}）`,
             data: {
-                processedCount: 0,
-                subscriptionIds: [],
+                expiredCount: result.expiredCount,
+                refreshedCount: result.refreshedCount,
+                expiredSubscriptionIds: result.expiredSubscriptionIds,
             },
         });
     }

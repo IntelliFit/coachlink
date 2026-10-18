@@ -1,4 +1,5 @@
 import supabase from "@/lib/supabaseClient";
+import { readAllRowsByIdChunks } from "@/lib/supabaseKeysetPages";
 import type { TrainingDayLike } from './subscriptionCredits';
 import { computeConsumedServiceWeeks, SERVICE_WEEK_EPSILON } from './subscriptionServiceWeeks';
 import {
@@ -154,16 +155,25 @@ export async function getSubscriptionCarryoverSummariesBatch(
   );
   if (subscriptionIds.length === 0) return summaries;
 
-  const { data: instances, error: instancesError } = await supabase
-    .from("coach_plan_instances")
-    .select(
-      "id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy",
-    )
-    .in("coach_subscription_id", subscriptionIds)
-    .in("status", Array.from(CARRYOVER_INSTANCE_STATUSES));
+  // Paginated: a coach's student page easily exceeds Supabase's 1000-row cap,
+  // and a truncated history would silently overstate remaining entitlement.
+  const { data: instances, error: instancesError } = await readAllRowsByIdChunks<any>(
+    subscriptionIds,
+    (chunk, afterId) => {
+      let query = supabase
+        .from("coach_plan_instances")
+        .select(
+          "id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy",
+        )
+        .in("coach_subscription_id", chunk)
+        .in("status", Array.from(CARRYOVER_INSTANCE_STATUSES));
+      if (afterId) query = query.gt("id", afterId);
+      return query.order("id", { ascending: true });
+    },
+  );
 
   if (instancesError) {
-    throw new Error(`读取订阅历史计划失败: ${instancesError.message}`);
+    throw new Error(`读取订阅历史计划失败: ${(instancesError as any)?.message || instancesError}`);
   }
   if (!instances || instances.length === 0) {
     return summaries;
@@ -172,15 +182,20 @@ export async function getSubscriptionCarryoverSummariesBatch(
   const instanceIds = instances
     .map((instance) => String(instance?.id || "").trim())
     .filter(Boolean);
-  const { data: executions, error: executionsError } = instanceIds.length > 0
-    ? await supabase
-      .from("plan_instance_executions")
-      .select("instance_id, day_index, status, started_at, completed_at, created_at")
-      .in("instance_id", instanceIds)
-      .eq("status", "completed")
-    : { data: [] as CarryoverExecutionLike[], error: null };
+  const { data: executions, error: executionsError } = await readAllRowsByIdChunks<any>(
+    instanceIds,
+    (chunk, afterId) => {
+      let query = supabase
+        .from("plan_instance_executions")
+        .select("id, instance_id, day_index, status, started_at, completed_at, created_at")
+        .in("instance_id", chunk)
+        .eq("status", "completed");
+      if (afterId) query = query.gt("id", afterId);
+      return query.order("id", { ascending: true });
+    },
+  );
   if (executionsError) {
-    throw new Error(`读取订阅历史训练失败: ${executionsError.message}`);
+    throw new Error(`读取订阅历史训练失败: ${(executionsError as any)?.message || executionsError}`);
   }
 
   const instancesBySubscription = new Map<string, CarryoverInstanceLike[]>();

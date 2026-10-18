@@ -14,6 +14,12 @@ import { isOneRMEligibleAction } from '@/utils/oneRmEligibility'
 import { buildExecutionSummary } from '@/utils/planEditor'
 import { buildStrengthPreview } from '@/utils/planStrength'
 import { formatDateYMD } from '@/utils/dateFormat'
+import {
+  describeLockedRange,
+  getLockedThroughDayIndex,
+  isPlanDayLocked,
+  mergeLockedPlanDays
+} from '@coachlink/core/src/planEditLock'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
@@ -347,6 +353,33 @@ function CoachStudentPlan() {
   const [instanceId, setInstanceId] = useState<string | null>(null)
   const [trainingDays, setTrainingDays] = useState<TrainingDay[]>([])
   const [executions, setExecutions] = useState<Record<number, Execution>>({})
+  // Days up to the furthest workout are history (see planEditLock): their
+  // structure is fixed; only sets, reps, load and notes may change.
+  const lockedThroughDayIndex = useMemo(
+    () => getLockedThroughDayIndex(Object.values(executions || {}) as any[]),
+    [executions]
+  )
+  // Raw training days last read from or written to the server.
+  const serverTrainingDaysRef = useRef<any[]>([])
+  const notifyLockedDay = useCallback(() => {
+    Taro.showToast({
+      title: `${describeLockedRange(lockedThroughDayIndex)}已有训练记录，不能增删动作或切换训练/休息`,
+      icon: 'none'
+    })
+  }, [lockedThroughDayIndex])
+  // A workout the student starts while the coach edits moves the lock and the
+  // server then rejects the save. Re-read workouts and plan; when the lock
+  // moved, state changes and autosave retries against the new lock.
+  const refreshPlanLock = useCallback(async () => {
+    if (!subscriptionId) return
+    const latest = await planLibService.getWithExecutions({ subscriptionId }).catch(() => null)
+    if (!latest?.executions) return
+    const nextLock = getLockedThroughDayIndex(Object.values(latest.executions) as any[])
+    if (nextLock === lockedThroughDayIndex) return
+    const latestDays = parseJsonArrayMaybe((latest as any)?.training_days ?? (latest as any)?.trainingDays)
+    if (latestDays.length > 0) serverTrainingDaysRef.current = latestDays as any[]
+    setExecutions(latest.executions as Record<number, Execution>)
+  }, [lockedThroughDayIndex, subscriptionId])
 
   // 编辑状态
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0)
@@ -936,6 +969,7 @@ function CoachStudentPlan() {
           normalizedForSave
         )
       )
+      serverTrainingDaysRef.current = (nextTrainingDays || []) as any[]
       setInstanceId(nextInstanceId)
       setAutoSaveReady(Boolean(!isReadonlyPlanView && nextInstanceId && normalizedForSave.length > 0))
       setAutoSaveStatus('idle')
@@ -1036,6 +1070,20 @@ function CoachStudentPlan() {
         const trainingDaysChanged =
           JSON.stringify(savedTrainingDays) !== JSON.stringify(normalizedTrainingDays)
         const hasExecutionHistory = Object.values(executions).some(Boolean)
+        // Trained days keep their saved structure; only their parameters are
+        // saved. Normalising for save drops rest-day tasks, so locked days are
+        // compared with the raw server days. If a restored day is one the coach
+        // edited in this session, the edit could not be kept: say so and reload.
+        const { days: payloadDays, restoredDayIndexes } = mergeLockedPlanDays({
+          savedDays: serverTrainingDaysRef.current,
+          nextDays: normalizedTrainingDays,
+          lockedThroughDayIndex
+        })
+        const visibleReverts = restoredDayIndexes.filter((dayIndex) => {
+          const current = normalizedTrainingDays.find((day) => Number(day?.dayIndex) === dayIndex)
+          const previous = savedTrainingDays.find((day: any) => Number(day?.dayIndex) === dayIndex)
+          return JSON.stringify(current ?? null) !== JSON.stringify(previous ?? null)
+        })
 
         if (trainingDaysChanged && hasExecutionHistory && subscriptionId) {
           const currentStartExecutionDay = Math.max(1, Number(instance?.start_execution_day || 1))
@@ -1047,19 +1095,17 @@ function CoachStudentPlan() {
             description: editDescription || null,
             executionNotice: editExecutionNotice || null,
             suitableFor: editSuitableFor || 'beginner',
-            trainingDays: normalizedTrainingDays,
+            trainingDays: payloadDays,
             startDate: instance?.start_date || undefined,
             startWeek: Math.floor((currentStartExecutionDay - 1) / 7) + 1,
             startDay: ((currentStartExecutionDay - 1) % 7) + 1
           })
           if (!revision?.instance) throw new Error('create revision failed')
+          // The server updates this plan in place, so its workouts (and the
+          // lock they impose) stay attached; keep them in state.
           savedInstance = revision.instance
           setInstance(revision.instance)
           setInstanceId(revision.instance.id)
-          // The new revision has no execution rows of its own. Previous rows
-          // remain available from plan history and must not trigger another
-          // revision on the next autosave.
-          setExecutions({})
         } else {
           const update = await planLibService.updateInstance({
             id: instanceId,
@@ -1067,10 +1113,19 @@ function CoachStudentPlan() {
             description: editDescription || null,
             executionNotice: editExecutionNotice || null,
             suitableFor: editSuitableFor || 'beginner',
-            trainingDays: normalizedTrainingDays
+            trainingDays: payloadDays
           })
           if (!update?.instance) throw new Error('update instance failed')
           savedInstance = update.instance
+        }
+        serverTrainingDaysRef.current = payloadDays as any[]
+        if (visibleReverts.length > 0) {
+          Taro.showToast({
+            title: `第${visibleReverts.join('、')}天已有训练记录，已保留原样`,
+            icon: 'none'
+          })
+          loadData()
+          return
         }
         setLastSavedSnapshot(currentSnapshot)
         setInstance((prev) => prev ? {
@@ -1085,6 +1140,7 @@ function CoachStudentPlan() {
       } catch (error) {
         console.error('保存失败:', error)
         setAutoSaveStatus('error')
+        refreshPlanLock()
       }
     }, 1200)
 
@@ -1100,8 +1156,11 @@ function CoachStudentPlan() {
     instanceId,
     isReadonlyPlanView,
     lastSavedSnapshot,
+    loadData,
     loading,
+    lockedThroughDayIndex,
     normalizeTrainingDaysForSave,
+    refreshPlanLock,
     serializePlanSnapshot,
     subscriptionId,
     trainingDays
@@ -1288,6 +1347,11 @@ function CoachStudentPlan() {
       const templateRes = await planLibService.getTemplate(templateId)
       const templateDays = templateRes?.days || []
       const hasExecutionHistory = Object.values(executions).some(Boolean)
+      // Overwriting a plan that already has workouts keeps the trained days;
+      // the template only replaces the days after them.
+      const keepsTrainedDays = Boolean(
+        instanceId && templateImportMode === 'overwrite' && hasExecutionHistory && lockedThroughDayIndex > 0
+      )
       if (instanceId && templateImportMode === 'overwrite' && !hasExecutionHistory) {
         const updateRes = await planLibService.updateInstance({
           id: instanceId,
@@ -1308,7 +1372,13 @@ function CoachStudentPlan() {
           description: editDescription || null,
           executionNotice: editExecutionNotice || null,
           suitableFor: editSuitableFor || 'beginner',
-          trainingDays: templateDays,
+          trainingDays: keepsTrainedDays
+            ? mergeLockedPlanDays({
+              savedDays: serverTrainingDaysRef.current,
+              nextDays: templateDays,
+              lockedThroughDayIndex
+            }).days
+            : templateDays,
           revisionOfInstanceId:
             instanceId && templateImportMode === 'overwrite' && hasExecutionHistory
               ? instanceId
@@ -1324,7 +1394,9 @@ function CoachStudentPlan() {
       }
 
       if (success) {
-        Taro.showToast({ title: '计划创建成功', icon: 'success' })
+        Taro.showToast(keepsTrainedDays
+          ? { title: `已保留${describeLockedRange(lockedThroughDayIndex)}，模板从第${lockedThroughDayIndex + 1}天起生效`, icon: 'none' }
+          : { title: '计划创建成功', icon: 'success' })
         loadData()
         setShowTemplateDialog(false)
       } else {
@@ -1718,6 +1790,10 @@ function CoachStudentPlan() {
     const innerIndex = path.length > 1 ? path[1] : -1
     const handleDelete = () => {
       if (!selectedTrainingDay) return
+      if (isPlanDayLocked(selectedTrainingDay.dayIndex, lockedThroughDayIndex)) {
+        notifyLockedDay()
+        return
+      }
       updateTrainingDayByDayIndex(selectedTrainingDay.dayIndex, (currentDay) => {
         const nextActionSets = [...(currentDay.actionSets || [])]
         if (innerIndex < 0) {
@@ -2195,6 +2271,10 @@ function CoachStudentPlan() {
     }
     const day = getTrainingDayByDayIndex(selectedDayIndex)
     if (!day) return
+    if (isPlanDayLocked(day.dayIndex, lockedThroughDayIndex)) {
+      notifyLockedDay()
+      return
+    }
     if (!actions.length) {
       Taro.showToast({ title: '动作库为空，请先创建动作', icon: 'none' })
       return
@@ -2477,16 +2557,27 @@ function CoachStudentPlan() {
   const handleApplyAiModifierPreview = () => {
     if (isReadonlyPlanView) return
     if (!aiModifierPreviewDays?.length) return
-    const normalizedDays = aiModifierPreviewDays.map((day) => ({
+    const previewDays = aiModifierPreviewDays.map((day) => ({
       ...day,
       actionSets: Array.isArray(day.actionSets) ? day.actionSets : []
     }))
+    // AI changes to trained days keep only parameter edits; their structure stays.
+    const { days: normalizedDays, restoredDayIndexes } = mergeLockedPlanDays({
+      savedDays: trainingDays,
+      nextDays: previewDays,
+      lockedThroughDayIndex
+    })
     setTrainingDays(normalizedDays)
     setSelectedDayIndex(normalizedDays.find((day) => day.type === 'training')?.dayIndex || normalizedDays[0]?.dayIndex || 1)
     setShowAiModifierDialog(false)
     setAiModifierPreviewDays(null)
     setAiModifierPreviewSummary('')
-    Taro.showToast({ title: 'AI 修改已应用，请保存计划', icon: 'none' })
+    Taro.showToast({
+      title: restoredDayIndexes.length > 0
+        ? `AI 修改已应用；${describeLockedRange(lockedThroughDayIndex)}已有训练记录，结构保持原样`
+        : 'AI 修改已应用，请保存计划',
+      icon: 'none'
+    })
   }
 
   return (
@@ -2833,6 +2924,10 @@ function CoachStudentPlan() {
             {!isReadonlyPlanView && (
               <View className='day-type-toggle' onClick={() => {
                 if (!selectedTrainingDay) return
+                if (isPlanDayLocked(selectedTrainingDay.dayIndex, lockedThroughDayIndex)) {
+                  notifyLockedDay()
+                  return
+                }
                 updateTrainingDayByDayIndex(selectedTrainingDay.dayIndex, (currentDay) => {
                   const nextType = currentDay.type === 'rest' ? 'training' : 'rest'
                   return {
@@ -2843,7 +2938,9 @@ function CoachStudentPlan() {
                 })
               }}>
                 <Text className='toggle-text'>
-                  {selectedTrainingDay?.type === 'rest' ? '改为训练日' : '改为休息日'}
+                  {selectedTrainingDay && isPlanDayLocked(selectedTrainingDay.dayIndex, lockedThroughDayIndex)
+                    ? '已有训练记录'
+                    : selectedTrainingDay?.type === 'rest' ? '改为训练日' : '改为休息日'}
                 </Text>
               </View>
             )}

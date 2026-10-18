@@ -34,6 +34,12 @@ import { AiGenerationLogCard } from './components/AiGenerationLogCard';
 import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
 import CoachOneRMConfigPanel from './components/CoachOneRMConfigPanel';
 import {
+    describeLockedRange,
+    getLockedThroughDayIndex,
+    isPlanDayLocked,
+    mergeLockedPlanDays,
+} from '@coachlink/core/src/planEditLock';
+import {
     appendActionToDays,
     deleteActionInDays,
     isActionFullyCompatible,
@@ -48,6 +54,17 @@ import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 import { formatTemplateToPlanScript, parsePlanScript } from '@/lib/planScript';
 import type { OneRmAdjustmentPreview } from '@/app/api/plan-lib/batch-operation/entity';
 import { addBeijingDays, toBeijingDateKey } from '@/lib/beijingTime';
+
+// Plan days are plain JSON; a deep copy keeps in-place editor edits out of the saved copy.
+const clonePlanDays = <T,>(planDays: T[]): T[] => JSON.parse(JSON.stringify(planDays || []));
+
+const toEditorDays = (trainingDays: any[]) => (trainingDays || []).map((day: any) => ({
+    id: day.id,
+    dayIndex: day.dayIndex,
+    type: day.type,
+    note: day.note || '',
+    actionSets: day.actionSets || []
+})).sort((a: any, b: any) => a.dayIndex - b.dayIndex);
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -105,6 +122,22 @@ const StudentPlanPage = () => {
         () => Object.values(executions).some((execution) => !!execution),
         [executions],
     );
+    // Days up to the furthest workout are history: their structure (training/rest,
+    // which exercises) stays fixed; only sets, reps, load and notes may change.
+    const lockedThroughDayIndex = useMemo(
+        () => getLockedThroughDayIndex(Object.values(executions) as any[]),
+        [executions],
+    );
+    // Last version of the days loaded from or saved to the server. Always a deep
+    // copy: several handlers edit the editor state in place.
+    const savedDaysRef = useRef<any[]>([]);
+    const warnLockedDays = useCallback(() => {
+        showToast({
+            severity: 'warn',
+            summary: '已训练的天不能调整结构',
+            detail: `${describeLockedRange(lockedThroughDayIndex)}已有训练记录，不能删除、插入或切换训练/休息；如需整体更换计划，请新建阶段。`,
+        });
+    }, [lockedThroughDayIndex, showToast]);
 
     // 起始执行天数（用于显示"开始"标记）
     const [startExecutionDay, setStartExecutionDay] = useState<number | undefined>(undefined);
@@ -193,6 +226,7 @@ const StudentPlanPage = () => {
                         })).sort((a, b) => a.dayIndex - b.dayIndex);
 
                         setDays(convertedDays);
+                        savedDaysRef.current = clonePlanDays(convertedDays);
                         if (convertedDays.length > 0) setSelectedDayIndex(convertedDays[0].dayIndex);
                         if (instance.start_execution_day > 1) setStartExecutionDay(instance.start_execution_day);
                         if (instanceRes.pendingRevision) {
@@ -351,6 +385,11 @@ const StudentPlanPage = () => {
             showToast({ severity: 'warn', summary: '操作受限', detail: '至少需要保留一周' });
             return;
         }
+        // Deleting a week renumbers every later day, so it must not touch history.
+        if (days.slice(weekStartIndex).some((day) => isPlanDayLocked(day.dayIndex, lockedThroughDayIndex))) {
+            warnLockedDays();
+            return;
+        }
 
         // 删除指定周的所有天数
         const newDays = [...days];
@@ -372,6 +411,11 @@ const StudentPlanPage = () => {
 
     const handleRemoveDay = (index: number) => {
         if (days.length <= 1) return;
+        // Removing a day renumbers every later day, so it must not touch history.
+        if (days.slice(index).some((day) => isPlanDayLocked(day.dayIndex, lockedThroughDayIndex))) {
+            warnLockedDays();
+            return;
+        }
 
         const newDays = [...days];
         newDays.splice(index, 1);
@@ -396,6 +440,10 @@ const StudentPlanPage = () => {
     };
 
     const handleDayTypeChange = (index: number, type: 'training' | 'rest') => {
+        if (isPlanDayLocked(days[index]?.dayIndex, lockedThroughDayIndex)) {
+            warnLockedDays();
+            return;
+        }
         const newDays = [...days];
         newDays[index] = {
             ...newDays[index],
@@ -406,6 +454,10 @@ const StudentPlanPage = () => {
     };
 
     const handleAddActionSet = (dayIndex: number, type: ItemType = 'STRENGTH') => {
+        if (isPlanDayLocked(dayIndex, lockedThroughDayIndex)) {
+            warnLockedDays();
+            return;
+        }
         const newDays = [...days];
         const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
         if (actualDayIndex === -1) return;
@@ -467,6 +519,11 @@ const StudentPlanPage = () => {
     };
 
     const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
+        // dayIndex here is the array position of the day.
+        if (isPlanDayLocked(days[dayIndex]?.dayIndex, lockedThroughDayIndex)) {
+            warnLockedDays();
+            return;
+        }
         const newDays = [...days];
         if (!newDays[dayIndex]) return;
 
@@ -481,6 +538,10 @@ const StudentPlanPage = () => {
         setIndex: number,
         direction: 'up' | 'down'
     ) => {
+        if (isPlanDayLocked(days[dayIndex]?.dayIndex, lockedThroughDayIndex)) {
+            warnLockedDays();
+            return;
+        }
         const newDays = [...days];
         if (!newDays[dayIndex]) return;
 
@@ -512,6 +573,18 @@ const StudentPlanPage = () => {
 
         const actionSet = newDays[actualDayIndex].actionSets[setIndex];
 
+        // On a trained day only parameters may change, not which exercise it is.
+        const swapsExercise = field === 'actionId' || field === 'setName'
+            ? value !== actionSet?.[field]
+            : field === 'all'
+                ? String((value as any)?.actionId ?? (value as any)?.action_id ?? '') !==
+                    String(actionSet?.actionId ?? actionSet?.action_id ?? '')
+                : false;
+        if (swapsExercise && isPlanDayLocked(newDays[actualDayIndex].dayIndex, lockedThroughDayIndex)) {
+            warnLockedDays();
+            return;
+        }
+
         switch (field) {
             case 'actionId':
             case 'setName':
@@ -538,6 +611,10 @@ const StudentPlanPage = () => {
         const sourceIndex = newDays.findIndex(d => d.dayIndex === sourceDayIndex);
 
         if (targetIndex === -1 || sourceIndex === -1) {
+            return;
+        }
+        if (isPlanDayLocked(targetDayIndex, lockedThroughDayIndex)) {
+            warnLockedDays();
             return;
         }
 
@@ -853,7 +930,22 @@ const StudentPlanPage = () => {
         let saveSucceeded = false;
 
         if (!shouldCreateNewInstance && instanceExists && instanceId) {
-            // Overwrite current instance (keeps executions)
+            // Overwrite current instance (keeps executions). Trained days keep
+            // their saved structure; template imports and bulk edits only apply
+            // after them, and the start day of a trained plan stays put.
+            const { days: lockedSafeDays, restoredDayIndexes } = mergeLockedPlanDays({
+                savedDays: savedDaysRef.current,
+                nextDays: daysData,
+                lockedThroughDayIndex,
+            });
+            if (restoredDayIndexes.length > 0) {
+                setDays(lockedSafeDays as any);
+                showToast({
+                    severity: 'warn',
+                    summary: '已保留训练过的天',
+                    detail: `第${restoredDayIndexes.join('、')}天已有训练记录，保持原样；本次修改只应用到第${lockedThroughDayIndex + 1}天及之后。`,
+                });
+            }
             const res = await planLibService.updateInstance({
                 id: instanceId, // Use the actual instance ID, not subscription ID
                 name,
@@ -863,12 +955,15 @@ const StudentPlanPage = () => {
                 type: type || null,
                 suitableFor: suitableFor || null,
                 templateId: selectedTemplateId || undefined,
-                trainingDays: daysData,
-                startExecutionDay: importStartConfig ? ((importStartConfig.startWeek - 1) * 7 + importStartConfig.startDay) : undefined,
+                trainingDays: lockedSafeDays,
+                startExecutionDay: importStartConfig && lockedThroughDayIndex === 0
+                    ? ((importStartConfig.startWeek - 1) * 7 + importStartConfig.startDay)
+                    : undefined,
             });
 
             if (res) {
                 saveSucceeded = true;
+                savedDaysRef.current = clonePlanDays(lockedSafeDays);
                 try {
                     const adjustmentResult = await applyPendingOneRmAdjustments();
                     if (adjustmentResult.skipped > 0) {
@@ -963,11 +1058,25 @@ const StudentPlanPage = () => {
         }
         } catch (error: any) {
             console.error('保存学员计划失败:', error);
+            const lockMoved = error?.code === 'PLAN_DAYS_LOCKED' || error?.code === 'PLAN_START_LOCKED';
             showToast({
                 severity: 'error',
                 summary: '保存失败',
-                detail: error?.message || '更新训练计划失败，请稍后重试',
+                detail: lockMoved
+                    ? `${error.message} 已重新读取学员的训练记录，你的修改仍在编辑区，请检查后再保存。`
+                    : error?.message || '更新训练计划失败，请稍后重试',
             });
+            if (lockMoved) {
+                // The student trained after this page loaded; pick up the new
+                // lock so the next save keeps the newly trained days.
+                const latest = await planLibService
+                    .getInstance({ subscriptionId: params.id as string })
+                    .catch(() => null);
+                if (latest?.instance) {
+                    setExecutions(latest.executionsByDayIndex || {});
+                    savedDaysRef.current = clonePlanDays(toEditorDays(latest.instance.training_days as any[]));
+                }
+            }
         } finally {
             setSaving(false);
         }
@@ -1806,6 +1915,11 @@ const StudentPlanPage = () => {
                         )}
                     </div>
 
+                    {lockedThroughDayIndex > 0 && (
+                        <div className="text-xs text-surface-500 mb-3">
+                            {describeLockedRange(lockedThroughDayIndex)}已有训练记录：可以修改组数、次数、重量和备注，不能删除、插入或切换训练/休息；如需整体更换计划，请新建阶段。
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 min-h-[500px]">
                         {/* 左侧：周历视图 */}
                         <div className="lg:col-span-1">

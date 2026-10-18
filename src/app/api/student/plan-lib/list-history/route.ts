@@ -7,6 +7,7 @@ import type {
 } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { schedulePlanCompletionAutomation } from "@/lib/planCompletionAutomation";
 import {
     persistCompletedPlanInstanceIfNeeded,
     summarizePlanCompletion,
@@ -144,6 +145,7 @@ export async function POST(req: Request) {
                 supabase,
                 instance: plan,
                 summary: completionSummary,
+                onCompleted: (completed) => schedulePlanCompletionAutomation(completed.id),
             });
 
             const normalizedStatus = String(persistedPlan.status || "")

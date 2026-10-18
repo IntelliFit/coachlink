@@ -4,6 +4,7 @@ import type { ArchiveInstanceDto, ArchiveInstanceResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { buildArchiveEntitlementPatch } from "@/lib/subscriptionEntitlement";
+import { resolvePlanInstanceAccess } from "@/lib/planInstanceAccess";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
 
     const { data: instance, error: fetchError } = await supabase
         .from("coach_plan_instances")
-        .select("id, student_id, coach_id, status")
+        .select("id, student_id, coach_id, status, coach_subscription_id, source")
         .eq("id", instanceId)
         .single();
 
@@ -43,23 +44,10 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    let hasPermission = false;
-
-    if (instance.student_id === userId) {
-        hasPermission = true;
-    } else if (instance.coach_id && session.user.is_coach) {
-        const { data: coach } = await supabase
-            .from("coaches")
-            .select("user_id")
-            .eq("id", instance.coach_id)
-            .single();
-
-        if (coach?.user_id === userId) {
-            hasPermission = true;
-        }
-    }
-
-    if (!hasPermission) {
+    // A student cannot archive the coach plan they train on, and only the coach
+    // may decide how an archived plan is charged.
+    const access = await resolvePlanInstanceAccess({ client: supabase, instance, userId });
+    if (!access.isCoachOwner && !access.isSelfPlanOwner) {
         return NextResponse.json({
             success: false,
             message: "权限不足",
@@ -78,9 +66,9 @@ export async function POST(req: Request) {
             status: "archived",
             ...buildArchiveEntitlementPatch({
                 hasCompletedExecution: Number(completedExecutionCount || 0) > 0,
-                archiveReason,
-                entitlementPolicy,
-                entitlementNote,
+                archiveReason: access.isCoachOwner ? archiveReason : undefined,
+                entitlementPolicy: access.isCoachOwner ? entitlementPolicy : undefined,
+                entitlementNote: access.isCoachOwner ? entitlementNote : undefined,
             }),
             updated_at: new Date().toISOString(),
         })

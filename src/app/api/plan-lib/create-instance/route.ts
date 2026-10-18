@@ -14,6 +14,11 @@ import {
 } from "@/lib/subscriptionEntitlement";
 import { toBeijingDateKey } from "@/lib/beijingTime";
 import { expireTimedOutPlanExecutions } from "@/lib/planExecutionLifecycle";
+import {
+    describeLockedPlanDayViolation,
+    findLockedPlanDayViolation,
+    getLockedThroughDayIndex,
+} from "@coachlink/core/src/planEditLock";
 
 export async function POST(req: Request) {
     const {
@@ -89,15 +94,15 @@ export async function POST(req: Request) {
         id: string;
         start_date?: string | null;
         start_execution_day?: number | null;
+        training_days?: unknown;
     } | null = null;
-    let revisionResolvedDayIndexes = new Set<number>();
     let activationPending = false;
     let activationAfterExecutionId: string | null = null;
 
     if (revisionOfInstanceId) {
         const { data: source, error: sourceError } = await serviceRoleSupabase
             .from("coach_plan_instances")
-            .select("id, coach_subscription_id, start_date, start_execution_day, status")
+            .select("id, coach_subscription_id, start_date, start_execution_day, status, training_days")
             .eq("id", revisionOfInstanceId)
             .maybeSingle();
 
@@ -139,16 +144,24 @@ export async function POST(req: Request) {
         activationPending = activeExecutions.length > 0;
         activationAfterExecutionId = activeExecutions[0]?.id || null;
 
-        revisionResolvedDayIndexes = new Set(
-            (resolvedExecutions || [])
-                .filter((execution: any) =>
-                    ["completed", "abandoned"].includes(
-                        String(execution?.status || "").toLowerCase(),
-                    )
-                )
-                .map((execution: any) => Number(execution?.day_index || 0))
-                .filter((dayIndex: number) => dayIndex > 0),
-        );
+        // Updating in place keeps every workout attached by day_index, so days
+        // up to the furthest workout must keep their structure.
+        const lockedThroughDayIndex = getLockedThroughDayIndex(resolvedExecutions || []);
+        const violation = Array.isArray(trainingDays)
+            ? findLockedPlanDayViolation({
+                savedDays: (source as any).training_days,
+                nextDays: trainingDays as any[],
+                lockedThroughDayIndex,
+            })
+            : null;
+        if (violation) {
+            return NextResponse.json({
+                success: false,
+                code: "PLAN_DAYS_LOCKED",
+                message: describeLockedPlanDayViolation(violation, lockedThroughDayIndex),
+                data: { lockedThroughDayIndex, dayIndex: violation.dayIndex },
+            }, { status: 409 });
+        }
     }
 
     let normalizedExecutionNotice = executionNotice?.trim() || null;
@@ -196,20 +209,11 @@ export async function POST(req: Request) {
         startExecutionDay = 1;
     }
 
-    if (revisionSource && Array.isArray(trainingDays)) {
-        const firstUnresolvedTrainingDay = (trainingDays as any[])
-            .filter((day: any) => String(day?.type || "") === "training")
-            .map((day: any) => Number(day?.dayIndex ?? day?.day_index ?? 0))
-            .filter((dayIndex: number) =>
-                dayIndex >= Number(revisionSource.start_execution_day || 1) &&
-                !revisionResolvedDayIndexes.has(dayIndex)
-            )
-            .sort((left: number, right: number) => left - right)[0];
-        startExecutionDay = Math.max(
-            1,
-            Number(revisionSource.start_execution_day || 1),
-            firstUnresolvedTrainingDay || 1,
-        );
+    if (revisionSource) {
+        // The update keeps the same instance and its workouts, so progress
+        // continues on its own. Moving start_execution_day forward would turn
+        // skipped days into charged "carried" progress.
+        startExecutionDay = Math.max(1, Number(revisionSource.start_execution_day || 1));
     }
 
     if (hasStartPosition && Array.isArray(trainingDays)) {

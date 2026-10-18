@@ -7,6 +7,7 @@ import type {
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { archiveCurrentPlanInstancesForSubscription } from "@/lib/subscriptionEntitlement";
+import { resolvePlanInstanceAccess } from "@/lib/planInstanceAccess";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
 
     const { data: targetInstance, error: fetchError } = await supabase
         .from("coach_plan_instances")
-        .select("id, student_id, coach_id, status, name, coach_subscription_id")
+        .select("id, student_id, coach_id, status, name, coach_subscription_id, source")
         .eq("id", instanceId)
         .single();
 
@@ -42,24 +43,8 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    const studentId = targetInstance.student_id;
-    let hasPermission = false;
-
-    if (studentId === userId) {
-        hasPermission = true;
-    } else if (targetInstance.coach_id && session.user.is_coach) {
-        const { data: coach } = await supabase
-            .from("coaches")
-            .select("user_id")
-            .eq("id", targetInstance.coach_id)
-            .single();
-
-        if (coach?.user_id === userId) {
-            hasPermission = true;
-        }
-    }
-
-    if (!hasPermission) {
+    const access = await resolvePlanInstanceAccess({ client: supabase, instance: targetInstance, userId });
+    if (!access.isCoachOwner && !access.isSelfPlanOwner) {
         return NextResponse.json({
             success: false,
             message: "权限不足",
@@ -67,12 +52,14 @@ export async function POST(req: Request) {
     }
 
     let previousInstanceInfo: { id: string; newStatus: string } | undefined;
+    const subscriptionId = (targetInstance as any).coach_subscription_id || null;
 
-    if (archiveCurrentIfExists) {
+    // Only a subscription has a single current plan to replace; archiving by
+    // student would also archive the plans of every coach the student has.
+    if (archiveCurrentIfExists && subscriptionId) {
         const archiveResult = await archiveCurrentPlanInstancesForSubscription({
             supabase,
-            subscriptionId: (targetInstance as any).coach_subscription_id || null,
-            studentId,
+            subscriptionId,
             excludeInstanceId: instanceId,
         });
         const previousId = archiveResult.archivedIds[0];

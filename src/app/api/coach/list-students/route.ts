@@ -14,6 +14,7 @@ import {
     getSubscriptionCarryoverSummariesBatch,
     SubscriptionCarryoverSummary,
 } from "@/lib/subscriptionCarryover";
+import { readAllRowsByIdChunks } from "@/lib/supabaseKeysetPages";
 import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
 import { summarizePlanCompletion } from "@/lib/planInstanceCompletion";
 
@@ -48,17 +49,23 @@ async function getVideoStats(studentIds: string[]) {
 async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
     if (!studentIds?.length) return new Map<string, { plan: any; progress: any }>();
 
-    // 1) Batch fetch instances, then pick latest per student
-    const { data: instances } = await supabase
-        .from("coach_plan_instances")
-        .select(
-            "id, name, description, status, rest_days_count, training_days_count, start_execution_day, student_id, created_at, training_days",
-        )
-        .eq("coach_id", coachId)
-        .in("student_id", studentIds)
-        // 排除已归档实例，优先展示当前进行中计划；没有进行中时再回退到已完成
-        .in("status", ["active", "paused", "completed"])
-        .order("created_at", { ascending: false });
+    // 1) Batch fetch instances (all pages), then pick latest per student
+    const { data: instanceRows } = await readAllRowsByIdChunks<any>(studentIds, (chunk, afterId) => {
+        let query = supabase
+            .from("coach_plan_instances")
+            .select(
+                "id, name, description, status, rest_days_count, training_days_count, start_execution_day, student_id, created_at, training_days",
+            )
+            .eq("coach_id", coachId)
+            .in("student_id", chunk)
+            // 排除已归档实例，优先展示当前进行中计划；没有进行中时再回退到已完成
+            .in("status", ["active", "paused", "completed"]);
+        if (afterId) query = query.gt("id", afterId);
+        return query.order("id", { ascending: true });
+    });
+    const instances = [...(instanceRows || [])].sort((left, right) =>
+        String(right?.created_at || "").localeCompare(String(left?.created_at || ""))
+    );
 
     // 选取优先级：active/paused > completed（按 created_at desc）
     const latestActiveByStudent = new Map<string, any>();
@@ -91,11 +98,15 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
     const completedByInstance = new Map<string, number>();
     const executionsByInstance = new Map<string, Array<{ day_index: number; status: string | null }>>();
     if (instanceIds.length > 0) {
-        const { data: execs } = await supabase
-            .from("plan_instance_executions")
-            .select("instance_id, day_index, status")
-            .in("instance_id", instanceIds)
-            .eq("status", "completed");
+        const { data: execs } = await readAllRowsByIdChunks<any>(instanceIds, (chunk, afterId) => {
+            let query = supabase
+                .from("plan_instance_executions")
+                .select("id, instance_id, day_index, status")
+                .in("instance_id", chunk)
+                .eq("status", "completed");
+            if (afterId) query = query.gt("id", afterId);
+            return query.order("id", { ascending: true });
+        });
 
         for (const e of execs || []) {
             const iid = (e as any).instance_id as string;

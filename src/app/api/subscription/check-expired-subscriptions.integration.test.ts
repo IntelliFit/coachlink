@@ -19,9 +19,10 @@ vi.mock("@/lib/supabaseClient", () => {
   return { default: supabase };
 });
 
+const session = vi.hoisted(() => ({ isAdmin: true }));
 vi.mock("@/app/api/auth/[...nextauth]/auth", () => {
   return {
-    getServerSession: async () => ({ user: { id: "admin-1" } }),
+    getServerSession: async () => ({ user: { id: "admin-1", is_admin: session.isAdmin } }),
   };
 });
 
@@ -52,6 +53,15 @@ afterEach(() => {
 });
 
 describe("POST /api/subscription/check-expired-subscriptions", () => {
+  it("refuses signed-in users who are not admins", async () => {
+    session.isAdmin = false;
+    try {
+      const res = await POST(new Request("http://localhost/api/subscription/check-expired-subscriptions", { method: "POST" }));
+      expect(res.status).toBe(403);
+      expect(updates).toEqual([]);
+    } finally { session.isAdmin = true; }
+  });
+
   it("refreshes stale display end_date instead of cancelling when credits remain", async () => {
     dataStore["coach_subscriptions:select"] = {
       data: [{

@@ -192,4 +192,26 @@ export async function registerNodeRuntime() {
     } else {
         console.warn("[BackgroundJobs] missing MOBILE_PUSH_CRON_SECRET/CRON_SECRET; skip mobile push job");
     }
+
+    // Subscription expiry used to be fired from every signed-in visitor's
+    // browser. It now runs here, in-process, so it needs no cron secret. It is
+    // opt-in (set SUBSCRIPTION_EXPIRY_CHECK_INTERVAL_MS, e.g. 3600000, in the
+    // deployment only): local dev and local production builds use the live
+    // database and must never cancel subscriptions on their own.
+    startIntervalJob(
+        "SubscriptionExpiry Check",
+        readIntervalMs("SUBSCRIPTION_EXPIRY_CHECK_INTERVAL_MS", 0),
+        () => {
+            import("@/lib/subscriptionExpiryCheck")
+                .then(({ runSubscriptionExpiryCheckOnce }) => runSubscriptionExpiryCheckOnce())
+                .then((result) => {
+                    if (result.ok === false) {
+                        console.error("[SubscriptionExpiry] run aborted:", result.stage, result.message);
+                    }
+                })
+                .catch((error) => {
+                    console.error("[SubscriptionExpiry] background run error:", error);
+                });
+        },
+    );
 }

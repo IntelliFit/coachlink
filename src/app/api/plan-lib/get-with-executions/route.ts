@@ -11,6 +11,7 @@ import {
     filterTrainingDaysByAccessWindow,
 } from "@/lib/subscriptionAccess";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import { schedulePlanCompletionAutomation } from "@/lib/planCompletionAutomation";
 import {
     persistCompletedPlanInstanceIfNeeded,
     summarizePlanCompletion,
@@ -402,6 +403,7 @@ export async function POST(req: NextRequest) {
             supabase,
             instance,
             summary: completionSummary,
+            onCompleted: (completed) => schedulePlanCompletionAutomation(completed.id),
         });
         instance.training_days = trainingDays;
         const actionIds = new Set<string>();

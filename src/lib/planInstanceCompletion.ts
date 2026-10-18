@@ -141,11 +141,18 @@ export function summarizePlanCompletion(params: {
     };
 }
 
-export async function persistCompletedPlanInstanceIfNeeded(params: {
+/**
+ * Persist the active → completed transition. The update is conditional on the
+ * row still being active, so when several readers notice completion at once
+ * exactly one of them owns the transition and gets `onCompleted` (used to
+ * start next-phase automation).
+ */
+export async function persistCompletedPlanInstanceIfNeeded<T extends PlanInstanceLike>(params: {
     supabase: any;
-    instance: PlanInstanceLike;
+    instance: T;
     summary: PlanCompletionSummary;
-}) {
+    onCompleted?: (instance: T) => void;
+}): Promise<T> {
     const normalizedStatus = String(params.instance.status || "")
         .trim()
         .toLowerCase();
@@ -162,6 +169,11 @@ export async function persistCompletedPlanInstanceIfNeeded(params: {
                 )
                 : new Date().toISOString().slice(0, 10)
         );
+    const completedView = {
+        ...params.instance,
+        status: "completed",
+        end_date: endDate,
+    };
 
     const { data, error } = await params.supabase
         .from("coach_plan_instances")
@@ -171,20 +183,22 @@ export async function persistCompletedPlanInstanceIfNeeded(params: {
             updated_at: new Date().toISOString(),
         })
         .eq("id", params.instance.id)
+        .eq("status", "active")
         .select("*")
-        .single();
+        .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
         console.warn(
             "[plan-instance-completion] Failed to persist completed plan instance:",
             error,
         );
-        return {
-            ...params.instance,
-            status: "completed",
-            end_date: endDate,
-        };
+        return completedView;
+    }
+    if (!data) {
+        // Another request already moved the row out of active; it owns the event.
+        return completedView;
     }
 
-    return data as PlanInstanceLike;
+    params.onCompleted?.(data as T);
+    return data as T;
 }

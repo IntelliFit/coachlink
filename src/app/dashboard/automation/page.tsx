@@ -66,7 +66,7 @@ const feedbackOptions = [
 ];
 
 const nextPhaseOptions = [
-  { value: "draft_notify", label: "草稿并通知" },
+  { value: "draft_notify", label: "提醒教练" },
   { value: "auto_publish_if_credits", label: "额度足够自动发布" },
   { value: "off", label: "关闭" },
 ];
@@ -89,8 +89,8 @@ const settingGuide = [
   },
   {
     title: "下一阶段",
-    value: "建议：草稿并通知",
-    body: "当前阶段完成后，系统生成下一阶段草稿。有额度才会生成；额度不足时会提醒续费。",
+    value: "建议：提醒教练",
+    body: "当前阶段完成后，系统提醒你为学员安排下一阶段，并附上剩余周数；额度用完时会提醒你引导续费。",
   },
   {
     title: "风险保护",
@@ -102,22 +102,22 @@ const settingGuide = [
 const scenarioGuide = [
   {
     title: "普通线上教练",
-    settings: "首个计划：自动发放；反馈调整：草稿并通知；下一阶段：草稿并通知；风险保护：严格。",
+    settings: "首个计划：自动发放；反馈调整：草稿并通知；下一阶段：提醒教练；风险保护：严格。",
     reason: "这是默认方案。省掉首个计划的手工发放，同时把后续调整留给教练把关。",
   },
   {
     title: "新教练或高客单学员",
-    settings: "首个计划：生成草稿；反馈调整：草稿并通知；下一阶段：草稿并通知；风险保护：严格。",
+    settings: "首个计划：生成草稿；反馈调整：草稿并通知；下一阶段：提醒教练；风险保护：严格。",
     reason: "适合你想保留完整人工确认的服务。系统负责起草，你负责最后判断。",
   },
   {
     title: "稳定老学员",
-    settings: "首个计划：自动发放；反馈调整：低风险自动应用；下一阶段：草稿并通知；风险保护：严格。",
+    settings: "首个计划：自动发放；反馈调整：低风险自动应用；下一阶段：提醒教练；风险保护：严格。",
     reason: "适合训练习惯稳定、反馈质量高的学员。低风险小调整自动处理，高风险仍然拦住。",
   },
   {
     title: "康复、疼痛、伤病倾向学员",
-    settings: "首个计划：生成草稿；反馈调整：草稿并通知；下一阶段：草稿并通知；风险保护：严格。",
+    settings: "首个计划：生成草稿；反馈调整：草稿并通知；下一阶段：提醒教练；风险保护：严格。",
     reason: "不要开自动应用。任何疼痛或异常反馈都应该由教练先沟通确认。",
   },
   {
@@ -319,7 +319,7 @@ export default function CoachAutomationPage() {
               </div>
               <h2 className="text-lg font-black text-surface-950">不知道怎么选，就保持默认</h2>
               <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-surface-500">
-                默认策略已经适合大多数线上教练：新学员自动发首个计划，训练反馈生成草稿提醒你确认，下一阶段先生成草稿，所有疼痛和伤病风险都必须人工确认。
+                默认策略已经适合大多数线上教练：新学员自动发首个计划，训练反馈生成草稿提醒你确认，阶段完成时提醒你安排下一阶段，所有疼痛和伤病风险都必须人工确认。
               </p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-lg border border-[#CF6D4E]/20 bg-[#CF6D4E]/10 px-3 py-2 text-sm font-black text-[#CF6D4E]">

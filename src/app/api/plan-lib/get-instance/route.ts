@@ -33,6 +33,7 @@ import {
     activatePendingPlanRevisionForSource,
     expireTimedOutPlanExecutions,
 } from "@/lib/planExecutionLifecycle";
+import { schedulePlanCompletionAutomation } from "@/lib/planCompletionAutomation";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -781,6 +782,7 @@ export async function POST(req: Request) {
         supabase,
         instance,
         summary: completionSummary,
+        onCompleted: (completed) => schedulePlanCompletionAutomation(completed.id),
     });
 
     // todayCompleted + todayExecutionId

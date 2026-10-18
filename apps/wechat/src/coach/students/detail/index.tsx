@@ -121,7 +121,7 @@ const AUTOMATION_OPTIONS = {
   ],
   nextPhaseMode: [
     { value: '', label: '继承全局' },
-    { value: 'draft_notify', label: '草稿并通知' },
+    { value: 'draft_notify', label: '提醒教练' },
     { value: 'auto_publish_if_credits', label: '额度足够自动发布' },
     { value: 'off', label: '关闭' }
   ],

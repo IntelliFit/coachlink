@@ -8,6 +8,11 @@ import { planLibService } from '@/services/coach/planLibService'
 import { actionLibService } from '@/services/coach/actionLibService'
 import { isOneRMEligibleAction } from '@/utils/oneRmEligibility'
 import { formatDateYMD } from '@/utils/dateFormat'
+import {
+  describeLockedRange,
+  getLockedThroughDayIndex,
+  mergeLockedPlanDays
+} from '@coachlink/core/src/planEditLock'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
@@ -92,6 +97,8 @@ export default function AssignPlanPage() {
   const [existingInstanceId, setExistingInstanceId] = useState<string | null>(null)
   const [existingInstanceStartDate, setExistingInstanceStartDate] = useState<string | null>(null)
   const [existingExecutionsByDayIndex, setExistingExecutionsByDayIndex] = useState<Record<number, any>>({})
+  // Current plan days as stored, so trained days can be kept when overwriting.
+  const existingTrainingDaysRef = useRef<any[]>([])
   const [startWeek, setStartWeek] = useState(1)
   const [startDay, setStartDay] = useState(1)
 
@@ -142,10 +149,14 @@ export default function AssignPlanPage() {
         setExistingInstanceId(instanceRes.instance.id)
         setExistingInstanceStartDate(instanceRes.instance.start_date || null)
         setExistingExecutionsByDayIndex(instanceRes.executionsByDayIndex || {})
+        existingTrainingDaysRef.current = Array.isArray((instanceRes.instance as any).training_days)
+          ? (instanceRes.instance as any).training_days
+          : []
       } else {
         setExistingInstanceId(null)
         setExistingInstanceStartDate(null)
         setExistingExecutionsByDayIndex({})
+        existingTrainingDaysRef.current = []
         setImportMode('new_instance')
       }
     } catch (error) {
@@ -381,6 +392,20 @@ export default function AssignPlanPage() {
       const calculatedStartDate = new Date()
       calculatedStartDate.setDate(calculatedStartDate.getDate() - daysToSubtract)
 
+      // Overwriting a plan that already has workouts keeps the trained days
+      // (the server rejects changes to them); the template applies after them.
+      const lockedThroughDayIndex = getLockedThroughDayIndex(Object.values(existingExecutionsByDayIndex))
+      const keepsTrainedDays = Boolean(
+        existingInstanceId && importMode === 'overwrite' && hasExecutionHistory && lockedThroughDayIndex > 0
+      )
+      const assignedDays = keepsTrainedDays
+        ? mergeLockedPlanDays({
+          savedDays: existingTrainingDaysRef.current,
+          nextDays: trainingDays,
+          lockedThroughDayIndex
+        }).days
+        : trainingDays
+
       if (existingInstanceId && importMode === 'overwrite' && !hasExecutionHistory) {
         const res = await planLibService.updateInstance({
           id: existingInstanceId,
@@ -390,14 +415,15 @@ export default function AssignPlanPage() {
           startExecutionDay: effectiveStartDayIndex,
           trainingDays
         })
-        if (!res) throw new Error('overwrite instance failed')
+        // request() has already shown the server's reason; keep it visible.
+        if (!res) return
       } else {
         const res = await planLibService.createInstance({
           templateId: selectedTemplateId,
           subscriptionId,
           name: selectedTemplate?.name || '训练计划',
           description: selectedTemplate?.description || null,
-          trainingDays,
+          trainingDays: assignedDays,
           revisionOfInstanceId:
             existingInstanceId && importMode === 'overwrite' && hasExecutionHistory
               ? existingInstanceId
@@ -411,10 +437,13 @@ export default function AssignPlanPage() {
           startWeek: effectiveStartWeek,
           startDay: effectiveStartDay
         })
-        if (!res?.instance) throw new Error('create instance failed')
+        // request() has already shown the server's reason; keep it visible.
+        if (!res?.instance) return
       }
 
-      Taro.showToast({ title: '计划已分配', icon: 'success' })
+      Taro.showToast(keepsTrainedDays
+        ? { title: `已保留${describeLockedRange(lockedThroughDayIndex)}，模板从第${lockedThroughDayIndex + 1}天起生效`, icon: 'none' }
+        : { title: '计划已分配', icon: 'success' })
       setTimeout(() => Taro.navigateBack(), 700)
     } catch (error) {
       console.error('[coach/students/assign-plan] assign failed:', error)

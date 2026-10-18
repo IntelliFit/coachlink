@@ -14,7 +14,6 @@ import { useProfileSetupModal } from '@/context/ProfileSetupModalContext';
 import { useOnboardingModal } from '@/components/auth/OnboardingModalContext';
 import { useSession, signOut, getSession } from 'next-auth/react';
 import { MessageBadge } from '@/components/chat/MessageBadge';
-import { subscriptionService } from '@/app/service/subscriptionService';
 import { userService } from '@/app/service/userService';
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
 import { useCart } from '@/context/CartContext';
@@ -53,7 +52,6 @@ export default function NavigationStudent() {
     const { data: session, status, update: updateSession } = useSession();
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
-    const [lastSubscriptionCheck, setLastSubscriptionCheck] = useState<number>(0);
     const [visibleLeft, setVisibleLeft] = useState(false); // 控制侧边菜单显示
     const [profile, setProfile] = useState<Partial<UserProfilesRow> | null>(null);
     // 使用 useRef 记录已检查过的 profile 状态，避免重复检查（不会触发重新渲染）
@@ -225,21 +223,8 @@ export default function NavigationStudent() {
         openOnboardingModal(profile);
     }, [session?.user?.id, profile?.id, profile?.onboarding_completed, status, isOnboardingModalOpen, clearOnboardingSuppression, openOnboardingModal, isCoreProfileCompleted, profile]);
 
-    useEffect(() => {
-        if (status !== 'authenticated' || !session?.user?.id) return;
-        const checkSubscriptions = () => {
-            const now = Date.now();
-            if (now - lastSubscriptionCheck < 10 * 60 * 1000) return;
-            setLastSubscriptionCheck(now);
-            // Fire and forget: 不等待结果，避免阻塞 UI
-            subscriptionService.checkExpiredSubscriptions().catch((error) => {
-                console.error('Error checking expired subscriptions:', error);
-            });
-        };
-        checkSubscriptions();
-        const interval = setInterval(checkSubscriptions, 10 * 60 * 1000);
-        return () => clearInterval(interval);
-    }, [status, session?.user?.id, lastSubscriptionCheck]);
+    // Subscription expiry is a server job (src/instrumentation-node.ts); visitors
+    // must not trigger a whole-site maintenance pass from their browser.
 
     const itemRenderer = (item: any) => {
         const isActive = pathname === item.url;

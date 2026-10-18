@@ -21,6 +21,11 @@ vi.mock("@/lib/supabaseClient", () => {
   return { default: supabase };
 });
 
+const session = vi.hoisted(() => ({ isAdmin: true }));
+vi.mock("@/app/api/auth/[...nextauth]/auth", () => ({
+  getServerSession: async () => ({ user: { id: "admin-1", is_admin: session.isAdmin } }),
+}));
+
 import { PUT } from "./check-subscription/route";
 
 function makePlanTrainingDays(params: { weeks: number; sessionsPerWeek: number }) {
@@ -48,6 +53,16 @@ afterEach(() => {
 });
 
 describe("PUT /api/subscription/check-subscription?action=check-expired (integration, mocked DB)", () => {
+  it("refuses signed-in users who are not admins", async () => {
+    session.isAdmin = false;
+    try {
+      const req = new Request("http://localhost/api/subscription/check-subscription?action=check-expired", { method: "PUT" });
+      const res = await PUT(req);
+      expect(res.status).toBe(403);
+      expect(updates).toEqual([]);
+    } finally { session.isAdmin = true; }
+  });
+
   it("expires subscription when credits are fully consumed", async () => {
     dataStore["coach_subscriptions:select"] = {
       data: [{ id: "sub-1", status: "active", start_date: "2026-01-01", subscribed_weeks: 4 }],

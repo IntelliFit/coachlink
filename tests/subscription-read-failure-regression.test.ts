@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const database = vi.hoisted(() => ({ results: [] as any[], writes: [] as any[] }));
 vi.mock("@/app/api/auth/[...nextauth]/auth", () => ({
-    getServerSession: async () => ({ user: { id: "student" } }),
+    // The expiry trigger is admin-only; the other helpers here do not read the session.
+    getServerSession: async () => ({ user: { id: "student", is_admin: true } }),
 }));
 vi.mock("@/lib/supabaseClient", () => ({
     default: {
