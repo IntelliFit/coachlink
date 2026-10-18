@@ -8,6 +8,8 @@ import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { ClButton } from '@/components/ui'
+import type { PublicTrainingPlanListItem } from '@/services/knowledgeService'
+import StarterHome, { type QuickStartTemplate } from './components/StarterHome'
 import { authService } from '@/services/authService'
 import { trainingService, PlanInstance } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
@@ -969,6 +971,23 @@ function TodayTrainingScreen() {
     Taro.navigateTo({ url: '/discovery/index' })
   }, [])
 
+  const handleQuickStart = useCallback((template?: QuickStartTemplate) => {
+    if (!template) {
+      handleImpromptu()
+      return
+    }
+    Taro.navigateTo({ url: `/me/action-lib/index?mode=impromptu-select&${template.pickerQuery}` })
+  }, [handleImpromptu])
+
+  const handleOpenPublicPlan = useCallback((plan: PublicTrainingPlanListItem) => {
+    Taro.navigateTo({ url: `/content/knowledge/plan-detail?id=${encodeURIComponent(plan.slug || plan.id)}` })
+  }, [])
+
+  const handleOpenKnowledge = useCallback(() => {
+    // 知识库是一级页：与底部导航一致用 reLaunch，避免页面栈堆积。
+    Taro.reLaunch({ url: '/content/knowledge' })
+  }, [])
+
   const handleGuestLogin = useCallback(() => {
     Taro.navigateTo({ url: authService.buildLoginUrl(TODAY_TRAINING_HOME_PATH) })
   }, [])
@@ -1388,16 +1407,19 @@ function TodayTrainingScreen() {
 
   const renderGuestHome = () => (
     <PageThemeRoot>
-      <View className={`today-training-page main-home-page compact-training-home theme-${effectiveTheme}`}>
+      <View className={`today-training-page main-home-page compact-training-home tt-home theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='page-content'>
-            <View className='compact-context-row'><Text className='compact-date-text'>{formatPlanDayLabel(new Date())}</Text></View>
-            <View className='compact-empty-state'>
-              <Text className='compact-empty-title'>今天想怎么练？</Text>
-              <View className='compact-primary-button' onClick={handleGuestLogin}><Text>即兴锻炼</Text></View>
-              <View className='compact-secondary-button' onClick={handleFindCoach}><Text>找教练</Text></View>
-              <Text className='compact-empty-hint'>开始记录训练时登录，同步你的训练记录。</Text>
-            </View>
+            <StarterHome
+              dateLabel={formatPlanDayLabel(new Date())}
+              guest
+              waitingCoach={false}
+              onQuickStart={handleGuestLogin}
+              onFindCoach={handleFindCoach}
+              onContactCoach={handleGuestLogin}
+              onOpenPlan={handleOpenPublicPlan}
+              onAllPlans={handleOpenKnowledge}
+            />
           </View>
         </ScrollView>
         <BottomNav />
@@ -1426,10 +1448,12 @@ function TodayTrainingScreen() {
     <View className={`today-training-page main-home-page compact-training-home tt-home theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
-          <View className='tt-home__date-row' onClick={() => enableScheduleMonthExpand && setCalendarExpanded(true)}>
-            <Text className='tt-home__date'>{instance ? selectedDateLabel : formatPlanDayLabel(new Date())}</Text>
-            {enableScheduleMonthExpand && <Text className='tt-home__month-link'>月历 ›</Text>}
-          </View>
+          {!!instance && (
+            <View className='tt-home__date-row' onClick={() => enableScheduleMonthExpand && setCalendarExpanded(true)}>
+              <Text className='tt-home__date'>{selectedDateLabel}</Text>
+              {enableScheduleMonthExpand && <Text className='tt-home__month-link'>月历 ›</Text>}
+            </View>
+          )}
           {(instance || coachSubscriptions.length > 0) && (
             <View className='tt-home__plan-row'>
               <View
@@ -1454,14 +1478,17 @@ function TodayTrainingScreen() {
             else Taro.showToast({ title: '这一天没有计划安排', icon: 'none' })
           }} />}
           {!instance ? (
-            <View className='compact-empty-state'>
-              <Text className='compact-empty-title'>{waitingCoachPage ? '教练正在制定计划' : '今天想怎么练？'}</Text>
-              <View className='compact-primary-button' onClick={handleImpromptu}><Text>即兴锻炼</Text></View>
-              <View className='compact-secondary-button' onClick={waitingCoachPage ? handleContactCoach : handleFindCoach}>
-                <Text>{waitingCoachPage ? '联系教练' : '找教练'}</Text>
-              </View>
-              <View className='compact-menu-link' onClick={() => setMoreTrainingOpen(true)}><Text>更多</Text></View>
-            </View>
+            <StarterHome
+              dateLabel={formatPlanDayLabel(new Date())}
+              guest={false}
+              waitingCoach={!!waitingCoachPage}
+              onQuickStart={handleQuickStart}
+              onFindCoach={handleFindCoach}
+              onContactCoach={handleContactCoach}
+              onOpenPlan={handleOpenPublicPlan}
+              onAllPlans={handleOpenKnowledge}
+              onMore={() => setMoreTrainingOpen(true)}
+            />
           ) : (
             <>
               {missingDays.length > 0 && (

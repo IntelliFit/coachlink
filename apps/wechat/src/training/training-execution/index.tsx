@@ -2314,7 +2314,6 @@ function TrainingExecution() {
   const totalSets = actionExecutions.reduce((sum: number, a: ActionExecution) => sum + (a.total_sets || 0), 0)
   const completedSets = actionExecutions.reduce((sum: number, a: ActionExecution) => sum + (a.completed_sets || 0), 0)
   const pendingSetsCount = Math.max(0, totalSets - completedSets)
-  const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
   const shouldShowQuickFinishButton =
     !isImpromptuMode && !isTimedOutExecution && canFinishWholeDay && pendingSetsCount > 0
   const canCancelTraining =

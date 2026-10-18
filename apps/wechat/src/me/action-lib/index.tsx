@@ -258,7 +258,11 @@ export default function ActionLibPage() {
   const [selectedPublicPreset, setSelectedPublicPreset] = useState<PublicPresetKey>('all')
   const [publicOnlyWithDemo, setPublicOnlyWithDemo] = useState(false)
 
-  const [selectedMuscle, setSelectedMuscle] = useState('all')
+  // Entry points such as the home quick-start cards may preselect a body part (?muscle=chest).
+  const [selectedMuscle, setSelectedMuscle] = useState(() => {
+    const requested = String(router.params?.muscle || '').toLowerCase()
+    return requestedMode === 'STRENGTH' && MUSCLE_FILTERS.some(item => item.key === requested) ? requested : 'all'
+  })
   const [selectedEquipment, setSelectedEquipment] = useState('all')
 
   const [showEditSuggestion, setShowEditSuggestion] = useState(false)
