@@ -3769,14 +3769,7 @@
   .compact-empty-hint { display: block; margin-top: 24rpx; color: var(--compact-muted); font-size: 24rpx; line-height: 1.6; }
   .compact-menu-link { padding: 24rpx; text-align: center; color: var(--compact-muted); font-size: 24rpx; }
   .compact-notice { padding: 16rpx; margin-bottom: 24rpx; border-radius: 16rpx; background: var(--compact-surface); color: #cf6d4e; font-size: 24rpx; }
-  .compact-training-card {
-    .compact-training-list, .compact-lightweight-list { background: var(--compact-surface); }
-    .compact-training-name, .compact-training-count { color: var(--compact-text); }
-    .compact-training-row, .compact-lightweight-row { border-color: var(--compact-border); }
-    .compact-training-chevron, .compact-lightweight-summary, .compact-task-link { color: var(--compact-muted); }
-    .completed { color: #278052; }
-    .compact-task-link.primary { color: #cf6d4e; }
-  }
+
 }
 
 .compact-training-sheet {
@@ -3800,3 +3793,258 @@
 .compact-training-home .week-dashboard-strip { margin: 0 0 16rpx; }
 .compact-training-home .week-dashboard-strip__row { display: flex; gap: 8rpx; }
 .compact-training-home .week-dashboard-strip__pill { flex: 1; min-width: 0; border-radius: 16rpx; padding: 8rpx; }
+
+/* ==================== 训练首页（2026-10 改版，有计划状态） ====================
+ * 只用 tokens-css.scss 的变量；深色模式由 PageThemeRoot 切换变量值。
+ */
+.today-training-page.tt-home {
+  background: var(--cl-paper);
+
+  .page-content {
+    padding-bottom: 320rpx;
+  }
+
+  .week-dashboard-strip {
+    margin: 0 0 24rpx;
+    padding: 16rpx 8rpx;
+    border: 2rpx solid var(--cl-line);
+    border-radius: 32rpx;
+    background: var(--cl-card);
+  }
+
+  .week-dashboard-strip__pill {
+    border: 0;
+    border-radius: 24rpx;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .week-dashboard-strip__wd {
+    color: var(--cl-ink-3);
+  }
+
+  .week-dashboard-strip__num {
+    color: var(--cl-ink);
+  }
+
+  .week-dashboard-strip__pill--rest .week-dashboard-strip__num,
+  .week-dashboard-strip__pill--locked .week-dashboard-strip__num {
+    color: var(--cl-ink-4);
+  }
+
+  .week-dashboard-strip__pill--completed .week-dashboard-strip__num {
+    color: var(--cl-done);
+  }
+
+  .week-dashboard-strip__pill--selected {
+    background: var(--cl-selected-bg);
+
+    .week-dashboard-strip__wd,
+    .week-dashboard-strip__num {
+      color: var(--cl-selected-text);
+    }
+  }
+
+  .week-dashboard-strip__dot {
+    background: var(--cl-clay);
+  }
+}
+
+.tt-home__date-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  min-height: 64rpx;
+}
+
+.tt-home__date {
+  color: var(--cl-ink-3);
+  font-size: 26rpx;
+}
+
+.tt-home__month-link {
+  color: var(--cl-link);
+  font-size: 26rpx;
+  font-weight: 500;
+}
+
+.tt-home__plan-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  margin: 8rpx 0 24rpx;
+}
+
+.tt-home__plan-pill {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  min-width: 0;
+  height: 72rpx;
+  padding: 0 24rpx 0 28rpx;
+  border-radius: 9999rpx;
+  background: var(--cl-sunk);
+
+  &--pressed {
+    opacity: 0.8;
+  }
+}
+
+.tt-home__plan-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cl-ink);
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.tt-home__plan-arrow {
+  flex-shrink: 0;
+  color: var(--cl-ink-2);
+  font-size: 32rpx;
+  transform: rotate(90deg);
+}
+
+.tt-home__progress {
+  flex-shrink: 0;
+  color: var(--cl-ink-3);
+  font-size: 26rpx;
+}
+
+.tt-home__progress-done {
+  color: var(--cl-ink);
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.tt-home__missed {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  min-height: 88rpx;
+  margin-bottom: 24rpx;
+  padding: 0 16rpx 0 28rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--cl-warn-line);
+  border-radius: 24rpx;
+  background: var(--cl-warn-bg);
+}
+
+.tt-home__missed-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--cl-warn-text);
+  font-size: 28rpx;
+}
+
+.tt-home__missed-action {
+  flex-shrink: 0;
+  padding: 16rpx 20rpx;
+  color: var(--cl-warn-text);
+  font-size: 28rpx;
+
+  &--strong {
+    font-weight: 700;
+  }
+}
+
+.tt-home__day-card {
+  padding: 32rpx 32rpx 8rpx;
+  border: 2rpx solid var(--cl-line);
+  border-radius: 32rpx;
+  background: var(--cl-card);
+}
+
+.tt-home__day-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding-bottom: 16rpx;
+}
+
+.tt-home__day-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 0;
+}
+
+.tt-home__day-kicker {
+  color: var(--cl-ink-3);
+  font-size: 26rpx;
+  font-weight: 500;
+
+  &--today {
+    color: var(--cl-link);
+  }
+}
+
+.tt-home__day-title {
+  color: var(--cl-ink);
+  font-size: 40rpx;
+  line-height: 56rpx;
+  font-weight: 700;
+}
+
+.tt-home__day-meta {
+  color: var(--cl-ink-3);
+  font-size: 26rpx;
+
+  &--done {
+    color: var(--cl-done);
+    font-weight: 500;
+  }
+}
+
+.tt-home__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88rpx;
+  height: 88rpx;
+  margin: -16rpx -24rpx 0 0;
+}
+
+.tt-home__more-dots {
+  color: var(--cl-ink-2);
+  font-size: 36rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+
+.tt-home__rest {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+  padding: 32rpx;
+  border-radius: 24rpx;
+  background: var(--cl-sunk);
+}
+
+.tt-home__rest-text {
+  color: var(--cl-ink-2);
+  font-size: 30rpx;
+  line-height: 44rpx;
+}
+
+.tt-home__rest-link {
+  color: var(--cl-link);
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+/* 开始训练：贴在底部导航上方常驻，内容再长也能一眼找到。 */
+.tt-home__start {
+  position: fixed;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: calc(112rpx + 24rpx + constant(safe-area-inset-bottom));
+  bottom: calc(112rpx + 24rpx + env(safe-area-inset-bottom));
+  z-index: 900;
+  border-radius: 24rpx;
+  box-shadow: var(--cl-shadow-float);
+}

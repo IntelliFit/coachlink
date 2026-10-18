@@ -952,61 +952,245 @@
     line-height: 1.4;
   }
 }
-.compact-training-card {
-  .compact-training-list,
-  .compact-lightweight-list {
-    overflow: hidden;
-    border-radius: 24rpx;
-    background: var(--card-bg, #ffffff);
+/* ==================== 首页计划动作列表（2026-10 改版） ====================
+ * 每个动作：示意图 + 名称 + 处方 + 备注首行；点开看大图、教练备注、要点/演示、逐组安排。
+ * 颜色只用 tokens-css.scss 的变量，深色模式自动生效。
+ */
+.tt-day-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.tt-action {
+  border-top: 2rpx solid var(--cl-line-soft);
+}
+
+.tt-action__head {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 20rpx 0;
+
+  &--pressed {
+    opacity: 0.8;
   }
-  .compact-lightweight-list { margin-top: 24rpx; }
-  .compact-training-row {
-    display: flex;
-    flex-direction: column;
-    gap: 16rpx;
-    min-height: 112rpx;
-    margin: 0 24rpx;
-    padding: 16rpx 0;
-    box-sizing: border-box;
-    border-bottom: 1rpx solid var(--border-color, #ebe8e3);
-    &:last-child { border-bottom: 0; }
-  }
-  .compact-action-heading { display: flex; align-items: center; gap: 16rpx; width: 100%; }
-  .compact-action-heading .compact-task-link { flex-shrink: 0; }
-  .compact-action-heading .compact-training-count { margin-left: auto; font-size: 24rpx; }
-  .compact-prescription, .compact-set-prescription {
-    font-size: 26rpx; line-height: 1.6; color: var(--text-secondary, #706b65);
-  }
-  .compact-coach-note { font-size: 26rpx; line-height: 1.6; color: var(--text-primary, #302d29); white-space: pre-wrap; }
-  .compact-training-name {
-    flex: 1;
-    min-width: 0;
-    font-size: 32rpx;
-    line-height: 1.4;
-    font-weight: 600;
-    color: var(--text-primary, #302d29);
-  }
-  .compact-training-count { font-size: 28rpx; color: var(--text-primary, #302d29); }
-  .compact-training-chevron { font-size: 40rpx; color: var(--text-secondary, #706b65); }
-  .completed { color: #278052; }
-  .compact-lightweight-row {
+}
+
+.tt-action__thumb {
+  flex-shrink: 0;
+  width: 128rpx;
+  height: 88rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--cl-line-soft);
+  border-radius: 16rpx;
+  background: #FFFFFF;
+
+  &--empty {
     display: flex;
     align-items: center;
-    gap: 16rpx;
-    margin: 0 24rpx;
-    padding: 24rpx 0;
-    border-bottom: 1rpx solid var(--border-color, #ebe8e3);
-    &:last-child { border-bottom: 0; }
+    justify-content: center;
+    background: var(--cl-sunk);
   }
-  .compact-lightweight-copy { flex: 1; min-width: 0; }
-  .compact-lightweight-summary {
-    display: block;
-    margin-top: 8rpx;
-    font-size: 24rpx;
-    line-height: 1.5;
-    color: var(--text-secondary, #706b65);
+}
+
+.tt-action__initial {
+  color: var(--cl-ink-3);
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.tt-action__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.tt-action__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cl-ink);
+  font-size: 30rpx;
+  line-height: 44rpx;
+  font-weight: 500;
+}
+
+.tt-action__rx {
+  color: var(--cl-ink-2);
+  font-size: 26rpx;
+  line-height: 36rpx;
+}
+
+.tt-action__note-preview {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cl-warn-text);
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.tt-action__count {
+  flex-shrink: 0;
+  color: var(--cl-ink-3);
+  font-size: 24rpx;
+
+  &--done {
+    color: var(--cl-done);
   }
-  .compact-lightweight-actions { display: flex; flex-direction: column; gap: 16rpx; }
-  .compact-task-link { padding: 8rpx; font-size: 24rpx; color: var(--text-secondary, #706b65); }
-  .compact-task-link.primary { color: #cf6d4e; font-weight: 600; }
+}
+
+.tt-action__chevron {
+  flex-shrink: 0;
+  color: var(--cl-ink-4);
+  font-size: 36rpx;
+  line-height: 36rpx;
+  transform: rotate(90deg);
+  transition: transform 160ms ease;
+
+  &--open {
+    transform: rotate(-90deg);
+  }
+}
+
+.tt-action__body {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  padding-bottom: 24rpx;
+}
+
+.tt-action__image {
+  width: 100%;
+  height: 300rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--cl-line-soft);
+  border-radius: 24rpx;
+  background: #FFFFFF;
+}
+
+.tt-action__note {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 24rpx;
+  background: var(--cl-warn-bg);
+}
+
+.tt-action__note-label {
+  color: var(--cl-warn-text);
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.tt-action__note-text {
+  color: var(--cl-ink);
+  font-size: 28rpx;
+  line-height: 42rpx;
+  white-space: pre-wrap;
+}
+
+.tt-action__buttons {
+  display: flex;
+  gap: 16rpx;
+}
+
+.tt-action__sets {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 24rpx;
+  background: var(--cl-sunk);
+}
+
+.tt-action__set {
+  color: var(--cl-ink-2);
+  font-size: 26rpx;
+  line-height: 40rpx;
+}
+
+.tt-tasks {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 2rpx solid var(--cl-line);
+}
+
+.tt-tasks__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 8rpx;
+}
+
+.tt-tasks__title {
+  color: var(--cl-ink);
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.tt-tasks__count {
+  color: var(--cl-ink-3);
+  font-size: 26rpx;
+}
+
+.tt-task {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  min-height: 104rpx;
+  border-top: 2rpx solid var(--cl-line-soft);
+}
+
+.tt-task__copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  padding: 16rpx 0;
+}
+
+.tt-task__title {
+  color: var(--cl-ink);
+  font-size: 30rpx;
+  line-height: 44rpx;
+
+  &--done {
+    color: var(--cl-ink-3);
+    text-decoration: line-through;
+  }
+}
+
+.tt-task__summary {
+  color: var(--cl-ink-3);
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.tt-task__link {
+  flex-shrink: 0;
+  padding: 16rpx 8rpx;
+  color: var(--cl-ink-3);
+  font-size: 26rpx;
+}
+
+.tt-task__action {
+  flex-shrink: 0;
+  padding: 12rpx 24rpx;
+  border-radius: 9999rpx;
+  background: var(--cl-clay-soft);
+  color: var(--cl-clay-text);
+  font-size: 26rpx;
+  font-weight: 500;
+
+  &--done {
+    background: var(--cl-done-soft);
+    color: var(--cl-done);
+  }
 }
