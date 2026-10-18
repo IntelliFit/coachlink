@@ -422,3 +422,12 @@
 - **根因**：`start_execution_day` 既表示线下已练，也表示新版本接着旧版本；扣费把它之前的训练日都算已用，跨版本汇总又把旧版本的真实完成再加一遍。2026-08-20 前旧版本被单当前计划触发器归档为 `replaced_counted/count_service`。原地修订还会把起点推到“第一个未完成训练日”，让跳过的天也被扣费。
 - **统一规则**：原地修订不再移动起点；接续只能有一份计费来源；自动取消前用 `findDoubleChargedCarriedDays` 排除含重复扣费的订阅并转人工核对；历史余额修正必须逐条确认后再改库。
 - **改动前自检**：新建/修订计划时是否改了 `start_execution_day`？旧版本归档后的计费策略是否与新版本的接续天数重叠？
+
+
+## 35) 前端引用服务端数据库客户端：anon key 进公开 JS，且核心表无 RLS（高风险）
+
+- **现象**：用 anon key 可直接读出全部用户的手机号、密码哈希、邮箱、微信 openid，以及订阅、计划、训练、聊天记录。
+- **根因**：两个 `use client` 页面 import 了 `@/lib/supabaseClient`，生产构建又传入 `NEXT_PUBLIC_SUPABASE_ANON_KEY`，key 被内联进浏览器 JS；核心表从未开启 RLS，Supabase 默认给 anon 全表权限。
+- **统一规则**：前端只调用 Next.js API，不直连 Supabase；服务端默认客户端用 service key；public 表对 anon/authenticated 无直接权限，新表同样适用（默认权限已收回）。
+- **改动前自检**：新页面是否在 `use client` 文件里 import 了 supabaseClient？构建参数是否引入了 NEXT_PUBLIC_ 的数据库密钥？新建表是否需要客户端直连（答案应为否）？
+- **典型案例**（2026-10-18）：知识库节点编辑页、/test 页；已移除并收紧服务端客户端与表权限。
