@@ -1,6 +1,6 @@
 .profile-detail-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
+  background: var(--cl-paper);
 
   .loading-container,
   .error-container {
@@ -12,7 +12,7 @@
     .loading-text,
     .error-text {
       font-size: 28rpx;
-      color: var(--text-secondary, #6b7280);
+      color: var(--text-secondary, var(--cl-ink-2));
     }
   }
 
@@ -41,7 +41,7 @@
   }
 
   .tab-content .empty-state .video-stub-icon {
-    color: #94a3b8;
+    color: var(--cl-ink-3);
     margin-bottom: 16rpx;
   }
 
@@ -56,7 +56,7 @@
       background: transparent;
       border-radius: 0;
       padding: 0;
-      border-bottom: 1rpx solid var(--border-color, #e5e5e5);
+      border-bottom: 1rpx solid var(--border-color, var(--cl-line));
       margin-bottom: 24rpx;
       gap: 0;
 
@@ -75,14 +75,14 @@
 
         &.active {
           background: transparent;
-          border-bottom-color: #cf6d4e;
+          border-bottom-color: var(--cl-clay);
 
           .tab-icon {
             filter: none;
           }
 
           .tab-text {
-            color: #cf6d4e;
+            color: var(--cl-clay);
             font-weight: 600;
           }
         }
@@ -98,7 +98,7 @@
         .tab-text {
           font-size: 26rpx;
           font-weight: 500;
-          color: var(--text-secondary, #6b7280);
+          color: var(--text-secondary, var(--cl-ink-2));
         }
       }
     }
@@ -124,7 +124,7 @@
 
         .empty-text {
           font-size: 26rpx;
-          color: var(--text-tertiary, #9ca3af);
+          color: var(--text-tertiary, var(--cl-ink-3));
         }
       }
     }
@@ -136,23 +136,23 @@
   background: transparent !important;
 
   .tab-bar {
-    border-bottom-color: #333333 !important;
+    border-bottom-color: var(--cl-ink) !important;
   }
 
   .tab-text {
-    color: #B0B0B0 !important;
+    color: var(--cl-ink-3) !important;
   }
 
   .tab-item.active .tab-text {
-    color: #cf6d4e !important;
+    color: var(--cl-clay) !important;
   }
 
   .empty-text {
-    color: #808080 !important;
+    color: var(--cl-ink-3) !important;
   }
 
   .loading-text,
   .error-text {
-    color: #B0B0B0 !important;
+    color: var(--cl-ink-3) !important;
   }
 }

@@ -1,6 +1,6 @@
 .purchase-history-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--cl-paper);
   padding-bottom: 70px;
 
   .page-scroll {
@@ -19,20 +19,20 @@
       display: block;
       font-size: 24px;
       font-weight: 700;
-      color: #1f2937;
+      color: var(--cl-ink);
       margin-bottom: 4px;
     }
 
     .page-subtitle {
       display: block;
       font-size: 13px;
-      color: #6b7280;
+      color: var(--cl-ink-2);
     }
   }
 
   .purchases-list {
     .purchase-item {
-      background: #fff;
+      background: var(--cl-card);
       border-radius: 12px;
       padding: 16px;
       margin-bottom: 12px;
@@ -48,7 +48,7 @@
           flex: 1;
           font-size: 16px;
           font-weight: 700;
-          color: #1f2937;
+          color: var(--cl-ink);
           margin-right: 8px;
         }
 
@@ -63,12 +63,12 @@
       .item-info {
         margin-bottom: 12px;
         padding-bottom: 12px;
-        border-bottom: 1px solid #f3f4f6;
+        border-bottom: 1px solid var(--cl-sunk);
 
         .info-text {
           display: block;
           font-size: 12px;
-          color: #6b7280;
+          color: var(--cl-ink-2);
           margin-bottom: 4px;
         }
 
@@ -81,13 +81,13 @@
           .price-label {
             font-size: 13px;
             font-weight: 600;
-            color: #374151;
+            color: var(--cl-ink);
           }
 
           .price-value {
             font-size: 18px;
             font-weight: 700;
-            color: #cf6d4e;
+            color: var(--cl-clay);
           }
         }
       }
@@ -95,7 +95,7 @@
       .item-footer {
         .time-text {
           font-size: 11px;
-          color: #9ca3af;
+          color: var(--cl-ink-3);
         }
       }
     }
@@ -103,7 +103,7 @@
     .load-more {
       text-align: center;
       padding: 16px;
-      color: #9ca3af;
+      color: var(--cl-ink-3);
       font-size: 12px;
     }
   }
@@ -125,14 +125,14 @@
       display: block;
       font-size: 18px;
       font-weight: 700;
-      color: #1f2937;
+      color: var(--cl-ink);
       margin-bottom: 8px;
     }
 
     .empty-desc {
       display: block;
       font-size: 13px;
-      color: #6b7280;
+      color: var(--cl-ink-2);
       text-align: center;
     }
   }
@@ -140,6 +140,6 @@
   .loading-wrap {
     text-align: center;
     padding: 40px 20px;
-    color: #6b7280;
+    color: var(--cl-ink-2);
   }
 }

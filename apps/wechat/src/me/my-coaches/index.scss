@@ -1,13 +1,13 @@
 .my-coaches-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  background: var(--cl-paper);
   padding-bottom: 24px;
 }
 
 .page-header {
   background: white;
   padding: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--cl-sunk);
 }
 
 .header-row {
@@ -21,7 +21,7 @@
     display: block;
     font-size: 24px;
     font-weight: 900;
-    color: #1f2937;
+    color: var(--cl-ink);
     letter-spacing: -0.5px;
     margin-bottom: 4px;
   }
@@ -29,7 +29,7 @@
   .page-subtitle {
     display: block;
     font-size: 13px;
-    color: #6b7280;
+    color: var(--cl-ink-2);
     font-weight: 500;
   }
 }
@@ -38,8 +38,8 @@
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 700;
-  color: #cf6d4e;
-  background: #fff7ed;
+  color: var(--cl-clay);
+  background: var(--cl-clay-soft);
   border: 1px solid #fed7aa;
   border-radius: 10px;
 }
@@ -57,7 +57,7 @@
   background: white;
   margin: 16px;
   border-radius: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--cl-line);
 }
 
 .empty-icon {
@@ -69,13 +69,13 @@
 .empty-text {
   font-size: 14px;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--cl-ink-2);
   text-align: center;
 }
 
 .empty-hint {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--cl-ink-3);
   margin-top: 8px;
   text-align: center;
 }
@@ -86,7 +86,7 @@
 
   .loading-text {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--cl-ink-2);
   }
 }
 
@@ -110,7 +110,7 @@
   font-size: 14px;
   font-weight: 700;
   color: white;
-  background: #cf6d4e;
+  background: var(--cl-clay-strong);
   border-radius: 10px;
 }
 
@@ -131,7 +131,7 @@
   width: 64px;
   height: 64px;
   border-radius: 16px;
-  background: #f3f4f6;
+  background: var(--cl-sunk);
   flex-shrink: 0;
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
@@ -145,7 +145,7 @@
 
 .skeleton-line {
   height: 12px;
-  background: #f3f4f6;
+  background: var(--cl-sunk);
   border-radius: 6px;
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }

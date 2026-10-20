@@ -1,6 +1,6 @@
 .membership-page {
   min-height: 100vh;
-  background: #f6f2ec;
+  background: var(--cl-paper);
 
   .page-scroll {
     height: 100vh;
@@ -24,8 +24,8 @@
   .status-card,
   .quota-card,
   .referral-card {
-    background: #ffffff;
-    border: 2rpx solid #eadfd4;
+    background: var(--cl-card);
+    border: 2rpx solid var(--cl-line);
     border-radius: 24rpx;
     box-shadow: 0 12rpx 32rpx rgba(121, 93, 72, 0.08);
   }
@@ -60,7 +60,7 @@
   .card-subtitle {
     font-size: 24rpx;
     line-height: 1.5;
-    color: #8d7f73;
+    color: var(--cl-ink-3);
   }
 
   .tier-mark {
@@ -80,8 +80,8 @@
   }
 
   .tier-pill-neutral {
-    background: #f1ede8;
-    color: #6d6258;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
   }
 
   .tier-pill-info {
@@ -90,7 +90,7 @@
   }
 
   .tier-pill-premium {
-    background: #f9ead6;
+    background: var(--cl-clay-soft);
     color: #a45a18;
   }
 
@@ -124,14 +124,14 @@
   .status-date {
     font-size: 24rpx;
     line-height: 1.5;
-    color: #8d7f73;
+    color: var(--cl-ink-3);
   }
 
   .upgrade-panel {
     padding: 24rpx;
     border-radius: 16rpx;
-    background: #f7f3ee;
-    border: 2rpx solid #eee3d8;
+    background: var(--cl-sunk);
+    border: 2rpx solid var(--cl-line);
     display: flex;
     flex-direction: column;
     gap: 16rpx;
@@ -140,7 +140,7 @@
   .upgrade-copy {
     font-size: 24rpx;
     line-height: 1.6;
-    color: #5d5147;
+    color: var(--cl-ink-2);
   }
 
   .actions-row {
@@ -158,13 +158,13 @@
   }
 
   .action-button.primary {
-    background: #cf6d4e;
+    background: var(--cl-clay-strong);
   }
 
   .action-button.secondary,
   .action-button.tertiary {
-    background: #ffffff;
-    border: 2rpx solid #cf6d4e;
+    background: var(--cl-card);
+    border: 2rpx solid var(--cl-clay);
   }
 
   .action-button-text {
@@ -174,12 +174,12 @@
   }
 
   .action-button-text.primary {
-    color: #ffffff;
+    color: var(--cl-on-accent);
   }
 
   .action-button-text.secondary,
   .action-button-text.tertiary {
-    color: #cf6d4e;
+    color: var(--cl-clay);
   }
 
   .quota-grid {
@@ -214,7 +214,7 @@
     height: 40rpx;
     padding: 0 8rpx;
     border-radius: 9999rpx;
-    background: #f1ede8;
+    background: var(--cl-sunk);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -223,7 +223,7 @@
   .quota-badge-text {
     font-size: 20rpx;
     line-height: 1;
-    color: #8d7f73;
+    color: var(--cl-ink-3);
     font-weight: 700;
   }
 
@@ -244,27 +244,27 @@
   .quota-unit {
     font-size: 24rpx;
     line-height: 1.4;
-    color: #8d7f73;
+    color: var(--cl-ink-3);
   }
 
   .progress-track {
     width: 100%;
     height: 16rpx;
     border-radius: 9999rpx;
-    background: #efe7dd;
+    background: var(--cl-line);
     overflow: hidden;
   }
 
   .progress-fill {
     height: 100%;
     border-radius: 9999rpx;
-    background: #cf6d4e;
+    background: var(--cl-clay-strong);
   }
 
   .quota-note {
     font-size: 22rpx;
     line-height: 1.6;
-    color: #8d7f73;
+    color: var(--cl-ink-3);
   }
 
   .inline-link {
@@ -275,7 +275,7 @@
   .inline-link-text {
     font-size: 24rpx;
     line-height: 1.5;
-    color: #cf6d4e;
+    color: var(--cl-clay);
     font-weight: 600;
   }
 
@@ -284,8 +284,8 @@
     display: flex;
     flex-direction: column;
     gap: 24rpx;
-    background: #fff3e8;
-    border-color: #f1d5bf;
+    background: var(--cl-clay-soft);
+    border-color: var(--cl-clay-soft);
   }
 
   .referral-copy {
@@ -298,12 +298,12 @@
     font-size: 32rpx;
     line-height: 1.4;
     font-weight: 600;
-    color: #7c4327;
+    color: var(--cl-clay-text);
   }
 
   .referral-subtitle {
     font-size: 24rpx;
     line-height: 1.6;
-    color: #9b674a;
+    color: var(--cl-clay-text);
   }
 }
