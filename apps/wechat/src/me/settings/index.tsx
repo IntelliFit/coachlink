@@ -7,6 +7,7 @@ import { studentService } from '@/services/studentService'
 import './index.scss'
 import { Lock, Phone, Power } from '@nutui/icons-react-taro'
 import { useTheme } from '@/hooks/useTheme'
+import { clearLocalCache } from '@/utils/clearLocalCache'
 
 const DELETE_ACCOUNT_CONFIRMATION_TEXT = '注销账号'
 
@@ -96,6 +97,26 @@ function SettingsPage() {
     } catch (error) {
       Taro.showToast({ title: '修改失败', icon: 'none' })
     }
+  }
+
+  // Moved here from the 我的 page in the 2026-10 redesign ("账户设置: 密码、账号同步、清除缓存、退出登录").
+  const handleClearCache = () => {
+    Taro.showModal({
+      title: '清除缓存',
+      content: '将清除本地缓存和未保存草稿，不会退出登录。',
+      confirmText: '清除',
+      confirmColor: '#B4553A',
+      success: (res) => {
+        if (!res.confirm) return
+        try {
+          const { clearedCount } = clearLocalCache()
+          Taro.showToast({ title: clearedCount > 0 ? '缓存已清除' : '暂无缓存可清除', icon: 'success' })
+        } catch (error) {
+          console.error('[settings] clear local cache:', error)
+          Taro.showToast({ title: '清除缓存失败', icon: 'none' })
+        }
+      }
+    })
   }
 
   const handleLogout = () => {
@@ -205,6 +226,16 @@ function SettingsPage() {
           <View className='settings-section'>
             <Text className='section-title'>其他</Text>
             <View className='settings-list'>
+              <View className='setting-item' onClick={handleClearCache}>
+                <View className='item-left'>
+                  <View className='item-icon'><Text>↺</Text></View>
+                  <View className='item-content'>
+                    <Text className='item-title'>清除缓存</Text>
+                    <Text className='item-desc'>清除本地缓存和未保存草稿，不会退出登录</Text>
+                  </View>
+                </View>
+                <Text className='item-arrow'>→</Text>
+              </View>
               <View className='setting-item' onClick={handleLogout}>
                 <View className='item-left'>
                   <View className='item-icon'><Power /></View>

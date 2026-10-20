@@ -9,6 +9,7 @@ const { ensureWorkspaceDeps } = require('./ensure-workspace-deps')
 const root = path.join(__dirname, '..')
 const mode = process.argv[2] || 'local'
 const { ensureRootCompArtifacts } = require('./ensure-root-comp-artifacts')
+const { stopStaleTaroWatch } = require('./stop-stale-watch')
 
 // Taro's watch mode leaks memory on every rebuild; a bigger heap plus auto-restart keeps a long
 // session alive instead of dying mid-build and leaving a half-written dist/.
@@ -96,6 +97,7 @@ function wireStream(stream, writer) {
 
 console.log(`[dev-weapp] Starting Taro watch (mode: ${mode}, output: ${outputRoot})...`)
 ensureWorkspaceDeps()
+stopStaleTaroWatch(root)
 if (fs.existsSync(distAppJson)) {
   ensureRootCompArtifacts(path.join(root, outputRoot))
 }

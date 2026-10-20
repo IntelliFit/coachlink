@@ -1,15 +1,15 @@
 .reviews-card {
-  background: #fff;
-  margin: 0 16px 16px;
+  background: var(--cl-card);
+  margin: 24rpx 32rpx;
   padding: 20px;
-  border-radius: 16px;
-  border: 1px solid #f3f4f6;
+  border-radius: 32rpx;
+  border: 1px solid var(--cl-line);
 }
 
 .section-title {
   font-size: 16px;
   font-weight: 900;
-  color: #1f2937;
+  color: var(--cl-ink);
   margin-bottom: 16px;
 }
 
@@ -29,7 +29,7 @@
 
 .reviews-empty-text {
   font-size: 14px;
-  color: #9ca3af;
+  color: var(--cl-ink-3);
 }
 
 .review-list {
@@ -40,9 +40,9 @@
 
 .review-item {
   padding: 24rpx;
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--cl-line);
   border-radius: 16rpx;
-  background: #fafafa;
+  background: var(--cl-sunk);
 }
 
 .review-header {
@@ -62,8 +62,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff0eb;
-  color: #CF6D4E;
+  background: var(--cl-clay-soft);
+  color: var(--cl-clay);
   font-size: 24rpx;
   font-weight: 700;
 }
@@ -77,13 +77,13 @@
 }
 
 .review-student-name {
-  color: #1f2937;
+  color: var(--cl-ink);
   font-size: 28rpx;
   font-weight: 700;
 }
 
 .review-date {
-  color: #9ca3af;
+  color: var(--cl-ink-3);
   font-size: 22rpx;
 }
 
@@ -91,7 +91,7 @@
   display: flex;
   align-items: center;
   gap: 8rpx;
-  color: #CF6D4E;
+  color: var(--cl-clay);
   font-size: 24rpx;
   font-weight: 700;
 }
@@ -99,7 +99,7 @@
 .review-content {
   display: block;
   margin-top: 16rpx;
-  color: #4b5563;
+  color: var(--cl-ink-2);
   font-size: 26rpx;
   line-height: 1.6;
   white-space: pre-wrap;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Picker } from '@tarojs/components'
+import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { useTheme } from '@/hooks/useTheme'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -15,6 +15,7 @@ import {
   persistStreetliftingCalcHistoryCache
 } from '@/utils/streetliftingCalcHistoryCache'
 import type { ExerciseType } from '@/utils/streetliftingCalc'
+import { ChoiceChips, type ChoiceOption } from '../ChoiceChips'
 import './index.scss'
 
 const EXERCISE_OPTIONS: { label: string; value: ExerciseType }[] = [
@@ -26,6 +27,18 @@ const EXERCISE_OPTIONS: { label: string; value: ExerciseType }[] = [
   { label: '卧推（DOTS）', value: 'bench' },
   { label: '硬拉（DOTS）', value: 'deadlift' }
 ]
+
+const EXERCISE_SHORT_LABELS: Record<ExerciseType, string> = {
+  weighted_pullup: '负重引体',
+  weighted_dips: '负重臂屈伸',
+  strict_press: '实力推',
+  barbell_curl: '杠铃弯举',
+  squat: '深蹲',
+  bench: '卧推',
+  deadlift: '硬拉'
+}
+
+const EXERCISE_CHIP_OPTIONS: ChoiceOption<ExerciseType>[] = EXERCISE_OPTIONS.map((option) => ({ value: option.value, label: EXERCISE_SHORT_LABELS[option.value] }))
 
 function isExerciseType(value: unknown): value is ExerciseType {
   return typeof value === 'string' && EXERCISE_OPTIONS.some((option) => option.value === value)
@@ -115,7 +128,7 @@ export default function StreetliftingCalculatorHistoryPage() {
 
   if (!isAuthenticated) {
     return (
-      <View className={`calc-history-page theme-${effectiveTheme}`}>
+      <View className={`calc-history-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
         <View className='calc-history-empty calc-history-empty--auth'>
           <Text className='calc-history-empty-title'>登录后查看历史记录</Text>
           <Text className='calc-history-empty-desc'>
@@ -130,7 +143,7 @@ export default function StreetliftingCalculatorHistoryPage() {
   }
 
   return (
-    <View className={`calc-history-page theme-${effectiveTheme}`}>
+    <View className={`calc-history-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
       {loading && !payload ? (
         <View className='calc-history-loading'>
           <LoadingSpinner size={48} />
@@ -139,19 +152,7 @@ export default function StreetliftingCalculatorHistoryPage() {
         <ScrollView className='calc-history-scroll' scrollY>
           <View className='calc-history-content'>
             <View className='calc-history-filter-card'>
-              <Text className='calc-history-filter-label'>查看动作</Text>
-              <Picker
-                mode='selector'
-                range={EXERCISE_OPTIONS}
-                rangeKey='label'
-                value={Math.max(0, EXERCISE_OPTIONS.findIndex((option) => option.value === exerciseType))}
-                onChange={(e) => {
-                  const index = Number(e.detail.value)
-                  if (index >= 0) setExerciseType(EXERCISE_OPTIONS[index].value)
-                }}
-              >
-                <View className='calc-history-picker'>{exerciseLabel}</View>
-              </Picker>
+              <ChoiceChips<ExerciseType> layout='scroll' options={EXERCISE_CHIP_OPTIONS} value={exerciseType} onChange={(next) => setExerciseType(next)} />
             </View>
 
             <View className='calc-history-summary-grid'>
@@ -185,35 +186,31 @@ export default function StreetliftingCalculatorHistoryPage() {
               </Text>
             </View>
 
-            <Text className='calc-history-section-title'>最近 20 次</Text>
-            {records.length === 0 ? (
-              <View className='calc-history-empty'>
-                <Text>这个动作还没有历史记录</Text>
-              </View>
-            ) : (
-              <View className='calc-history-list'>
-                {records.map((record) => (
-                  <View key={record.id} className='calc-history-record-card'>
-                    <View className='calc-history-record-top'>
-                      <Text className='calc-history-record-score'>
-                        {record.finalScore.toFixed(scoreDecimals)}
+            <View className='calc-history-records'>
+              <Text className='calc-history-section-title'>最近 20 次</Text>
+              {records.length === 0 ? (
+                <Text className='calc-history-empty'>这个动作还没有历史记录，去计算器算一次吧。</Text>
+              ) : (
+                records.map((record) => (
+                  <View key={record.id} className='calc-history-row'>
+                    <View className='calc-history-row__main'>
+                      <Text className='calc-history-row__score cl-num'>{record.finalScore.toFixed(scoreDecimals)}</Text>
+                      <Text className='calc-history-row__meta cl-num'>
+                        {`1RM ${record.estimated1RMKg.toFixed(1)} kg`}
+                        {record.reps ? ` · ${record.reps} 次` : ''}
+                        {record.adjustedUsedWeightKg !== null && record.adjustedUsedWeightKg !== undefined
+                          ? ` · 计算重量 ${record.adjustedUsedWeightKg.toFixed(1)} kg`
+                          : ''}
                       </Text>
-                      <Text className='calc-history-record-level'>{record.resultLevel || '已计算'}</Text>
                     </View>
-                    <Text className='calc-history-record-meta'>
-                      估算 1RM {record.estimated1RMKg.toFixed(1)} kg
-                    </Text>
-                    <Text className='calc-history-record-meta'>
-                      {record.reps ? `${record.reps} 次` : '未记录次数'}
-                      {record.adjustedUsedWeightKg !== null && record.adjustedUsedWeightKg !== undefined
-                        ? ` · 计算重量 ${record.adjustedUsedWeightKg.toFixed(1)} kg`
-                        : ''}
-                    </Text>
-                    <Text className='calc-history-record-date'>{formatDate(record.createdAt)}</Text>
+                    <View className='calc-history-row__side'>
+                      <Text className='calc-history-row__level'>{record.resultLevel || '已计算'}</Text>
+                      <Text className='calc-history-row__date cl-num'>{formatDate(record.createdAt)}</Text>
+                    </View>
                   </View>
-                ))}
-              </View>
-            )}
+                ))
+              )}
+            </View>
           </View>
         </ScrollView>
       )}

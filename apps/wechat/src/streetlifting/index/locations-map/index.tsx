@@ -522,7 +522,7 @@ export default function StreetliftingLocationsMapPage() {
   }
 
   return (
-    <View className={`locations-map-page theme-${effectiveTheme}`}>
+    <View className={`locations-map-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
       <View className='locations-map-toolbar'>
         <View className='locations-map-btn' onClick={handleBackToList}>
           <Text>{pickMode ? '取消选点' : '返回列表'}</Text>

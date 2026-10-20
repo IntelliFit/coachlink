@@ -61,7 +61,15 @@ for (const pagePath of subpackagePagesWithIndex) {
           .replace(/require\("\.\.\/\.\.\//g, 'require("../')
           .replace(/require\('\.\.\/\.\.\//g, "require('../")
       }
-      
+      if (ext === '.json') {
+        // The flat copy sits one folder higher; write the final comp path now so DevTools never
+        // compiles a copy that still points one level too deep.
+        const depth = path.relative(distDir, path.dirname(targetFile)).split(path.sep).filter(Boolean).length
+        if (depth > 0) content = content.replace(/"(\.\.\/)+comp"/g, '"' + '../'.repeat(depth) + 'comp"')
+      }
+
+      // Rewriting identical files makes DevTools recompile for nothing.
+      if (fs.existsSync(targetFile) && fs.readFileSync(targetFile, 'utf8') === content) continue
       fs.writeFileSync(targetFile, content)
       console.log('Fixed:', pagePath + ext, '->', path.relative(distDir, targetFile))
     }

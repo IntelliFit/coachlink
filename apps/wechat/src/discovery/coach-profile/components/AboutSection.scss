@@ -1,200 +1,169 @@
+@use '../../../styles/tokens' as *;
+
+/* 教练详情「介绍」标签页。只用 v1 设计变量；空的分区不渲染。 */
 .about-card {
-  background: #fff;
-  margin: 0 16px 16px;
-  padding: 24px 20px;
-  border-radius: 16px;
-  border: 1px solid #f0f0f0;
-}
-
-.block {
-  margin-bottom: 28px;
-}
-
-.block:last-child {
-  margin-bottom: 0;
-}
-
-.section-label {
-  font-size: 11px;
-  font-weight: 800;
-  color: #9ca3af;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-  display: block;
-}
-
-.section-body {
-  min-height: 24px;
-}
-
-.philosophy-block .section-body {
-  padding-left: 16px;
-  border-left: 4px solid #e5e7eb;
-}
-
-.philosophy-text {
-  font-size: 15px;
-  color: #374151;
-  line-height: 1.7;
-  letter-spacing: 0.02em;
-}
-
-.placeholder {
-  font-size: 14px;
-  color: #d1d5db;
-  line-height: 1.5;
-}
-
-.list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: $cl-space-4;
+  padding: $cl-space-4 $cl-page-gutter;
 }
 
-.list-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #374151;
-}
-
-.list-row .num {
-  flex-shrink: 0;
-  width: 22px;
-  display: flex;
-  align-items: center;
-  color: #9ca3af;
-}
-
-.list-row .text {
-  flex: 1;
-  font-weight: 500;
-}
-
-.cred-list .list-row {
-  align-items: center;
-}
-
-.cred-list .list-row .text {
-  font-weight: 600;
-}
-
-.contact-list,
-.social-list {
+.about-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: $cl-space-2;
 }
 
-.contact-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: #f8fafc;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #cf6d4e;
-}
-
-.contact-item .icon {
-  font-size: 16px;
-  opacity: 0.9;
-}
-
-.social-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: #f8fafc;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #cf6d4e;
-}
-
-.social-item .arrow {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.rich-material-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-
-.rich-material-card {
-  padding: 24rpx;
-  border: 1px solid #e5e7eb;
-  border-radius: 16rpx;
-  background: #fff;
-}
-
-.rich-material-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16rpx;
-  margin-bottom: 12rpx;
-}
-
-.rich-material-category {
-  padding: 8rpx 16rpx;
-  border-radius: 9999rpx;
-  background: #fff7f3;
-  color: #CF6D4E;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.rich-material-title {
-  display: block;
-  color: #111827;
-  font-size: 15px;
-  font-weight: 800;
-  line-height: 1.45;
-}
-
-.rich-material-summary,
-.rich-material-detail {
-  display: block;
-  margin-top: 8rpx;
-  color: #6b7280;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.rich-material-detail {
-  color: #374151;
-}
-
-.rich-material-media-list,
-.rich-material-link-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-  margin-top: 16rpx;
-}
-
-.rich-material-media,
-.rich-material-link {
-  padding: 12rpx 16rpx;
-  border-radius: 16rpx;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  color: #374151;
-  font-size: 12px;
+.about-block__title {
+  color: var(--cl-ink);
+  font-size: $cl-font-card;
+  line-height: $cl-line-card;
   font-weight: 700;
 }
 
-.rich-material-link {
-  color: #CF6D4E;
-  background: #fff7f3;
-  border-color: #f3d2c6;
+.about-block__body {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-2;
+}
+
+.about-empty {
+  padding: $cl-space-6 0;
+  color: var(--cl-ink-3);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+  text-align: center;
+}
+
+.about-card .list {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-2;
+}
+
+.about-card .list-row {
+  display: flex;
+  align-items: flex-start;
+  gap: $cl-space-2;
+  padding: $cl-space-3;
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-button;
+  background: var(--cl-card);
+
+  .num {
+    width: 40rpx;
+    height: 40rpx;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $cl-radius-pill;
+    background: var(--cl-clay-soft);
+    color: var(--cl-clay-text);
+    font-size: 22rpx;
+    font-weight: 700;
+  }
+
+  .text {
+    flex: 1;
+    min-width: 0;
+    color: var(--cl-ink);
+    font-size: $cl-font-body;
+    line-height: $cl-line-body;
+    white-space: pre-wrap;
+  }
+}
+
+.about-card .philosophy-text {
+  color: var(--cl-ink-2);
+  font-size: $cl-font-body;
+  line-height: $cl-line-body;
+  white-space: pre-wrap;
+}
+
+/* 资料卡（成就 / 资质 / 案例 / 媒体） */
+.about-card .rich-material-list {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-2;
+}
+
+.about-card .rich-material-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: $cl-space-3;
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-button;
+  background: var(--cl-card);
+}
+
+.about-card .rich-material-head {
+  display: flex;
+}
+
+.about-card .rich-material-category {
+  padding: 4rpx 16rpx;
+  border-radius: $cl-radius-tag;
+  background: var(--cl-sunk);
+  color: var(--cl-ink-2);
+  font-size: $cl-font-tag;
+  line-height: $cl-line-tag;
+}
+
+.about-card .rich-material-title {
+  color: var(--cl-ink);
+  font-size: $cl-font-body;
+  line-height: $cl-line-body;
+  font-weight: 500;
+}
+
+.about-card .rich-material-summary,
+.about-card .rich-material-detail {
+  color: var(--cl-ink-2);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+  white-space: pre-wrap;
+}
+
+.about-card .rich-material-media-list,
+.about-card .rich-material-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $cl-space-1 $cl-space-3;
+}
+
+.about-card .rich-material-media,
+.about-card .rich-material-link {
+  color: var(--cl-link);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}
+
+/* 联系方式与社交平台 */
+.about-card .contact-list,
+.about-card .social-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $cl-space-2;
+}
+
+.about-card .contact-item,
+.about-card .social-item {
+  display: flex;
+  align-items: center;
+  gap: $cl-space-1;
+  min-height: $cl-button-sm;
+  padding: 0 $cl-space-3;
+  border: 2rpx solid var(--cl-control-line);
+  border-radius: $cl-radius-pill;
+  background: var(--cl-card);
+  color: var(--cl-ink);
+  font-size: $cl-font-meta;
+
+  .icon,
+  .arrow {
+    display: flex;
+    color: var(--cl-ink-3);
+  }
 }

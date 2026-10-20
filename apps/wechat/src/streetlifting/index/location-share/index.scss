@@ -1,62 +1,46 @@
+@use '../../../styles/tokens' as *;
+
+// 分享单杠落地页（2026-10 改版）：一张地点卡片，主操作"查看地图"，次操作"查看更多点位"。
 .location-share-page {
-  min-height: 100vh;
-  background: linear-gradient(180deg, #f8f6f4 0%, #f2ede8 100%);
+  height: 100vh;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
 }
 
 .location-share-scroll {
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .location-share-content {
-  padding: 24rpx 24rpx 80rpx;
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-3;
+  padding: $cl-space-3 $cl-page-gutter calc(#{$cl-space-8} + env(safe-area-inset-bottom));
 }
 
-.location-share-hero {
-  margin-bottom: 24rpx;
-  padding: 24rpx;
-  border-radius: 24rpx;
-  background: #fff4ee;
-  border: 1rpx solid #f1d4ca;
+.location-share-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 480rpx;
 }
 
-.location-share-eyebrow {
-  display: block;
-  margin-bottom: 8rpx;
-  font-size: 20rpx;
-  font-weight: 600;
-  color: #cf6d4e;
-}
-
-.location-share-title {
-  display: block;
-  margin-bottom: 12rpx;
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #111827;
-}
-
-.location-share-address {
-  display: block;
-  font-size: 24rpx;
-  line-height: 1.5;
-  color: #6b7280;
-}
-
-.location-share-card {
+.location-share-card,
+.location-share-empty {
   overflow: hidden;
-  border-radius: 32rpx;
-  background: #ffffff;
-  box-shadow: 0 8rpx 30rpx rgba(17, 24, 39, 0.06);
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-card;
+  background: var(--cl-card);
 }
 
 .location-share-cover-wrap {
   position: relative;
-  width: 100%;
-  height: 420rpx;
-  background: #f3f4f6;
+  height: 400rpx;
+  background: var(--cl-sunk);
 }
 
 .location-share-cover {
+  display: block;
   width: 100%;
   height: 100%;
 }
@@ -65,104 +49,118 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
   height: 100%;
-  color: #9ca3af;
-  font-size: 28rpx;
+  color: var(--cl-ink-3);
+  font-size: 26rpx;
 }
 
 .location-share-cover-count {
   position: absolute;
-  left: 16rpx;
-  top: 16rpx;
-  padding: 6rpx 14rpx;
-  border-radius: 9999rpx;
-  background: rgba(17, 24, 39, 0.56);
-  color: #ffffff;
-  font-size: 20rpx;
+  left: $cl-space-2;
+  bottom: $cl-space-2;
+  padding: 4rpx $cl-space-2;
+  border-radius: $cl-radius-tag;
+  background: rgba(29, 26, 22, 0.78);
+  color: #FFFFFF;
+  font-size: 22rpx;
 }
 
 .location-share-body {
-  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-1;
+  padding: $cl-card-padding;
+}
+
+.location-share-eyebrow {
+  color: var(--cl-clay-text);
+  font-size: 24rpx;
+  font-weight: 500;
 }
 
 .location-share-name {
-  display: block;
-  margin-bottom: 8rpx;
-  font-size: 34rpx;
+  color: var(--cl-ink);
+  font-size: $cl-font-section;
+  line-height: $cl-line-section;
   font-weight: 700;
-  color: #111827;
 }
 
+.location-share-address,
 .location-share-meta {
-  display: block;
-  margin-bottom: 8rpx;
-  font-size: 24rpx;
-  color: #6b7280;
+  color: var(--cl-ink-2);
+  font-size: 26rpx;
+  line-height: 40rpx;
 }
 
 .location-share-contributor {
-  display: block;
-  margin-bottom: 16rpx;
+  color: var(--cl-ink-3);
   font-size: 24rpx;
-  color: #cf6d4e;
 }
 
 .location-share-desc {
-  display: block;
-  margin-bottom: 24rpx;
-  font-size: 26rpx;
-  line-height: 1.65;
-  color: #374151;
+  margin-top: $cl-space-2;
+  padding-top: $cl-space-3;
+  border-top: 2rpx solid var(--cl-line-soft);
+  color: var(--cl-ink-2);
+  font-size: 28rpx;
+  line-height: 44rpx;
 }
 
 .location-share-actions {
   display: flex;
-  gap: 16rpx;
+  flex-direction: column;
+  gap: $cl-space-2;
+  margin-top: $cl-space-3;
 }
 
 .location-share-btn {
-  flex: 1;
-  height: 88rpx;
-  line-height: 88rpx;
-  border-radius: 24rpx;
-  font-size: 28rpx;
-  font-weight: 600;
+  width: 100%;
+  height: $cl-button-lg;
+  line-height: $cl-button-lg;
+  margin: 0;
+  padding: 0;
+  border-radius: $cl-radius-button;
+  font-size: 30rpx;
+  font-weight: 500;
 
   &::after {
-    border: none;
+    border: 0;
+  }
+
+  &:active {
+    opacity: 0.85;
   }
 }
 
 .location-share-btn-primary {
-  background: #cf6d4e;
-  color: #ffffff;
+  background: var(--cl-clay-strong);
+  color: var(--cl-on-accent);
 }
 
 .location-share-btn-secondary {
-  background: #ffffff;
-  color: #cf6d4e;
-  border: 1rpx solid #cf6d4e;
+  border: 2rpx solid var(--cl-control-line);
+  background: var(--cl-card);
+  color: var(--cl-ink);
 }
 
-.location-share-loading,
+// 失效分享
 .location-share-empty {
-  padding: 120rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-2;
+  padding: $cl-space-6 $cl-card-padding;
   text-align: center;
-  color: #6b7280;
 }
 
 .location-share-empty-title {
-  display: block;
-  margin-bottom: 12rpx;
-  font-size: 32rpx;
+  color: var(--cl-ink);
+  font-size: $cl-font-card;
   font-weight: 700;
-  color: #111827;
 }
 
 .location-share-empty-text {
-  display: block;
-  font-size: 24rpx;
-  line-height: 1.5;
-  color: #6b7280;
+  margin-bottom: $cl-space-2;
+  color: var(--cl-ink-3);
+  font-size: 26rpx;
+  line-height: 40rpx;
 }

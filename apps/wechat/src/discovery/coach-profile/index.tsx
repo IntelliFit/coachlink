@@ -32,6 +32,7 @@ import { authService } from '@/services/authService'
 import { previewCoachPackageSwitch } from '@/services/paymentService'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
+import { ClButton, ClTabs } from '@/components/ui'
 
 type PageState = 'loading' | 'success' | 'error'
 
@@ -528,14 +529,27 @@ export default function CoachProfile() {
   }
 
   const tabs = [
-    { index: TAB_ABOUT, label: '关于教练' },
-    ...(!WECHAT_COACH_PURCHASE_PAUSED ? [{ index: TAB_PRICING, label: '订阅价格' }] : []),
-    { index: TAB_CONTENT, label: `教练专栏(${aggregatedInfo?.contentCount ?? contentsTotal})` },
-    { index: TAB_REVIEWS, label: `学员评价(${reviewCount})` }
+    { key: String(TAB_ABOUT), label: '介绍' },
+    ...(!WECHAT_COACH_PURCHASE_PAUSED ? [{ key: String(TAB_PRICING), label: '方案', count: products.length || undefined }] : []),
+    { key: String(TAB_CONTENT), label: '专栏', count: (aggregatedInfo?.contentCount ?? contentsTotal) || undefined },
+    { key: String(TAB_REVIEWS), label: '评价', count: reviewCount || undefined }
   ]
 
+  // Lowest 1-month (4-week) price across packages, for the bottom bar.
+  const monthlyPrices = products.reduce<DurationOption[]>((all, product) => all.concat(product.duration_options || []), [])
+    .filter((option) => option.months === 1 && Number(option.price) > 0)
+    .map((option) => Number(option.price))
+  const fromPrice = monthlyPrices.length > 0 ? Math.min(...monthlyPrices) : null
+  const ctaLabel = WECHAT_COACH_PURCHASE_PAUSED
+    ? '查看已有教练关系'
+    : userSubscription?.status === 'active'
+      ? '查看订阅'
+      : userSubscription?.status === 'waiting'
+        ? '查看订阅进度'
+        : '选择方案'
+
   return (
-    <View className={`coach-profile-page theme-${effectiveTheme}`}>
+    <View className={`coach-profile-page theme-${effectiveTheme} ${effectiveTheme === 'dark' ? 'cl-theme-dark' : ''}`}>
       <ScrollView
         scrollY
         className='scroll-wrap'
@@ -554,21 +568,12 @@ export default function CoachProfile() {
             coach={displayCoach}
             aggregatedInfo={aggregatedInfo}
             userSubscription={userSubscription}
+            reviewCount={reviewCount}
             onOpenQuestionnaire={handleOpenQuestionnaire}
           />
 
-          <View id='tab-pricing-anchor' className='tab-wrap'>
-            <View className='tab-bar'>
-              {tabs.map((t) => (
-                <View
-                  key={t.index}
-                  className={`tab-item ${activeTab === t.index ? 'tab-item-active' : ''}`}
-                  onClick={() => setActiveTab(t.index)}
-                >
-                  <Text>{t.label}</Text>
-                </View>
-              ))}
-            </View>
+          <View id='tab-pricing-anchor' className='cp-tabs'>
+            <ClTabs items={tabs} activeKey={String(activeTab)} onChange={(key) => setActiveTab(Number(key))} />
           </View>
 
           <View className={`tab-panel ${activeTab === TAB_ABOUT ? 'tab-panel-active' : ''}`}>
@@ -590,6 +595,10 @@ export default function CoachProfile() {
               contents={contents}
               total={contentsTotal}
               onItemClick={handleContentItem}
+              lockedForGuestCount={authService.getAuthSession({ normalize: true }).isAuthenticated ? 0 : (aggregatedInfo?.contentCount ?? 0)}
+              onLogin={() => {
+                Taro.navigateTo({ url: authService.buildLoginUrl(`/discovery/coach-profile?id=${coachId}`) }).catch(() => undefined)
+              }}
             />
           </View>
           <View className={`tab-panel ${activeTab === TAB_REVIEWS ? 'tab-panel-active' : ''}`}>
@@ -599,17 +608,20 @@ export default function CoachProfile() {
       </ScrollView>
 
       {!isOwnProfile && (
-        <View className='fixed-cta'>
-          <View className='fixed-cta-btn' onClick={handleSubscribe}>
-            <Text>
-              {WECHAT_COACH_PURCHASE_PAUSED ? '查看已有教练关系' : userSubscription?.status === 'active'
-                ? '查看订阅'
-                : userSubscription?.status === 'waiting'
-                  ? '查看订阅进度'
-                  : '立即订阅 / 查看价格'}
-            </Text>
+        <View className='cp-bar'>
+          <View className='cp-bar__copy'>
+            {WECHAT_COACH_PURCHASE_PAUSED ? (
+              <Text className='cp-bar__hint'>可从“我的教练”查看已有服务</Text>
+            ) : fromPrice !== null && !userSubscription?.status ? (
+              <>
+                <Text className='cp-bar__price cl-num'>¥{fromPrice} 起<Text className='cp-bar__unit'> / 4 周</Text></Text>
+                <Text className='cp-bar__hint'>按训练日计次，开练才计</Text>
+              </>
+            ) : (
+              <Text className='cp-bar__hint'>{coachDisplayName ? `${coachDisplayName}的训练方案` : '教练方案'}</Text>
+            )}
           </View>
-          <Text className='fixed-cta-hint'>{WECHAT_COACH_PURCHASE_PAUSED ? '可从“我的教练”查看已有服务' : '不用右滑找「订阅价格」，点这里直接跳转'}</Text>
+          <ClButton className='cp-bar__btn' onClick={handleSubscribe}>{ctaLabel}</ClButton>
         </View>
       )}
     </View>
