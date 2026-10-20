@@ -15,6 +15,7 @@ const { ensureRootCompArtifacts } = require('./ensure-root-comp-artifacts')
 const WATCH_HEAP_MB = process.env.WEAPP_WATCH_HEAP_MB || '8192'
 const MAX_RESTARTS = 5
 const MIN_UPTIME_FOR_RESTART_MS = 60 * 1000
+const OUT_OF_MEMORY_EXIT_CODE = 134
 
 function getWatchEnv(watchMode) {
   const env = { ...process.env }
@@ -116,10 +117,11 @@ function startTaro() {
   taro.on('close', (code) => {
     if (debounceTimer) clearTimeout(debounceTimer)
     console.log('[dev-weapp] Taro closed:', code)
-    // 0 = normal exit, null = killed by a signal (Ctrl+C): stop. Anything else is a crash (134 = out of memory).
-    // Only restart a watch that had been running for a while; an immediate failure would just loop.
+    // Restart only when Taro itself ran out of memory (134). Other codes can come from the cmd/npx
+    // wrapper while the real watch process keeps running, and a restart would start a second watch on
+    // the same dist. Skip watches that died right away so a broken start cannot loop.
     const ranLongEnough = Date.now() - startedAt > MIN_UPTIME_FOR_RESTART_MS
-    if (code && ranLongEnough && restartCount < MAX_RESTARTS) {
+    if (code === OUT_OF_MEMORY_EXIT_CODE && ranLongEnough && restartCount < MAX_RESTARTS) {
       restartCount += 1
       console.log(`[dev-weapp] Restarting Taro watch in 3s (${restartCount}/${MAX_RESTARTS})...`)
       setTimeout(startTaro, 3000)
