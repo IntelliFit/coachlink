@@ -1333,3 +1333,281 @@
     min-width: 0;
   }
 }
+
+/* ==================== 2026-10 改版：v1 设计变量层 ====================
+ * 只重做视觉和顶部筛选的排布；列表、地图、分享、编辑、排行等功能不变。
+ * 全页只保留一个陶土色主按钮（底部"分享我的单杠位置"），其他控件用中性色。
+ */
+$loc-share-bar-height: 136rpx;
+
+.loc-page {
+  height: 100vh;
+  padding: 16rpx 0 0;
+  box-sizing: border-box;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+}
+
+.loc-page .loc-tab-panel-scroll {
+  height: calc(100vh - 104rpx);
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.loc-page .loc-tab-content {
+  padding: 0;
+}
+
+.loc-page .loc-list-section,
+.loc-page .loc-data-section,
+.loc-page .loc-leaderboard-section {
+  padding: 0 32rpx calc(#{$loc-share-bar-height} + 48rpx + env(safe-area-inset-bottom));
+}
+
+// 分享卡片（来自好友分享）
+.loc-page .share-focus-card {
+  margin: 0 32rpx 24rpx;
+  border: 2rpx solid var(--cl-warn-line);
+  background: var(--cl-warn-bg);
+}
+
+.loc-page .share-focus-eyebrow {
+  color: var(--cl-warn-text);
+}
+
+.loc-page .share-focus-title {
+  color: var(--cl-ink);
+}
+
+.loc-page .share-focus-desc {
+  color: var(--cl-ink-2);
+}
+
+// Tab
+.loc-page .loc-tab-bar {
+  padding: 0 32rpx 16rpx;
+}
+
+.loc-page .loc-tab-text {
+  color: var(--cl-ink-3);
+}
+
+.loc-page .loc-tab-active .loc-tab-text {
+  color: var(--cl-ink);
+}
+
+.loc-page .loc-tab-indicator {
+  background: var(--cl-ink);
+}
+
+// 筛选区：搜索 + 一排可横滑的筛选 + 器材
+.loc-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.loc-search {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  height: 88rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--cl-line);
+  border-radius: 24rpx;
+  background: var(--cl-card);
+}
+
+.loc-search__icon {
+  color: var(--cl-ink-3);
+  font-size: 32rpx;
+}
+
+.loc-search__input {
+  flex: 1;
+  height: 100%;
+  color: var(--cl-ink);
+  font-size: 28rpx;
+}
+
+.loc-search__placeholder {
+  color: var(--cl-ink-4);
+}
+
+.loc-filter-scroll {
+  width: auto;
+  margin: 0 -32rpx;
+  white-space: nowrap;
+}
+
+.loc-filter-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 0 32rpx;
+}
+
+.loc-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  height: 72rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--cl-control-line);
+  border-radius: 9999rpx;
+  background: var(--cl-card);
+  color: var(--cl-ink);
+  font-size: 26rpx;
+
+  &:active {
+    opacity: 0.7;
+  }
+
+  .iconfont {
+    color: var(--cl-ink-2);
+    font-size: 28rpx;
+  }
+}
+
+.loc-filter-chip--active {
+  border-color: var(--cl-selected-bg);
+  background: var(--cl-selected-bg);
+  color: var(--cl-selected-text);
+
+  .loc-filter-chip__caret {
+    color: var(--cl-selected-text);
+  }
+}
+
+.loc-filter-chip__caret {
+  color: var(--cl-ink-3);
+  font-size: 22rpx;
+}
+
+.loc-filter-divider {
+  width: 2rpx;
+  height: 40rpx;
+  background: var(--cl-line);
+}
+
+// 器材筛选（共享组件，仅在本页内覆盖成中性选项块）
+.loc-filters .equipment-selector {
+  margin: 0;
+}
+
+.loc-filters .equipment-option {
+  min-height: 64rpx;
+  line-height: 64rpx;
+  padding: 0 24rpx;
+  border: 2rpx solid var(--cl-control-line);
+  border-radius: 9999rpx;
+  background: var(--cl-card);
+  color: var(--cl-ink);
+  font-size: 26rpx;
+
+  &.selected {
+    border-color: var(--cl-selected-bg);
+    background: var(--cl-selected-bg);
+    color: var(--cl-selected-text);
+  }
+}
+
+.loc-page .user-location-text {
+  color: var(--cl-ink-3);
+}
+
+.loc-page .nearby-title {
+  color: var(--cl-ink);
+}
+
+// 地点卡片
+.loc-page .loc-card {
+  border: 2rpx solid var(--cl-line);
+  border-radius: 32rpx;
+  background: var(--cl-card);
+  box-shadow: none;
+}
+
+.loc-page .loc-card-shared {
+  border-color: var(--cl-clay);
+}
+
+.loc-page .loc-card-noimg {
+  background: var(--cl-sunk);
+  color: var(--cl-ink-3);
+}
+
+.loc-page .loc-card-name {
+  color: var(--cl-ink);
+}
+
+.loc-page .loc-card-map-btn {
+  border: 2rpx solid var(--cl-control-line);
+  background: var(--cl-card);
+  color: var(--cl-ink);
+
+  .iconfont,
+  .loc-card-map-text {
+    color: var(--cl-ink);
+  }
+}
+
+.loc-page .loc-card-meta-item {
+  color: var(--cl-ink-3);
+}
+
+.loc-page .loc-card-meta-user {
+  color: var(--cl-link);
+}
+
+.loc-page .loc-card-desc {
+  color: var(--cl-ink-2);
+}
+
+.loc-page .loc-card-edit-btn,
+.loc-page .loc-card-edit-text {
+  color: var(--cl-ink-3);
+}
+
+.loc-page .equipment-tag {
+  background: var(--cl-sunk);
+  color: var(--cl-ink-2);
+}
+
+.loc-page .empty-wrap,
+.loc-page .loading-more {
+  color: var(--cl-ink-3);
+}
+
+// 底部唯一主按钮
+.loc-share-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding: 16rpx 32rpx calc(16rpx + env(safe-area-inset-bottom));
+  border-top: 2rpx solid var(--cl-line);
+  background: var(--cl-card);
+}
+
+.loc-share-bar__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  height: 104rpx;
+  border-radius: 24rpx;
+  background: var(--cl-clay-strong);
+  color: var(--cl-on-accent);
+  font-size: 32rpx;
+  font-weight: 500;
+
+  &:active {
+    opacity: 0.85;
+  }
+}

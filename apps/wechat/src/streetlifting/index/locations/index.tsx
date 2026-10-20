@@ -1215,7 +1215,7 @@ export default function StreetliftingLocations() {
   }
 
   return (
-    <View className={`loc-page theme-${effectiveTheme}`}>
+    <View className={`loc-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
       {(sharedLocationLoading || sharedFocusLocation) && (
         <View className='share-focus-card'>
           <Text className='share-focus-eyebrow'>来自分享</Text>
@@ -1233,12 +1233,6 @@ export default function StreetliftingLocations() {
           )}
         </View>
       )}
-
-      {/* ===== 分享按钮 ===== */}
-      <View className='btn-share-my-bar' onClick={openCreate}>
-        <Text className='iconfont icon-location' />
-        <Text>分享我的单杠位置</Text>
-      </View>
 
       {/* ===== Tab 导航 ===== */}
       <View className='loc-tab-bar'>
@@ -1265,19 +1259,57 @@ export default function StreetliftingLocations() {
             lowerThreshold={100}
           >
             <View className='loc-list-section'>
-              <View className='loc-header compact'>
-                <View className='loc-header-actions'>
-                  <View className='loc-summary-secondary loc-summary-half' onClick={handleOpenMapMode}>
-                    <Text className='iconfont icon-location' />
-                  <Text>查看单杠地图</Text>
-                  </View>
-                  <View className='loc-summary-action loc-summary-half' onClick={handleLocateNearby}>
-                    <Text>{locating ? '定位中…' : '定位我附近'}</Text>
-                  </View>
+              <View className='loc-filters'>
+                <View className='loc-search'>
+                  <Text className='iconfont icon-search loc-search__icon' />
+                  <Input
+                    className='loc-search__input'
+                    placeholder='搜索名称、城市或地址'
+                    placeholderClass='loc-search__placeholder'
+                    value={search}
+                    onInput={(e) => setSearch(e.detail.value)}
+                  />
                 </View>
+                <ScrollView className='loc-filter-scroll' scrollX enhanced showScrollbar={false}>
+                  <View className='loc-filter-row'>
+                    <View className='loc-filter-chip loc-filter-chip--action' onClick={handleLocateNearby}>
+                      <Text className='iconfont icon-location' />
+                      <Text>{locating ? '定位中…' : '附近'}</Text>
+                    </View>
+                    <View className='loc-filter-chip loc-filter-chip--action' onClick={handleOpenMapMode}>
+                      <Text>地图</Text>
+                    </View>
+                    <View className='loc-filter-divider' />
+                    <Picker
+                      mode='selector'
+                      range={['全部国家/地区', ...countryOptions]}
+                      value={country === 'all' ? 0 : Math.max(0, countryOptions.indexOf(country) + 1)}
+                      onChange={(e) => { setCountry(Number(e.detail.value) === 0 ? 'all' : countryOptions[Number(e.detail.value) - 1]); setProvince('all') }}
+                    >
+                      <View className={`loc-filter-chip ${country !== 'all' ? 'loc-filter-chip--active' : ''}`}>
+                        <Text>{country === 'all' ? '国家/地区' : country}</Text>
+                        <Text className='loc-filter-chip__caret'>▾</Text>
+                      </View>
+                    </Picker>
+                    <Picker
+                      mode='selector'
+                      range={['全部省/州', ...provinces]}
+                      value={province === 'all' ? 0 : Math.max(0, provinces.indexOf(province) + 1)}
+                      onChange={(e) => {
+                        const i = Number(e.detail.value)
+                        setProvince(i === 0 ? 'all' : (provinces[i - 1] || 'all'))
+                      }}
+                    >
+                      <View className={`loc-filter-chip ${province !== 'all' ? 'loc-filter-chip--active' : ''}`}>
+                        <Text>{province === 'all' ? '省/州' : province}</Text>
+                        <Text className='loc-filter-chip__caret'>▾</Text>
+                      </View>
+                    </Picker>
+                  </View>
+                </ScrollView>
+                <EquipmentSelector filter value={equipmentFilter} onChange={setEquipmentFilter} />
               </View>
 
-              <EquipmentSelector filter value={equipmentFilter} onChange={setEquipmentFilter} />
               {userLocation && (
                 <View className='user-location-row'>
                   <Text className='user-location-text'>
@@ -1296,30 +1328,6 @@ export default function StreetliftingLocations() {
                   </View>
                 </View>
               )}
-
-              <View className='loc-toolbar'>
-                <Input
-                  className='search-input'
-                  placeholder='搜索名称/国家/城市/地址'
-                  value={search}
-                  onInput={(e) => setSearch(e.detail.value)}
-                />
-                <Picker
-                  mode='selector'
-                  range={['全部省/州', ...provinces]}
-                  value={province === 'all' ? 0 : Math.max(0, provinces.indexOf(province) + 1)}
-                  onChange={(e) => {
-                    const i = Number(e.detail.value)
-                    setProvince(i === 0 ? 'all' : (provinces[i - 1] || 'all'))
-                  }}
-                >
-                  <View className='picker-province'>{province === 'all' ? '全部省/州' : province}</View>
-                </Picker>
-              </View>
-
-              <Picker mode='selector' range={['全部国家/地区', ...countryOptions]} value={country === 'all' ? 0 : Math.max(0, countryOptions.indexOf(country) + 1)} onChange={(e) => { setCountry(Number(e.detail.value) === 0 ? 'all' : countryOptions[Number(e.detail.value) - 1]); setProvince('all') }}>
-                <View className='country-filter'>{country === 'all' ? '全部国家/地区' : country}</View>
-              </Picker>
 
               {loading && locations.length === 0 ? (
                 renderSkeleton()
@@ -1820,6 +1828,15 @@ export default function StreetliftingLocations() {
               <Button className='btn-cancel' onClick={() => { setDialogOpen(false); resetForm() }}>取消</Button>
               {(hasSelectedPosition || manualDetailsOpen) && <Button className='btn-ok' onClick={handleSubmit} disabled={submitting || uploading || openingPicker}>{submitting ? '保存中…' : editing ? '保存修改' : '分享单杠'}</Button>}
             </View>
+          </View>
+        </View>
+      )}
+
+      {!dialogOpen && (
+        <View className='loc-share-bar'>
+          <View className='loc-share-bar__btn' onClick={openCreate}>
+            <Text className='iconfont icon-location' />
+            <Text>分享我的单杠位置</Text>
           </View>
         </View>
       )}
