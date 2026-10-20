@@ -1611,6 +1611,14 @@ export default function WechatPowerAnalysisPage() {
                         comparePoints={comparisonRows.length > 0 ? comparisonBaselineMetrics?.timeSeries : undefined}
                       />
                     </View>
+                    <View className='power-curve-block'>
+                      <Text className='power-curve-subtitle'>位移曲线</Text>
+                      <PowerCurveChart
+                        points={metrics.timeSeries}
+                        metric='displacementM'
+                        comparePoints={comparisonRows.length > 0 ? comparisonBaselineMetrics?.timeSeries : undefined}
+                      />
+                    </View>
                   </View>
                 )}
 

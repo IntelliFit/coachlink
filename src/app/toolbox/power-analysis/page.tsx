@@ -21,6 +21,7 @@ import {
   POWER_ANALYSIS_MODE_OPTIONS as MODE_OPTIONS,
 } from "@coachlink/core/src/powerAnalysisModes";
 import AssessmentCard from "./AssessmentCard";
+import PowerCurves from "./PowerCurves";
 
 type UploadPhase = "idle" | "creating" | "uploading" | "uploaded" | "enqueueing" | "queued" | "done";
 
@@ -639,6 +640,8 @@ export default function PowerAnalysisToolPage() {
                       className="max-h-80 w-full rounded-xl border border-surface-200 bg-surface-900"
                     />
                   )}
+
+                  <PowerCurves points={metrics.timeSeries} />
 
                   <div className="overflow-hidden rounded-xl border border-surface-200">
                     <table className="min-w-full text-sm">

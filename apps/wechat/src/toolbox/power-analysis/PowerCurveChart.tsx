@@ -9,7 +9,7 @@ export interface PowerCurvePoint {
   powerW: number
 }
 
-type PowerCurveMetric = 'velocityMps' | 'powerW'
+type PowerCurveMetric = 'velocityMps' | 'powerW' | 'displacementM'
 
 interface Props {
   points: PowerCurvePoint[]
@@ -29,9 +29,11 @@ interface CurveSegment {
   angle: number
 }
 
-const CONFIG: Record<PowerCurveMetric, { label: string; unit: string; color: string }> = {
-  velocityMps: { label: '速度', unit: 'm/s', color: '#2563EB' },
-  powerW: { label: '功率', unit: 'W', color: '#D97706' }
+const CONFIG: Record<PowerCurveMetric, { label: string; unit: string; color: string; peakLabel: string }> = {
+  velocityMps: { label: '速度', unit: 'm/s', color: '#2563EB', peakLabel: '瞬时峰值' },
+  powerW: { label: '功率', unit: 'W', color: '#D97706', peakLabel: '瞬时峰值' },
+  // Displacement is measured from each rep's start, so the curve rises once per rep.
+  displacementM: { label: '位移', unit: 'm', color: '#059669', peakLabel: '最大位移' }
 }
 
 const MAX_RENDERED_POINTS = 120
@@ -272,8 +274,8 @@ export default function PowerCurveChart({ points, metric, comparePoints }: Props
       )}
       <Text className='power-curve-peak'>
         {isComparison
-          ? `前测瞬时峰值 ${comparePeak >= 100 ? comparePeak.toFixed(0) : comparePeak.toFixed(2)} ${config.unit} · 后测瞬时峰值 ${peak >= 100 ? peak.toFixed(0) : peak.toFixed(2)} ${config.unit}`
-          : `瞬时峰值 ${peak >= 100 ? peak.toFixed(0) : peak.toFixed(2)} ${config.unit}`}
+          ? `前测${config.peakLabel} ${comparePeak >= 100 ? comparePeak.toFixed(0) : comparePeak.toFixed(2)} ${config.unit} · 后测${config.peakLabel} ${peak >= 100 ? peak.toFixed(0) : peak.toFixed(2)} ${config.unit}`
+          : `${config.peakLabel} ${peak >= 100 ? peak.toFixed(0) : peak.toFixed(2)} ${config.unit}`}
       </Text>
     </View>
   )
