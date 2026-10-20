@@ -238,3 +238,130 @@
 .locations-map-search-result { padding: 16rpx 0; border-bottom: 1px solid #e5e7eb; }
 .locations-map-search-message { display: block; margin-top: 16rpx; font-size: 24rpx; color: #6b7280; }
 .locations-map-search-attribution { display: block; margin-top: 16rpx; font-size: 20rpx; color: #6b7280; }
+
+/* ==================== 2026-10 改版：v1 设计变量层 ====================
+ * 只换颜色和圆角，地图、选点、搜索、聚合点逻辑不变。
+ * 浏览模式顶部三个按钮都是中性色；只有"确认地图标记 / 搜索 / 选中点位的主操作"保留主色。
+ */
+.locations-map-page {
+  min-height: 100vh;
+  padding: 24rpx 32rpx;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+}
+
+.locations-map-page .locations-map-btn,
+.locations-map-page .locations-map-selected-btn {
+  height: 80rpx;
+  line-height: 76rpx;
+  border: 2rpx solid var(--cl-control-line);
+  border-radius: 24rpx;
+  background: var(--cl-card);
+  color: var(--cl-ink);
+  font-size: 26rpx;
+
+  &.primary {
+    border-color: var(--cl-clay-strong);
+    background: var(--cl-clay-strong);
+    color: var(--cl-on-accent);
+  }
+}
+
+// 浏览模式顶部的"点位分布"只是重置视角，不该抢主按钮的颜色
+.locations-map-page .locations-map-toolbar .locations-map-btn.primary {
+  border-color: var(--cl-control-line);
+  background: var(--cl-card);
+  color: var(--cl-ink);
+}
+
+.locations-map-page .locations-map-summary,
+.locations-map-page .locations-map-search,
+.locations-map-page .locations-map-picker-confirm,
+.locations-map-page .locations-map-selected {
+  border: 2rpx solid var(--cl-line);
+  border-radius: 32rpx;
+  background: var(--cl-card);
+  box-shadow: none;
+}
+
+.locations-map-page .locations-map-title,
+.locations-map-page .locations-map-selected-title,
+.locations-map-page .locations-map-overlay-title {
+  color: var(--cl-ink);
+}
+
+.locations-map-page .locations-map-desc,
+.locations-map-page .locations-map-selected-address,
+.locations-map-page .locations-map-overlay-desc,
+.locations-map-page .locations-map-search-message,
+.locations-map-page .locations-map-hint {
+  color: var(--cl-ink-2);
+}
+
+.locations-map-page .locations-map-search-attribution,
+.locations-map-page .locations-map-stat-label,
+.locations-map-page .locations-map-selected-area {
+  color: var(--cl-ink-3);
+}
+
+.locations-map-page .locations-map-stat {
+  border: 0;
+  border-radius: 24rpx;
+  background: var(--cl-sunk);
+}
+
+.locations-map-page .locations-map-stat-value {
+  color: var(--cl-ink);
+  font-family: var(--cl-font-num);
+}
+
+.locations-map-page .locations-map-search-input {
+  border: 2rpx solid var(--cl-line);
+  border-radius: 24rpx;
+  background: var(--cl-sunk);
+  color: var(--cl-ink);
+}
+
+.locations-map-page .locations-map-search-result {
+  border-bottom: 2rpx solid var(--cl-line-soft);
+  background: transparent;
+}
+
+.locations-map-page .locations-map-container {
+  border: 2rpx solid var(--cl-line);
+  border-radius: 32rpx;
+}
+
+.locations-map-page .locations-map-overlay {
+  border: 2rpx solid var(--cl-line);
+  border-radius: 24rpx;
+  background: var(--cl-card);
+  box-shadow: none;
+}
+
+.locations-map-page .locations-map-overlay-badge {
+  background: var(--cl-sunk);
+  color: var(--cl-ink-2);
+}
+
+.locations-map-page .locations-map-error {
+  color: var(--cl-danger);
+}
+
+// 器材筛选：中性选项块（与单杠列表页一致）
+.locations-map-page .equipment-option {
+  min-height: 64rpx;
+  line-height: 64rpx;
+  padding: 0 24rpx;
+  border: 2rpx solid var(--cl-control-line);
+  border-radius: 9999rpx;
+  background: var(--cl-card);
+  color: var(--cl-ink);
+  font-size: 26rpx;
+
+  &.selected {
+    border-color: var(--cl-selected-bg);
+    background: var(--cl-selected-bg);
+    color: var(--cl-selected-text);
+  }
+}

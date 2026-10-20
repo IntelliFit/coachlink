@@ -54,6 +54,8 @@ function StarterHome({
   const [plans, setPlans] = useState<PublicTrainingPlanListItem[]>([])
 
   useEffect(() => {
+    // The plan list API requires login; guests would only get 401s in the console.
+    if (guest) return undefined
     let cancelled = false
     const load = async () => {
       try {
@@ -70,7 +72,7 @@ function StarterHome({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [guest])
 
   return (
     <View className='tt-starter'>

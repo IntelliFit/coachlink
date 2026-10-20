@@ -13,14 +13,19 @@ import type {
 } from "@/app/api/toolbox/power-analysis/types";
 import {
   isBarbellPowerAnalysisMode,
+  isCustomPowerAnalysisMode,
   isValidPlateDiameterCm,
   isValidPowerAnalysisLoadKg,
+  parsePowerAnalysisCustomActionName,
   POWER_ANALYSIS_BARBELL_SHOOTING_TIP,
+  POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH,
+  POWER_ANALYSIS_CUSTOM_SHOOTING_TIP,
   POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG,
   POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
   POWER_ANALYSIS_MODE_OPTIONS as MODE_OPTIONS,
 } from "@coachlink/core/src/powerAnalysisModes";
 import AssessmentCard from "./AssessmentCard";
+import CustomResult from "./CustomResult";
 import PowerCurves from "./PowerCurves";
 
 type UploadPhase = "idle" | "creating" | "uploading" | "uploaded" | "enqueueing" | "queued" | "done";
@@ -106,6 +111,7 @@ export default function PowerAnalysisToolPage() {
   const [externalLoadKg, setExternalLoadKg] = useState("0");
   const [barbellKg, setBarbellKg] = useState(String(POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG));
   const [plateDiameterCm, setPlateDiameterCm] = useState(String(POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM));
+  const [customActionName, setCustomActionName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const previewRef = useRef<HTMLVideoElement | null>(null);
   const [phase, setPhase] = useState<UploadPhase>("idle");
@@ -122,7 +128,12 @@ export default function PowerAnalysisToolPage() {
 
   const metrics = job?.metrics || null;
   const isBarbell = isBarbellPowerAnalysisMode(mode);
+  const isCustom = isCustomPowerAnalysisMode(mode);
   const resultIsBarbell = isBarbellPowerAnalysisMode(metrics?.mode);
+  const resultIsCustom = isCustomPowerAnalysisMode(metrics?.mode);
+  const resultLabel = isCustomPowerAnalysisMode(job?.mode) && job?.customActionName
+    ? `其他动作 · ${job.customActionName}`
+    : selectedMode.label;
   const loadValue = isBarbell ? barbellKg : externalLoadKg;
   const formReady =
     Number(heightCm) >= 100 &&
@@ -130,7 +141,8 @@ export default function PowerAnalysisToolPage() {
     Number(weightKg) >= 30 &&
     Number(weightKg) <= 250 &&
     isValidPowerAnalysisLoadKg(mode, loadValue) &&
-    (!isBarbell || isValidPlateDiameterCm(plateDiameterCm));
+    (!isBarbell || isValidPlateDiameterCm(plateDiameterCm)) &&
+    (!isCustom || parsePowerAnalysisCustomActionName(customActionName).ok);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const isUploading = ["creating", "uploading"].includes(phase);
   const isAnalyzing = ["enqueueing", "queued"].includes(phase) || job?.status === "queued" || job?.status === "processing";
@@ -267,7 +279,11 @@ export default function PowerAnalysisToolPage() {
       showToast({
         severity: "warn",
         summary: "参数不完整",
-        detail: isBarbell ? "请先填写有效的身高、体重、杠铃总重和杠铃片直径。" : "请先填写有效的身高、体重和额外负重。",
+        detail: isBarbell
+          ? "请先填写有效的身高、体重、杠铃总重和杠铃片直径。"
+          : isCustom
+            ? "请先填写动作名称和有效的身高、体重、负重。"
+            : "请先填写有效的身高、体重和额外负重。",
       });
       return;
     }
@@ -291,6 +307,7 @@ export default function PowerAnalysisToolPage() {
             weightKg: Number(weightKg),
             externalLoadKg: Number(loadValue),
             ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
+            ...(isCustom ? { customActionName: customActionName.trim() } : {}),
             originalFilename: nextFile.name,
             contentType: nextFile.type || "video/mp4",
             fileSizeBytes: nextFile.size,
@@ -447,6 +464,7 @@ export default function PowerAnalysisToolPage() {
                       onClick={() => !settingsLocked && setMode(item.value)}
                       className={[
                         "rounded-xl border px-3 py-3 text-left transition-colors",
+                        item.value === "custom" ? "col-span-2" : "",
                         mode === item.value
                           ? "border-[#CF6D4E] bg-[#CF6D4E] text-white"
                           : "border-surface-200 bg-surface-0 text-surface-800 hover:border-[#CF6D4E]",
@@ -459,12 +477,26 @@ export default function PowerAnalysisToolPage() {
                     </button>
                   ))}
                 </div>
-                {isBarbell && (
+                {(isBarbell || isCustom) && (
                   <div className="mt-2 rounded-xl border border-[#F0C6B9] bg-[#FDF2EC] px-3 py-2 text-xs leading-5 text-[#8F432D]">
-                    {POWER_ANALYSIS_BARBELL_SHOOTING_TIP}
+                    {isCustom ? POWER_ANALYSIS_CUSTOM_SHOOTING_TIP : POWER_ANALYSIS_BARBELL_SHOOTING_TIP}
                   </div>
                 )}
               </div>
+
+              {isCustom && (
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-bold text-surface-800">动作名称</span>
+                  <input
+                    value={customActionName}
+                    onChange={(e) => setCustomActionName(e.target.value)}
+                    disabled={settingsLocked}
+                    maxLength={POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH}
+                    placeholder="例如：哑铃弯举、保加利亚分腿蹲"
+                    className={INPUT_CLASS}
+                  />
+                </label>
+              )}
 
               <div className={isBarbell ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3 sm:grid-cols-3"}>
                 <label className="block">
@@ -512,7 +544,9 @@ export default function PowerAnalysisToolPage() {
                   </>
                 ) : (
                   <label className="block">
-                    <span className="mb-1.5 block text-sm font-bold text-surface-800">额外负重 kg</span>
+                    <span className="mb-1.5 block text-sm font-bold text-surface-800">
+                      {isCustom ? "负重 kg（选填）" : "额外负重 kg"}
+                    </span>
                     <input
                       value={externalLoadKg}
                       onChange={(e) => setExternalLoadKg(e.target.value)}
@@ -601,7 +635,7 @@ export default function PowerAnalysisToolPage() {
             <div className="rounded-2xl border border-surface-200 bg-surface-0 p-5 shadow-sm">
               <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-[#CF6D4E]">{selectedMode.label}</div>
+                  <div className="text-sm font-semibold text-[#CF6D4E]">{resultLabel}</div>
                   <h2 className="mt-1 text-xl font-black text-surface-900">分析结果</h2>
                 </div>
                 <Button
@@ -619,6 +653,8 @@ export default function PowerAnalysisToolPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {resultIsCustom && <CustomResult metrics={metrics} />}
+                  {!resultIsCustom && (
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                     {summaryTiles(metrics, resultIsBarbell).map((tile) => (
                       <div key={tile.label} className="rounded-xl border border-surface-200 bg-surface-50 p-4">
@@ -629,6 +665,7 @@ export default function PowerAnalysisToolPage() {
                       </div>
                     ))}
                   </div>
+                  )}
 
                   {previewUrl && (
                     <video
@@ -641,8 +678,9 @@ export default function PowerAnalysisToolPage() {
                     />
                   )}
 
-                  <PowerCurves points={metrics.timeSeries} />
+                  {!resultIsCustom && <PowerCurves points={metrics.timeSeries} />}
 
+                  {!resultIsCustom && (
                   <div className="overflow-hidden rounded-xl border border-surface-200">
                     <table className="min-w-full text-sm">
                       <thead className="bg-surface-50 text-left text-xs text-surface-500">
@@ -675,6 +713,7 @@ export default function PowerAnalysisToolPage() {
                       </tbody>
                     </table>
                   </div>
+                  )}
                   {resultIsBarbell && (
                     <div className="text-xs leading-5 text-surface-500">
                       功率为杠铃抬升功率（杠铃总重 × g × 杠铃上升高度 ÷ 上升时间），只用来和自己同重量的记录比较，不代表力量水平。

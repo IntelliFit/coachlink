@@ -1,4 +1,5 @@
 import { ScrollView, Text, View } from '@tarojs/components'
+import './ChoiceChips.scss'
 
 export type ChoiceOption<T extends string> = {
   value: T

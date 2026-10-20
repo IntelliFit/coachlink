@@ -1,7 +1,6 @@
 import React from 'react'
 import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import { View, Text, Input, Image, ScrollView } from '@tarojs/components'
-import { Star, Search, Eye } from '@nutui/icons-react-taro'
 import Taro, { useReachBottom } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
@@ -11,7 +10,8 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
-import { Popup } from '@nutui/nutui-react-taro'
+import { ClChip, ClTag } from '@/components/ui'
+import { getCapsuleLayout } from '@/utils/capsuleLayout'
 
 interface Coach {
   id: string
@@ -25,7 +25,11 @@ interface Coach {
   years_experience?: number
   subscription_price_tier1?: number
   is_featured?: boolean
+  title?: string | null
+  coach_track?: string | null
 }
+
+const COACH_TRACK_SHORT_LABELS: Record<string, string> = { buddy: '搭子', growth: '进阶', professional: '专业' }
 
 interface VisibilityStatus {
   focusMode: boolean
@@ -49,7 +53,6 @@ function Discovery() {
   const [searchTerm, setSearchTerm] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
   const [selectedSpecialty, setSelectedSpecialty] = React.useState<string>('all')
-  const [specialtyPickerOpen, setSpecialtyPickerOpen] = React.useState(false)
   const coachesPerPage = 10
   const [nextCoachPage, setNextCoachPage] = React.useState(1)
   const [coachBuffer, setCoachBuffer] = React.useState<Coach[]>([])
@@ -57,10 +60,6 @@ function Discovery() {
   const [visibilityStatus, setVisibilityStatus] = React.useState<VisibilityStatus | null>(null)
   const [visibilityLoading, setVisibilityLoading] = React.useState(true)
   const hasMoreCoaches = rawHasMoreCoaches || coachBuffer.length > 0
-  const specialtyPickerScrollHeight = Math.min(
-    Math.max(Math.ceil(specialties.length / 3) * 88 + 16, 104),
-    480
-  )
 
   React.useEffect(() => {
     const session = authService.getAuthSession({ normalize: true })
@@ -203,7 +202,6 @@ function Discovery() {
 
   const handleSpecialtyChange = (value: string) => {
     setSelectedSpecialty(value)
-    setSpecialtyPickerOpen(false)
     if (!visibilityStatus?.focusMode) {
       void loadCoaches('reset', { search: searchTerm, specialty: value })
     }
@@ -218,227 +216,174 @@ function Discovery() {
 
   useReachBottom(handleLoadMore)
 
-  const renderCoachCard = (coach: Coach) => (
-    <View
-      key={coach.id}
-      className='coach-card'
-      onClick={() => handleCoachClick(coach.id)}
-    >
-      <View className='card-content'>
-        <View className='avatar-section'>
-          <View className='avatar-container'>
-            {coach.avatar_url ? (
-              <Image
-                src={coach.avatar_url}
-                mode='aspectFill'
-                className='avatar-image'
-              />
-            ) : (
-              <View className='avatar-placeholder'>
-                <Text className='avatar-text'>{coach.name.charAt(0)}</Text>
-              </View>
-            )}
-          </View>
-          {coach.is_featured && (
-            <View className='featured-badge'>
-              <View className='crown-icon'><Star size={12} /></View>
-            </View>
+  const capsule = getCapsuleLayout()
+  const headTop = `${capsule.top + capsule.height + 12}px`
+
+  const renderCoachCard = (coach: Coach) => {
+    const rating = typeof coach.averageRating === 'number' ? coach.averageRating : (coach.rating || 0)
+    const students = Number(coach.studentCount || 0)
+    const headline = (coach.title || String(coach.bio || '').split('\n')[0] || '').trim()
+    const level = coach.coach_track ? COACH_TRACK_SHORT_LABELS[coach.coach_track] : ''
+    const social = students > 0 ? `${students} 位学员` : '新入驻'
+    const showPrice = !WECHAT_COACH_PURCHASE_PAUSED && typeof coach.subscription_price_tier1 === 'number'
+    return (
+      <View
+        key={coach.id}
+        className='cl-coach'
+        hoverClass='cl-coach--pressed'
+        hoverStayTime={60}
+        onClick={() => handleCoachClick(coach.id)}
+        ariaRole='button'
+        ariaLabel={`${coach.name}，${level ? `${level}教练，` : ''}${social}`}
+      >
+        <View className='cl-coach__avatar'>
+          {coach.avatar_url ? (
+            <Image src={coach.avatar_url} mode='aspectFill' className='cl-coach__avatar-img' lazyLoad />
+          ) : (
+            <Text className='cl-coach__avatar-text'>{coach.name.charAt(0)}</Text>
           )}
         </View>
-
-        <View className='content-section'>
-          <View className='header-row'>
-            <View className='name-section'>
-              <View className='name-row'>
-                <Text className='coach-name'>{coach.name}</Text>
-                <View className='rating-badge'>
-                  <Star size={10} />
-                  <Text className='rating-text'>
-                    {typeof coach.averageRating === 'number'
-                      ? coach.averageRating.toFixed(1)
-                      : (coach.rating?.toFixed(1) || '0.0')}
-                  </Text>
-                </View>
-              </View>
-              {coach.specialties && coach.specialties.length > 0 && (
-                <View className='tags-row'>
-                  {coach.specialties.slice(0, 2).map((spec, index) => (
-                    <View key={`${coach.id}-${spec}-${index}`} className='tag-item'>
-                      <Text className='tag-text'>{spec}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            {!WECHAT_COACH_PURCHASE_PAUSED && typeof coach.subscription_price_tier1 === 'number' && (
-              <View className='price-section'>
-                <Text className='price-label'>起价</Text>
-                <Text className='price-value'>¥{coach.subscription_price_tier1}</Text>
-              </View>
-            )}
+        <View className='cl-coach__body'>
+          <View className='cl-coach__name-row'>
+            <Text className='cl-coach__name'>{coach.name}</Text>
+            {level ? <ClTag tone={coach.coach_track === 'professional' ? 'outline' : 'neutral'}>{level}</ClTag> : null}
           </View>
+          {headline ? <Text className='cl-coach__headline'>{headline}</Text> : null}
+          {coach.specialties && coach.specialties.length > 0 ? (
+            <View className='cl-coach__tags'>
+              {coach.specialties.slice(0, 2).map((spec, index) => (
+                <ClTag key={`${coach.id}-${spec}-${index}`}>{spec}</ClTag>
+              ))}
+            </View>
+          ) : null}
+          <View className='cl-coach__meta'>
+            {rating > 0 ? <Text className='cl-coach__rating cl-num'>★ {rating.toFixed(1)}</Text> : null}
+            <Text className='cl-coach__social'>{rating > 0 ? social : `${social} · 暂无评价`}</Text>
+          </View>
+        </View>
+        <View className='cl-coach__side'>
+          {showPrice ? (
+            <>
+              <Text className='cl-coach__price cl-num'>¥{coach.subscription_price_tier1} 起</Text>
+              <Text className='cl-coach__price-unit'>/ 4 周</Text>
+            </>
+          ) : (
+            <Text className='cl-coach__more'>看方案 ›</Text>
+          )}
         </View>
       </View>
-    </View>
-  )
+    )
+  }
 
   const renderSkeleton = () => (
-    <View className='skeleton-list'>
-      {[1, 2, 3].map((i) => (
-        <View key={i} className='skeleton-card'>
-          <View className='skeleton-avatar' />
-          <View className='skeleton-content'>
-            <View className='skeleton-line skeleton-title' />
-            <View className='skeleton-line skeleton-subtitle' />
-            <View className='skeleton-line skeleton-tags' />
-          </View>
-        </View>
-      ))}
+    <View className='cl-coaches__list'>
+      {[1, 2, 3].map((i) => <View key={i} className='cl-coaches__skeleton' />)}
     </View>
   )
 
   if (visibilityStatus?.focusMode) {
     return (
-      <View className={`discovery-page theme-${effectiveTheme}`}>
-        <View className='page-header'>
-          <View className='header-content'>
-            <View className='title-section'>
-              <Text className='page-title'>我的专属教练</Text>
-              <Text className='page-subtitle'>
-                你正通过 {visibilityStatus.focusCoachName || '教练'} 的邀请在这里训练和沟通。
-              </Text>
-            </View>
-          </View>
+      <PageThemeRoot>
+      <View className={`cl-coaches ${effectiveTheme === 'dark' ? 'cl-theme-dark' : ''}`}>
+        <View className='cl-coaches__head' style={{ paddingTop: headTop }}>
+          <Text className='cl-coaches__title'>我的专属教练</Text>
+          <Text className='cl-coaches__subtitle'>
+            你正通过 {visibilityStatus.focusCoachName || '教练'} 的邀请在这里训练和沟通。
+          </Text>
         </View>
 
         {isLoading || visibilityLoading ? (
           renderSkeleton()
         ) : coaches.length > 0 ? (
-          <View className='coaches-list compact-page-block'>
+          <View className='cl-coaches__list'>
             {coaches.map((coach) => renderCoachCard(coach))}
           </View>
         ) : (
-          <View className='empty-state compact-page-block'>
-            <View className='empty-icon'><Eye size={40} /></View>
-            <Text className='empty-text'>教练信息加载失败</Text>
+          <View className='cl-coaches__state'>
+            <Text className='cl-coaches__state-title'>教练信息加载失败</Text>
+            <Text className='cl-coaches__state-link' onClick={() => void loadCoaches('reset')}>重试</Text>
           </View>
         )}
 
         <BottomNav />
       </View>
+      </PageThemeRoot>
     )
   }
 
   return (
     <PageThemeRoot>
-    <View className={`discovery-page theme-${effectiveTheme}`}>
-      <View className='page-header'>
-        <View className='header-content'>
-          <View className='title-section'>
-            <Text className='page-title'>教练</Text>
-            <Text className='page-subtitle'>这里只做找教练，方向合适了再继续往下聊。</Text>
-          </View>
-        </View>
-
-        <View className='search-section'>
-          <View className='search-container'>
-            <View className='search-leading-icon'>
-              <Search size={18} color='#7d8596' />
+    <View className={`cl-coaches ${effectiveTheme === 'dark' ? 'cl-theme-dark' : ''}`}>
+      <View className='cl-coaches__head' style={{ paddingTop: headTop }}>
+        <Text className='cl-coaches__title'>找教练</Text>
+        <View className='cl-coaches__search'>
+          <Text className='cl-coaches__search-icon'>⌕</Text>
+          <Input
+            className='cl-coaches__search-input'
+            placeholder='搜索教练名字或方向'
+            value={searchTerm}
+            onInput={(e) => setSearchTerm(e.detail.value)}
+            confirmType='search'
+            onConfirm={onSearchOrFilter}
+          />
+          {searchTerm ? (
+            <View
+              className='cl-coaches__search-clear'
+              ariaRole='button'
+              ariaLabel='清空搜索'
+              onClick={() => {
+                setSearchTerm('')
+                void loadCoaches('reset', { search: '', specialty: selectedSpecialty })
+              }}
+            >
+              <Text>×</Text>
             </View>
-            <Input
-              className='search-input'
-              placeholder='搜索教练名字或专项方向'
-              value={searchTerm}
-              onInput={(e) => setSearchTerm(e.detail.value)}
-              confirmType='search'
-              onConfirm={onSearchOrFilter}
-            />
-            <View className='search-actions'>
-              <View className='search-button' onClick={onSearchOrFilter}>
-                <Text className='search-button-text'>搜索</Text>
-              </View>
-            </View>
-          </View>
+          ) : null}
         </View>
+        <ScrollView scrollX className='cl-coaches__chips' showScrollbar={false}>
+          <View className='cl-coaches__chips-row'>
+            {specialties.map((item) => (
+              <ClChip
+                key={item.value}
+                selected={selectedSpecialty === item.value}
+                onClick={() => {
+                  if (selectedSpecialty !== item.value) handleSpecialtyChange(item.value)
+                }}
+              >
+                {item.value === 'all' ? '全部' : item.label}
+              </ClChip>
+            ))}
+          </View>
+        </ScrollView>
       </View>
 
-      <View className='coach-section'>
-        <View className='section-head'>
-          <View>
-            <Text className='section-title'>推荐教练</Text>
-            <Text className='section-caption'>按方向筛，点进详情看风格、经验和服务。</Text>
-          </View>
-          <View
-            className='section-more'
-            onClick={() => setSpecialtyPickerOpen(true)}
-          >
-            <Text>{selectedSpecialty === 'all' ? '筛选方向' : '切换筛选'}</Text>
-          </View>
-        </View>
-
-        <View className='stats-info'>
-          <Text className='stats-text'>
-            {hasMoreCoaches ? `已先展示 ${coaches.length} 位教练` : `当前共展示 ${coaches.length} 位教练`}
-          </Text>
-        </View>
-
-        {(isLoading && coaches.length === 0) || visibilityLoading ? (
-          renderSkeleton()
-        ) : coaches.length === 0 ? (
-          <View className='empty-state'>
-            <View className='empty-icon'><Eye size={40} /></View>
-            <Text className='empty-text'>没有找到相关教练</Text>
-          </View>
-        ) : (
-          <View className='coaches-list'>
-            {coaches.map((coach) => renderCoachCard(coach))}
-
-            {hasMoreCoaches && !visibilityStatus?.focusMode && (
-              <View className='load-more' onClick={handleLoadMore}>
-                {isLoading ? (
-                  <LoadingSpinner size={32} />
-                ) : (
-                  <Text className='load-more-text'>加载更多</Text>
-                )}
-              </View>
-            )}
-
-            {!visibilityStatus?.focusMode && coaches.length > 0 && !hasMoreCoaches && (
-              <View className='list-end-divider'>
-                <View className='list-end-line' />
-                <Text className='list-end-text'>当前教练已全部展示</Text>
-                <View className='list-end-line' />
-              </View>
-            )}
-          </View>
-        )}
+      <View className='cl-coaches__count'>
+        <Text className='cl-coaches__count-text'>
+          {hasMoreCoaches ? `已显示 ${coaches.length} 位教练` : `${coaches.length} 位教练`}
+        </Text>
+        <Text className='cl-coaches__count-hint'>点教练看风格、经验和服务</Text>
       </View>
 
-      <Popup visible={specialtyPickerOpen} position='bottom' round onClose={() => setSpecialtyPickerOpen(false)}>
-        <View className='specialty-picker-sheet'>
-          <View className='specialty-picker-handle' />
-          <View className='specialty-picker-header'>
-            <Text className='specialty-picker-title'>筛选训练方向</Text>
-            <Text className='specialty-picker-subtitle'>选择一个方向，查看更匹配的教练</Text>
-          </View>
-          <ScrollView scrollY className='specialty-picker-scroll' style={{ height: `${specialtyPickerScrollHeight}rpx` }}>
-            <View className='specialty-picker-options'>
-              {specialties.map((item) => (
-                <View
-                  key={item.value}
-                  className={`specialty-picker-option ${selectedSpecialty === item.value ? 'specialty-picker-option--selected' : ''}`}
-                  onClick={() => handleSpecialtyChange(item.value)}
-                  hoverClass='specialty-picker-option--pressed'
-                  hoverStayTime={70}
-                >
-                  <Text>{item.label}</Text>
-                </View>
-              ))}
-            </View>
-          </ScrollView>
+      {(isLoading && coaches.length === 0) || visibilityLoading ? (
+        renderSkeleton()
+      ) : coaches.length === 0 ? (
+        <View className='cl-coaches__state'>
+          <Text className='cl-coaches__state-title'>没有找到相关教练</Text>
+          <Text className='cl-coaches__state-desc'>换个方向或关键词试试</Text>
         </View>
-      </Popup>
+      ) : (
+        <View className='cl-coaches__list'>
+          {coaches.map((coach) => renderCoachCard(coach))}
+
+          {hasMoreCoaches ? (
+            <View className='cl-coaches__more' onClick={handleLoadMore}>
+              {isLoading ? <LoadingSpinner size={32} /> : <Text>加载更多</Text>}
+            </View>
+          ) : (
+            <Text className='cl-coaches__end'>已显示全部教练</Text>
+          )}
+        </View>
+      )}
 
       <BottomNav />
     </View>

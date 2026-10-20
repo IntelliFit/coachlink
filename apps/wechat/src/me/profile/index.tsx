@@ -10,16 +10,18 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentPlanLibService } from '@/services/studentPlanLibService'
 import { studentService } from '@/services/studentService'
 import { trainingHistoryService } from '@/services/trainingHistoryService'
+import { chatService } from '@/services/chatService'
+import { toBeijingDateKey } from '@coachlink/core/src/beijingTime'
 import { AUTH_SESSION_INVALID_EVENT } from '@/services/authSessionEvents'
-import { clearLocalCache } from '@/utils/clearLocalCache'
 import './index.scss'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
 import { XPayTrialEntry } from '@/components/XPayTrialEntry'
+import { ClButton, ClTag } from '@/components/ui'
+import { getCapsuleLayout } from '@/utils/capsuleLayout'
 interface MenuItem {
   key: string
   label: string
   icon: string
-  iconBg: string
   path?: string
   action?: () => void
   badge?: string
@@ -35,13 +37,30 @@ interface ProfileStats {
   actions: number
   plans: number
   trainingActions: number
+  monthDays: number | null
+  monthSets: number | null
+  unreadMessages: number
 }
 
 const EMPTY_PROFILE_STATS: ProfileStats = {
   actions: 0,
   plans: 0,
-  trainingActions: 0
+  trainingActions: 0,
+  monthDays: null,
+  monthSets: null,
+  unreadMessages: 0
 }
+
+const LEGAL_LINKS: Array<{ label: string; url: string }> = [
+  { label: '关于', url: '/me-legal/about/index' },
+  { label: '联系我们', url: '/me-legal/contact/index' },
+  { label: '文档', url: '/me-legal/docs/index' },
+  { label: '入驻说明', url: '/auth/onboarding' },
+  { label: '免责声明', url: '/me-legal/disclaimer/index' },
+  { label: '消费者权益保护', url: '/me-legal/protection-of-consumer/index' },
+  { label: '用户服务协议', url: '/me-legal/terms/index' },
+  { label: '平台入驻协议', url: '/me-legal/platform-agreement/index' }
+]
 
 function getProfileMissingCount(profile: any, answers: any) {
   const goals = Array.isArray(answers?.fitness_goals) && answers.fitness_goals.length
@@ -70,7 +89,7 @@ function Profile() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [profileStats, setProfileStats] = useState<ProfileStats>(EMPTY_PROFILE_STATS)
   const [profileMissingCount, setProfileMissingCount] = useState(0)
-  const [isClearingCache, setIsClearingCache] = useState(false)
+  const [legalOpen, setLegalOpen] = useState(false)
 
   const openLogin = useCallback((returnTo = '/me/profile/index') => {
     const url = authService.buildLoginUrl(returnTo)
@@ -85,16 +104,22 @@ function Profile() {
 
   const loadProfileStats = useCallback(async () => {
     try {
-      const [actionsRes, plansRes, trainingSummary] = await Promise.all([
+      const monthKey = toBeijingDateKey(new Date()).slice(0, 7)
+      const [actionsRes, plansRes, trainingSummary, monthShare, chatrooms] = await Promise.all([
         studentActionLibService.listActions({ page: 1, limit: 1 }),
         studentPlanLibService.listFavorites({ page: 1, limit: 1 }),
-        trainingHistoryService.getSummary()
+        trainingHistoryService.getSummary(),
+        trainingHistoryService.getMonthShare(monthKey).catch(() => null),
+        chatService.listChatrooms({ page: 1, limit: 50 }).catch(() => null)
       ])
 
       setProfileStats({
         actions: Number(actionsRes?.totalCount ?? actionsRes?.actions?.length ?? 0),
         plans: Number(plansRes?.totalCount ?? plansRes?.total ?? plansRes?.favorites?.length ?? 0),
-        trainingActions: Number(trainingSummary?.totalActions ?? 0)
+        trainingActions: Number(trainingSummary?.totalActions ?? 0),
+        monthDays: monthShare ? Number(monthShare.trainingDays || 0) : null,
+        monthSets: monthShare ? Number(monthShare.totalSets || 0) : null,
+        unreadMessages: (chatrooms?.chatRooms || []).reduce((sum, room) => sum + Number(room.unreadCount || 0), 0)
       })
     } catch (error) {
       console.error('[profile] load stats:', error)
@@ -205,7 +230,6 @@ function Profile() {
     ? String(user?.phone || '训练、服务和消息会在这里持续沉淀')
     : WECHAT_FREE_RELEASE ? '登录后同步训练记录、计划和消息' : '登录后同步训练记录、会员、订单和消息'
   const roleBadgeText = isAuthenticated ? (primaryRole === 'coach' ? '教练身份' : '学员身份') : '游客模式'
-  const statusBadgeText = isAuthenticated ? `${points}积分` : '点击登录'
 
   async function handleProfileSettings() {
     if (isCoach) {
@@ -249,14 +273,13 @@ function Profile() {
     })
   }
 
-  const topMenus: StatMenuItem[] = [
+  const statMenus: StatMenuItem[] = [
     {
       key: 'action-library',
       label: '我的动作库',
       value: profileStats.actions,
       unit: '项',
       icon: 'icon-dumbbell',
-      iconBg: '#8FD3FE',
       path: '/me/action-lib/index',
       requiresAuth: true
     },
@@ -266,7 +289,6 @@ function Profile() {
       value: profileStats.plans,
       unit: '项',
       icon: 'icon-a-Trainingplan',
-      iconBg: '#FFD666',
       path: '/me/plan-lib/index',
       requiresAuth: true
     },
@@ -276,131 +298,47 @@ function Profile() {
       value: profileStats.trainingActions,
       unit: '个动作',
       icon: 'icon-training_history',
-      iconBg: '#FF7A7A',
       path: '/me/training-history/index',
       requiresAuth: true
     }
   ]
 
-  const middleMenus: MenuItem[] = [
+  const gridMenus: MenuItem[] = [
+    { key: 'current-plan', label: '全部计划', icon: 'icon-a-Trainingplan', path: '/me/plan-history/index', requiresAuth: true },
+    { key: 'ranking', label: '排行榜', icon: 'icon-ranking', path: '/discovery/ranking', requiresAuth: true },
+    { key: 'my-coaches', label: '我的教练', icon: 'icon-coachline_line', path: '/me/my-coaches/index', requiresAuth: true },
     {
-      key: 'fitness-card',
-      label: '健身资料卡',
-      icon: 'icon-account-settings-variant',
-      iconBg: '#CF6D4E',
-      path: '/me/profile/fitness-card/index',
-      badge: profileMissingCount > 0 ? `待完善 ${profileMissingCount}` : undefined,
-      requiresAuth: true
-    },
-    {
-      key: 'current-plan',
-      label: '全部计划',
-      icon: 'icon-a-Trainingplan',
-      iconBg: '#29C3A3',
-      path: '/me/plan-history/index',
-      requiresAuth: true
-    },
-    {
-      key: 'ranking',
-      label: '排行榜',
-      icon: 'icon-ranking',
-      iconBg: '#CF6D4E',
-      path: '/discovery/ranking',
-      requiresAuth: true
-    },
-    {
-      key: 'my-coaches',
-      label: '我的教练',
-      icon: 'icon-coachline_line',
-      iconBg: '#5C8DFF',
-      path: '/me/my-coaches/index',
+      key: 'messages',
+      label: '消息中心',
+      icon: 'icon-messages',
+      path: '/me/messages/index',
+      badge: profileStats.unreadMessages > 0 ? String(Math.min(profileStats.unreadMessages, 99)) : undefined,
       requiresAuth: true
     },
     {
       key: 'my-membership',
       label: WECHAT_FREE_RELEASE ? '功能与用量' : '我的会员',
       icon: WECHAT_FREE_RELEASE ? 'icon-account-settings-variant' : 'icon-vips',
-      iconBg: '#FFA940',
       path: '/me/membership/index',
       requiresAuth: true
     },
-    {
-      key: 'messages',
-      label: '消息中心',
-      icon: 'icon-messages',
-      iconBg: '#26A69A',
-      path: '/me/messages/index',
-      requiresAuth: true
-    },
-    {
-      key: 'purchase-history',
-      label: '购买记录',
-      icon: 'icon-goumaijilu',
-      iconBg: '#722ed1',
-      path: '/me/purchase-history/index',
-      requiresAuth: true
-    },
-    {
-      key: 'join-beta-group',
-      label: '加入内测群',
-      icon: 'icon-messages',
-      iconBg: '#CF6D4E',
-      action: handleJoinBetaGroup
-    }
-  ]
-
-  const extraMenus: MenuItem[] = isAuthenticated
-    ? [
-        ...(canSwitchRole
-          ? [{
-              key: 'switch-role',
-              label: primaryRole === 'coach' ? '切换到学员端' : '切换到教练端',
-              icon: primaryRole === 'coach' ? 'icon-shenqingquanxian' : 'icon-coachline_line',
-              iconBg: primaryRole === 'coach' ? '#29C3A3' : '#FFD700',
-              action: handleSwitchRole,
-              requiresAuth: true
-            }]
-          : []),
-        ...(!isCoach ? [{
-            key: 'apply-coach',
-            label: '申请成为教练',
-            icon: 'icon-shenqingquanxian',
-            iconBg: '#FFD700',
-            path: '/coach/application'
-          }] : []),
-        {
-          key: 'account-settings',
-          label: '账户设置',
-          icon: 'icon-account-settings-variant',
-          iconBg: '#B0BEC5',
-          path: '/me/settings/index',
+    { key: 'purchase-history', label: '购买记录', icon: 'icon-goumaijilu', path: '/me/purchase-history/index', requiresAuth: true },
+    { key: 'join-beta-group', label: '内测群', icon: 'icon-friends-o', action: handleJoinBetaGroup },
+    canSwitchRole
+      ? {
+          key: 'switch-role',
+          label: primaryRole === 'coach' ? '切到学员端' : '切到教练端',
+          icon: primaryRole === 'coach' ? 'icon-shenqingquanxian' : 'icon-coachline_line',
+          action: handleSwitchRole,
           requiresAuth: true
         }
-      ]
-    : [
-        {
-          key: 'login',
-          label: '立即登录',
-          icon: 'icon-login',
-          iconBg: '#29C3A3',
-          action: () => openLogin('/me/profile/index'),
-          badge: '推荐'
-        },
-        {
-          key: 'register',
-          label: '注册账号',
-          icon: 'icon-account-settings-variant',
-          iconBg: '#5C8DFF',
-          path: '/auth/register'
-        },
-        {
+      : {
           key: 'apply-coach',
           label: '申请成为教练',
           icon: 'icon-shenqingquanxian',
-          iconBg: '#FFD700',
-          path: '/auth/onboarding'
+          path: isAuthenticated ? '/coach/application' : '/auth/onboarding'
         }
-      ]
+  ]
 
   function handleMenuClick(item: MenuItem) {
     if (!isAuthenticated && item.requiresAuth) {
@@ -477,216 +415,116 @@ function Profile() {
     })
   }
 
-  function handleClearCache() {
-    if (isClearingCache) return
+  const trainingDataSummary = profileStats.monthDays === null
+    ? '训练日历、每月统计和力量变化'
+    : profileStats.monthDays > 0
+      ? `本月 ${profileStats.monthDays} 天 · ${profileStats.monthSets ?? 0} 组`
+      : '本月还没有训练记录'
 
-    Taro.showModal({
-      title: '清除缓存',
-      content: '将清除本地缓存和未保存草稿，不会退出登录。',
-      confirmText: '清除',
-      confirmColor: '#CF6D4E',
-      success: (res) => {
-        if (!res.confirm) return
+  const renderRow = (key: string, title: string, desc: string, onClick: () => void, badge?: string, open?: boolean) => (
+    <View key={key} className='me-row' hoverClass='me-row--pressed' hoverStayTime={60} onClick={onClick} ariaRole='button'>
+      <View className='me-row__copy'>
+        <Text className='me-row__title'>{title}</Text>
+        <Text className='me-row__desc'>{desc}</Text>
+      </View>
+      {badge ? <Text className='me-row__badge'>{badge}</Text> : null}
+      <Text className={`me-row__arrow ${open ? 'me-row__arrow--open' : ''}`}>›</Text>
+    </View>
+  )
 
-        setIsClearingCache(true)
-        try {
-          const { clearedCount } = clearLocalCache()
-          Taro.showToast({
-            title: clearedCount > 0 ? '缓存已清除' : '暂无缓存可清除',
-            icon: 'success'
-          })
-        } catch (error) {
-          console.error('[profile] clear local cache:', error)
-          Taro.showToast({
-            title: '清除缓存失败',
-            icon: 'none'
-          })
-        } finally {
-          setIsClearingCache(false)
-        }
-      }
-    })
-  }
-
-  async function handleLogout() {
-    Taro.showModal({
-      title: '退出登录',
-      content: '确定要退出登录吗？',
-      success: async (res) => {
-        if (!res.confirm) return
-
-        try {
-          await authService.logout()
-          Taro.showToast({
-            title: '已退出登录',
-            icon: 'success'
-          })
-          setTimeout(() => {
-            Taro.reLaunch({ url: '/auth/login' })
-          }, 1000)
-        } catch (error: any) {
-          console.error('[profile] logout:', error)
-          Taro.showToast({
-            title: '退出失败',
-            icon: 'error'
-          })
-        }
-      }
-    })
-  }
+  // Custom navigation bar: start the header below WeChat's capsule.
+  const capsule = getCapsuleLayout()
+  const bodyTop = `${capsule.top + capsule.height + 12}px`
 
   return (
     <PageThemeRoot>
-    <View className={`profile-page theme-${effectiveTheme}`}>
-      <View className='myContainer'>
-        <View className='profile-card'>
-          <View className='profile-card-header'>
-            <View className='avatar-wrapper' onClick={handleViewProfile}>
-              <View className='avatar-container'>
-                {user?.avatar_url ? (
-                  <Image
-                    className='avatar'
-                    src={user.avatar_url}
-                    mode='aspectFill'
-                  />
-                ) : (
-                  <View className='avatar-placeholder'>
-                    <Text className='avatar-text'>
-                      {isAuthenticated
-                        ? String(user?.real_name || user?.nickname || user?.phone || '?').substring(0, 1)
-                        : '登'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-            <View className='profile-info'>
-              <View className='profile-name-row'>
-                <Text className='profile-name'>{displayName}</Text>
-                <Text className='profile-tag'>{roleBadgeText}</Text>
-              </View>
-              <Text className='profile-edit-link' onClick={handleProfileSettings}>
-                {displaySubtitle}
+    <View className={`me-page ${effectiveTheme === 'dark' ? 'cl-theme-dark' : ''}`}>
+      <View className='me-page__body' style={{ paddingTop: bodyTop }}>
+        <View className='me-head'>
+          <View className='me-head__avatar' onClick={handleViewProfile} ariaRole='button' ariaLabel='查看个人资料'>
+            {user?.avatar_url ? (
+              <Image className='me-head__avatar-img' src={user.avatar_url} mode='aspectFill' />
+            ) : (
+              <Text className='me-head__avatar-text'>
+                {isAuthenticated
+                  ? String(user?.real_name || user?.nickname || user?.phone || '?').substring(0, 1)
+                  : '登'}
               </Text>
-              <Text className='profile-edit-link' onClick={isAuthenticated ? handleProfileSettings : () => openLogin('/me/profile/index')}>
-                {isAuthenticated ? `编辑资料 · ${statusBadgeText}` : statusBadgeText}
-              </Text>
-            </View>
-            <View className='profile-header-right'>
-              <View
-                className='theme-toggle-btn-round'
-                onClick={handleThemeToggle}
-              >
-                <Text className={`iconfont ${themeIconClass} theme-toggle-icon`} />
-              </View>
-            </View>
+            )}
           </View>
-
-          <View className='profile-stats-row'>
-            {topMenus.map((item) => (
-              <View
-                key={item.key}
-                className='profile-stat-item'
-                onClick={() => handleMenuClick(item)}
-              >
-                <Text className='profile-stat-value'>{item.value}</Text>
-                <Text className='profile-stat-label'>{item.label}</Text>
-                <Text className='profile-stat-unit'>{item.unit}</Text>
-              </View>
-            ))}
+          <View className='me-head__copy'>
+            <View className='me-head__name-row'>
+              <Text className='me-head__name'>{displayName}</Text>
+              <ClTag>{roleBadgeText}</ClTag>
+            </View>
+            {isAuthenticated ? (
+              <Text className='me-head__meta' onClick={handleProfileSettings}>
+                {user?.phone ? `${user.phone} · ` : ''}编辑资料 · {points} 积分 ›
+              </Text>
+            ) : (
+              <Text className='me-head__meta'>{displaySubtitle}</Text>
+            )}
+          </View>
+          <View className='me-head__theme' onClick={handleThemeToggle} ariaRole='button' ariaLabel={isDark ? '切换为浅色模式' : '切换为深色模式'}>
+            <Text className={`iconfont ${themeIconClass}`} />
           </View>
         </View>
 
-        {!isAuthenticated && (
-          <View className='guest-notice-card'>
-            <Text className='guest-notice-title'>登录后解锁你的训练资产</Text>
-            <Text className='guest-notice-desc'>
-              {WECHAT_FREE_RELEASE ? '计划、消息和训练历史都会在登录后自动同步到这里。' : '计划、会员、消息、购买记录和训练历史都会在登录后自动同步到这里。'}
-            </Text>
+        {!isAuthenticated ? (
+          <View className='me-guest'>
+            <ClButton block onClick={() => openLogin('/me/profile/index')}>登录 / 注册</ClButton>
           </View>
-        )}
+        ) : null}
 
-        <View className='menu-list-card'>
-          <XPayTrialEntry userId={user?.id} />
-          {middleMenus.map((item) => (
-            <View
-              key={item.key}
-              className='menu-list-item'
-              onClick={() => handleMenuClick(item)}
-            >
-              <View className='menu-list-left'>
-                <View className='menu-list-icon' style={{ '--icon-color': '#CF6D4E' } as any}>
-                  <Text className={`iconfont ${item.icon}`} />
-                </View>
-                <Text className='menu-list-label'>{item.label}</Text>
-              </View>
-              <View className='menu-list-right'>
-                {item.badge && (
-                  <View className='list-badge'>
-                    <Text className='list-badge-text'>{item.badge}</Text>
-                  </View>
-                )}
-                <Text className='menu-list-arrow'>›</Text>
-              </View>
+        <View className='me-stats'>
+          {statMenus.map((item) => (
+            <View key={item.key} className='me-stats__item' hoverClass='me-stats__item--pressed' hoverStayTime={60} onClick={() => handleMenuClick(item)} ariaRole='button'>
+              <Text className='me-stats__value cl-num'>
+                {isAuthenticated ? item.value : <Text className='me-stats__empty'>-</Text>}
+                <Text className='me-stats__unit'> {item.unit}</Text>
+              </Text>
+              <Text className='me-stats__label'>{item.label}</Text>
             </View>
           ))}
         </View>
 
-        <View className='menu-list-card'>
-          {extraMenus.map((item) => (
-            <View
-              key={item.key}
-              className='menu-list-item'
-              onClick={() => handleMenuClick(item)}
-            >
-              <View className='menu-list-left'>
-                <View className='menu-list-icon' style={{ '--icon-color': '#CF6D4E' } as any}>
-                  <Text className={`iconfont ${item.icon}`} />
-                </View>
-                <Text className='menu-list-label'>{item.label}</Text>
+        <View className='me-card'>
+          {renderRow('training-data', '训练数据', trainingDataSummary, () => handleMenuClick({ key: 'training-data', label: '训练数据', icon: '', path: '/me/training-history/index', requiresAuth: true }))}
+          {renderRow(
+            'fitness-card',
+            '健身资料卡',
+            '身高体重、目标和训练频率，教练排计划会用到',
+            () => handleMenuClick({ key: 'fitness-card', label: '健身资料卡', icon: '', path: '/me/profile/fitness-card/index', requiresAuth: true }),
+            isAuthenticated && profileMissingCount > 0 ? `待完善 ${profileMissingCount} 项` : undefined
+          )}
+        </View>
+
+        <XPayTrialEntry userId={user?.id} />
+
+        <View className='me-grid'>
+          {gridMenus.map((item) => (
+            <View key={item.key} className='me-grid__item' hoverClass='me-grid__item--pressed' hoverStayTime={60} onClick={() => handleMenuClick(item)} ariaRole='button' ariaLabel={item.badge ? `${item.label}，${item.badge} 条未读` : item.label}>
+              <View className='me-grid__icon'>
+                <Text className={`iconfont ${item.icon}`} />
+                {item.badge ? <Text className='me-grid__badge cl-num'>{item.badge}</Text> : null}
               </View>
-              <View className='menu-list-right'>
-                {item.badge && (
-                  <View className='list-badge'>
-                    <Text className='list-badge-text'>{item.badge}</Text>
-                  </View>
-                )}
-                <Text className='menu-list-arrow'>›</Text>
-              </View>
+              <Text className='me-grid__label'>{item.label}</Text>
             </View>
           ))}
         </View>
 
-        {isAuthenticated && (
-          <View className='logout-section'>
-            <View
-              className={`cache-clear-btn${isClearingCache ? ' is-loading' : ''}`}
-              onClick={handleClearCache}
-            >
-              <Text className='cache-clear-text'>{isClearingCache ? '正在清除缓存…' : '清除缓存'}</Text>
+        <View className='me-card'>
+          {isAuthenticated
+            ? renderRow('account-settings', '账户设置', '密码、账号同步、清除缓存、退出登录', () => handleMenuClick({ key: 'account-settings', label: '账户设置', icon: '', path: '/me/settings/index', requiresAuth: true }))
+            : null}
+          {renderRow('legal', '关于与协议', `联系我们、文档、${LEGAL_LINKS.length - 3} 份协议与说明`, () => setLegalOpen((open) => !open), undefined, legalOpen)}
+          {legalOpen ? (
+            <View className='me-legal'>
+              {LEGAL_LINKS.map((link) => (
+                <Text key={link.url} className='me-legal__link' onClick={() => Taro.navigateTo({ url: link.url })}>{link.label}</Text>
+              ))}
             </View>
-            <View className='logout-btn' onClick={handleLogout}>
-              <Text className='logout-text'>退出登录</Text>
-            </View>
-          </View>
-        )}
-
-        <View className='profile-footer-links'>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/about/index' })}>关于</Text>
-          <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/disclaimer/index' })}>免责声明</Text>
-          <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/contact/index' })}>联系</Text>
-          <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/docs/index' })}>文档</Text>
-          <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/auth/onboarding' })}>入驻说明</Text>
-          <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/protection-of-consumer/index' })}>消费者权益保护</Text>
-          <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/terms/index' })}>用户服务协议</Text>
-          <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/platform-agreement/index' })}>平台入驻协议</Text>
+          ) : null}
         </View>
       </View>
 

@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { GetCoachDto, GetCoachResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { CoachesRow } from "@/types";
+import { COACH_PROFILE_VIEW, canViewPrivateCoachFields, toPublicCoachView } from "@/lib/coachPublicView";
+import { getCoachViewer } from "@/lib/coachViewer";
 
 // 获取全局默认支付模式
 async function getDefaultPaymentMode(): Promise<
@@ -31,6 +33,7 @@ export async function POST(req: Request) {
         needPaymentInfo = false,
         needInvitationInfo = false,
     } = await req.json() as GetCoachDto;
+    const viewer = await getCoachViewer(req);
 
     let coach: CoachesRow | null = null;
 
@@ -82,9 +85,11 @@ export async function POST(req: Request) {
         coach = coachData;
     }
 
-    // 构建响应数据
+    const canViewPrivate = canViewPrivateCoachFields(viewer, coach);
+
+    // 构建响应数据（非本人、非管理员只拿公开字段：去掉支付账户、邀请码；联系方式公开）
     const responseData: GetCoachResponseDto = {
-        coach: coach,
+        coach: canViewPrivate ? coach : toPublicCoachView(coach, COACH_PROFILE_VIEW),
     };
 
     // 如果需要支付信息
@@ -109,7 +114,7 @@ export async function POST(req: Request) {
         };
     }
 
-    if (needInvitationInfo && coach) {
+    if (needInvitationInfo && coach && canViewPrivate) {
         responseData.invitationInfo = {
             invitationCode: coach.invitation_code,
             invitationMode: coach.invitation_mode as "exclusive" | "open",
@@ -120,10 +125,13 @@ export async function POST(req: Request) {
     }
 
     // 如果不需要二维码信息，清除敏感字段
-    if (!needQrCode && !needPaymentInfo && coach) {
+    if (!needQrCode && !needPaymentInfo && responseData.coach) {
         // 清除旧字段（兼容）和新字段
-        (coach as any).payment_qr_code = undefined;
-        (coach as any).payment_qr_codes = undefined;
+        responseData.coach = {
+            ...responseData.coach,
+            payment_qr_code: undefined,
+            payment_qr_codes: undefined,
+        } as CoachesRow;
     }
 
     return NextResponse.json<ApiData<GetCoachResponseDto>>({

@@ -12,10 +12,13 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+import generic_motion as gm
 import pose_features as pf
 from assessment import build_assessment
 from barbell_reps import G, HP_WATT, refine_barbell_reps
-from mode_presets import SUPPORTED_MODES, get_mode_preset, is_barbell_mode
+from custom_checks import build_custom_assessment
+from keyframes import export_keyframes
+from mode_presets import SUPPORTED_MODES, get_mode_preset, is_barbell_mode, is_generic_mode
 from movement_rules import RuleContext
 from plate_tracker import track_plate
 from render_overlay import render_output_video
@@ -597,6 +600,8 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     emit_progress(8)
     fps, width, height, track = collect_landmarks(args.input)
     emit_progress(45)
+    if is_generic_mode(args.mode):
+        return run_custom(args, fps, width, height, track)
     preset = get_mode_preset(args.mode)
     barbell = is_barbell_mode(args.mode)
     external_load_kg = max(0.0, float(args.external_load_kg or 0))
@@ -646,24 +651,33 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     }
     emit_progress(55)
 
+    render_and_finalize(
+        args,
+        metrics,
+        {
+            "metrics": metrics,
+            "preset": preset,
+            "track": track,
+            "y_track": y_track,
+            "scale_m_per_px": scale,
+            "fps": fps,
+            "language": args.language,
+            "bar_points": bar_points,
+            "plate_radius_px": measured.plate_radius,
+            "events": sorted(context.events, key=lambda event: event["frame"]),
+            "side": context.angle_side,
+        },
+    )
+    return metrics
+
+
+def render_and_finalize(args: argparse.Namespace, metrics: Dict[str, Any], renderer_args: Dict[str, Any]) -> None:
     rendered_path = f"{args.output}.rendered.mp4"
     try:
         render_output_video(
             args.input,
             rendered_path,
-            {
-                "metrics": metrics,
-                "preset": preset,
-                "track": track,
-                "y_track": y_track,
-                "scale_m_per_px": scale,
-                "fps": fps,
-                "language": args.language,
-                "bar_points": bar_points,
-                "plate_radius_px": measured.plate_radius,
-                "events": sorted(context.events, key=lambda event: event["frame"]),
-                "side": context.angle_side,
-            },
+            renderer_args,
             on_progress=lambda share: emit_progress(55 + int(share * 35)),
         )
         emit_progress(92)
@@ -674,6 +688,102 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
         if os.path.exists(rendered_path):
             os.remove(rendered_path)
     emit_progress(97)
+
+
+def custom_scale(track: np.ndarray, frame_height: int, height_cm: float) -> Tuple[float, str]:
+    """Torso length works lying, bent or upright; head-to-foot height only when standing.
+
+    Bending toward the camera only ever shortens the torso on screen, so the longest
+    frames (90th percentile) are used instead of the median.
+    """
+    lengths = pf.torso_length(track)
+    lengths = lengths[np.isfinite(lengths) & (lengths >= 40)]
+    if lengths.size >= 5:
+        return (height_cm / 100.0) * TORSO_HEIGHT_RATIO / float(np.percentile(lengths, 90)), "torso_segment"
+    scale = height_scale_m_per_px(track, frame_height, height_cm)
+    if scale is not None:
+        return scale, "body_height"
+    return frame_fallback_scale(frame_height, height_cm), "frame_fallback"
+
+
+def build_custom_metrics(args: argparse.Namespace, motion: gm.GenericMotion, reps: List[Dict[str, Any]]) -> Dict[str, Any]:
+    mass = build_mass_metrics(args.weight_kg, args.external_load_kg, 0.0, barbell=True)
+    displacements = [float(rep["displacementM"]) for rep in reps]
+    return {
+        "mode": "custom",
+        "mass": mass,
+        "repCount": len(reps),
+        "summary": {
+            "avgPowerW": 0,
+            "bestPowerW": 0,
+            "bestHorsepowerHp": 0,
+            "bestVelocityMps": round_float(max([float(rep["maxVelocityMps"]) for rep in reps] or [0.0]), 3),
+            "avgAscentTimeS": round_float(float(np.mean([float(rep["ascentTimeS"]) for rep in reps])), 3) if reps else 0,
+            "avgDisplacementM": round_float(float(np.mean(displacements)), 3) if reps else 0,
+            "bestMeanVelocityMps": 0,
+            "avgMeanVelocityMps": 0,
+            "lastMeanVelocityMps": 0,
+            "velocityLossPct": None,
+        },
+        "reps": reps,
+        "custom": gm.custom_info(motion, args.action_name),
+        "notes": [
+            "Custom movement (trial): reps follow the body part that moves the most; no movement-specific standard is applied.",
+            f"Recommended view: {get_mode_preset('custom')['viewHint']}",
+        ],
+    }
+
+
+def run_custom(args: argparse.Namespace, fps: float, width: int, height: int, track: np.ndarray) -> Dict[str, Any]:
+    scale, scale_source = custom_scale(track, height, args.height_cm)
+    motion = gm.analyze_generic_motion(track, fps, height)
+    signal = motion.signal
+    reps = gm.build_generic_reps(motion, fps, scale)
+    emit_progress(52)
+    metrics = build_custom_metrics(args, motion, reps)
+    metrics["analyzerVersion"] = ANALYZER_VERSION
+    metrics["timeSeries"] = []
+    context = RuleContext("custom", track, reps, fps, scale)
+    metrics["assessment"] = build_custom_assessment(context, motion)
+    metrics["measurement"] = {
+        "target": "body_anchor",
+        "anchorLabelZh": f"{signal.label_zh}（自动选取）" if signal else "身体",
+        "scaleSource": scale_source,
+        "confidence": "low" if scale_source == "frame_fallback" else "medium",
+        "warningsZh": [] if reps else ["没有找到重复的动作周期，请固定手机、全身入镜，动作前后各停 1 秒"],
+    }
+    metrics["video"] = {
+        "fps": round_float(fps, 3),
+        "width": width,
+        "height": height,
+        "scaleMPerPx": round_float(scale, 6),
+    }
+    if args.keyframes_dir and reps and signal is not None:
+        manifest = export_keyframes(
+            args.input, track, reps, args.keyframes_dir, fps, motion.phase_labels_zh, signal.axis_kind, motion.rest
+        )
+        metrics["keyframeCount"] = len(manifest["frames"]) if manifest else 0
+    emit_progress(55)
+    joint_side = motion.joint_side
+    render_and_finalize(
+        args,
+        metrics,
+        {
+            "metrics": metrics,
+            "preset": {**get_mode_preset("custom"), "labelZh": args.action_name, "label": args.action_name},
+            "track": track,
+            "y_track": [None] * track.shape[0],
+            "scale_m_per_px": scale,
+            "fps": fps,
+            "language": args.language,
+            "bar_points": None,
+            "plate_radius_px": None,
+            "events": sorted(context.events, key=lambda event: event["frame"]),
+            # Joint angles and tags are drawn on the side facing the camera.
+            "side": joint_side,
+            "custom_motion": motion,
+        },
+    )
     return metrics
 
 
@@ -682,6 +792,11 @@ def plate_diameter_arg(value: str) -> float:
     if not 20 <= diameter <= 50:
         raise argparse.ArgumentTypeError("plate diameter must be between 20 and 50 cm")
     return diameter
+
+
+def action_name_arg(value: str) -> str:
+    name = " ".join(str(value).split())[:20]
+    return name or "其他动作"
 
 
 def main() -> int:
@@ -696,6 +811,8 @@ def main() -> int:
     parser.add_argument("--plate-diameter-cm", type=plate_diameter_arg, default=DEFAULT_PLATE_DIAMETER_CM)
     parser.add_argument("--language", choices=["zh", "en"], default="zh")
     parser.add_argument("--quality", choices=["compressed", "original"], default="compressed")
+    parser.add_argument("--action-name", type=action_name_arg, default="其他动作")
+    parser.add_argument("--keyframes-dir", default="", help="custom mode: write de-identified keyframes here")
     args = parser.parse_args()
 
     try:

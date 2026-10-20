@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
@@ -7,54 +6,8 @@ import type {
     GetAggregatedInfoResponseDto,
 } from "./entity";
 import redis from "@/lib/redisClient";
-import { filterPublicCoachApplicationMaterials } from "@/lib/coachApplicationMaterials";
-
-function stripSensitiveCoachFieldsForPublicView(coach: any) {
-    if (!coach) return coach;
-    const next = { ...(coach || {}) };
-
-    // 支付相关敏感字段（兼容旧字段与新字段）
-    next.payment_qr_code = undefined;
-    next.payment_qr_codes = undefined;
-    next.allow_personal_qrcode = undefined;
-    next.payment_mode = undefined;
-
-    // 邀请码相关（避免公开扩散）
-    next.invitation_code = undefined;
-    next.invitation_mode = undefined;
-
-    // profile 中的联系方式/社交链接等敏感信息
-    if (next.profile && typeof next.profile === "object") {
-        const p = { ...next.profile };
-        delete (p as any).contactEmail;
-        delete (p as any).contactPhone;
-        delete (p as any).socialLinks;
-        if ((p as any).applicationMaterials) {
-            (p as any).applicationMaterials = filterPublicCoachApplicationMaterials(
-                (p as any).applicationMaterials,
-            );
-        }
-        next.profile = p;
-    }
-
-    return next;
-}
-
-function filterCoachMaterialsForViewer(coach: any, canViewPrivate: boolean) {
-    if (!coach?.profile || typeof coach.profile !== "object" || canViewPrivate) {
-        return coach;
-    }
-
-    return {
-        ...coach,
-        profile: {
-            ...coach.profile,
-            applicationMaterials: filterPublicCoachApplicationMaterials(
-                coach.profile.applicationMaterials,
-            ),
-        },
-    };
-}
+import { COACH_PROFILE_VIEW, coachViewForViewer } from "@/lib/coachPublicView";
+import { getCoachViewer } from "@/lib/coachViewer";
 
 /**
  * 用于将“教练申请表”的资料补全到 coaches.profile：
@@ -164,8 +117,7 @@ async function getReviewCount(coachId: string) {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    const isAuthenticated = Boolean(session?.user?.id);
+    const viewer = await getCoachViewer(req);
 
     const {
         coachId,
@@ -287,12 +239,7 @@ export async function POST(req: Request) {
             ...(templateSpecialties || []),
         ]),
     );
-    const canViewPrivateMaterials = Boolean(
-        session?.user?.is_admin || session?.user?.id === enrichedCoach.user_id,
-    );
-    const visibleCoach = isAuthenticated
-        ? filterCoachMaterialsForViewer(enrichedCoach, canViewPrivateMaterials)
-        : stripSensitiveCoachFieldsForPublicView(enrichedCoach);
+    const visibleCoach = coachViewForViewer(viewer, enrichedCoach, COACH_PROFILE_VIEW);
 
     return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
         success: true,

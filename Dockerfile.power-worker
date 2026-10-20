@@ -27,6 +27,7 @@ RUN npm ci --legacy-peer-deps
 
 COPY scripts ./scripts
 COPY src ./src
+COPY packages ./packages
 COPY tsconfig.json ./
 
 RUN python3 -m venv /opt/power-analysis-venv && \

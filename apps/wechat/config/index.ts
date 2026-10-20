@@ -4,6 +4,8 @@ import devConfig from './dev'
 import prodConfig from './prod'
 import vitePluginImp from 'vite-plugin-imp'
 import { UnifiedViteWeappTailwindcssPlugin } from 'weapp-tailwindcss/vite'
+import { weappCompPathPlugin } from './weappCompPath'
+import { weappSkipUnchangedPlugin } from './weappSkipUnchanged'
 
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'vite'>(async (merge, { command, mode }) => {
@@ -83,7 +85,9 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
             }
           ]
         }),
-        UnifiedViteWeappTailwindcssPlugin()
+        UnifiedViteWeappTailwindcssPlugin(),
+        weappCompPathPlugin(),
+        weappSkipUnchangedPlugin()
       ],
       type: 'vite'
     },

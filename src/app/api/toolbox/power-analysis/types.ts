@@ -24,6 +24,13 @@ export interface PowerAnalysisRepMetric {
   endTimeS?: number;
   pauseS?: number | null;
   barHorizontalTravelCm?: number;
+  /** Custom mode: time toward the far end of the motion, back to the start, and held there. */
+  phase1TimeS?: number;
+  phase2TimeS?: number;
+  holdTimeS?: number;
+  /** Custom mode: main joint angle range within the rep. */
+  jointMinDeg?: number;
+  jointMaxDeg?: number;
 }
 
 export interface PowerAnalysisTimeSeriesPoint {
@@ -74,6 +81,17 @@ export interface PowerAnalysisMeasurement {
   warningsZh: string[];
 }
 
+/** What the generic analyzer followed for a custom movement. */
+export interface PowerAnalysisCustomInfo {
+  actionNameZh: string;
+  primaryPart: string;
+  primaryPartZh: string;
+  axis: "vertical" | "horizontal" | "diagonal";
+  phaseLabelsZh: [string, string];
+  mainJoint: string | null;
+  mainJointZh: string | null;
+}
+
 export interface PowerAnalysisMetrics {
   analyzerVersion?: string;
   mode: PowerAnalysisMode;
@@ -102,6 +120,7 @@ export interface PowerAnalysisMetrics {
   rating?: PowerAnalysisRating;
   assessment?: PowerAnalysisAssessment;
   measurement?: PowerAnalysisMeasurement;
+  custom?: PowerAnalysisCustomInfo;
   video?: {
     inputSizeBytes?: number;
     outputSizeBytes?: number;
@@ -121,6 +140,8 @@ export interface PowerAnalysisJobDto {
   /** Extra load for bodyweight movements; total bar mass for barbell lifts. */
   externalLoadKg: number;
   plateDiameterCm?: number;
+  /** Movement name the user typed for the custom mode. */
+  customActionName?: string;
   status: PowerAnalysisJobStatus;
   progress: number;
   metrics: PowerAnalysisMetrics | null;
@@ -164,6 +185,8 @@ export interface CreatePowerAnalysisUploadUrlDto {
   weightKg: number;
   externalLoadKg?: number;
   plateDiameterCm?: number;
+  /** Required for the custom mode. */
+  customActionName?: string;
   originalFilename: string;
   contentType: string;
   fileSizeBytes: number;
