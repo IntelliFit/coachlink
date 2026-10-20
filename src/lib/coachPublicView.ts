@@ -31,11 +31,15 @@ function isPrivateCoachKey(key: string): boolean {
 
 interface PublicViewOptions {
     /**
-     * The coach profile page shows contact email / phone / social links to signed-in users
-     * (never to guests). Lists and lookups do not display them, so they drop them for everyone.
+     * Keep contact email / phone / social links. The coach profile (web and mini-program "介绍")
+     * shows them to everyone, guests included (product decision 2026-10-20). Lists do not display
+     * them, so they drop them.
      */
     keepContact?: boolean;
 }
+
+/** View used by the coach profile and single-coach lookups: contact details are public. */
+export const COACH_PROFILE_VIEW: PublicViewOptions = { keepContact: true };
 
 /** Returns a copy of a coach row without private fields. Never mutates the input. */
 export function toPublicCoachView<T extends Record<string, any> | null | undefined>(coach: T, options: PublicViewOptions = {}): T {

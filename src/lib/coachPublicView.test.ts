@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canViewPrivateCoachFields, coachViewForViewer, toPublicCoachView } from "./coachPublicView";
+import { COACH_PROFILE_VIEW, canViewPrivateCoachFields, coachViewForViewer, toPublicCoachView } from "./coachPublicView";
 
 const coachRow = {
     id: "coach-1",
@@ -109,6 +109,15 @@ describe("coachViewForViewer", () => {
             const view = coachViewForViewer(viewer, coachRow);
             for (const key of PRIVATE_KEYS) expect(view).not.toHaveProperty(key);
         }
+    });
+
+    it("shows contact details on the coach profile to guests, still without private fields", () => {
+        const view = coachViewForViewer(guest, coachRow, COACH_PROFILE_VIEW);
+        expect(view.profile).toMatchObject({
+            contactEmail: "coach@example.com",
+            contactPhone: "13800000000",
+        });
+        for (const key of PRIVATE_KEYS) expect(view).not.toHaveProperty(key);
     });
 
     it("does not treat a missing user id as a match", () => {

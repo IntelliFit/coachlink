@@ -459,5 +459,5 @@
 - **现象**：不登录调用 `/api/coach/get-all-coaches` 能拿到每位教练的汇付账户号和卡 token、邀请码、联系电话和邮箱；`get-coach` 带 `needInvitationInfo` 可以拿到任意教练的邀请链接；`get-aggregated-info` 登录后看别人主页也能拿到这些字段。
 - **根因**：三个接口在 `src/proxy.ts` 公开名单里，查询用 `select("*")` 直接返回整行；脱敏只在 aggregated-info 对游客做了一部分，而且漏了 `huifu_*`。
 - **统一规则**：公开或跨用户返回教练数据一律经过 `coachViewForViewer` / `toPublicCoachView`（`src/lib/coachPublicView.ts`），只有教练本人和管理员拿完整行；查看者用 `getCoachViewer(req)`（同时支持网页 session 和小程序 Bearer）。
-- **改动前自检**：新接口是否返回 `coaches` 整行？是否在公开名单里？查看者不是本人时，支付、邀请、`huifu_*`、联系方式是否被去掉？
+- **改动前自检**：新接口是否返回 `coaches` 整行？是否在公开名单里？查看者不是本人时，支付、邀请、`huifu_*` 是否被去掉？联系方式在教练主页和单个教练接口里按产品决定公开（`COACH_PROFILE_VIEW`），列表不返回。
 - **典型案例**（2026-10-20）：教练列表改版时在接口响应里发现；已统一收口三个接口。

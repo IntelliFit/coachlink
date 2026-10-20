@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { GetCoachDto, GetCoachResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { CoachesRow } from "@/types";
-import { canViewPrivateCoachFields, toPublicCoachView } from "@/lib/coachPublicView";
+import { COACH_PROFILE_VIEW, canViewPrivateCoachFields, toPublicCoachView } from "@/lib/coachPublicView";
 import { getCoachViewer } from "@/lib/coachViewer";
 
 // 获取全局默认支付模式
@@ -87,9 +87,9 @@ export async function POST(req: Request) {
 
     const canViewPrivate = canViewPrivateCoachFields(viewer, coach);
 
-    // 构建响应数据（非本人、非管理员只拿公开字段：去掉支付账户、邀请码、联系方式）
+    // 构建响应数据（非本人、非管理员只拿公开字段：去掉支付账户、邀请码；联系方式公开）
     const responseData: GetCoachResponseDto = {
-        coach: canViewPrivate ? coach : toPublicCoachView(coach),
+        coach: canViewPrivate ? coach : toPublicCoachView(coach, COACH_PROFILE_VIEW),
     };
 
     // 如果需要支付信息

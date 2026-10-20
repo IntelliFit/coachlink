@@ -6,7 +6,7 @@ import type {
     GetAggregatedInfoResponseDto,
 } from "./entity";
 import redis from "@/lib/redisClient";
-import { coachViewForViewer } from "@/lib/coachPublicView";
+import { COACH_PROFILE_VIEW, coachViewForViewer } from "@/lib/coachPublicView";
 import { getCoachViewer } from "@/lib/coachViewer";
 
 /**
@@ -118,7 +118,6 @@ async function getReviewCount(coachId: string) {
 
 export async function POST(req: Request) {
     const viewer = await getCoachViewer(req);
-    const isAuthenticated = Boolean(viewer.userId);
 
     const {
         coachId,
@@ -240,7 +239,7 @@ export async function POST(req: Request) {
             ...(templateSpecialties || []),
         ]),
     );
-    const visibleCoach = coachViewForViewer(viewer, enrichedCoach, { keepContact: isAuthenticated });
+    const visibleCoach = coachViewForViewer(viewer, enrichedCoach, COACH_PROFILE_VIEW);
 
     return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
         success: true,
