@@ -1,6 +1,6 @@
 .feedback-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  background: var(--cl-paper);
 }
 .feedback-scroll {
   height: 100vh;
@@ -13,12 +13,12 @@
 .feedback-title {
   font-size: 40rpx;
   font-weight: bold;
-  color: #333;
+  color: var(--cl-ink);
   display: block;
 }
 .feedback-desc {
   font-size: 26rpx;
-  color: #999;
+  color: var(--cl-ink-3);
   margin-top: 8rpx;
   display: block;
 }
@@ -28,7 +28,7 @@
 .section-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #333;
+  color: var(--cl-ink);
   margin-bottom: 16rpx;
   display: block;
 }
@@ -40,35 +40,35 @@
 .faq-item {
   width: calc(50% - 8rpx);
   padding: 24rpx;
-  background: #fff;
-  border: 2rpx solid #eee;
+  background: var(--cl-card);
+  border: 2rpx solid var(--cl-line);
   border-radius: 16rpx;
   box-sizing: border-box;
   &.active {
-    border-color: #cf6d4e;
-    background: #fbf0ec;
+    border-color: var(--cl-clay);
+    background: var(--cl-clay-soft);
   }
 }
 .faq-question {
   font-size: 26rpx;
   font-weight: 600;
-  color: #333;
+  color: var(--cl-ink);
   display: block;
   margin-bottom: 8rpx;
 }
 .faq-category {
   font-size: 22rpx;
-  color: #999;
+  color: var(--cl-ink-3);
 }
 .form-card {
-  background: #fff;
+  background: var(--cl-card);
   border-radius: 16rpx;
   padding: 32rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
 .label {
   font-size: 28rpx;
-  color: #333;
+  color: var(--cl-ink);
   margin-bottom: 16rpx;
   display: block;
 }
@@ -80,31 +80,31 @@
 }
 .selected-tag {
   font-size: 24rpx;
-  color: #666;
+  color: var(--cl-ink-2);
 }
 .clear-btn {
   font-size: 24rpx;
-  color: #cf6d4e;
+  color: var(--cl-clay);
 }
 .textarea {
   width: 100%;
   min-height: 240rpx;
   padding: 16rpx;
-  background: #f9f9f9;
+  background: var(--cl-sunk);
   border-radius: 8rpx;
   font-size: 28rpx;
   box-sizing: border-box;
 }
 .hint {
   font-size: 24rpx;
-  color: #999;
+  color: var(--cl-ink-3);
   margin-top: 16rpx;
   display: block;
 }
 .submit-btn {
   margin-top: 40rpx;
-  background: #cf6d4e;
-  color: #fff;
+  background: var(--cl-clay-strong);
+  color: var(--cl-on-accent);
   border-radius: 8rpx;
 }
 .submit-btn[disabled] {
