@@ -176,24 +176,13 @@ export default function StreetliftingLocationSharePage() {
 
   const current = location || previewLocation
   const images = getLocationImages(current)
-  const detailLine = buildAreaLine(current)
   const metaLine = buildMetaLine(current)
   const contributorLine = formatContributor(current)
 
   return (
-    <View className={`location-share-page theme-${effectiveTheme}`}>
+    <View className={`location-share-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
       <ScrollView className='location-share-scroll' scrollY>
         <View className='location-share-content'>
-          {current && (
-            <View className='location-share-hero'>
-              <Text className='location-share-eyebrow'>来自分享</Text>
-              <Text className='location-share-title'>{current.name}</Text>
-              <Text className='location-share-address'>
-                {detailLine || '打开后可查看这个单杠点位的完整介绍'}
-              </Text>
-            </View>
-          )}
-
           {loading ? (
             <View className='location-share-loading'>
               <LoadingSpinner size={48} />
@@ -216,7 +205,9 @@ export default function StreetliftingLocationSharePage() {
               </View>
 
               <View className='location-share-body'>
+                <Text className='location-share-eyebrow'>来自好友分享</Text>
                 <Text className='location-share-name'>{current.name}</Text>
+                {current.address ? <Text className='location-share-address'>{current.address}</Text> : null}
                 <Text className='location-share-meta'>
                   {metaLine || '单杠地图点位'}
                 </Text>

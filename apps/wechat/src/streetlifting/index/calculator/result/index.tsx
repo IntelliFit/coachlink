@@ -307,7 +307,7 @@ export default function CalculatorResultPage() {
 
   if (loading) {
     return (
-      <View className={`calc-result-page theme-${effectiveTheme}`}>
+      <View className={`calc-result-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
         <View className='calc-result-loading'>
           <LoadingSpinner size={48} />
         </View>
@@ -317,7 +317,7 @@ export default function CalculatorResultPage() {
 
   if (!result) {
     return (
-      <View className={`calc-result-page theme-${effectiveTheme}`}>
+      <View className={`calc-result-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
         <View className='calc-result-empty'>
           <Text>未找到计算结果</Text>
           <View className='calc-result-back-btn' onClick={handleBack}>
@@ -329,58 +329,38 @@ export default function CalculatorResultPage() {
   }
 
   return (
-    <View className={`calc-result-page theme-${effectiveTheme}`}>
+    <View className={`calc-result-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
       <ScrollView className='calc-result-scroll' scrollY>
         <View className='calc-result-content'>
-          <View className='result-actions-top'>
-            <View className='result-share-row top' onClick={handleOpenShare}>
-              <Text className='iconfont icon-share result-share-icon' />
-              <Text className='result-share-text'>生成分享卡片</Text>
-            </View>
-            <View className='result-recalc-row top' onClick={handleBack}>
-              <Text className='result-recalc-text'>再算一次</Text>
-            </View>
-          </View>
-
-          {scoreLevel && (
-            <View className='result-score-card'>
-              <Text className='result-score-label'>{scoreLevel.level}</Text>
-              <Text className='result-score-value'>
-                {result.final_score.toFixed(scoreDecimals)}
-                {scoreUnit}
+          <View className='result-hero'>
+            <View className='result-hero__head'>
+              <Text className='result-hero__exercise'>
+                {EXERCISE_OPTIONS.find((option) => option.value === exerciseType)?.label || '力量成绩'}
               </Text>
-              <Text className='result-score-sublabel'>{scoreLabel}</Text>
+              {scoreLevel ? <Text className='result-hero__level'>{scoreLevel.level}</Text> : null}
             </View>
-          )}
-
-          {result.adjusted_used_weight !== undefined && (
-            <Text className='result-line'>实际用于计算的重量：{result.adjusted_used_weight.toFixed(1)} kg</Text>
-          )}
-          {result.computed_added_weight !== undefined && (
-            <Text className='result-line'>反推做组重量：{result.computed_added_weight.toFixed(1)} kg</Text>
-          )}
-          {result.computed_reps !== undefined && (
-            <Text className='result-line'>反推可完成次数：{result.computed_reps} 次</Text>
-          )}
-
-          <View className='result-metrics-grid'>
-            <View className='result-metric-card'>
-              <Text className='result-metric-label'>
-                <Text className='iconfont icon-zhongliang metric-icon' />
-                {oneRMLabel}
-              </Text>
-              <Text className='result-metric-value'>
-                {result.estimated_1rm.toFixed(1)}
-                <Text className='result-metric-unit'> kg</Text>
-              </Text>
+            <View className='result-hero__numbers'>
+              <View className='result-hero__primary'>
+                <Text className='result-hero__value cl-num'>{result.final_score.toFixed(scoreDecimals)}{scoreUnit}</Text>
+                <Text className='result-hero__label'>{scoreLabel}</Text>
+              </View>
+              <View className='result-hero__secondary'>
+                <Text className='result-hero__value result-hero__value--sm cl-num'>
+                  {result.estimated_1rm.toFixed(1)}
+                  <Text className='result-hero__unit'> kg</Text>
+                </Text>
+                <Text className='result-hero__label'>{oneRMLabel}</Text>
+              </View>
             </View>
-            <View className='result-metric-card'>
-              <Text className='result-metric-label'>
-                <Text className='iconfont icon-strength metric-icon' />
-                {scoreLabel}
-              </Text>
-              <Text className='result-metric-value brand'>{result.final_score.toFixed(scoreDecimals)}</Text>
-            </View>
+            {result.adjusted_used_weight !== undefined && (
+              <Text className='result-line'>实际用于计算的重量 {result.adjusted_used_weight.toFixed(1)} kg</Text>
+            )}
+            {result.computed_added_weight !== undefined && (
+              <Text className='result-line result-line--strong'>反推做组重量 {result.computed_added_weight.toFixed(1)} kg</Text>
+            )}
+            {result.computed_reps !== undefined && (
+              <Text className='result-line result-line--strong'>反推可完成次数 {result.computed_reps} 次</Text>
+            )}
           </View>
 
           {summary?.personalBestRecord || summary?.previousRecord || summary?.ranking ? (
@@ -463,6 +443,16 @@ export default function CalculatorResultPage() {
           </View>
         </View>
       </ScrollView>
+
+      <View className='result-footer'>
+        <View className='result-footer__secondary' onClick={handleBack}>
+          <Text>再算一次</Text>
+        </View>
+        <View className='result-footer__primary' onClick={handleOpenShare}>
+          <Text className='iconfont icon-share' />
+          <Text>生成分享卡片</Text>
+        </View>
+      </View>
 
       <SharePosterModal
         visible={showShareModal}
