@@ -89,3 +89,4 @@ __pycache__/
 *.pyc
 apps/wechat/dist-training-entry/
 apps/wechat/dist-training-v3/
+.gstack/
