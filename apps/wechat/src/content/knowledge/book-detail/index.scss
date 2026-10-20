@@ -1,6 +1,6 @@
 .book-detail-page {
   min-height: 100vh;
-  background: #f5f2ef;
+  background: var(--cl-paper);
 
   .loading-wrap,
   .error-wrap,
@@ -18,14 +18,14 @@
 
     .error-text {
       display: block;
-      color: #666;
+      color: var(--cl-ink-2);
       font-size: 28rpx;
       margin-bottom: 32rpx;
       line-height: 1.6;
     }
 
     .error-action {
-      color: #cf6d4e;
+      color: var(--cl-clay);
       font-size: 28rpx;
       font-weight: 700;
     }
@@ -41,14 +41,14 @@
       display: block;
       font-size: 36rpx;
       font-weight: 700;
-      color: #333;
+      color: var(--cl-ink);
       margin-bottom: 16rpx;
     }
 
     .paywall-desc {
       display: block;
       font-size: 28rpx;
-      color: #666;
+      color: var(--cl-ink-2);
       margin-bottom: 32rpx;
       line-height: 1.7;
     }
@@ -56,8 +56,8 @@
     .paywall-btn {
       display: inline-block;
       padding: 24rpx 48rpx;
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       border-radius: 16rpx;
       font-size: 28rpx;
       font-weight: 700;
@@ -70,10 +70,10 @@
 
   .book-body {
     padding: 24rpx;
-    background: #fff;
+    background: var(--cl-card);
     margin: 24rpx;
     border-radius: 24rpx;
-    border: 1px solid #ece7e2;
+    border: 1px solid var(--cl-line);
 
     .book-cover-wrap {
       text-align: center;
@@ -83,15 +83,16 @@
         width: 280rpx;
         height: 384rpx;
         border-radius: 16rpx;
-        background: #f3f4f6;
+        background: var(--cl-sunk);
       }
 
+      /* No cover: a small book-shaped tile instead of a large empty box. */
       .book-cover-placeholder {
-        width: 280rpx;
-        height: 384rpx;
+        width: 160rpx;
+        height: 216rpx;
         margin: 0 auto;
         border-radius: 16rpx;
-        background: #e5e7eb;
+        background: var(--cl-clay-soft);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -102,7 +103,7 @@
       display: block;
       font-size: 40rpx;
       font-weight: 800;
-      color: #333;
+      color: var(--cl-ink);
       margin-bottom: 12rpx;
       line-height: 1.4;
       text-align: center;
@@ -111,7 +112,7 @@
     .book-author {
       display: block;
       font-size: 24rpx;
-      color: #666;
+      color: var(--cl-ink-2);
       margin-bottom: 16rpx;
       text-align: center;
     }
@@ -119,11 +120,11 @@
     .book-summary {
       display: block;
       font-size: 24rpx;
-      color: #666;
+      color: var(--cl-ink-2);
       line-height: 1.7;
       margin-bottom: 24rpx;
       padding: 16rpx;
-      background: #f9fafb;
+      background: var(--cl-sunk);
       border-radius: 16rpx;
     }
 
@@ -148,11 +149,11 @@
 
       &.paid {
         background: #fed7aa;
-        color: #9a3412;
+        color: var(--cl-clay-text);
       }
 
       &.overview {
-        background: #f6e2da;
+        background: var(--cl-line);
         color: #a6533a;
       }
 
@@ -165,7 +166,7 @@
     .disclaimer-card {
       padding: 16rpx;
       border-radius: 16rpx;
-      background: #fff7ed;
+      background: var(--cl-clay-soft);
       border: 1px solid #fdba74;
       margin-bottom: 24rpx;
     }
@@ -174,8 +175,8 @@
       display: inline-block;
       font-size: 20rpx;
       font-weight: 700;
-      color: #9a3412;
-      background: #ffedd5;
+      color: var(--cl-clay-text);
+      background: var(--cl-clay-soft);
       border-radius: 9999rpx;
       padding: 8rpx 16rpx;
       margin-bottom: 12rpx;
@@ -184,7 +185,7 @@
     .disclaimer-text {
       display: block;
       font-size: 24rpx;
-      color: #9a3412;
+      color: var(--cl-clay-text);
       line-height: 1.7;
     }
 
@@ -194,15 +195,15 @@
       .audio-label {
         font-size: 24rpx;
         font-weight: 700;
-        color: #333;
+        color: var(--cl-ink);
         margin-bottom: 12rpx;
         display: block;
       }
 
       .audio-btn {
         padding: 16rpx 24rpx;
-        background: #cf6d4e;
-        color: #fff;
+        background: var(--cl-clay-strong);
+        color: var(--cl-on-accent);
         border-radius: 16rpx;
         font-size: 24rpx;
         text-align: center;
@@ -213,7 +214,7 @@
     .content-section-title {
       font-size: 30rpx;
       font-weight: 800;
-      color: #333;
+      color: var(--cl-ink);
       margin-bottom: 16rpx;
       display: block;
     }
@@ -222,9 +223,9 @@
     .rich-section {
       margin-bottom: 32rpx;
       padding: 24rpx;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--cl-line);
       border-radius: 24rpx;
-      background: #faf9f7;
+      background: var(--cl-sunk);
     }
 
     .reading-card-head {
@@ -238,10 +239,10 @@
       flex-shrink: 0;
       padding: 8rpx 16rpx;
       border-radius: 9999rpx;
-      background: #f1e6e1;
+      background: var(--cl-line);
       font-size: 20rpx;
       font-weight: 700;
-      color: #9a4e37;
+      color: var(--cl-clay-text);
     }
 
     .reading-block + .reading-block {
@@ -253,7 +254,7 @@
       margin-bottom: 8rpx;
       font-size: 22rpx;
       font-weight: 800;
-      color: #374151;
+      color: var(--cl-ink);
     }
 
     .reading-tags {
@@ -264,9 +265,9 @@
       Text {
         padding: 8rpx 16rpx;
         border-radius: 9999rpx;
-        background: #ffffff;
+        background: var(--cl-card);
         font-size: 20rpx;
-        color: #6b7280;
+        color: var(--cl-ink-2);
       }
     }
 
@@ -275,7 +276,7 @@
       margin-bottom: 8rpx;
       font-size: 22rpx;
       line-height: 1.7;
-      color: #4b5563;
+      color: var(--cl-ink-2);
     }
 
     .section-description {
@@ -283,7 +284,7 @@
       margin-bottom: 16rpx;
       font-size: 22rpx;
       line-height: 1.7;
-      color: #6b7280;
+      color: var(--cl-ink-2);
     }
 
     .takeaway-list,
@@ -301,7 +302,7 @@
       gap: 16rpx;
       padding: 16rpx;
       border-radius: 16rpx;
-      background: #ffffff;
+      background: var(--cl-card);
     }
 
     .takeaway-index,
@@ -313,10 +314,10 @@
       height: 48rpx;
       flex-shrink: 0;
       border-radius: 16rpx;
-      background: #cf6d4e;
+      background: var(--cl-clay-strong);
       font-size: 20rpx;
       font-weight: 800;
-      color: #ffffff;
+      color: var(--cl-on-accent);
     }
 
     .takeaway-text,
@@ -324,7 +325,7 @@
       flex: 1;
       font-size: 22rpx;
       line-height: 1.7;
-      color: #374151;
+      color: var(--cl-ink);
     }
 
     .mind-map-tree {
@@ -337,24 +338,24 @@
 
     .mind-map-node-head {
       padding: 16rpx;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--cl-line);
       border-radius: 16rpx;
-      background: #ffffff;
+      background: var(--cl-card);
     }
 
     .mind-map-depth-0 > .mind-map-node-head {
-      border-color: #cf6d4e;
-      background: #cf6d4e;
+      border-color: var(--cl-clay);
+      background: var(--cl-clay-strong);
 
       .mind-map-node-title,
       .mind-map-node-desc {
-        color: #ffffff;
+        color: var(--cl-on-accent);
       }
     }
 
     .mind-map-depth-1 > .mind-map-node-head {
-      border-color: #e8c4b7;
-      background: #fdf2ec;
+      border-color: var(--cl-line);
+      background: var(--cl-clay-soft);
     }
 
     .mind-map-node-title,
@@ -366,14 +367,14 @@
       font-size: 24rpx;
       font-weight: 800;
       line-height: 1.5;
-      color: #374151;
+      color: var(--cl-ink);
     }
 
     .mind-map-node-desc {
       margin-top: 8rpx;
       font-size: 20rpx;
       line-height: 1.6;
-      color: #6b7280;
+      color: var(--cl-ink-2);
     }
 
     .mind-map-children {
@@ -382,14 +383,14 @@
       gap: 16rpx;
       margin-top: 16rpx;
       padding-left: 24rpx;
-      border-left: 4rpx solid #e8c4b7;
+      border-left: 4rpx solid var(--cl-line);
     }
 
     .citation-card {
       padding: 16rpx;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--cl-line);
       border-radius: 16rpx;
-      background: #ffffff;
+      background: var(--cl-card);
     }
 
     .citation-title,
@@ -402,21 +403,21 @@
       font-size: 24rpx;
       font-weight: 800;
       line-height: 1.5;
-      color: #9a4e37;
+      color: var(--cl-clay-text);
     }
 
     .citation-note {
       margin-top: 8rpx;
       font-size: 22rpx;
       line-height: 1.7;
-      color: #4b5563;
+      color: var(--cl-ink-2);
     }
 
     .citation-meta {
       margin-top: 8rpx;
       font-size: 20rpx;
       line-height: 1.6;
-      color: #9ca3af;
+      color: var(--cl-ink-3);
     }
 
     .discussion-unavailable,
@@ -430,8 +431,8 @@
     }
 
     .discussion-unavailable {
-      background: #fff7ed;
-      color: #9a3412;
+      background: var(--cl-clay-soft);
+      color: var(--cl-clay-text);
     }
 
     .discussion-replying {
@@ -439,8 +440,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 16rpx;
-      background: #fdf2ec;
-      color: #9a4e37;
+      background: var(--cl-clay-soft);
+      color: var(--cl-clay-text);
 
       Text:last-child {
         flex-shrink: 0;
@@ -470,15 +471,15 @@
       box-sizing: border-box;
       width: 480rpx;
       padding: 16rpx;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--cl-line);
       border-radius: 16rpx;
-      background: #ffffff;
+      background: var(--cl-card);
       white-space: normal;
 
       Text {
         font-size: 22rpx;
         line-height: 1.6;
-        color: #4b5563;
+        color: var(--cl-ink-2);
       }
     }
 
@@ -487,12 +488,12 @@
       width: 100%;
       min-height: 160rpx;
       padding: 16rpx;
-      border: 1px solid #d1d5db;
+      border: 1px solid var(--cl-control-line);
       border-radius: 16rpx;
-      background: #ffffff;
+      background: var(--cl-card);
       font-size: 24rpx;
       line-height: 1.7;
-      color: #111827;
+      color: var(--cl-ink);
     }
 
     .discussion-submit-row {
@@ -505,18 +506,18 @@
 
     .discussion-counter {
       font-size: 20rpx;
-      color: #9ca3af;
+      color: var(--cl-ink-3);
     }
 
     .discussion-submit {
       padding: 16rpx 24rpx;
       border-radius: 16rpx;
-      background: #cf6d4e;
+      background: var(--cl-clay-strong);
 
       Text {
         font-size: 22rpx;
         font-weight: 800;
-        color: #ffffff;
+        color: var(--cl-on-accent);
       }
 
       &.disabled {
@@ -541,7 +542,7 @@
       text-align: center;
       font-size: 22rpx;
       line-height: 1.6;
-      color: #6b7280;
+      color: var(--cl-ink-2);
     }
 
     .discussion-comment + .discussion-comment {
@@ -559,9 +560,9 @@
       align-items: flex-start;
       gap: 16rpx;
       padding: 16rpx;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--cl-line);
       border-radius: 16rpx;
-      background: #ffffff;
+      background: var(--cl-card);
     }
 
     .discussion-avatar {
@@ -573,7 +574,7 @@
       flex-shrink: 0;
       overflow: hidden;
       border-radius: 32rpx;
-      background: #fdf2ec;
+      background: var(--cl-clay-soft);
 
       Image {
         width: 64rpx;
@@ -583,7 +584,7 @@
       Text {
         font-size: 24rpx;
         font-weight: 800;
-        color: #9a4e37;
+        color: var(--cl-clay-text);
       }
     }
 
@@ -603,27 +604,27 @@
     .discussion-author {
       font-size: 22rpx;
       font-weight: 800;
-      color: #111827;
+      color: var(--cl-ink);
     }
 
     .discussion-mine {
       padding: 8rpx;
       border-radius: 8rpx;
-      background: #fdf2ec;
+      background: var(--cl-clay-soft);
       font-size: 18rpx;
-      color: #9a4e37;
+      color: var(--cl-clay-text);
     }
 
     .discussion-time {
       font-size: 18rpx;
-      color: #9ca3af;
+      color: var(--cl-ink-3);
     }
 
     .discussion-body {
       display: block;
       font-size: 22rpx;
       line-height: 1.7;
-      color: #374151;
+      color: var(--cl-ink);
       white-space: pre-wrap;
     }
 
@@ -634,11 +635,11 @@
 
       Text {
         padding: 8rpx 16rpx;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--cl-control-line);
         border-radius: 16rpx;
-        background: #ffffff;
+        background: var(--cl-card);
         font-size: 20rpx;
-        color: #4b5563;
+        color: var(--cl-ink-2);
 
         &.delete {
           border-color: #fecaca;
@@ -648,12 +649,12 @@
     }
 
     .discussion-children {
-      border-left: 4rpx solid #e8c4b7;
+      border-left: 4rpx solid var(--cl-line);
     }
 
     .content-html {
       font-size: 26rpx;
-      color: #333;
+      color: var(--cl-ink);
       line-height: 1.8;
       word-break: break-word;
 
@@ -664,7 +665,7 @@
     }
 
     .content-markdown {
-      color: #333;
+      color: var(--cl-ink);
       font-size: 28rpx;
       line-height: 1.9;
       word-break: break-word;
@@ -675,7 +676,7 @@
       h4,
       h5,
       h6 {
-        color: #222;
+        color: var(--cl-ink);
         font-weight: 800;
         line-height: 1.45;
         margin: 48rpx 0 24rpx;
@@ -713,20 +714,20 @@
 
       blockquote {
         padding: 24rpx;
-        border-left: 8rpx solid #cf6d4e;
-        background: #fff7f4;
+        border-left: 8rpx solid var(--cl-clay);
+        background: var(--cl-clay-soft);
         border-radius: 0 16rpx 16rpx 0;
         color: #59443c;
       }
 
       hr {
         margin: 48rpx 0;
-        border-top: 2rpx solid #e8ded8;
+        border-top: 2rpx solid var(--cl-line);
       }
 
       pre {
         padding: 24rpx;
-        background: #f4f1ef;
+        background: var(--cl-sunk);
         border-radius: 16rpx;
         color: #493c36;
         font-family: Consolas, 'Courier New', monospace;
@@ -738,7 +739,7 @@
 
       strong {
         font-weight: 800;
-        color: #222;
+        color: var(--cl-ink);
       }
 
       em {
@@ -748,8 +749,8 @@
       code {
         padding: 0 8rpx;
         border-radius: 8rpx;
-        background: #f4f1ef;
-        color: #9a4e37;
+        background: var(--cl-sunk);
+        color: var(--cl-clay-text);
         font-family: Consolas, 'Courier New', monospace;
         font-size: 24rpx;
       }
@@ -762,7 +763,7 @@
 
     .content-fallback {
       font-size: 26rpx;
-      color: #666;
+      color: var(--cl-ink-2);
       line-height: 1.8;
     }
 
@@ -778,8 +779,8 @@
 
     .related-card,
     .prompt-card {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
+      background: var(--cl-sunk);
+      border: 1px solid var(--cl-line);
       border-radius: 16rpx;
       padding: 16rpx;
     }
@@ -789,7 +790,7 @@
       display: block;
       font-size: 26rpx;
       font-weight: 700;
-      color: #111827;
+      color: var(--cl-ink);
       margin-bottom: 8rpx;
       line-height: 1.5;
     }
@@ -798,14 +799,14 @@
     .prompt-body {
       display: block;
       font-size: 22rpx;
-      color: #6b7280;
+      color: var(--cl-ink-2);
       line-height: 1.7;
     }
 
     .prompt-intent {
       display: block;
       font-size: 20rpx;
-      color: #9ca3af;
+      color: var(--cl-ink-3);
       margin-bottom: 8rpx;
       line-height: 1.6;
     }
@@ -824,7 +825,7 @@
     .reading-label,
     .mind-map-node-title,
     .discussion-author {
-      color: #f5f5f4;
+      color: var(--cl-sunk);
     }
 
     .book-author,
@@ -836,7 +837,7 @@
     .citation-note,
     .discussion-body,
     .discussion-empty {
-      color: #d6d3d1;
+      color: var(--cl-line);
     }
 
     .book-summary,
@@ -858,12 +859,12 @@
     .discussion-textarea {
       border-color: #4b4843;
       background: #242321;
-      color: #f5f5f4;
+      color: var(--cl-sunk);
     }
 
     .mind-map-depth-0 > .mind-map-node-head {
-      border-color: #cf6d4e;
-      background: #cf6d4e;
+      border-color: var(--cl-clay);
+      background: var(--cl-clay-strong);
     }
 
     .mind-map-depth-1 > .mind-map-node-head,
