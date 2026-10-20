@@ -1,9 +1,9 @@
 .content-card {
-  background: #fff;
-  margin: 0 16px 16px;
+  background: var(--cl-card);
+  margin: 24rpx 32rpx;
   padding: 16px;
-  border-radius: 16px;
-  border: 1px solid #f3f4f6;
+  border-radius: 32rpx;
+  border: 1px solid var(--cl-line);
 }
 
 .section-header {
@@ -16,12 +16,12 @@
 .section-title {
   font-size: 16px;
   font-weight: 900;
-  color: #1f2937;
+  color: var(--cl-ink);
 }
 
 .section-count {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--cl-ink-3);
   font-weight: 600;
 }
 
@@ -36,9 +36,9 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: #f9fafb;
+  background: var(--cl-sunk);
   border-radius: 12px;
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--cl-line);
 }
 
 .content-thumb {
@@ -47,7 +47,7 @@
   height: 72px;
   border-radius: 12px;
   overflow: hidden;
-  background: #e5e7eb;
+  background: var(--cl-line);
   flex-shrink: 0;
 }
 
@@ -57,7 +57,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(31, 41, 55, 0.55);
+  background: var(--cl-mask);
 }
 
 .content-thumb-img {
@@ -74,7 +74,7 @@
   justify-content: center;
   font-size: 12px;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--cl-ink-2);
 }
 
 .content-info {
@@ -92,7 +92,7 @@
   max-width: 100%;
   font-size: 14px;
   font-weight: 800;
-  color: #1f2937;
+  color: var(--cl-ink);
   margin-bottom: 8rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -103,7 +103,7 @@
   display: block;
   width: 100%;
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--cl-ink-3);
   font-weight: 600;
 }
 
@@ -111,5 +111,13 @@
   text-align: center;
   padding: 24px;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--cl-ink-3);
+}
+
+.content-guest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  padding: 32rpx 0;
 }

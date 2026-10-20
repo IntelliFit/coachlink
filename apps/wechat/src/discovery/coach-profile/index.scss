@@ -1,6 +1,9 @@
+@use '../../styles/tokens' as *;
+
 .coach-profile-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
   padding-bottom: 100px;
 
   .pending-payment-banner {
@@ -79,80 +82,60 @@
   border-radius: 12px;
 }
 
-.fixed-cta {
+/* 标签栏与底部操作栏（v1 设计变量） */
+.cp-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 0 $cl-page-gutter;
+  background: var(--cl-paper);
+  border-bottom: 2rpx solid var(--cl-line-soft);
+}
+
+.cp-bar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 50;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.95);
-  border-top: 1px solid #f0f0f0;
-}
-
-.fixed-cta-btn {
-  width: 100%;
-  height: 48px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: #cf6d4e;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 800;
-  border-radius: 14px;
-  border: none;
+  gap: $cl-space-3;
+  padding: $cl-space-2 $cl-page-gutter calc(#{$cl-space-2} + env(safe-area-inset-bottom));
+  border-top: 2rpx solid var(--cl-line);
+  background: var(--cl-card);
 }
 
-.fixed-cta-hint {
-  font-size: 13px;
-  color: #6b7280;
-  text-align: center;
-  margin-top: 8px;
-  line-height: 1.4;
-}
-
-/* Tab 切换 */
-.tab-wrap {
-  background: #fff;
-  margin: 0 16px 12px;
-  border-radius: 12px;
-  border: 1px solid #f3f4f6;
-  overflow: hidden;
-}
-
-.tab-bar {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  padding: 0 4px;
-}
-
-.tab-item {
+.cp-bar__copy {
   flex: 1;
-  padding: 12px 8px;
-  text-align: center;
-  font-size: 13px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.cp-bar__price {
+  color: var(--cl-ink);
+  font-size: $cl-font-card;
+  line-height: $cl-line-card;
   font-weight: 700;
-  color: #6b7280;
-  position: relative;
-  transition: color 0.2s;
 }
 
-.tab-item-active {
-  color: #cf6d4e;
+.cp-bar__unit {
+  color: var(--cl-ink-3);
+  font-size: 24rpx;
+  font-weight: 400;
 }
 
-.tab-item-active::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 3px;
-  border-radius: 2px;
-  background: #cf6d4e;
+.cp-bar__hint {
+  color: var(--cl-ink-3);
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.cp-bar__btn {
+  flex-shrink: 0;
+  min-width: 256rpx;
 }
 
 .tab-panel {

@@ -2,6 +2,7 @@ import React from 'react'
 import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import { View, Text, Image } from '@tarojs/components'
 import { Lock } from '@nutui/icons-react-taro'
+import { ClButton } from '@/components/ui'
 import type { CoachContentRow } from '../types'
 import './ContentSection.scss'
 
@@ -9,17 +10,26 @@ interface ContentSectionProps {
   contents: CoachContentRow[]
   total: number
   onItemClick?: (content: CoachContentRow) => void
+  /** Posts the coach has published but a guest cannot list (the list API needs login). */
+  lockedForGuestCount?: number
+  onLogin?: () => void
 }
 
-export default function ContentSection({ contents, total, onItemClick }: ContentSectionProps) {
+export default function ContentSection({ contents, total, onItemClick, lockedForGuestCount = 0, onLogin }: ContentSectionProps) {
+  const guestLocked = contents.length === 0 && lockedForGuestCount > 0
   return (
     <View className='content-card'>
       <View className='section-header'>
         <Text className='section-title'>教学内容</Text>
-        <Text className='section-count'>共 {total} 条</Text>
+        <Text className='section-count'>共 {guestLocked ? lockedForGuestCount : total} 条</Text>
       </View>
       <View className='content-list'>
-        {contents.length === 0 ? (
+        {guestLocked ? (
+          <View className='content-guest'>
+            <Text className='content-empty'>登录后查看这 {lockedForGuestCount} 篇专栏</Text>
+            {onLogin ? <ClButton variant='secondary' size='md' onClick={onLogin}>登录查看</ClButton> : null}
+          </View>
+        ) : contents.length === 0 ? (
           <Text className='content-empty'>暂无内容</Text>
         ) : (
           contents.map((c) => {

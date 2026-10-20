@@ -17,7 +17,7 @@ const SOCIAL_LABELS: Record<string, string> = {
 
 export default function AboutSection({ coach }: { coach: CoachRow }) {
   const profile = (coach.profile || {}) as CoachProfileDetail
-  const achievements = Array.isArray(profile?.achievements)?.length
+  const achievements = Array.isArray(profile?.achievements) && profile.achievements.length > 0
     ? profile.achievements!
     : Array.isArray(coach.achievements)
       ? coach.achievements
@@ -104,137 +104,84 @@ export default function AboutSection({ coach }: { coach: CoachRow }) {
     </View>
   )
 
+  const achievementNodes = hasRichMaterials
+    ? groupedMaterials.achievement.map(renderMaterialCard)
+    : achievements.map((a, i) => (
+        <View key={i} className='list-row'>
+          <View className='num'><Star size={12} /></View>
+          <Text className='text'>{a}</Text>
+        </View>
+      ))
+  const credentialNodes = hasRichMaterials
+    ? groupedMaterials.credential.map(renderMaterialCard)
+    : credentials.filter((c) => c?.name).map((c, i) => (
+        <View key={i} className='list-row'>
+          <Text className='num'>·</Text>
+          <Text className='text'>{c?.name || ''}</Text>
+        </View>
+      ))
+  const caseNodes = hasRichMaterials
+    ? groupedMaterials.case.map(renderMaterialCard)
+    : caseStudies.map((item, i) => (
+        <View key={i} className='list-row'>
+          <Text className='num cl-num'>{i + 1}</Text>
+          <Text className='text'>{item}</Text>
+        </View>
+      ))
+  const mediaNodes = hasRichMaterials ? groupedMaterials.media.map(renderMaterialCard) : []
+  const philosophy = String(profile?.teachingPhilosophy || '').trim()
+
+  // Empty sections are hidden instead of showing "无记录 / 未上传 / 暂无".
+  const block = (key: string, title: string, children: React.ReactNode) => (
+    <View key={key} className='about-block'>
+      <Text className='about-block__title'>{title}</Text>
+      <View className='about-block__body'>{children}</View>
+    </View>
+  )
+
+  const blocks = [
+    caseNodes.length > 0 && block('cases', '带教成果', <View className='list'>{caseNodes}</View>),
+    philosophy && block('philosophy', '怎么带', <Text className='philosophy-text'>{philosophy}</Text>),
+    achievementNodes.length > 0 && block('achievements', '成就奖项', <View className='list'>{achievementNodes}</View>),
+    credentialNodes.length > 0 && block('credentials', '资质证书', <View className='list'>{credentialNodes}</View>),
+    mediaNodes.length > 0 && block('media', '媒体墙', <View className='list'>{mediaNodes}</View>),
+    hasContact && block('contact', '联系方式', (
+      <View className='contact-list'>
+        {profile?.contactEmail && (
+          <View className='contact-item' onClick={() => copyContact(profile.contactEmail!, '邮箱已复制')}>
+            <View className='icon'><Mail size={16} /></View>
+            <Text selectable>{profile.contactEmail}</Text>
+          </View>
+        )}
+        {profile?.contactPhone && (
+          <View className='contact-item' onClick={() => callPhone(profile.contactPhone!)}>
+            <View className='icon'><Phone size={16} /></View>
+            <Text selectable>{profile.contactPhone}</Text>
+          </View>
+        )}
+      </View>
+    )),
+    hasSocial && block('social', '社交平台', (
+      <View className='social-list'>
+        {Object.entries(socialLinks).map(([platform, url]) => (
+          <View
+            key={platform}
+            className='social-item'
+            onClick={() => copyContact(url, `${SOCIAL_LABELS[platform] || platform}链接已复制`)}
+          >
+            <Text>{SOCIAL_LABELS[platform] || platform}</Text>
+            <View className='arrow'><ArrowUp size={12} /></View>
+          </View>
+        ))}
+      </View>
+    ))
+  ].filter(Boolean)
+
   return (
     <View className='about-card'>
-      <View className='block philosophy-block'>
-        <Text className='section-label'>教学理念 / PHILOSOPHY</Text>
-        <View className='section-body'>
-          <Text className='philosophy-text'>
-            {profile?.teachingPhilosophy || '暂无教学理念'}
-          </Text>
-        </View>
-      </View>
-
-      <View className='block'>
-        <Text className='section-label'>成就奖项</Text>
-        <View className='section-body'>
-          {hasRichMaterials ? (
-            <View className='rich-material-list'>
-              {groupedMaterials.achievement.length > 0 ? groupedMaterials.achievement.map(renderMaterialCard) : <Text className='placeholder'>无记录</Text>}
-            </View>
-          ) : achievements.length > 0 ? (
-            <View className='list'>
-              {achievements.map((a, i) => (
-                <View key={i} className='list-row'>
-                  <View className='num'><Star size={12} /></View>
-                  <Text className='text'>{a}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text className='placeholder'>无记录</Text>
-          )}
-        </View>
-      </View>
-
-      <View className='block'>
-        <Text className='section-label'>资质证书</Text>
-        <View className='section-body'>
-          {hasRichMaterials ? (
-            <View className='rich-material-list'>
-              {groupedMaterials.credential.length > 0 ? groupedMaterials.credential.map(renderMaterialCard) : <Text className='placeholder'>未上传</Text>}
-            </View>
-          ) : credentials.length > 0 ? (
-            <View className='list cred-list'>
-              {credentials.map((c, i) => (
-                <View key={i} className='list-row'>
-                  <Text className='num'>·</Text>
-                  <Text className='text'>{c?.name || ''}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text className='placeholder'>未上传</Text>
-          )}
-        </View>
-      </View>
-
-      <View className='block'>
-        <Text className='section-label'>代表案例</Text>
-        <View className='section-body'>
-          {hasRichMaterials ? (
-            <View className='rich-material-list'>
-              {groupedMaterials.case.length > 0 ? groupedMaterials.case.map(renderMaterialCard) : <Text className='placeholder'>暂无</Text>}
-            </View>
-          ) : caseStudies.length > 0 ? (
-            <View className='list'>
-              {caseStudies.map((item, i) => (
-                <View key={i} className='list-row'>
-                  <Text className='num'>0{i + 1}</Text>
-                  <Text className='text'>{item}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text className='placeholder'>暂无</Text>
-          )}
-        </View>
-      </View>
-
-      {hasRichMaterials && groupedMaterials.media.length > 0 && (
-        <View className='block'>
-          <Text className='section-label'>媒体墙</Text>
-          <View className='section-body rich-material-list'>
-            {groupedMaterials.media.map(renderMaterialCard)}
-          </View>
-        </View>
+      {blocks.length > 0 ? blocks : (
+        <Text className='about-empty'>教练还没有补充成果、理念和资质，可以先看看专栏和评价。</Text>
       )}
-
-      <View className='block'>
-        <Text className='section-label'>联系方式</Text>
-        <View className='section-body'>
-          {hasContact ? (
-            <View className='contact-list'>
-              {profile?.contactEmail && (
-                <View className='contact-item' onClick={() => copyContact(profile.contactEmail!, '邮箱已复制')}>
-                  <View className='icon'><Mail size={16} /></View>
-                  <Text selectable>{profile.contactEmail}</Text>
-                </View>
-              )}
-              {profile?.contactPhone && (
-                <View className='contact-item' onClick={() => callPhone(profile.contactPhone!)}>
-                  <View className='icon'><Phone size={16} /></View>
-                  <Text selectable>{profile.contactPhone}</Text>
-                </View>
-              )}
-            </View>
-          ) : (
-            <Text className='placeholder'>暂无</Text>
-          )}
-        </View>
-      </View>
-
-      <View className='block'>
-        <Text className='section-label'>社交平台</Text>
-        <View className='section-body'>
-          {hasSocial ? (
-            <View className='social-list'>
-              {Object.entries(socialLinks).map(([platform, url]) => (
-                <View
-                  key={platform}
-                  className='social-item'
-                  onClick={() => copyContact(url, `${SOCIAL_LABELS[platform] || platform}链接已复制`)}
-                >
-                  <Text>{SOCIAL_LABELS[platform] || platform}</Text>
-                  <View className='arrow'><ArrowUp size={12} /></View>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text className='placeholder'>暂无</Text>
-          )}
-        </View>
-      </View>
     </View>
   )
 }

@@ -1,142 +1,89 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import { Star, Checklist, Calendar, User, File } from '@nutui/icons-react-taro'
+import { ClButton, ClTag } from '@/components/ui'
 import type { CoachRow, GetAggregatedInfoResponseDto, QueryCoachSubscription } from '../types'
 import './CoachIntro.scss'
+
+const COACH_TRACK_SHORT_LABELS: Record<string, string> = { buddy: '搭子', growth: '进阶', professional: '专业' }
+const BIO_COLLAPSED_LENGTH = 80
 
 interface CoachIntroProps {
   coach: CoachRow
   aggregatedInfo: GetAggregatedInfoResponseDto | null
   userSubscription: QueryCoachSubscription | null
+  reviewCount?: number
   onOpenQuestionnaire?: () => void
 }
 
+/** Coach header: identity, four key numbers and the bio (collapsed when long). */
 export default function CoachIntro({
   coach,
   aggregatedInfo,
   userSubscription,
+  reviewCount = 0,
   onOpenQuestionnaire
 }: CoachIntroProps) {
+  const [bioOpen, setBioOpen] = useState(false)
   const canOpenQuestionnaire = onOpenQuestionnaire && ['waiting', 'active'].includes(userSubscription?.status || '')
   const specialties = aggregatedInfo?.specialties?.length ? aggregatedInfo.specialties : (coach.specialties || [])
   const profile = (coach.profile || {}) as Record<string, any>
-  const caseStudies = Array.isArray(profile?.caseStudies) ? profile.caseStudies : []
-  const caseCount = caseStudies.length
-  const materialCount = Array.isArray(profile?.applicationMaterials) ? profile.applicationMaterials.length : 0
+  const caseCount = Array.isArray(profile?.caseStudies) ? profile.caseStudies.length : 0
   const yearsExperience = coach.years_experience ?? 0
+  const rating = aggregatedInfo?.averageRating ?? 0
+  const track = (coach as { coach_track?: string | null }).coach_track || ''
+  const level = COACH_TRACK_SHORT_LABELS[track] || ''
+  const bio = String(coach.bio || '').trim()
+  const bioLong = bio.length > BIO_COLLAPSED_LENGTH
+
+  const stats = [
+    { key: 'students', value: String(aggregatedInfo?.studentCount ?? 0), label: '在带学员' },
+    { key: 'rating', value: rating > 0 ? rating.toFixed(1) : '—', label: reviewCount > 0 ? `${reviewCount} 条评价` : '暂无评价' },
+    { key: 'years', value: yearsExperience > 0 ? `${yearsExperience} 年` : '—', label: '执教' },
+    { key: 'cases', value: String(caseCount), label: '成果案例' }
+  ]
 
   return (
-    <View className='intro-wrap'>
-      <View className='intro-header'>
-        <View className='avatar-wrap' style={{ position: 'relative' }}>
-          <View className='avatar-box'>
-            {coach.avatar_url ? (
-              <Image src={coach.avatar_url} mode='aspectFill' className='avatar-img' />
-            ) : (
-              <View className='avatar-placeholder'>
-                <Text className='avatar-text'>{coach.name?.charAt(0) || 'C'}</Text>
-              </View>
-            )}
-          </View>
-          {coach.is_featured && (
-            <View className='featured-badge'><Star size={14} /></View>
+    <View className='ci'>
+      <View className='ci__head'>
+        <View className='ci__avatar'>
+          {coach.avatar_url ? (
+            <Image src={coach.avatar_url} mode='aspectFill' className='ci__avatar-img' />
+          ) : (
+            <Text className='ci__avatar-text'>{coach.name?.charAt(0) || 'C'}</Text>
           )}
         </View>
-        <View className='intro-meta'>
-          <Text className='coach-name'>{coach.name}</Text>
-          {coach.title ? (
-            <Text className='coach-title-tag'>{coach.title}</Text>
-          ) : null}
-          {userSubscription?.status === 'active' && (
-            <View className='subscription-status subscription-status-active'>
-              <View style={{ width: 8, height: 8, borderRadius: 4, background: '#059669' }} />
-              <Text>服务进行中</Text>
-            </View>
-          )}
-          {userSubscription?.status === 'waiting' && (
-            <View className='subscription-status subscription-status-waiting'>
-              <Text>等待确认</Text>
-            </View>
-          )}
+        <View className='ci__identity'>
+          <View className='ci__name-row'>
+            <Text className='ci__name'>{coach.name}</Text>
+            {level ? <ClTag tone={track === 'professional' ? 'outline' : 'neutral'}>{level}</ClTag> : null}
+            {userSubscription?.status === 'active' ? <ClTag tone='done'>服务中</ClTag> : null}
+            {userSubscription?.status === 'waiting' ? <ClTag tone='warn'>等待确认</ClTag> : null}
+          </View>
+          {coach.title ? <Text className='ci__title'>{coach.title}</Text> : null}
+          {specialties.length > 0 ? <Text className='ci__specialties'>{specialties.slice(0, 4).join(' · ')}</Text> : null}
         </View>
       </View>
 
-      <View className='stats-row'>
-        <View className='stat-item'>
-          <Text className='stat-value'>{aggregatedInfo?.contentCount ?? 0}</Text>
-          <Text className='stat-label'>教学内容</Text>
-        </View>
-        <View className='stat-item'>
-          <Text className='stat-value'>{aggregatedInfo?.studentCount ?? 0}</Text>
-          <Text className='stat-label'>活跃学员</Text>
-        </View>
-        <View className='stat-item'>
-          <Text className='stat-value stat-value-rating'>{aggregatedInfo?.averageRating?.toFixed(1) ?? '0.0'}</Text>
-          <Text className='stat-label'>综合评分</Text>
-        </View>
+      <View className='ci__stats'>
+        {stats.map((item) => (
+          <View key={item.key} className='ci__stat'>
+            <Text className='ci__stat-value cl-num'>{item.value}</Text>
+            <Text className='ci__stat-label'>{item.label}</Text>
+          </View>
+        ))}
       </View>
 
-      {canOpenQuestionnaire && (
-        <View className='intro-actions'>
-          <View className='intro-action-btn' onClick={() => onOpenQuestionnaire?.()}>
-            <Checklist size={14} />
-            <Text className='intro-action-btn-text'>查看问卷</Text>
-          </View>
-        </View>
-      )}
+      {canOpenQuestionnaire ? (
+        <ClButton variant='secondary' size='md' block onClick={() => onOpenQuestionnaire?.()}>查看我填的问卷</ClButton>
+      ) : null}
 
-      {specialties.length > 0 && (
-        <>
-          <Text className='section-title'>擅长领域</Text>
-          <View className='tags-row'>
-            {specialties.map((s, i) => (
-              <View key={i} className='tag-item'>
-                <Text>{s}</Text>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      <Text className='section-title'>教练简介</Text>
-      <Text className='bio-text'>{coach.bio || '这位教练很神秘，还没有填写简介。'}</Text>
-
-      <View className='coach-data-card'>
-        <View className={`coach-data-item ${yearsExperience === 0 ? 'is-empty' : ''}`}>
-          <View className='coach-data-heading'>
-            <View className='coach-data-icon'><Calendar size={14} /></View>
-            <Text className='coach-data-label'>从业经验</Text>
-          </View>
-          <View className='coach-data-value-row'>
-            <Text className='coach-data-value'>{yearsExperience}</Text>
-            <Text className='coach-data-unit'>年</Text>
-          </View>
-          <Text className='coach-data-description'>持续服务</Text>
-        </View>
-        <View className='coach-data-divider' />
-        <View className={`coach-data-item ${caseCount === 0 ? 'is-empty' : ''}`}>
-          <View className='coach-data-heading'>
-            <View className='coach-data-icon'><User size={14} /></View>
-            <Text className='coach-data-label'>成功案例</Text>
-          </View>
-          <View className='coach-data-value-row'>
-            <Text className='coach-data-value'>{caseCount}</Text>
-            <Text className='coach-data-unit'>个</Text>
-          </View>
-          <Text className='coach-data-description'>成果记录</Text>
-        </View>
-        <View className='coach-data-divider' />
-        <View className={`coach-data-item ${materialCount === 0 ? 'is-empty' : ''}`}>
-          <View className='coach-data-heading'>
-            <View className='coach-data-icon'><File size={14} /></View>
-            <Text className='coach-data-label'>公开材料</Text>
-          </View>
-          <View className='coach-data-value-row'>
-            <Text className='coach-data-value'>{materialCount}</Text>
-            <Text className='coach-data-unit'>份</Text>
-          </View>
-          <Text className='coach-data-description'>资质证明</Text>
-        </View>
+      <View className='ci__bio'>
+        <Text className={`ci__bio-text ${bioLong && !bioOpen ? 'ci__bio-text--clamped' : ''}`}>
+          {bio || '这位教练很神秘，还没有填写简介。'}
+        </Text>
+        {bioLong ? (
+          <Text className='ci__bio-toggle' onClick={() => setBioOpen((open) => !open)}>{bioOpen ? '收起' : '展开'}</Text>
+        ) : null}
       </View>
     </View>
   )

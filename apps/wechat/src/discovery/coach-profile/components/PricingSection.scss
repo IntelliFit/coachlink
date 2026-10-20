@@ -1,16 +1,16 @@
 .pricing-card {
-  background: #fff;
-  margin: 0 16px 16px;
+  background: var(--cl-card);
+  margin: 24rpx 32rpx;
   padding: 16px;
-  border-radius: 16px;
-  border: 1px solid #f3f4f6;
+  border-radius: 32rpx;
+  border: 1px solid var(--cl-line);
 }
 
 .pricing-subscribed-banner {
   margin-bottom: 16px;
   padding: 14px 16px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: var(--cl-done-soft);
+  border: 1px solid var(--cl-line);
   border-radius: 14px;
 }
 
@@ -28,7 +28,7 @@
 .pricing-renew-btn {
   flex-shrink: 0;
   padding: 8px 16px;
-  background: #cf6d4e;
+  background: var(--cl-clay-strong);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -36,18 +36,18 @@
 }
 
 .pricing-renew-btn-active {
-  background: #fff;
-  border: 1px solid #cf6d4e;
+  background: var(--cl-card);
+  border: 1px solid var(--cl-clay);
 }
 
 .pricing-renew-btn-text {
   font-size: 13px;
   font-weight: 800;
-  color: #fff;
+  color: var(--cl-on-accent);
 }
 
 .pricing-renew-btn-active .pricing-renew-btn-text {
-  color: #cf6d4e;
+  color: var(--cl-clay);
 }
 
 .pricing-test-row {
@@ -58,29 +58,29 @@
 
 .pricing-test-btn {
   padding: 8px 16px;
-  background: #ffffff;
-  border: 1px solid #16a34a;
+  background: var(--cl-card);
+  border: 1px solid var(--cl-done);
   border-radius: 12px;
 }
 
 .pricing-test-btn-text {
   font-size: 13px;
   font-weight: 800;
-  color: #15803d;
+  color: var(--cl-done);
 }
 
 .pricing-subscribed-title {
   display: block;
   font-size: 16px;
   font-weight: 800;
-  color: #166534;
+  color: var(--cl-done);
   margin-bottom: 6px;
 }
 
 .pricing-subscribed-hint {
   display: block;
   font-size: 13px;
-  color: #15803d;
+  color: var(--cl-done);
   line-height: 1.45;
 }
 
@@ -95,7 +95,7 @@
   display: block;
   font-size: 16px;
   font-weight: 900;
-  color: #1f2937;
+  color: var(--cl-ink);
 }
 
 .pricing-hint {
@@ -104,8 +104,8 @@
 
 .product-item {
   padding: 16px;
-  background: #f9fafb;
-  border: 1px solid #f3f4f6;
+  background: var(--cl-sunk);
+  border: 1px solid var(--cl-line);
   border-radius: 12px;
   margin-bottom: 12px;
 }
@@ -115,7 +115,7 @@
   max-width: 100%;
   font-size: 15px;
   font-weight: 800;
-  color: #1f2937;
+  color: var(--cl-ink);
   margin-bottom: 8rpx;
   word-break: break-all;
 }
@@ -125,7 +125,7 @@
   width: 100%;
   max-width: 100%;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--cl-ink-2);
   line-height: 1.5;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -141,18 +141,18 @@
 
 .duration-option {
   padding: 8px 14px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--cl-card);
+  border: 1px solid var(--cl-line);
   border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
-  color: #374151;
+  color: var(--cl-ink);
 }
 
 .duration-option-rec {
-  border-color: #cf6d4e;
-  background: #fff7ed;
-  color: #cf6d4e;
+  border-color: var(--cl-clay);
+  background: var(--cl-clay-soft);
+  color: var(--cl-clay);
 }
 
 .duration-option-clickable {
@@ -167,23 +167,23 @@
 .duration-option-disabled {
   cursor: not-allowed;
   opacity: 0.6;
-  background: #fffbeb;
-  border-color: #fde68a;
-  color: #92400e;
+  background: var(--cl-warn-bg);
+  border-color: var(--cl-warn-line);
+  color: var(--cl-warn-text);
 }
 
 .duration-option-lock {
   display: block;
   margin-top: 4px;
   font-size: 11px;
-  color: #92400e;
+  color: var(--cl-warn-text);
 }
 
 .pricing-receiving-warning {
   margin-bottom: 16px;
   padding: 14px 16px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
+  background: var(--cl-warn-bg);
+  border: 1px solid var(--cl-warn-line);
   border-radius: 14px;
 }
 
@@ -191,30 +191,30 @@
   display: block;
   font-size: 15px;
   font-weight: 800;
-  color: #92400e;
+  color: var(--cl-warn-text);
   margin-bottom: 6px;
 }
 
 .pricing-receiving-desc {
   display: block;
   font-size: 13px;
-  color: #92400e;
+  color: var(--cl-warn-text);
   line-height: 1.45;
 }
 
 .pricing-hint {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--cl-ink-2);
   line-height: 1.5;
   padding: 10px 12px;
-  background: #f9fafb;
+  background: var(--cl-sunk);
   border-radius: 10px;
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--cl-line);
 }
 
 .pricing-empty {
   text-align: center;
   padding: 24px;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--cl-ink-3);
 }
