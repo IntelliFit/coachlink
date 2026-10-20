@@ -1098,6 +1098,39 @@
     font-weight: 500;
   }
 
+  // 引体冲刺和俯卧撑突围共用的两格小统计（原来只写在引体冲刺页里，俯卧撑页拿不到样式）
+  .pullup-stats-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16rpx;
+    margin-top: 16rpx;
+  }
+
+  .pullup-mini-card {
+    min-height: 96rpx;
+    padding: 24rpx;
+    border-radius: 24rpx;
+    background: var(--cl-sunk);
+    box-sizing: border-box;
+  }
+
+  .pullup-mini-label {
+    display: block;
+    margin-bottom: 8rpx;
+    color: var(--cl-ink-3);
+    font-size: 22rpx;
+    line-height: 1.4;
+  }
+
+  .pullup-mini-value {
+    display: block;
+    color: var(--cl-ink);
+    font-family: var(--cl-font-num);
+    font-size: 34rpx;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
   .hud-pill.alert {
     background: var(--cl-clay-strong);
     border-color: var(--cl-clay-strong);
