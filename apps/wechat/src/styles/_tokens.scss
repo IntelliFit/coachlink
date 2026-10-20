@@ -1,0 +1,44 @@
+// CoachLink design tokens v1: sizes only (no CSS output), safe to @use from any stylesheet.
+// Colours are CSS custom properties in tokens-css.scss so light/dark switch at runtime.
+// Source of truth: the "统一设计规范" board on the UI redesign canvas.
+// Everything sits on the 8rpx grid (CLAUDE.md design rule).
+
+// Type scale (px in the design × 2)
+$cl-font-title: 56rpx;    // page large title, 700
+$cl-font-section: 40rpx;  // section title, 700
+$cl-font-card: 34rpx;     // card title / button label, 500
+$cl-font-body: 30rpx;     // body / list row, 400
+$cl-font-meta: 26rpx;     // secondary text, 400
+$cl-font-tag: 22rpx;      // tags, tab-bar labels, 500
+
+$cl-line-title: 72rpx;
+$cl-line-section: 56rpx;
+$cl-line-card: 48rpx;
+$cl-line-body: 44rpx;
+$cl-line-meta: 36rpx;
+$cl-line-tag: 32rpx;
+
+// Spacing
+$cl-space-1: 8rpx;
+$cl-space-2: 16rpx;
+$cl-space-3: 24rpx;
+$cl-space-4: 32rpx;
+$cl-space-6: 48rpx;
+$cl-space-8: 64rpx;
+$cl-page-gutter: 32rpx;   // fixed left/right page padding
+$cl-card-padding: 32rpx;
+$cl-section-gap: 64rpx;
+
+// Radius
+$cl-radius-tag: 16rpx;    // 8px  tags, inputs
+$cl-radius-button: 24rpx; // 12px buttons
+$cl-radius-card: 32rpx;   // 16px cards
+$cl-radius-sheet: 48rpx;  // 24px bottom sheets
+$cl-radius-pill: 9999rpx;
+
+// Control heights
+$cl-button-lg: 104rpx;    // 52px primary actions
+$cl-button-md: 88rpx;     // 44px minimum touch target
+$cl-button-sm: 64rpx;     // 32px inline chips/buttons
+$cl-chip-height: 72rpx;   // 36px filter chips
+$cl-tab-bar-height: 112rpx; // 56px, plus safe-area inset

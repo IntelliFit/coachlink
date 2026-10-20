@@ -1,19 +1,19 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { Image, ScrollView, Text, View } from '@tarojs/components'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import motionBeanCover from '@/assets/images/toolbox-games/motion-bean-game-v2.webp'
 import motionEffectsCover from '@/assets/images/toolbox-games/motion-effects-game-v2.webp'
 import pullupRushCover from '@/assets/images/toolbox-games/pullup-rush-game-v2.webp'
 import pushupDashCover from '@/assets/images/toolbox-games/pushup-dash-game-v2.webp'
 import barLocationsCover from '@/assets/images/toolbox-practical/practical-bar-locations-v2.webp'
-import comingSoonCover from '@/assets/images/toolbox-practical/practical-coming-soon-v2.webp'
 import communityDataCover from '@/assets/images/toolbox-practical/practical-community-data-v2.webp'
 import oneArmPullUpCover from '@/assets/images/toolbox-practical/practical-one-arm-pull-up-v2.webp'
 import powerAnalysisCover from '@/assets/images/toolbox-practical/practical-power-analysis-v2.webp'
 import strengthCalculatorCover from '@/assets/images/toolbox-practical/practical-strength-calculator-v2.webp'
 import BottomNav from '@/components/BottomNav'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
+import { ClPageHeader, ClSectionHeader } from '@/components/ui'
 import { useTheme } from '@/hooks/useTheme'
 import {
   buildSharePath,
@@ -22,201 +22,97 @@ import {
   getToolboxShareTitle,
   openCoachLinkShareMenu
 } from '@/utils/share'
+import { readRecentToolKeys, rememberToolKey } from './toolboxRecent'
 import './index.scss'
 
 type ToolboxEntry = {
-  badge: string
-  cover?: string
+  cover: string
   description: string
-  iconClass: string
   key: string
   label: string
-  tags: string[]
   url: string
-  comingSoon?: boolean
+  /** Shown on the cover when the tool cannot be used in this release. */
+  unavailableLabel?: string
 }
 
-const MINI_GAMES: ToolboxEntry[] = [
-  {
-    badge: '手指互动',
-    cover: motionEffectsCover,
-    description: WECHAT_FREE_RELEASE ? '特效视频暂未开放，其他训练工具可继续使用。' : '伸出几根手指，光膜就跟着变化，生成可分享的特效视频。',
-    iconClass: 'icon-star',
-    key: 'motion-effects',
-    label: '手指光膜',
-    tags: WECHAT_FREE_RELEASE ? ['暂未开放'] : ['动态指尖', '可分享'],
-    url: '/toolbox/motion-effects/index'
-  },
-  {
-    badge: '体感休闲',
-    cover: motionBeanCover,
-    description: '身体一动，小豆乱飞，保存带动画的回放视频。',
-    iconClass: 'icon-star',
-    key: 'motion-bean',
-    label: '接豆派对',
-    tags: ['30 秒', '回放'],
-    url: '/toolbox/motion-bean/index'
-  },
-  {
-    badge: '引体玩法',
-    cover: pullupRushCover,
-    description: '每次上冲都靠你的上拉动作触发，穿过障碍。',
-    iconClass: 'icon-ranking',
-    key: 'pullup-rush',
-    label: '引体冲刺',
-    tags: ['上拉', '闯关'],
-    url: '/toolbox/pullup-rush/index'
-  },
-  {
-    badge: '俯卧撑玩法',
-    cover: pushupDashCover,
-    description: '完整做一下下压再撑起，推动角色撞开墙壁。',
-    iconClass: 'icon-star',
-    key: 'pushup-dash',
-    label: '俯卧撑突围',
-    tags: ['完整动作', '闯关'],
-    url: '/toolbox/pushup-dash/index'
-  }
-]
+const FEATURED_TOOL: ToolboxEntry = {
+  cover: powerAnalysisCover,
+  description: '上传训练视频，估算功率、速度和轨迹',
+  key: 'power-analysis',
+  label: '功率视频分析',
+  url: '/toolbox/power-analysis/index'
+}
 
 const PRACTICAL_TOOLS: ToolboxEntry[] = [
   {
-    badge: '视频分析',
-    cover: powerAnalysisCover,
-    description: '上传动作视频，估算功率、速度和轨迹。',
-    iconClass: 'icon-video',
-    key: 'power-analysis',
-    label: '功率视频分析',
-    tags: ['速度', '功率'],
-    url: '/toolbox/power-analysis/index'
-  },
-  {
-    badge: '力量测算',
     cover: strengthCalculatorCover,
-    description: '快速算 1RM、做组重量和训练系数。',
-    iconClass: 'icon-calculator',
+    description: '1RM、力量分和做组重量',
     key: 'strength-calculator',
     label: '力量计算器',
-    tags: ['1RM', '做组'],
     url: '/streetlifting/index/calculator'
   },
   {
-    badge: '能力测算',
     cover: oneArmPullUpCover,
-    description: '根据体重和负重引体能力，看看离单手引体还有多远。',
-    iconClass: 'icon-ranking',
+    description: '离单手引体还有多远',
     key: 'one-arm-pull-up',
     label: '单手引体测算',
-    tags: ['能力差距', '训练建议'],
     url: '/toolbox/one-arm-pull-up/index'
   },
   {
-    badge: '训练地图',
     cover: barLocationsCover,
-    description: '查找、分享单杠位置，记录训练地点。',
-    iconClass: 'icon-location',
+    description: '找附近的单杠双杠',
     key: 'bar-locations',
     label: '单杠位置',
-    tags: ['地图', '分享'],
     url: '/streetlifting/index/locations'
   },
   {
-    badge: '街举社区',
     cover: communityDataCover,
-    description: '查看社区成绩，提交和认领自己的记录。',
-    iconClass: 'icon-ranking',
+    description: '社区成绩与排名',
     key: 'community-data',
     label: '社区数据',
-    tags: ['成绩', '记录'],
     url: '/streetlifting/index/data'
-  },
-  {
-    badge: '即将开放',
-    cover: comingSoonCover,
-    comingSoon: true,
-    description: '更多训练工具正在准备中。',
-    iconClass: 'icon-star',
-    key: 'coming-soon',
-    label: '亟待开放',
-    tags: [],
-    url: ''
   }
 ]
 
-const AVAILABLE_PRACTICAL_TOOL_COUNT = PRACTICAL_TOOLS.filter((entry) => !entry.comingSoon).length
-
-function ToolboxCard({
-  compact = false,
-  entry,
-  onClick
-}: {
-  compact?: boolean
-  entry: ToolboxEntry
-  onClick: (entry: ToolboxEntry) => void
-}) {
-  if (compact) {
-    return (
-      <View
-        className={`toolbox-card toolbox-card--compact toolbox-card--${entry.key}`}
-        onClick={() => onClick(entry)}
-      >
-        {entry.cover ? (
-          <Image className='toolbox-practical-cover' src={entry.cover} mode='aspectFill' lazyLoad />
-        ) : null}
-        <View className='toolbox-card-content'>
-          <View className='toolbox-card-main'>
-            <View className='toolbox-icon'>
-              <Text className={`iconfont ${entry.iconClass}`} />
-            </View>
-            <View className='toolbox-card-copy'>
-              <Text className='toolbox-badge'>{entry.badge}</Text>
-              <Text className='toolbox-name'>{entry.label}</Text>
-              <Text className='toolbox-desc'>{entry.description}</Text>
-            </View>
-            <Text className='toolbox-arrow'>→</Text>
-          </View>
-          <View className='toolbox-tags'>
-            {entry.tags.map((tag) => (
-              <Text key={tag} className='toolbox-tag'>
-                {tag}
-              </Text>
-            ))}
-          </View>
-        </View>
-      </View>
-    )
+const MINI_GAMES: ToolboxEntry[] = [
+  {
+    cover: pullupRushCover,
+    description: '上拉带小鸟穿过障碍',
+    key: 'pullup-rush',
+    label: '引体冲刺',
+    url: '/toolbox/pullup-rush/index'
+  },
+  {
+    cover: pushupDashCover,
+    description: '完整俯卧撑撞开墙壁',
+    key: 'pushup-dash',
+    label: '俯卧撑突围',
+    url: '/toolbox/pushup-dash/index'
+  },
+  {
+    cover: motionBeanCover,
+    description: '身体一动接住小豆',
+    key: 'motion-bean',
+    label: '接豆派对',
+    url: '/toolbox/motion-bean/index'
+  },
+  {
+    cover: motionEffectsCover,
+    description: '手指控制光膜特效',
+    key: 'motion-effects',
+    label: '手指光膜',
+    url: '/toolbox/motion-effects/index',
+    unavailableLabel: WECHAT_FREE_RELEASE ? '暂未开放' : undefined
   }
+]
 
-  return (
-    <View
-      className={`toolbox-card toolbox-card--game toolbox-card--${entry.key}`}
-      onClick={() => onClick(entry)}
-    >
-      <View className='toolbox-cover-shell'>
-        {entry.cover ? (
-          <Image className='toolbox-cover' src={entry.cover} mode='aspectFill' lazyLoad />
-        ) : null}
-        <View className='toolbox-cover-scrim' />
-        <Text className='toolbox-cover-title'>{entry.label}</Text>
-      </View>
-    </View>
-  )
-}
+const ALL_ENTRIES = [FEATURED_TOOL, ...PRACTICAL_TOOLS, ...MINI_GAMES]
+const ENTRY_BY_KEY = new Map(ALL_ENTRIES.map((entry) => [entry.key, entry]))
+const AVAILABLE_COUNT = ALL_ENTRIES.filter((entry) => !entry.unavailableLabel).length
 
 export default function ToolboxPage() {
   const { effectiveTheme } = useTheme()
-  const pageTopPadding = useMemo(() => {
-    try {
-      const menuButtonRect = Taro.getMenuButtonBoundingClientRect()
-      if (menuButtonRect?.bottom) {
-        return `${menuButtonRect.bottom + 8}px`
-      }
-    } catch {
-      // Fall back to a conservative custom-navigation safe area.
-    }
-
-    return '112rpx'
-  }, [])
+  const [recentKeys, setRecentKeys] = useState<string[]>([])
   const sharePayload = useMemo(
     () =>
       createSharePayload({
@@ -233,54 +129,81 @@ export default function ToolboxPage() {
     openCoachLinkShareMenu()
   }, [])
 
-  const handleToolClick = (entry: ToolboxEntry) => {
-    if (entry.comingSoon) {
-      Taro.showToast({ title: '敬请期待', icon: 'none' })
-      return
-    }
+  useDidShow(() => {
+    setRecentKeys(readRecentToolKeys(ALL_ENTRIES.map((entry) => entry.key)))
+  })
 
+  const openTool = (entry: ToolboxEntry) => {
+    setRecentKeys(rememberToolKey(entry.key))
     Taro.navigateTo({ url: entry.url })
   }
+
+  const recentEntries = recentKeys
+    .map((key) => ENTRY_BY_KEY.get(key))
+    .filter((entry): entry is ToolboxEntry => Boolean(entry))
 
   return (
     <PageThemeRoot>
       <View className={`toolbox-page theme-${effectiveTheme}`}>
-        <ScrollView className='page-scroll' scrollY>
-          <View className='page-content' style={{ paddingTop: pageTopPadding }}>
-            <View className='toolbox-hero'>
-              <Text className='hero-kicker'>训练辅助</Text>
-              <Text className='hero-title'>工具箱</Text>
-              <Text className='hero-meta'>
-                {MINI_GAMES.length + AVAILABLE_PRACTICAL_TOOL_COUNT} 个训练工具 · 随开随用
-              </Text>
-              <Text className='hero-desc'>测算、分析和互动，把训练里的小问题快速解决。</Text>
-            </View>
-            <View className='section-block section-block--practical'>
-              <View className='section-header'>
-                <Text className='section-kicker'>常用工具 · {AVAILABLE_PRACTICAL_TOOL_COUNT}</Text>
-                <Text className='section-title'>算一算、看一看、找一找</Text>
-                <Text className='section-subtitle'>训练中常用的小工具，都放在这里。</Text>
+        <ScrollView className='toolbox-scroll' scrollY>
+          <ClPageHeader title='工具箱'>
+            <Text className='toolbox-count cl-num'>{AVAILABLE_COUNT} 个训练工具</Text>
+            {recentEntries.length > 0 ? (
+              <View className='toolbox-recent'>
+                <Text className='toolbox-recent__label'>最近用过</Text>
+                {recentEntries.map((entry) => (
+                  <View key={entry.key} className='toolbox-recent__chip' onClick={() => openTool(entry)}>
+                    <Text className='toolbox-recent__chip-text'>{entry.label}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </ClPageHeader>
+
+          <View className='toolbox-body'>
+            <View className='toolbox-section'>
+              <ClSectionHeader title='实用工具' meta={String(PRACTICAL_TOOLS.length + 1)} />
+              <View className='toolbox-featured' onClick={() => openTool(FEATURED_TOOL)}>
+                <Image className='toolbox-featured__cover' src={FEATURED_TOOL.cover} mode='aspectFill' lazyLoad />
+                <View className='toolbox-label toolbox-label--featured'>
+                  <Text className='toolbox-label__name'>{FEATURED_TOOL.label}</Text>
+                  <Text className='toolbox-label__desc'>{FEATURED_TOOL.description}</Text>
+                </View>
               </View>
               <View className='toolbox-grid'>
                 {PRACTICAL_TOOLS.map((entry) => (
-                  <ToolboxCard key={entry.key} entry={entry} onClick={handleToolClick} />
+                  <View key={entry.key} className='toolbox-tile' onClick={() => openTool(entry)}>
+                    <Image className='toolbox-tile__cover' src={entry.cover} mode='aspectFill' lazyLoad />
+                    <View className='toolbox-label'>
+                      <Text className='toolbox-label__name'>{entry.label}</Text>
+                    </View>
+                  </View>
                 ))}
               </View>
             </View>
 
-            <View className='section-block section-block--games'>
-              <View className='section-header'>
-                <Text className='section-kicker'>体感小游戏 · {MINI_GAMES.length}</Text>
-                <Text className='section-title'>动一动，开一局</Text>
-                <Text className='section-subtitle'>使用摄像头识别动作，支持保存回放。</Text>
+            <View className='toolbox-section'>
+              <View className='toolbox-section__head'>
+                <ClSectionHeader title='体感小游戏' meta={String(MINI_GAMES.length)} />
+                <Text className='toolbox-section__hint'>摄像头识别动作</Text>
               </View>
-              <View className='toolbox-grid'>
-                {MINI_GAMES.map((entry) => (
-                  <ToolboxCard key={entry.key} entry={entry} onClick={handleToolClick} />
-                ))}
-              </View>
+              <ScrollView className='toolbox-games' scrollX enhanced showScrollbar={false}>
+                <View className='toolbox-games__track'>
+                  {MINI_GAMES.map((entry) => (
+                    <View key={entry.key} className='toolbox-game' onClick={() => openTool(entry)}>
+                      <View className='toolbox-game__cover-wrap'>
+                        <Image className='toolbox-game__cover' src={entry.cover} mode='aspectFill' lazyLoad />
+                        {entry.unavailableLabel ? (
+                          <Text className='toolbox-game__badge'>{entry.unavailableLabel}</Text>
+                        ) : null}
+                      </View>
+                      <Text className='toolbox-game__name'>{entry.label}</Text>
+                      <Text className='toolbox-game__desc'>{entry.description}</Text>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
             </View>
-
           </View>
         </ScrollView>
         <BottomNav />

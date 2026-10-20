@@ -1,0 +1,40 @@
+@use '../../styles/tokens' as *;
+
+.cl-tabs {
+  display: flex;
+  gap: $cl-space-6;
+  border-bottom: 2rpx solid var(--cl-line);
+}
+
+.cl-tabs__item {
+  display: flex;
+  align-items: baseline;
+  gap: 6rpx;
+  height: $cl-button-md;
+  box-sizing: border-box;
+  padding-top: $cl-space-3;
+  margin-bottom: -2rpx;
+  border-bottom: 4rpx solid transparent;
+  color: var(--cl-ink-2);
+
+  &--active {
+    border-bottom-color: var(--cl-ink);
+    color: var(--cl-ink);
+
+    .cl-tabs__label {
+      font-weight: 700;
+    }
+  }
+}
+
+.cl-tabs__label {
+  color: inherit;
+  font-size: $cl-font-body;
+  line-height: $cl-line-body;
+}
+
+.cl-tabs__count {
+  color: var(--cl-ink-3);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}

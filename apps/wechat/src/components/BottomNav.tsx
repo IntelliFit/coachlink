@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { authService } from '@/services/authService'
 import { useTheme } from '@/hooks/useTheme'
 import './BottomNav.scss'
@@ -22,7 +22,7 @@ const studentNavItems: NavItem[] = [
   {
     key: 'coach',
     label: '教练',
-    iconClass: 'icon-discovery',
+    iconClass: 'icon-friends-o',
     path: '/discovery/index'
   },
   {
@@ -78,8 +78,6 @@ const coachNavItems: NavItem[] = [
   }
 ]
 
-const BOTTOM_NAV_SWITCH_KEY = 'bottom_nav_switching'
-
 const normalizePath = (route: string) => {
   if (!route) return ''
   const path = route.startsWith('/') ? route : `/${route}`
@@ -99,7 +97,6 @@ function BottomNav() {
     const session = authService.getAuthSession({ normalize: true })
     return !!(session.isAuthenticated && session.isCoach && session.primaryRole === 'coach')
   })
-  const [playSwitchAnimation, setPlaySwitchAnimation] = useState(false)
   const navLockRef = useRef(false)
 
   const matchesPrefix = (pathname: string, prefixes: string[]) => {
@@ -115,30 +112,12 @@ function BottomNav() {
     setIsCoachView(!!(session.isAuthenticated && session.isCoach && session.primaryRole === 'coach'))
   }
 
-  useEffect(() => {
+  // Each tab page mounts its own nav (tabs switch via reLaunch), so the route and role only
+  // need re-reading when the page shows again, e.g. after returning from login or a role switch.
+  useDidShow(() => {
     syncCurrentPath()
     syncRole()
-
-    // 只有真正通过底部导航栏切换 tab 时才播放入场动画
-    const switching = Taro.getStorageSync(BOTTOM_NAV_SWITCH_KEY)
-    if (switching) {
-      Taro.removeStorageSync(BOTTOM_NAV_SWITCH_KEY)
-      setPlaySwitchAnimation(true)
-      // 延迟到下一渲染帧再切回 active，确保浏览器/小程序有一帧的 inactive 状态，触发 CSS transition
-      const timer = setTimeout(() => {
-        setPlaySwitchAnimation(false)
-      }, 16)
-      return () => clearTimeout(timer)
-    }
-  }, [])
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      syncCurrentPath()
-      syncRole()
-    }, 300)
-    return () => clearInterval(timer)
-  }, [])
+  })
 
   const tryNavigate = async (url: string) => {
     const navOptions = { url, animationType: 'none' as any }
@@ -202,7 +181,6 @@ function BottomNav() {
     }
 
     navLockRef.current = true
-    Taro.setStorageSync(BOTTOM_NAV_SWITCH_KEY, '1')
     // 一级入口不是详情页：始终重启到目标页，避免 navigateTo 持续堆积页面栈，
     // 使每次切换都保持同一种无横向转场的刷新行为。
     const success = await tryRelaunchTab(item.path)
@@ -214,7 +192,6 @@ function BottomNav() {
       return
     }
 
-    Taro.removeStorageSync(BOTTOM_NAV_SWITCH_KEY)
     navLockRef.current = false
   }
 
@@ -261,18 +238,17 @@ function BottomNav() {
   if (!isPrimaryNavigationPage) return null
 
   return (
-    <View className={`bottom-nav ${isDark ? 'bottom-nav--dark' : ''}`}>
+    <View className={`bottom-nav ${isDark ? 'cl-theme-dark' : ''}`} ariaRole='tablist'>
       {navItems.map((item) => {
         const isActive = isCoachView
           ? isCoachTabActive(item, currentNorm)
           : isStudentTabActive(item, currentNorm)
-        // 通过底部导航切换时，先强制 inactive 一帧，再切到 active，触发 CSS transition
-        const showActive = playSwitchAnimation ? false : isActive
-
         return (
           <View
             key={item.key}
-            className={`nav-item ${showActive ? 'nav-active' : ''}`}
+            className={`nav-item ${isActive ? 'nav-active' : ''}`}
+            ariaRole='tab'
+            ariaLabel={isActive ? `${item.label}，当前页` : item.label}
             onClick={() => void handleNavClick(item)}
           >
             <View className='nav-icon-badge-wrap'>

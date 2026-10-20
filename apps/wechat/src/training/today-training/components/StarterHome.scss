@@ -1,0 +1,198 @@
+@use '../../../styles/tokens' as *;
+
+/* 没有计划时的训练首页（游客 / 新用户 / 等教练出计划）。只用 v1 设计变量。 */
+.tt-starter {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-section-gap * 0.75;
+}
+
+.tt-starter__header {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.tt-starter__date {
+  color: var(--cl-ink-3);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}
+
+.tt-starter__title {
+  color: var(--cl-ink);
+  font-size: $cl-font-title;
+  line-height: $cl-line-title;
+  font-weight: 700;
+}
+
+.tt-starter__notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: 24rpx 28rpx;
+  border: 2rpx solid var(--cl-warn-line);
+  border-radius: $cl-radius-button;
+  background: var(--cl-warn-bg);
+}
+
+.tt-starter__notice-text {
+  color: var(--cl-warn-text);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}
+
+.tt-starter__notice-link {
+  align-self: flex-start;
+  color: var(--cl-warn-text);
+  font-size: $cl-font-meta;
+  font-weight: 700;
+}
+
+.tt-starter__section {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-3;
+}
+
+.tt-starter__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $cl-space-3;
+}
+
+.tt-starter__template {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-card;
+  background: var(--cl-card);
+
+  &--pressed {
+    opacity: 0.85;
+  }
+}
+
+.tt-starter__template-image {
+  width: 100%;
+  height: 184rpx;
+  border-bottom: 2rpx solid var(--cl-line-soft);
+  background: #FFFFFF;
+}
+
+.tt-starter__template-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  padding: 20rpx 24rpx 24rpx;
+}
+
+.tt-starter__template-name {
+  color: var(--cl-ink);
+  font-size: $cl-font-body;
+  line-height: $cl-line-body;
+  font-weight: 700;
+}
+
+.tt-starter__template-meta {
+  color: var(--cl-ink-3);
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.tt-starter__plans {
+  margin: 0 (-$cl-page-gutter);
+  width: auto;
+  white-space: nowrap;
+}
+
+.tt-starter__plans-row {
+  display: inline-flex;
+  gap: $cl-space-3;
+  padding: 0 $cl-page-gutter;
+}
+
+.tt-starter__plan {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 12rpx;
+  width: 480rpx;
+  padding: 28rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-card;
+  background: var(--cl-card);
+  white-space: normal;
+}
+
+.tt-starter__plan-tags {
+  display: flex;
+  gap: 12rpx;
+}
+
+.tt-starter__plan-name {
+  color: var(--cl-ink);
+  font-size: $cl-font-body;
+  line-height: $cl-line-body;
+  font-weight: 500;
+}
+
+.tt-starter__plan-meta {
+  color: var(--cl-ink-2);
+  font-size: $cl-font-meta;
+}
+
+.tt-starter__coach {
+  display: flex;
+  align-items: center;
+  gap: $cl-space-3;
+  padding: 28rpx;
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-card;
+  background: var(--cl-card);
+
+  &--pressed {
+    opacity: 0.85;
+  }
+}
+
+.tt-starter__coach-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.tt-starter__coach-title {
+  color: var(--cl-ink);
+  font-size: $cl-font-card;
+  line-height: $cl-line-card;
+  font-weight: 500;
+}
+
+.tt-starter__coach-desc {
+  color: var(--cl-ink-2);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}
+
+.tt-starter__coach-link {
+  flex-shrink: 0;
+  color: var(--cl-link);
+  font-size: $cl-font-meta;
+  font-weight: 500;
+}
+
+.tt-starter__hint,
+.tt-starter__more {
+  color: var(--cl-ink-3);
+  font-size: 24rpx;
+  line-height: 34rpx;
+  text-align: center;
+}
+
+.tt-starter__more {
+  padding: 16rpx 0;
+}

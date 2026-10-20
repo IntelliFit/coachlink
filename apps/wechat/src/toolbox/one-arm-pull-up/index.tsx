@@ -158,54 +158,42 @@ export default function OneArmPullUpPage() {
             <Text className='intro-desc'>
               输入严格负重引体 1RM，查看你距离“外加 0.8 倍体重”经验门槛还有多少。
             </Text>
-            <View className='intro-stats'>
-              <View className='intro-stat'>
-                <Text className='intro-stat-value'>2 个</Text>
-                <Text className='intro-stat-label'>必填数据</Text>
-              </View>
-              <View className='intro-stat'>
-                <Text className='intro-stat-value'>1 分钟</Text>
-                <Text className='intro-stat-label'>完成测算</Text>
-              </View>
-              <View className='intro-stat'>
-                <Text className='intro-stat-value'>2 天</Text>
-                <Text className='intro-stat-label'>每周训练</Text>
-              </View>
-            </View>
           </View>
 
           <View className='input-card'>
-            <Text className='card-kicker'>输入你的成绩</Text>
-            <Text className='card-title'>使用同一动作标准，结果才有可比性</Text>
+            <Text className='card-title'>输入你的成绩</Text>
+            <Text className='card-desc'>使用同一动作标准，结果才有可比性。</Text>
 
-            <View className='field-block'>
-              <Text className='field-label'>当前体重</Text>
-              <View className='input-shell'>
-                <StableInput
-                  className='number-input'
-                  type='digit'
-                  value={bodyWeightInput}
-                  onInput={(event) => setBodyWeightInput(event.detail.value)}
-                  placeholder='例如 70'
-                />
-                <Text className='input-unit'>kg</Text>
+            <View className='field-grid'>
+              <View className='field-block'>
+                <Text className='field-label'>当前体重</Text>
+                <View className='input-shell'>
+                  <StableInput
+                    className='number-input'
+                    type='digit'
+                    value={bodyWeightInput}
+                    onInput={(event) => setBodyWeightInput(event.detail.value)}
+                    placeholder='例如 70'
+                  />
+                  <Text className='input-unit'>kg</Text>
+                </View>
+                <Text className='field-hint'>使用最近一次稳定体重。</Text>
               </View>
-              <Text className='field-hint'>使用最近一次稳定体重。</Text>
-            </View>
 
-            <View className='field-block'>
-              <Text className='field-label'>负重引体 1RM 外加重量</Text>
-              <View className='input-shell'>
-                <StableInput
-                  className='number-input'
-                  type='digit'
-                  value={additionalWeightInput}
-                  onInput={(event) => setAdditionalWeightInput(event.detail.value)}
-                  placeholder='例如 40'
-                />
-                <Text className='input-unit'>kg</Text>
+              <View className='field-block'>
+                <Text className='field-label'>负重引体 1RM 外加</Text>
+                <View className='input-shell'>
+                  <StableInput
+                    className='number-input'
+                    type='digit'
+                    value={additionalWeightInput}
+                    onInput={(event) => setAdditionalWeightInput(event.detail.value)}
+                    placeholder='例如 40'
+                  />
+                  <Text className='input-unit'>kg</Text>
+                </View>
+                <Text className='field-hint'>不含体重；直臂起始，下巴过杠。</Text>
               </View>
-              <Text className='field-hint'>不含体重；直臂起始、下巴明确过杠。</Text>
             </View>
 
             {!result && <Text className='input-error'>请输入大于 0 的体重，以及不小于 0 的外加重量。</Text>}

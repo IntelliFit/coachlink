@@ -2218,3 +2218,643 @@
     background: #fff9f5;
   }
 }
+
+/* ==================== 训练执行页 v1 设计变量层（2026-10 改版） ====================
+ * 只重做视觉，不改交互；所有逐组能力（RPE/进步组/新纪录/备注/视频/编辑/增删/计时）保持原样。
+ * 选择器带 .tx-v1 以覆盖上方旧样式；颜色全部来自 tokens-css.scss。
+ */
+.training-execution-page.tx-v1 {
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+
+  .execution-shell {
+    padding: 16rpx 32rpx 64rpx;
+  }
+
+  /* 预览提示条 / 错误提示 */
+  .execution-status-banner {
+    min-height: 0;
+    margin: 16rpx 32rpx 0;
+    padding: 24rpx;
+    border: 2rpx solid var(--cl-warn-line);
+    border-radius: 24rpx;
+    background: var(--cl-warn-bg);
+
+    .error-desc {
+      color: var(--cl-warn-text);
+    }
+  }
+
+  .error-primary-btn,
+  .error-secondary-btn {
+    border-radius: 24rpx;
+    font-weight: 500;
+    box-shadow: none;
+  }
+
+  .error-primary-btn {
+    background: var(--cl-clay-strong);
+    color: var(--cl-on-accent);
+  }
+
+  .error-secondary-btn {
+    background: var(--cl-card);
+    border: 2rpx solid var(--cl-control-line);
+    color: var(--cl-ink);
+  }
+
+  /* 顶部：标题 + 计时 + 动作进度 */
+  .hero-section {
+    padding: 0;
+    margin-bottom: 24rpx;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .hero-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+
+  .hero-compact__row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24rpx;
+  }
+
+  .hero-compact__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    min-width: 0;
+  }
+
+  .hero-compact__kicker {
+    color: var(--cl-link);
+    font-size: 26rpx;
+    font-weight: 500;
+  }
+
+  .hero-compact__title {
+    color: var(--cl-ink);
+    font-size: 36rpx;
+    line-height: 48rpx;
+    font-weight: 700;
+  }
+
+  .hero-compact__timer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+  }
+
+  .hero-compact__timer-value {
+    color: var(--cl-ink);
+    font-size: 48rpx;
+    line-height: 56rpx;
+    font-weight: 700;
+  }
+
+  .hero-compact__timer-label {
+    color: var(--cl-ink-3);
+    font-size: 22rpx;
+  }
+
+  .hero-compact__segments {
+    display: flex;
+    gap: 8rpx;
+  }
+
+  .hero-compact__segment {
+    flex: 1;
+    height: 8rpx;
+    border-radius: 4rpx;
+    background: var(--cl-line);
+
+    &--current {
+      background: var(--cl-clay);
+    }
+
+    &--done {
+      background: var(--cl-done);
+    }
+  }
+
+  .hero-compact__meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12rpx;
+  }
+
+  .hero-compact__meta {
+    color: var(--cl-ink-3);
+    font-size: 26rpx;
+  }
+
+  .hero-chip {
+    padding: 4rpx 16rpx;
+    border: 0;
+    border-radius: 8rpx;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+    font-size: 22rpx;
+
+    &.success {
+      background: var(--cl-done-soft);
+      color: var(--cl-done);
+    }
+
+    &.warning {
+      background: var(--cl-warn-bg);
+      color: var(--cl-warn-text);
+    }
+  }
+
+  /* 动作卡片 */
+  .action-card {
+    margin-bottom: 24rpx;
+    border: 2rpx solid var(--cl-line);
+    border-radius: 32rpx;
+    background: var(--cl-card);
+    box-shadow: none;
+
+    &.expanded {
+      border-color: var(--cl-line);
+    }
+
+    &.completed .action-name {
+      color: var(--cl-ink-2);
+    }
+  }
+
+  .action-header {
+    padding: 24rpx;
+    background: transparent;
+  }
+
+  .action-thumb {
+    flex-shrink: 0;
+    width: 144rpx;
+    height: 96rpx;
+    margin-right: 8rpx;
+    box-sizing: border-box;
+    border: 2rpx solid var(--cl-line-soft);
+    border-radius: 16rpx;
+    background: #FFFFFF;
+  }
+
+  .action-number {
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+  }
+
+  .action-name {
+    color: var(--cl-ink);
+    font-size: 32rpx;
+    font-weight: 700;
+  }
+
+  .action-type-pill {
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+    border: 0;
+  }
+
+  .action-summary {
+    color: var(--cl-ink-2);
+  }
+
+  .action-reference-chip {
+    border: 2rpx solid var(--cl-control-line);
+    border-radius: 9999rpx;
+    background: var(--cl-card);
+    color: var(--cl-ink);
+
+    &.demo {
+      border-color: var(--cl-control-line);
+      background: var(--cl-card);
+      color: var(--cl-ink);
+    }
+  }
+
+  .action-progress-pill {
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+
+    &.done {
+      background: var(--cl-done-soft);
+      color: var(--cl-done);
+    }
+  }
+
+  .action-content {
+    border-top: 2rpx solid var(--cl-line-soft);
+    background: transparent;
+  }
+
+  .coach-plan-note {
+    border: 0;
+    border-radius: 24rpx;
+    background: var(--cl-warn-bg);
+  }
+
+  .coach-plan-note-label {
+    color: var(--cl-warn-text);
+  }
+
+  .coach-plan-note-text {
+    color: var(--cl-ink);
+  }
+
+  /* 组记录 */
+  .set-item {
+    border: 2rpx solid var(--cl-line-soft);
+    border-radius: 24rpx;
+    background: var(--cl-card);
+    box-shadow: none;
+
+    &.current {
+      border-color: var(--cl-clay);
+      background: var(--cl-clay-soft);
+    }
+
+    &.completed {
+      border-color: var(--cl-line-soft);
+      background: var(--cl-card);
+    }
+  }
+
+  .set-index-pill {
+    border: 0;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+  }
+
+  .set-index-number {
+    color: var(--cl-ink);
+  }
+
+  .set-index-label,
+  .set-subline {
+    color: var(--cl-ink-3);
+  }
+
+  .set-main-summary {
+    color: var(--cl-ink);
+  }
+
+  .set-state-pill {
+    background: var(--cl-sunk);
+    color: var(--cl-ink-3);
+
+    &.active {
+      background: transparent;
+      color: var(--cl-clay-text);
+    }
+
+    &.done {
+      background: var(--cl-done-soft);
+      color: var(--cl-done);
+    }
+  }
+
+  .set-tag {
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+
+    &.pr {
+      background: var(--cl-clay-soft);
+      color: var(--cl-clay-text);
+    }
+
+    &.auto {
+      background: var(--cl-clay);
+      color: var(--cl-on-accent);
+    }
+  }
+
+  .readonly-set-tip {
+    background: var(--cl-sunk);
+  }
+
+  .readonly-set-tip-text {
+    color: var(--cl-ink-3);
+  }
+
+  /* 当前组编辑区 */
+  .record-input-label,
+  .record-unit {
+    color: var(--cl-ink-3);
+  }
+
+  .record-stepper {
+    border: 2rpx solid var(--cl-line);
+    border-radius: 24rpx;
+    background: var(--cl-card);
+  }
+
+  .record-stepper-hit {
+    color: var(--cl-ink);
+    background: var(--cl-sunk);
+  }
+
+  .record-stepper-divider {
+    background: var(--cl-line);
+  }
+
+  .record-inline-input,
+  .record-adjust-input,
+  .record-rpe-input,
+  .compact-note-input {
+    color: var(--cl-ink);
+    background: var(--cl-card);
+  }
+
+  .record-complete-btn {
+    border-radius: 24rpx;
+    background: var(--cl-clay-strong);
+    color: var(--cl-on-accent);
+    box-shadow: none;
+  }
+
+  .progress-toggle,
+  .set-more-toggle,
+  .ghost-tool-btn,
+  .bodyweight-btn {
+    border: 2rpx solid var(--cl-control-line);
+    border-radius: 24rpx;
+    background: var(--cl-card);
+    color: var(--cl-ink);
+
+    &.active,
+    &.open {
+      border-color: var(--cl-clay);
+      background: var(--cl-clay-soft);
+      color: var(--cl-clay-text);
+    }
+  }
+
+  .video-attached-chip {
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+  }
+
+  .detail-label {
+    color: var(--cl-ink-3);
+  }
+
+  .detail-value,
+  .detail-note-text {
+    color: var(--cl-ink);
+  }
+
+  .detail-link {
+    color: var(--cl-link);
+  }
+
+  .finish-hint {
+    color: var(--cl-ink-3);
+  }
+}
+
+/* 组间休息：深色面板，在浅色页面上强对比，一眼看到倒计时 */
+.training-execution-page.tx-v1 .rest-timer-panel {
+  border-radius: 48rpx 48rpx 0 0;
+  background: #1D1A16;
+  color: #F5F2ED;
+}
+
+.training-execution-page.tx-v1 .rest-timer-bubble {
+  background: #1D1A16;
+  color: #F5F2ED;
+  box-shadow: var(--cl-shadow-float);
+}
+
+/* 当前组编辑区：重量/次数左右各半，减号在左、加号在右，按钮 40px 见方；下一行 RPE + 完成。
+ * 只改布局与尺寸，输入、步进、校验逻辑不变。 */
+.training-execution-page.tx-v1 .set-item {
+  .record-inline-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16rpx;
+  }
+
+  .record-input-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    min-width: 0;
+
+    &.weight,
+    &.reps {
+      flex: 1 1 calc(50% - 8rpx);
+    }
+
+    &.rpe {
+      flex: 1 1 0;
+    }
+  }
+
+  .record-inline-row.timed .record-input-cell.reps {
+    flex-basis: 100%;
+  }
+
+  .record-input-label {
+    font-size: 22rpx;
+    line-height: 32rpx;
+  }
+
+  .record-adjust-input {
+    position: relative;
+    display: block;
+    height: 96rpx;
+    box-sizing: border-box;
+    border: 2rpx solid var(--cl-line);
+    border-radius: 24rpx;
+    background: var(--cl-card);
+  }
+
+  .record-value-wrap {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4rpx;
+    height: 100%;
+    padding: 0 96rpx;
+    box-sizing: border-box;
+    background: transparent;
+    border: 0;
+  }
+
+  .record-inline-input {
+    width: 112rpx;
+    height: 92rpx;
+    line-height: 92rpx;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: center;
+    font-family: var(--cl-font-num);
+    font-size: 44rpx;
+    font-weight: 700;
+  }
+
+  .record-unit {
+    font-size: 22rpx;
+  }
+
+  .record-stepper {
+    position: static;
+    border: 0;
+    background: transparent;
+  }
+
+  .record-stepper-divider {
+    display: none;
+  }
+
+  .record-stepper-hit {
+    position: absolute;
+    top: 6rpx;
+    width: 80rpx;
+    height: 80rpx;
+    line-height: 80rpx;
+    border-radius: 16rpx;
+    background: var(--cl-sunk);
+    color: var(--cl-ink);
+    text-align: center;
+    font-size: 40rpx;
+    font-weight: 500;
+
+    &:first-child {
+      right: 6rpx;
+    }
+
+    &:last-child {
+      left: 6rpx;
+    }
+  }
+
+  .record-rpe-input {
+    height: 88rpx;
+    box-sizing: border-box;
+    border: 2rpx solid var(--cl-line);
+    border-radius: 24rpx;
+    text-align: center;
+    font-family: var(--cl-font-num);
+    font-size: 30rpx;
+  }
+
+  .record-complete-btn {
+    flex: 1 1 0;
+    height: 88rpx;
+    line-height: 88rpx;
+    margin: 0;
+    padding: 0;
+    font-size: 30rpx;
+    font-weight: 500;
+
+    &::after {
+      border: 0;
+    }
+  }
+
+  .set-secondary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12rpx;
+    margin-top: 16rpx;
+  }
+
+  .bodyweight-btn,
+  .progress-toggle,
+  .set-more-toggle,
+  .ghost-tool-btn {
+    height: 64rpx;
+    line-height: 60rpx;
+    margin: 0;
+    padding: 0 20rpx;
+    font-size: 24rpx;
+
+    &::after {
+      border: 0;
+    }
+  }
+}
+
+/* 旧浅色主题块大量使用 !important，以下几处必须同样声明才能生效。 */
+.training-execution-page.tx-v1 {
+  .record-complete-btn {
+    background: var(--cl-clay-strong) !important;
+    color: var(--cl-on-accent) !important;
+  }
+
+  /* 组间休息：贴底深色面板，倒计时在浅色页面上一眼可见 */
+  .rest-timer-mask {
+    align-items: flex-end !important;
+    justify-content: stretch !important;
+    padding: 0 !important;
+    background: var(--cl-mask) !important;
+  }
+
+  .rest-timer-panel {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 40rpx 32rpx calc(48rpx + env(safe-area-inset-bottom)) !important;
+    box-sizing: border-box;
+    border: 0 !important;
+    border-radius: 48rpx 48rpx 0 0 !important;
+    background: #1D1A16 !important;
+    box-shadow: none !important;
+  }
+
+  .rest-timer-emoji {
+    display: none;
+  }
+
+  .rest-timer-value {
+    color: #F5F2ED !important;
+    font-family: var(--cl-font-num);
+    font-size: 128rpx !important;
+    line-height: 136rpx;
+    font-weight: 700;
+  }
+
+  .rest-timer-label {
+    color: #CFC6BA !important;
+  }
+
+  .rest-timer-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16rpx;
+    margin-top: 32rpx;
+  }
+
+  .rest-action-btn {
+    height: 96rpx !important;
+    line-height: 96rpx !important;
+    margin: 0 !important;
+    border-radius: 24rpx !important;
+    background: #2E2A25 !important;
+    color: #F5F2ED !important;
+    font-size: 30rpx !important;
+
+    &.primary {
+      background: #F5F2ED !important;
+      color: #1D1A16 !important;
+      font-weight: 500;
+    }
+  }
+
+  .rest-bubble-value {
+    color: #F5F2ED !important;
+  }
+}

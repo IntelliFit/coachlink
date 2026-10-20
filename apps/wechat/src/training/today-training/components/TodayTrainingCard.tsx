@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { openActionTeaching } from '@/utils/actionTeaching'
+import { resolveWeappImageThumbnailUrl, resolveWeappMediaUrl } from '@/utils/mediaUrl'
+import { ClButton, ClTag } from '@/components/ui'
 import { buildPlannedSetPreviews } from '@/utils/planSetPrescriptions'
 import { List, Target } from '@nutui/icons-react-taro'
 import {
@@ -12,6 +14,8 @@ import {
   NormalizedDayTask
 } from '../lib/dayModules'
 import './TodayTrainingCard.scss'
+
+const LIGHTWEIGHT_KIND_LABELS: Record<string, string> = { DIET: '饮食', CARDIO: '有氧', HABIT: '习惯' }
 
 interface TodayTrainingCardProps {
   day: any
@@ -60,7 +64,8 @@ function TodayTrainingCard({
   const [showAllTasks, setShowAllTasks] = useState(false)
   const [showAllStrengthTasks, setShowAllStrengthTasks] = useState(false)
   const [infoTask, setInfoTask] = useState<NormalizedDayTask | null>(null)
-  const [expandedPrescriptions, setExpandedPrescriptions] = useState<Record<string, boolean>>({})
+  // undefined = not touched yet: the first unfinished action starts expanded.
+  const [expandedKey, setExpandedKey] = useState<string | null | undefined>(undefined)
 
   const moduleModel = useMemo(
     () =>
@@ -155,76 +160,134 @@ function TodayTrainingCard({
   const headerSubtitle = subheading || `第${dayIndex}天 · ${moduleCount}个模块`
 
   if (compact) {
+    const firstOpenKey = (() => {
+      const target = strengthTasks.find((task) => !task.isCompleted) || strengthTasks[0]
+      return target ? `${target.executionIndex}-${target.actionId}` : null
+    })()
+    const openKey = expandedKey === undefined ? firstOpenKey : expandedKey
     return (
       <>
-        <View className='compact-training-card'>
-          {strengthTasks.length > 0 && (
-            <View className='compact-training-list'>
-              {strengthTasks.map((task) => {
-                const key = `${task.executionIndex}-${task.actionId}`
-                const meta = buildStrengthMeta(task)
-                const prescriptions = task.executionItem?.sets?.length
-                  ? task.executionItem.sets
-                  : buildPlannedSetPreviews({ params: task.params, sets: task.setCount })
-                const hasCustomSets = Array.isArray(task.params?.setPrescriptions) || Array.isArray(task.params?.set_prescriptions)
-                const openTeaching = () => openActionTeaching({
-                  ...actions[task.actionId], id: task.actionId, name: task.title,
-                  detail: task.detailText, url: task.demoVideoUrl
-                }, { instanceId, dayIndex, actionIndex: task.index, coachNote: task.noteText })
-                return (
-                  <View key={key} className='compact-training-row'>
-                    <View className='compact-action-heading'>
-                      <Text className='compact-training-name' onClick={openTeaching}>{task.title}</Text>
-                      <Text className='compact-task-link primary' onClick={openTeaching}>动作讲解</Text>
+        {strengthTasks.length > 0 && (
+          <View className='tt-day-actions'>
+            {strengthTasks.map((task) => {
+              const key = `${task.executionIndex}-${task.actionId}`
+              const meta = buildStrengthMeta(task)
+              const prescriptions = task.executionItem?.sets?.length
+                ? task.executionItem.sets
+                : buildPlannedSetPreviews({ params: task.params, sets: task.setCount })
+              const hasCustomSets = Array.isArray(task.params?.setPrescriptions) || Array.isArray(task.params?.set_prescriptions)
+              const action = actions[task.actionId] || {}
+              const imageSource = action.reference_image_url as string | undefined
+              const thumbUrl = resolveWeappImageThumbnailUrl(imageSource, 240)
+              const largeUrl = resolveWeappImageThumbnailUrl(imageSource, 720)
+              const expanded = openKey === key
+              const summary = hasCustomSets
+                ? `${task.setCount}组 · 逐组安排见展开`
+                : [meta.summary, meta.loadText, meta.restText].filter(Boolean).join(' · ')
+              const openTeaching = () => openActionTeaching({
+                ...action, id: task.actionId, name: task.title,
+                detail: task.detailText, url: task.demoVideoUrl
+              }, { instanceId, dayIndex, actionIndex: task.index, coachNote: task.noteText })
+              return (
+                <View key={key} className={`tt-action ${expanded ? 'tt-action--open' : ''}`}>
+                  <View
+                    className='tt-action__head'
+                    hoverClass='tt-action__head--pressed'
+                    hoverStayTime={60}
+                    ariaRole='button'
+                    ariaLabel={`${task.title}，${expanded ? '收起' : '展开'}详情`}
+                    onClick={() => setExpandedKey(expanded ? null : key)}
+                  >
+                    {thumbUrl ? (
+                      <Image className='tt-action__thumb' src={thumbUrl} mode='aspectFit' lazyLoad />
+                    ) : (
+                      <View className='tt-action__thumb tt-action__thumb--empty'>
+                        <Text className='tt-action__initial'>{task.title.slice(0, 1)}</Text>
+                      </View>
+                    )}
+                    <View className='tt-action__main'>
+                      <Text className='tt-action__name'>{task.title}</Text>
+                      <Text className='tt-action__rx cl-num'>{summary}</Text>
+                      {!!task.noteText && !expanded && (
+                        <Text className='tt-action__note-preview'>备注：{task.noteText}</Text>
+                      )}
                     </View>
-                    <Text className='compact-prescription'>
-                      {hasCustomSets ? `${task.setCount}组 · 逐组安排见下方` : [meta.summary, meta.loadText, meta.restText].filter(Boolean).join(' · ')}
+                    <Text className={`tt-action__count cl-num ${task.isCompleted ? 'tt-action__count--done' : ''}`}>
+                      {task.completedSetCount}/{task.setCount}
                     </Text>
-                    {!!task.noteText && <Text className='compact-coach-note'>教练要求：{task.noteText}</Text>}
-                    <View className='compact-action-heading'>
-                      <Text className='compact-task-link' onClick={() => setExpandedPrescriptions(prev => ({ ...prev, [key]: !prev[key] }))}>
-                        {expandedPrescriptions[key] ? '收起逐组安排' : '查看逐组安排'}
-                      </Text>
-                      <Text className={`compact-training-count ${task.isCompleted ? 'completed' : ''}`}>{task.completedSetCount}/{task.setCount}组完成</Text>
-                    </View>
-                    {expandedPrescriptions[key] && prescriptions.map((set: any) => (
-                      <Text key={set.set_number} className='compact-set-prescription'>
-                        第{set.set_number}组 · {[set.planned_weight, set.planned_reps ? `${set.planned_reps}${/^\d+(?:\.\d+)?$/.test(String(set.planned_reps)) ? set.planned_target_unit || '次' : ''}` : '', set.planned_intensity,
-                          set.planned_rest_seconds ? `休息${set.planned_rest_seconds}秒` : ''].filter(Boolean).join(' · ') || '按动作要求完成'}
-                      </Text>
-                    ))}
+                    <Text className={`tt-action__chevron ${expanded ? 'tt-action__chevron--open' : ''}`}>›</Text>
                   </View>
-                )
-              })}
+                  {expanded && (
+                    <View className='tt-action__body'>
+                      {largeUrl ? (
+                        <Image
+                          className='tt-action__image'
+                          src={largeUrl}
+                          mode='aspectFit'
+                          onClick={() => Taro.previewImage({ urls: [resolveWeappMediaUrl(imageSource)] })}
+                        />
+                      ) : null}
+                      {!!task.noteText && (
+                        <View className='tt-action__note'>
+                          <Text className='tt-action__note-label'>教练备注</Text>
+                          <Text className='tt-action__note-text'>{task.noteText}</Text>
+                        </View>
+                      )}
+                      <View className='tt-action__buttons'>
+                        <ClButton variant='secondary' size='md' block onClick={openTeaching}>动作要点</ClButton>
+                        {task.demoVideoUrl ? (
+                          <ClButton variant='secondary' size='md' block onClick={openTeaching}>看演示</ClButton>
+                        ) : null}
+                      </View>
+                      {prescriptions.length > 0 && (
+                        <View className='tt-action__sets'>
+                          {prescriptions.map((set: any) => (
+                            <Text key={set.set_number} className='tt-action__set cl-num'>
+                              第{set.set_number}组 · {[set.planned_weight, set.planned_reps ? `${set.planned_reps}${/^\d+(?:\.\d+)?$/.test(String(set.planned_reps)) ? set.planned_target_unit || '次' : ''}` : '', set.planned_intensity,
+                                set.planned_rest_seconds ? `休息${set.planned_rest_seconds}秒` : ''].filter(Boolean).join(' · ') || '按动作要求完成'}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )
+            })}
+          </View>
+        )}
+        {lightweightTasks.length > 0 && (
+          <View className='tt-tasks'>
+            <View className='tt-tasks__header'>
+              <Text className='tt-tasks__title'>其他任务</Text>
+              <Text className='tt-tasks__count cl-num'>{lightweightCompletedCount}/{lightweightTasks.length}</Text>
             </View>
-          )}
-          {lightweightTasks.length > 0 && (
-            <View className='compact-lightweight-list'>
-              {lightweightTasks.map((task) => {
-                const meta = buildLightweightSummary(task)
-                return (
-                  <View key={`${task.executionIndex}-${task.actionId}`} className='compact-lightweight-row'>
-                    <View className='compact-lightweight-copy' onClick={() => handleOpenTask(task)}>
-                      <Text className='compact-training-name'>{task.title}</Text>
-                      <Text className='compact-lightweight-summary'>{meta.summary}</Text>
-                      {!!task.suggestedTime && <Text className='compact-lightweight-summary'>{task.suggestedTime}</Text>}
-                    </View>
-                    <View className='compact-lightweight-actions'>
-                      {(task.detailText || task.noteText) && (
-                        <Text className='compact-task-link' onClick={() => setInfoTask(task)}>说明</Text>
-                      )}
-                      {task.isStudentExtra && onDeleteLightweightTask && (
-                        <Text className='compact-task-link' onClick={() => onDeleteLightweightTask(task)}>删除</Text>
-                      )}
-                      <Text className={`compact-task-link ${task.isCompleted ? 'completed' : 'primary'}`}
-                        onClick={() => handleOpenTask(task)}>{meta.actionLabel}</Text>
-                    </View>
+            {lightweightTasks.map((task) => {
+              const meta = buildLightweightSummary(task)
+              return (
+                <View key={`${task.executionIndex}-${task.actionId}`} className='tt-task'>
+                  <ClTag>{LIGHTWEIGHT_KIND_LABELS[String(task.itemType || '').toUpperCase()] || '任务'}</ClTag>
+                  <View className='tt-task__copy' onClick={() => handleOpenTask(task)}>
+                    <Text className={`tt-task__title ${task.isCompleted ? 'tt-task__title--done' : ''}`}>{task.title}</Text>
+                    <Text className='tt-task__summary'>{[meta.summary, task.suggestedTime].filter(Boolean).join(' · ')}</Text>
                   </View>
-                )
-              })}
-            </View>
-          )}
-        </View>
+                  {(task.detailText || task.noteText) && (
+                    <Text className='tt-task__link' onClick={() => setInfoTask(task)}>说明</Text>
+                  )}
+                  {task.isStudentExtra && onDeleteLightweightTask && (
+                    <Text className='tt-task__link' onClick={() => onDeleteLightweightTask(task)}>删除</Text>
+                  )}
+                  <Text
+                    className={`tt-task__action ${task.isCompleted ? 'tt-task__action--done' : ''}`}
+                    onClick={() => handleOpenTask(task)}
+                  >
+                    {meta.actionLabel}
+                  </Text>
+                </View>
+              )
+            })}
+          </View>
+        )}
         {infoTask && (
           <View className='task-info-mask' onClick={() => setInfoTask(null)}>
             <View className='task-info-dialog' onClick={(event) => event.stopPropagation()}>

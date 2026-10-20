@@ -16,6 +16,7 @@ import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import { addBeijingDays, getBeijingDayStart } from "@/lib/beijingTime";
+import { withCanonicalReferenceImages } from "@/lib/actionReferenceImages";
 import {
     evaluateSubscriptionPlanAccess,
     filterTrainingDaysByAccessWindow,
@@ -451,6 +452,7 @@ export async function POST(req: Request) {
             }
         }
     }
+    actionsMap = await withCanonicalReferenceImages(supabase as any, actionsMap);
     timings["4_actions"] = performance.now() - actionsStart;
 
     // 5. Student-visible auto load compute (server-side, non-persistent)

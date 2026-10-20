@@ -2,6 +2,8 @@ import qrcode from 'qrcode-generator'
 
 import { resolveCanvasImageSrc } from '@/utils/weapp-canvas-image'
 
+import { fitPosterChipText } from './posterSetText'
+
 export const WORKOUT_POSTER_WIDTH = 750
 export const WORKOUT_POSTER_MIN_HEIGHT = 1440
 
@@ -244,10 +246,17 @@ function drawSetChip(
   ctx.fillText(String(item.setNumber), x + 20, y + height / 2 + 1)
 
   ctx.fillStyle = INK
-  ctx.font = '18px sans-serif'
   ctx.textAlign = 'left'
-  const recordText = fitText(ctx, item.recordText || `${item.weightText} × ${item.repsText}`, 86)
-  ctx.fillText(recordText, x + 42, y + height / 2 + 1)
+  const fitted = fitPosterChipText(
+    item.recordText || `${item.weightText}×${item.repsText}`,
+    86,
+    (value, fontSize) => {
+      ctx.font = `${fontSize}px sans-serif`
+      return ctx.measureText(value).width
+    }
+  )
+  ctx.font = `${fitted.fontSize}px sans-serif`
+  ctx.fillText(fitted.text, x + 42, y + height / 2 + 1)
 
   if (item.isPr) {
     ctx.fillStyle = BRAND

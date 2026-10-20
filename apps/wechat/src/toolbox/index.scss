@@ -1,430 +1,217 @@
+@use '../styles/tokens' as *;
+
+// 工具箱首页（2026-10 改版，对应设计稿 Toolbox 画板）。颜色只用 tokens-css.scss 的变量，深色模式自动切换。
 .toolbox-page {
-  min-height: 100vh;
-  box-sizing: border-box;
-  padding-top: constant(safe-area-inset-top);
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: 184rpx;
-  background: #f7f5f3;
-  color: #18231f;
+  height: 100vh;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
 
-  .page-scroll {
+  .toolbox-scroll {
+    height: 100vh;
     box-sizing: border-box;
-    width: 100%;
   }
 
-  .page-content {
-    box-sizing: border-box;
-    width: 100%;
-    padding: 0 24rpx 64rpx;
+  .toolbox-count {
+    color: var(--cl-ink-3);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
   }
 
-  .toolbox-hero {
-    box-sizing: border-box;
-    padding: 0 8rpx 32rpx;
-    border-bottom: 1px solid #e3ded8;
-  }
-
-  .hero-kicker,
-  .hero-title,
-  .hero-meta,
-  .hero-desc,
-  .section-kicker,
-  .section-title,
-  .section-subtitle,
-  .toolbox-badge,
-  .toolbox-name,
-  .toolbox-desc,
-  .scene-name,
-  .scene-desc,
-  .scene-meta {
-    display: block;
-  }
-
-  .hero-kicker,
-  .section-kicker {
-    color: #cf6d4e;
-    font-size: 20rpx;
-    font-weight: 900;
-    letter-spacing: 2rpx;
-  }
-
-  .hero-title {
-    max-width: 600rpx;
-    margin-top: 8rpx;
-    font-size: 56rpx;
-    font-weight: 900;
-    line-height: 1.2;
-  }
-
-  .hero-meta {
-    margin-top: 8rpx;
-    color: #8b8179;
-    font-size: 20rpx;
-    font-weight: 700;
-    line-height: 1.5;
-  }
-
-  .hero-desc {
-    max-width: 560rpx;
-    margin-top: 16rpx;
-    color: #5f5852;
-    font-size: 24rpx;
-    line-height: 1.6;
-  }
-
-  .section-block,
-  .scene-section {
-    margin-top: 32rpx;
-  }
-
-  .section-header {
-    padding: 0 8rpx;
-    margin-bottom: 24rpx;
-  }
-
-  .section-kicker {
-    color: #cf6d4e;
-  }
-
-  .section-title {
-    margin-top: 8rpx;
-    font-size: 34rpx;
-    font-weight: 900;
-    line-height: 1.4;
-  }
-
-  .section-subtitle {
-    margin-top: 8rpx;
-    color: #756d66;
-    font-size: 22rpx;
-    line-height: 1.6;
-  }
-
-  .toolbox-icon {
+  .toolbox-recent {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 64rpx;
-    height: 64rpx;
-    border-radius: 24rpx;
-    color: #ffffff;
+    flex-wrap: wrap;
+    gap: $cl-space-2;
+  }
+
+  .toolbox-recent__label {
+    flex-shrink: 0;
+    color: var(--cl-ink-3);
+    font-size: $cl-font-meta;
+  }
+
+  .toolbox-recent__chip {
+    display: flex;
+    align-items: center;
+    height: $cl-chip-height;
+    padding: 0 $cl-space-3;
+    box-sizing: border-box;
+    border: 2rpx solid var(--cl-line);
+    border-radius: $cl-radius-pill;
+    background: var(--cl-card);
+
+    &:active {
+      opacity: 0.7;
+    }
+  }
+
+  .toolbox-recent__chip-text {
+    color: var(--cl-ink);
+    font-size: 28rpx;
+  }
+
+  .toolbox-body {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-6;
+    padding: $cl-space-2 0 calc(#{$cl-tab-bar-height} + #{$cl-space-6} + env(safe-area-inset-bottom));
+  }
+
+  .toolbox-section {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-3;
+    padding: 0 $cl-page-gutter;
+  }
+
+  .toolbox-section__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $cl-space-2;
+  }
+
+  .toolbox-section__hint {
+    flex-shrink: 0;
+    color: var(--cl-ink-3);
+    font-size: $cl-font-meta;
+  }
+
+  // 封面卡：图片铺满，左下角深色标签（图片本身明暗不一，标签必须自带底色保证可读）
+  .toolbox-featured,
+  .toolbox-tile {
+    position: relative;
+    overflow: hidden;
+    border-radius: $cl-radius-card;
+    background: var(--cl-sunk);
+
+    &:active {
+      opacity: 0.85;
+    }
+  }
+
+  .toolbox-featured {
+    height: 272rpx;
+  }
+
+  .toolbox-featured__cover,
+  .toolbox-tile__cover {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   .toolbox-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16rpx;
+    gap: $cl-space-3;
   }
 
-  .toolbox-list {
+  .toolbox-tile {
+    height: 248rpx;
+  }
+
+  .toolbox-label {
+    position: absolute;
+    left: $cl-space-2;
+    bottom: $cl-space-2;
     display: flex;
     flex-direction: column;
-    gap: 16rpx;
+    gap: 4rpx;
+    max-width: calc(100% - #{$cl-space-4});
+    padding: $cl-space-1 $cl-space-2;
+    box-sizing: border-box;
+    border-radius: $cl-radius-tag;
+    background: rgba(29, 26, 22, 0.78);
   }
 
-  .toolbox-card,
-  .scene-card {
-    box-sizing: border-box;
-    overflow: hidden;
-    border: 1px solid #e5e7eb;
+  .toolbox-label--featured {
+    left: $cl-space-3;
+    bottom: $cl-space-3;
+    padding: 12rpx $cl-space-3;
     border-radius: 24rpx;
-    background: #ffffff;
-    box-shadow: 0 16rpx 40rpx rgba(41, 31, 24, 0.05);
+  }
+
+  .toolbox-label__name {
+    color: #FFFFFF;
+    font-size: 28rpx;
+    line-height: 40rpx;
+    font-weight: 700;
+  }
+
+  .toolbox-label--featured .toolbox-label__name {
+    font-size: 30rpx;
+    line-height: 44rpx;
+  }
+
+  .toolbox-label__desc {
+    color: #E9E3DA;
+    font-size: 24rpx;
+    line-height: 32rpx;
+  }
+
+  // 小游戏：横向滑动，露出下一张提示还能滑
+  .toolbox-games {
+    width: auto;
+    margin: 0 (-$cl-page-gutter);
+    white-space: nowrap;
+  }
+
+  .toolbox-games__track {
+    display: inline-flex;
+    gap: $cl-space-3;
+    padding: 0 $cl-page-gutter;
+  }
+
+  .toolbox-game {
+    display: inline-flex;
+    flex-direction: column;
+    gap: $cl-space-1;
+    width: 264rpx;
+    white-space: normal;
 
     &:active {
-      opacity: 0.76;
+      opacity: 0.85;
     }
   }
 
-  .toolbox-card {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    padding: 24rpx;
-  }
-
-  .toolbox-card--compact {
-    flex-direction: row;
-    align-items: stretch;
-    gap: 16rpx;
-    height: 232rpx;
-    padding: 16rpx;
-  }
-
-  .toolbox-practical-cover {
-    align-self: center;
-    flex-shrink: 0;
-    width: 184rpx;
-    height: 136rpx;
-    border-radius: 16rpx;
-    background: #eeeae4;
-  }
-
-  .toolbox-card-content {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  .toolbox-card-main {
-    display: flex;
-    align-items: flex-start;
-    gap: 16rpx;
-  }
-
-  .toolbox-card-copy {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .toolbox-card--compact {
-    .toolbox-icon {
-      flex-shrink: 0;
-      width: 64rpx;
-      height: 64rpx;
-      border-radius: 16rpx;
-    }
-
-    .toolbox-badge {
-      margin-top: 0;
-    }
-
-    .toolbox-name {
-      margin-top: 8rpx;
-      font-size: 28rpx;
-    }
-
-    .toolbox-desc {
-      display: -webkit-box;
-      overflow: hidden;
-      min-height: 0;
-      margin-top: 8rpx;
-      font-size: 20rpx;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-    }
-
-    .toolbox-arrow {
-      flex-shrink: 0;
-      align-self: center;
-      width: 40rpx;
-      text-align: center;
-    }
-
-    .toolbox-tags {
-      margin-top: 8rpx;
-      padding-top: 0;
-      padding-left: 80rpx;
-    }
-  }
-
-  .toolbox-card--game {
-    padding: 0;
-    background: #18231f;
-  }
-
-  .toolbox-cover-shell {
+  .toolbox-game__cover-wrap {
     position: relative;
-    width: 100%;
-    height: 240rpx;
+    width: 264rpx;
+    height: 200rpx;
     overflow: hidden;
     border-radius: 24rpx;
+    background: var(--cl-sunk);
   }
 
-  .toolbox-cover {
+  .toolbox-game__cover {
     display: block;
     width: 100%;
     height: 100%;
-    background: #18231f;
   }
 
-  .toolbox-cover-scrim {
+  .toolbox-game__badge {
     position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    background: linear-gradient(180deg, rgba(20, 18, 16, 0.02) 36%, rgba(20, 18, 16, 0.78) 100%);
+    top: $cl-space-1;
+    left: $cl-space-1;
+    padding: 0 $cl-space-1;
+    border-radius: 8rpx;
+    background: rgba(29, 26, 22, 0.78);
+    color: #FFFFFF;
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
   }
 
-  .toolbox-cover-title {
-    position: absolute;
-    right: 16rpx;
-    bottom: 16rpx;
-    left: 16rpx;
-    color: #ffffff;
+  .toolbox-game__name {
+    color: var(--cl-ink);
     font-size: 28rpx;
-    font-weight: 700;
-    line-height: 1.35;
-    text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.42);
+    line-height: 40rpx;
+    font-weight: 500;
   }
 
-  .toolbox-icon {
-    width: 56rpx;
-    height: 56rpx;
-    border-radius: 16rpx;
-    background: #64748b;
-    font-size: 26rpx;
-  }
-
-  .toolbox-card--motion-bean .toolbox-icon,
-  .toolbox-card--pushup-dash .toolbox-icon {
-    background: #9d4f3b;
-  }
-
-  .toolbox-card--pullup-rush .toolbox-icon,
-  .toolbox-card--power-analysis .toolbox-icon {
-    background: #3f7c6b;
-  }
-
-  .toolbox-card--strength-calculator .toolbox-icon {
-    background: #b7793d;
-  }
-
-  .toolbox-card--one-arm-pull-up .toolbox-icon {
-    background: #8a6846;
-  }
-
-  .toolbox-card--bar-locations .toolbox-icon {
-    background: #4d7185;
-  }
-
-  .toolbox-arrow {
-    color: #9a8f87;
-    font-size: 32rpx;
-    font-weight: 800;
-  }
-
-  .toolbox-badge {
-    margin-top: 24rpx;
-    color: #9a8f87;
-    font-size: 18rpx;
-    font-weight: 900;
-    letter-spacing: 1px;
-  }
-
-  .toolbox-name {
-    margin-top: 8rpx;
-    font-size: 28rpx;
-    font-weight: 900;
-    line-height: 1.4;
-  }
-
-  .toolbox-desc {
-    min-height: 72rpx;
-    margin-top: 8rpx;
-    color: #756d66;
-    font-size: 20rpx;
-    line-height: 1.6;
-  }
-
-  .toolbox-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8rpx;
-    margin-top: auto;
-    padding-top: 16rpx;
-  }
-
-  .toolbox-tag {
-    padding: 8rpx 16rpx;
-    border-radius: 9999rpx;
-    background: #f3f0eb;
-    color: #756d66;
-    font-size: 18rpx;
-    font-weight: 800;
-  }
-
-  .scene-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16rpx;
-  }
-
-  .scene-cover-wrap {
-    position: relative;
-    width: 100%;
-    height: 184rpx;
-    background: #eeeae4;
-  }
-
-  .scene-cover {
-    display: block;
-    width: 100%;
-    height: 184rpx;
-  }
-
-  .scene-icon-wrap {
-    position: absolute;
-    left: 16rpx;
-    top: 16rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 56rpx;
-    height: 56rpx;
-    border-radius: 9999rpx;
-    background: #ffffff;
-    box-shadow: 0 8rpx 24rpx rgba(41, 31, 24, 0.12);
-  }
-
-  .scene-body {
-    padding: 24rpx;
-  }
-
-  .scene-name {
+  .toolbox-game__desc {
+    color: var(--cl-ink-3);
     font-size: 24rpx;
-    font-weight: 900;
-    line-height: 1.45;
-  }
-
-  .scene-desc {
-    min-height: 64rpx;
-    margin-top: 8rpx;
-    color: #756d66;
-    font-size: 20rpx;
-    line-height: 1.6;
-  }
-
-  .scene-meta {
-    margin-top: 16rpx;
-    color: #cf6d4e;
-    font-size: 20rpx;
-    font-weight: 900;
-  }
-
-  &.theme-dark {
-    background: #111714;
-    color: #f8fafc;
-
-    .section-title,
-    .toolbox-name,
-    .scene-name {
-      color: #f8fafc;
-    }
-
-    .section-subtitle,
-    .hero-meta,
-    .hero-desc,
-    .toolbox-desc,
-    .scene-desc {
-      color: #b6c0ba;
-    }
-
-    .toolbox-hero {
-      border-bottom-color: #344039;
-    }
-
-    .toolbox-card,
-    .scene-card {
-      border-color: #344039;
-      background: #1a231f;
-    }
-
-    .toolbox-tag {
-      background: #111714;
-      color: #b6c0ba;
-    }
+    line-height: 32rpx;
   }
 }

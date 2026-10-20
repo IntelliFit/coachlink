@@ -7,6 +7,9 @@ import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type Tra
 import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation'
 import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, getTrainingSetVolume, formatRecordedTrainingSet, inheritedTimedSetDefaults } from '@coachlink/core/src/trainingSetMetrics'
 import RecordCompletionButton from '@/components/RecordCompletionButton'
+import { formatPosterSetText } from './posterSetText'
+import { previousCompletedWeight } from './setDefaults'
+import { resolveWeappImageThumbnailUrl } from '@/utils/mediaUrl'
 import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { trainingService } from '@/services/trainingService'
@@ -738,7 +741,11 @@ function TrainingExecution() {
     }
 
     const timed = isTimedTrainingSet(set, options?.action)
-    const defaultWeight = timed ? null : getSetWeightDefault(set)
+    const plannedWeight = timed ? null : getSetWeightDefault(set)
+    // No concrete kg in the plan (e.g. "9RM"): start from the weight used on the previous set.
+    const defaultWeight = timed || plannedWeight !== null || set.status === 'completed'
+      ? plannedWeight
+      : previousCompletedWeight(options?.action?.sets, set)
     const defaultReps = timed ? getActualDurationSeconds(set) ?? (set.status === 'completed' ? null : getPlannedDurationSeconds(set, options?.action)) : getSetRepsDefault(set)
     setWeight(defaultWeight)
     setWeightInput(formatInputValue(defaultWeight))
@@ -2307,7 +2314,6 @@ function TrainingExecution() {
   const totalSets = actionExecutions.reduce((sum: number, a: ActionExecution) => sum + (a.total_sets || 0), 0)
   const completedSets = actionExecutions.reduce((sum: number, a: ActionExecution) => sum + (a.completed_sets || 0), 0)
   const pendingSetsCount = Math.max(0, totalSets - completedSets)
-  const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
   const shouldShowQuickFinishButton =
     !isImpromptuMode && !isTimedOutExecution && canFinishWholeDay && pendingSetsCount > 0
   const canCancelTraining =
@@ -2366,25 +2372,11 @@ function TrainingExecution() {
   }, 0)
   const planTitle = String(planInstance?.name || (isImpromptuMode ? '即兴锻炼' : '训练执行')).trim()
   const heroTimerValue = formatTimerValue(elapsedTrainingSeconds)
-  const heroTimerFontSize = Math.max(16, Math.min(54, Math.floor(240 / Math.max(heroTimerValue.length, 1))))
   const heroTimerLabel = execution?.completed_at
     ? '本次用时'
     : isTimedOutExecution
       ? '已记录时长'
       : '训练总时长'
-  const currentActionName = String(currentAction?.action_name || '').trim() || '等待选择动作'
-  const currentActionType = String(actions?.[currentAction?.action_id]?.type || 'STRENGTH').toUpperCase()
-  const currentActionMeta = getActionTypeMeta(currentActionType)
-  const currentPlannedSummary = currentSet
-    ? [
-        currentSet.planned_weight || null,
-        formatPlannedRepsText(currentSet) || null,
-        currentSet.planned_intensity || null
-      ].filter(Boolean).join(' · ')
-    : ''
-  const heroSubtitle = planTitle && currentActionName && planTitle === currentActionName
-    ? currentPlannedSummary || '按计划完成本组'
-    : [currentActionName, currentPlannedSummary || null].filter(Boolean).join(' · ')
   const currentActualSummary = currentSet && isTimedTrainingSet(currentSet, currentAction) ? formatRecordedTrainingSet(currentSet, currentAction) : currentSet
     ? [
         currentSet.actual_weight !== null && currentSet.actual_weight !== undefined ? `${currentSet.actual_weight}kg` : null,
@@ -2392,7 +2384,6 @@ function TrainingExecution() {
         currentSet.rpe ? `RPE ${currentSet.rpe}` : null
       ].filter(Boolean).join(' · ')
     : ''
-  const currentRestLabel = formatRestSummary(currentSet?.planned_rest_seconds)
   const workoutSummary = (() => {
     let totalVolume = 0
     let completedSetTotal = 0
@@ -2464,7 +2455,7 @@ function TrainingExecution() {
             setNumber: Number(set.set_number || set.set_index || setIndex + 1),
             weightText,
             repsText,
-            recordText: formatRecordedTrainingSet(set, action).replace(' / 无外加负重', ''),
+            recordText: formatPosterSetText(set, action),
             isPr: !!set.is_pr
           }
         }),
@@ -2701,7 +2692,7 @@ function TrainingExecution() {
 
   if (loading && !execution) {
     return (
-      <View className={`training-execution-page theme-${effectiveTheme}`}>
+      <View className={`training-execution-page tx-v1 theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
         {process.env.NODE_ENV === 'development' ? <LocalDebugBanner /> : null}
         <View className="loading-wrap">
           <Text className="loading-title">正在进入训练</Text>
@@ -2714,7 +2705,7 @@ function TrainingExecution() {
 
   if (!execution) {
     return (
-      <View className={`training-execution-page theme-${effectiveTheme}`}>
+      <View className={`training-execution-page tx-v1 theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
         {process.env.NODE_ENV === 'development' ? <LocalDebugBanner /> : null}
         {executionNoticePopup}
         <View className="error-wrap">
@@ -2731,7 +2722,7 @@ function TrainingExecution() {
   }
 
   return (
-    <View className={`training-execution-page theme-${effectiveTheme}`}>
+    <View className={`training-execution-page tx-v1 theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
       {process.env.NODE_ENV === 'development' ? <LocalDebugBanner /> : null}
       {executionNoticePopup}
       {loadError ? (
@@ -2766,54 +2757,37 @@ function TrainingExecution() {
             </View>
           )}
           <View className="hero-section">
-            <View className="hero-main">
-              <View className="hero-timer-card">
-                <Text className="hero-timer-value" style={{ fontSize: `${heroTimerFontSize}rpx` }}>{heroTimerValue}</Text>
-                <Text className="hero-timer-label">{heroTimerLabel}</Text>
-              </View>
-              <View className="hero-summary">
-                {!isImpromptuMode && (
-                  <Text className="hero-day-label hero-day-label--context">{`${intent === 'preview' ? '计划预览 · ' : isCompletedExecution ? '训练记录 · ' : isTimedOutExecution ? '待处理训练 · ' : !cloudExecutionReady ? '尚未开始 · ' : ''}第${dayIndex}天`}</Text>
-                )}
-                <Text className="hero-title">{planTitle || '训练执行'}</Text>
-                <Text className="hero-subtitle">{heroSubtitle}</Text>
-                <View className="hero-chip-row">
-                  <Text className="hero-chip">{currentActionMeta.label}</Text>
-                  <Text className="hero-chip">{currentRestLabel}</Text>
-                  {currentActualSummary ? <Text className="hero-chip success">{currentActualSummary}</Text> : null}
-                  {isTimedOutExecution
-                    ? <Text className="hero-chip warning">已超过5小时</Text>
-                    : intent === 'preview'
-                      ? <Text className="hero-chip warning">计划预览</Text>
-                      : null}
+            <View className="hero-compact">
+              <View className="hero-compact__row">
+                <View className="hero-compact__copy">
+                  {!isImpromptuMode && (
+                    <Text className="hero-compact__kicker">{`${intent === 'preview' ? '计划预览 · ' : isCompletedExecution ? '训练记录 · ' : isTimedOutExecution ? '待处理训练 · ' : !cloudExecutionReady ? '尚未开始 · ' : ''}第${dayIndex}天`}</Text>
+                  )}
+                  <Text className="hero-compact__title">{planTitle || '训练执行'}</Text>
+                </View>
+                <View className="hero-compact__timer">
+                  <Text className="hero-compact__timer-value cl-num">{heroTimerValue}</Text>
+                  <Text className="hero-compact__timer-label">{heroTimerLabel}</Text>
                 </View>
               </View>
-            </View>
-
-            <View className="hero-stats">
-              <View className="hero-stat-card">
-                <Text className="hero-stat-label">动作</Text>
-                <Text className="hero-stat-value">{actionExecutions.length}</Text>
+              {actionExecutions.length > 0 && (
+                <View className="hero-compact__segments">
+                  {actionExecutions.map((item: ActionExecution, index: number) => (
+                    <View
+                      key={index}
+                      className={`hero-compact__segment ${item.completed_sets >= item.total_sets ? 'hero-compact__segment--done' : index === expandedAction ? 'hero-compact__segment--current' : ''}`}
+                    />
+                  ))}
+                </View>
+              )}
+              <View className="hero-compact__meta-row">
+                <Text className="hero-compact__meta cl-num">
+                  {`${actionExecutions.length}个动作 · ${completedSets}/${totalSets}组 · 完成${completedActions}个`}
+                  {lightweightProgress.pending > 0 ? ` · 轻任务待完成${lightweightProgress.pending}` : ''}
+                </Text>
+                {currentActualSummary ? <Text className="hero-chip success">{currentActualSummary}</Text> : null}
+                {isTimedOutExecution ? <Text className="hero-chip warning">已超过5小时</Text> : null}
               </View>
-              <View className="hero-stat-card">
-                <Text className="hero-stat-label">组进度</Text>
-                <Text className="hero-stat-value">{completedSets}/{totalSets}</Text>
-              </View>
-              <View className="hero-stat-card">
-                <Text className="hero-stat-label">已完成</Text>
-                <Text className="hero-stat-value">{completedActions}</Text>
-              </View>
-              <View className="hero-stat-card">
-                <Text className="hero-stat-label">轻任务</Text>
-                <Text className="hero-stat-value">{lightweightProgress.pending}</Text>
-              </View>
-            </View>
-
-            <View className="progress-section">
-              <View className="progress-bar">
-                <View className="progress-fill" style={{ width: `${progress}%` }} />
-              </View>
-              <Text className="progress-text">已完成 {Math.round(progress)}%</Text>
             </View>
           </View>
 
@@ -2843,7 +2817,16 @@ function TrainingExecution() {
                 >
                   <View className="action-header" onClick={() => handleExpandAction(actionIdx)}>
                     <View className="action-info">
-                      <Text className="action-number">{actionIdx + 1}</Text>
+                      {actionDetail?.reference_image_url ? (
+                        <Image
+                          className="action-thumb"
+                          src={resolveWeappImageThumbnailUrl(actionDetail.reference_image_url, 240)}
+                          mode="aspectFit"
+                          lazyLoad
+                        />
+                      ) : (
+                        <Text className="action-number">{actionIdx + 1}</Text>
+                      )}
                       <View className="action-copy">
                         <Text className="action-name">{action.action_name || actionDetail?.name || '未知动作'}</Text>
                         <View className="action-meta-row">
@@ -2982,7 +2965,7 @@ function TrainingExecution() {
                                               type="digit"
                                               className="record-inline-input"
                                               value={weightInput}
-                                              placeholder={String(set.planned_weight || '0')}
+                                              placeholder={set.planned_weight ? String(set.planned_weight) : '填重量'}
                                               onInput={(e) => {
                                                 const rawValue = e.detail.value
                                                 const parsed = parseInputNumber(rawValue, 'float')

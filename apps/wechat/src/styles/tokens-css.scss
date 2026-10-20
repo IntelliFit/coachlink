@@ -1,0 +1,82 @@
+// CoachLink design tokens v1: colour custom properties for light and dark themes.
+// New components read only these variables, so dark mode needs no per-class overrides.
+// Contrast notes: --cl-ink-3 on card/paper ≥ 4.5:1; white on --cl-clay-strong 4.6:1.
+
+page {
+  --cl-paper: #F5F2ED;
+  --cl-card: #FFFFFF;
+  --cl-sunk: #EFEAE2;
+  --cl-line: #E6DFD5;
+  --cl-line-soft: #F0EBE3;
+  --cl-control-line: #D9D0C4;
+
+  --cl-ink: #1D1A16;
+  --cl-ink-2: #5F574D;
+  --cl-ink-3: #736A5F;
+  --cl-ink-4: #A39A8E;
+
+  --cl-clay: #CF6D4E;
+  --cl-clay-strong: #B4553A;
+  --cl-clay-soft: #F7E6DE;
+  --cl-clay-text: #9C4A31;
+  --cl-link: #B4553A;
+  --cl-on-accent: #FFFFFF;
+
+  --cl-selected-bg: #1D1A16;
+  --cl-selected-text: #FFFFFF;
+
+  --cl-done: #2F7D5B;
+  --cl-done-soft: #E3F0E9;
+  --cl-warn-bg: #FBF0DC;
+  --cl-warn-line: #EBD9B5;
+  --cl-warn-text: #8A5208;
+  --cl-danger: #A33A2A;
+
+  --cl-mask: rgba(29, 26, 22, 0.4);
+  --cl-shadow-float: 0 16rpx 40rpx rgba(29, 26, 22, 0.12);
+
+  --cl-font-num: 'DIN Alternate', 'Barlow Semi Condensed', 'Helvetica Neue', Arial, sans-serif;
+}
+
+// `.cl-theme-dark` lets components rendered outside the page root (e.g. the tab bar) opt in.
+.app-root.theme-dark,
+.page-theme-root--dark,
+.cl-theme-dark {
+  --cl-paper: #161412;
+  --cl-card: #211E1B;
+  --cl-sunk: #2A2622;
+  --cl-line: #37312B;
+  --cl-line-soft: #2E2925;
+  --cl-control-line: #4A423A;
+
+  --cl-ink: #F2EEE8;
+  --cl-ink-2: #CBC3B8;
+  --cl-ink-3: #A0978B;
+  --cl-ink-4: #6E665D;
+
+  --cl-clay: #E08A6C;
+  --cl-clay-strong: #B4553A;
+  --cl-clay-soft: #3A2820;
+  --cl-clay-text: #F0A88E;
+  --cl-link: #E08A6C;
+  --cl-on-accent: #FFFFFF;
+
+  --cl-selected-bg: #F2EEE8;
+  --cl-selected-text: #161412;
+
+  --cl-done: #5DBB8E;
+  --cl-done-soft: #1F3329;
+  --cl-warn-bg: #3A2E1A;
+  --cl-warn-line: #5A4626;
+  --cl-warn-text: #E8B866;
+  --cl-danger: #E07A6A;
+
+  --cl-mask: rgba(0, 0, 0, 0.55);
+  --cl-shadow-float: 0 16rpx 40rpx rgba(0, 0, 0, 0.4);
+}
+
+// Tabular numerals for weights, reps, prices and stats.
+.cl-num {
+  font-family: var(--cl-font-num);
+  font-variant-numeric: tabular-nums;
+}

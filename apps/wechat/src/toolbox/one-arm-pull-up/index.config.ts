@@ -1,6 +1,6 @@
 export default definePageConfig({
-  navigationBarTitleText: '离单手引体还有多远',
-  navigationBarBackgroundColor: '#f7f4ef',
+  navigationBarTitleText: '单手引体测算',
+  navigationBarBackgroundColor: '#F5F2ED',
   navigationBarTextStyle: 'black',
   enableShareAppMessage: true,
   enableShareTimeline: true

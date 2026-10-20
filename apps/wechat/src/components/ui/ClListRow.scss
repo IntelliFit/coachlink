@@ -1,0 +1,66 @@
+@use '../../styles/tokens' as *;
+
+.cl-row {
+  display: flex;
+  align-items: center;
+  gap: $cl-space-3;
+  min-height: 104rpx;
+  padding: 0 $cl-space-3 0 $cl-space-4;
+  box-sizing: border-box;
+  border-bottom: 2rpx solid var(--cl-line-soft);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &--pressed {
+    background: var(--cl-sunk);
+  }
+}
+
+.cl-row__icon {
+  display: flex;
+  align-items: center;
+  color: var(--cl-clay);
+}
+
+.cl-row__label {
+  flex: 1;
+  min-width: 0;
+  color: var(--cl-ink);
+  font-size: $cl-font-body;
+  line-height: $cl-line-body;
+
+  &--danger {
+    color: var(--cl-danger);
+  }
+}
+
+.cl-row__value {
+  max-width: 50%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--cl-ink-3);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}
+
+.cl-row__badge {
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  box-sizing: border-box;
+  border-radius: $cl-radius-pill;
+  background: var(--cl-clay);
+  color: var(--cl-on-accent);
+  font-size: $cl-font-tag;
+  line-height: 32rpx;
+  text-align: center;
+}
+
+.cl-row__arrow {
+  color: var(--cl-ink-4);
+  font-size: $cl-font-card;
+  line-height: $cl-line-card;
+}

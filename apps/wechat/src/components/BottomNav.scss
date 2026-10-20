@@ -1,46 +1,40 @@
-/* ==================== 新版悬浮胶囊底部导航 ==================== */
+@use '../styles/tokens' as *;
+
+/* ==================== 底部导航（2026-10 改版：白色贴底栏） ====================
+ * 图标在上、文字在下；当前页用陶土色。颜色全部来自 tokens-css.scss，深色模式自动切换。
+ * 高度 56px + 底部安全区，页面沿用 .page-with-float-nav 的 184rpx 底部留白即可。
+ */
 .bottom-nav {
   position: fixed;
-  bottom: 24rpx;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 1000;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(31, 31, 31, 0.80);
-  border-radius: 9999rpx;
-  padding: 16rpx 24rpx;
-  box-shadow: 0 12rpx 36rpx rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(20rpx);
-  width: calc(100vw - 64rpx);
-  min-width: 0;
-  max-width: 92vw;
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  align-items: stretch;
+  box-sizing: content-box;
+  height: $cl-tab-bar-height;
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--cl-card);
+  border-top: 2rpx solid var(--cl-line);
 
   .nav-item {
     flex: 1;
+    min-width: 0;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8rpx;
-    padding: 12rpx 8rpx;
-    border-radius: 9999rpx;
-    min-width: 0;
-    transition: padding 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-                background 0.35s ease,
-                gap 0.35s ease,
-                transform 0.15s ease;
+    gap: 4rpx;
 
     &:active {
-      transform: scale(0.92);
+      opacity: 0.7;
     }
   }
 
   .nav-icon-badge-wrap {
     position: relative;
-    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -48,8 +42,8 @@
 
   .nav-msg-badge {
     position: absolute;
-    top: -4rpx;
-    right: -10rpx;
+    top: -8rpx;
+    right: -16rpx;
     min-width: 32rpx;
     height: 32rpx;
     padding: 0 8rpx;
@@ -57,104 +51,38 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #cf6d4e;
-    border-radius: 9999rpx;
-    border: 2rpx solid rgba(31, 31, 31, 0.92);
-    z-index: 2;
+    background: var(--cl-clay);
+    border-radius: $cl-radius-pill;
+    border: 2rpx solid var(--cl-card);
   }
 
   .nav-msg-badge-text {
+    color: var(--cl-on-accent);
     font-size: 20rpx;
     font-weight: 700;
-    color: #ffffff;
     line-height: 1;
   }
 
   .nav-icon {
-    font-size: 20px;
-    color: rgba(255, 255, 255, 0.65);
-    flex-shrink: 0;
-    transition: color 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-    transform: scale(0.9);
+    color: var(--cl-ink-3);
+    font-size: 48rpx;
+    line-height: 48rpx;
   }
 
   .nav-icon-active {
-    color: #CF6D4E;
-  }
-
-  .nav-active .nav-msg-badge {
-    border-color: rgba(255, 255, 255, 0.96);
+    color: var(--cl-clay);
   }
 
   .nav-label {
-    font-size: 11px;
-    font-weight: 400;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--cl-ink-3);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+    font-weight: 500;
     white-space: nowrap;
-    flex-shrink: 0;
-    max-width: 80rpx;
-    opacity: 1;
-    overflow: hidden;
-    text-align: center;
-    transform: translateX(0);
-    transition: max-width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-                opacity 0.3s ease,
-                transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  .nav-active {
-    background: rgba(255, 255, 255, 0.98);
-    padding: 16rpx;
-    gap: 8rpx;
-
-    .nav-icon {
-      transform: scale(1);
-    }
-
-    .nav-label {
-      max-width: 96rpx;
-      opacity: 1;
-      transform: translateX(0);
-      font-weight: 600;
-      color: #111827;
-    }
-  }
-}
-
-/* 暗色主题适配 */
-.bottom-nav--dark,
-.theme-dark .bottom-nav,
-.page-theme-root--dark .bottom-nav {
-  background: rgba(232, 229, 222, 0.78);
-  border-color: rgba(232, 229, 222, 0.36);
-  box-shadow: 0 12rpx 36rpx rgba(0, 0, 0, 0.28);
-
-  .nav-icon {
-    color: rgba(31, 31, 30, 0.64);
-  }
-
-  .nav-icon-active {
-    color: #CF6D4E;
-  }
-
-  .nav-item:not(.nav-active):active {
-    background: rgba(207, 109, 78, 0.08);
-  }
-
-  .nav-active {
-    background: #1f1f1e;
-    box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.08);
-
-    .nav-icon {
-      color: #FFFFFF;
-    }
-
-    .nav-label {
-      color: #FFFFFF;
-    }
-
-    .nav-msg-badge {
-      border-color: #1d1c1b;
-    }
+  .nav-active .nav-label {
+    color: var(--cl-link);
+    font-weight: 700;
   }
 }

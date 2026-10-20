@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
-import { isLikelyVideoUrl, resolveWeappMediaUrl } from '@/utils/mediaUrl'
+import { isLikelyVideoUrl, resolveWeappImageThumbnailUrl, resolveWeappMediaUrl } from '@/utils/mediaUrl'
 import { trainingService } from '@/services/trainingService'
 
 interface ActionDetailData {
@@ -123,7 +123,7 @@ export default function ActionDetailPage() {
         {referenceImageUrl ? (
           <View className="section">
             <Text className="section-title">参考图</Text>
-            <Image className="reference-image" src={referenceImageUrl} mode="aspectFit" onClick={handlePreviewReference} />
+            <Image className="reference-image" src={resolveWeappImageThumbnailUrl(action?.reference_image_url, 960)} mode="aspectFit" onClick={handlePreviewReference} />
           </View>
         ) : null}
 

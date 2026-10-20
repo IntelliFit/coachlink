@@ -1,0 +1,85 @@
+@use '../../styles/tokens' as *;
+
+.cl-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-2;
+  padding: 0 $cl-page-gutter $cl-space-3;
+  box-sizing: border-box;
+}
+
+.cl-page-header__capsule-row {
+  display: flex;
+  align-items: center;
+  gap: $cl-space-2;
+  box-sizing: border-box;
+}
+
+.cl-page-header__title-row {
+  display: flex;
+  align-items: center;
+  gap: $cl-space-2;
+}
+
+.cl-page-header__kicker {
+  color: var(--cl-ink-3);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}
+
+.cl-page-header__title {
+  flex: 1;
+  min-width: 0;
+  color: var(--cl-ink);
+  font-size: $cl-font-title;
+  line-height: $cl-line-title;
+  font-weight: 700;
+}
+
+.cl-page-header__right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cl-page-header__extra {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-3;
+}
+
+.cl-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $cl-space-2;
+}
+
+.cl-section-header__main {
+  display: flex;
+  align-items: baseline;
+  gap: $cl-space-1;
+  min-width: 0;
+}
+
+.cl-section-header__title {
+  color: var(--cl-ink);
+  font-size: $cl-font-section;
+  line-height: $cl-line-section;
+  font-weight: 700;
+}
+
+.cl-section-header__meta {
+  color: var(--cl-ink-3);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}
+
+.cl-section-header__action {
+  flex-shrink: 0;
+  padding: $cl-space-1 0;
+  color: var(--cl-link);
+  font-size: $cl-font-body;
+  line-height: $cl-line-body;
+  font-weight: 500;
+}

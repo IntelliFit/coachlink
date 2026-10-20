@@ -1,0 +1,82 @@
+@use '../../styles/tokens' as *;
+
+.cl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $cl-space-1;
+  box-sizing: border-box;
+  border: 2rpx solid transparent;
+  border-radius: $cl-radius-button;
+  white-space: nowrap;
+
+  &--block {
+    display: flex;
+    width: 100%;
+  }
+
+  &--lg {
+    height: $cl-button-lg;
+    padding: 0 $cl-space-6;
+  }
+
+  &--md {
+    height: $cl-button-md;
+    padding: 0 $cl-space-4;
+  }
+
+  &--sm {
+    height: $cl-button-sm;
+    padding: 0 $cl-space-3;
+    border-radius: $cl-radius-pill;
+  }
+
+  &--primary {
+    background: var(--cl-clay-strong);
+    color: var(--cl-on-accent);
+  }
+
+  &--secondary {
+    background: var(--cl-card);
+    border-color: var(--cl-control-line);
+    color: var(--cl-ink);
+  }
+
+  &--text {
+    background: transparent;
+    color: var(--cl-link);
+    padding-left: $cl-space-2;
+    padding-right: $cl-space-2;
+  }
+
+  // Pressed and disabled states only change opacity (no gradients, per design rules).
+  &--pressed {
+    opacity: 0.85;
+  }
+
+  &--disabled {
+    opacity: 0.45;
+  }
+}
+
+.cl-btn__icon {
+  display: flex;
+  align-items: center;
+}
+
+.cl-btn__label {
+  color: inherit;
+  font-size: $cl-font-card;
+  line-height: $cl-line-card;
+  font-weight: 500;
+}
+
+.cl-btn--md .cl-btn__label {
+  font-size: $cl-font-body;
+  line-height: $cl-line-body;
+}
+
+.cl-btn--sm .cl-btn__label {
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}
