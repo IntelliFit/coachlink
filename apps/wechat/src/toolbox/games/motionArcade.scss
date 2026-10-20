@@ -955,3 +955,151 @@
     background: #cf6d4e;
   }
 }
+
+/* ==================== 2026-10 改版：小游戏外壳统一 ====================
+ * 外壳（背景、卡片、标题、按钮、开关、进度条）统一用 v1 设计变量，四个游戏看起来是一套工具。
+ * 画面里的角色、道具、障碍物仍保留各游戏自己的颜色，摄像头画面区域保持深色。
+ * 用双类名提高优先级，盖过上面 --pullup / --pushup 的整页配色。
+ */
+.motion-arcade-page.motion-arcade-page {
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+
+  .page-content {
+    padding: 24rpx 32rpx 64rpx;
+  }
+
+  .intro-card,
+  .stats-card,
+  .game-result-card,
+  .controls-card,
+  .video-card,
+  .tips-card {
+    padding: 32rpx;
+    border: 2rpx solid var(--cl-line);
+    border-radius: 32rpx;
+    background: var(--cl-card);
+    box-shadow: none;
+  }
+
+  .camera-shell {
+    border: 0;
+    border-radius: 32rpx;
+    box-shadow: none;
+  }
+
+  .intro-kicker,
+  .section-kicker,
+  .tip-kicker,
+  .game-result-kicker {
+    color: var(--cl-ink-3);
+    font-size: 24rpx;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  .intro-title,
+  .game-result-title {
+    color: var(--cl-ink);
+  }
+
+  .intro-desc,
+  .video-note,
+  .tip-text,
+  .direction-note,
+  .game-result-sync-note,
+  .replay-progress-detail {
+    color: var(--cl-ink-2);
+  }
+
+  .intro-tag {
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+  }
+
+  .stat-item {
+    border: 0;
+    background: var(--cl-sunk);
+  }
+
+  .stat-label,
+  .video-meta-label,
+  .game-result-score-label,
+  .game-result-rank-sub,
+  .meter-label {
+    color: var(--cl-ink-3);
+  }
+
+  .stat-value,
+  .stat-subvalue,
+  .video-meta-value,
+  .meter-value,
+  .game-result-score-value,
+  .game-result-rank-main,
+  .replay-progress-label,
+  .replay-progress-value {
+    color: var(--cl-ink);
+    font-family: var(--cl-font-num);
+  }
+
+  .meter-track,
+  .replay-progress-track {
+    background: var(--cl-sunk);
+  }
+
+  .meter-fill,
+  .replay-progress-fill {
+    background: var(--cl-clay);
+    border-color: var(--cl-clay);
+  }
+
+  .toggle-chip {
+    border: 2rpx solid var(--cl-control-line);
+    border-radius: 24rpx;
+    background: var(--cl-card);
+  }
+
+  .toggle-chip-text {
+    color: var(--cl-ink);
+  }
+
+  .toggle-chip.active {
+    border-color: var(--cl-selected-bg);
+    background: var(--cl-selected-bg);
+
+    .toggle-chip-text {
+      color: var(--cl-selected-text);
+    }
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    min-height: 88rpx;
+    border-radius: 24rpx;
+  }
+
+  .btn-primary {
+    border: 2rpx solid var(--cl-clay-strong);
+    background: var(--cl-clay-strong);
+  }
+
+  .btn-primary-text {
+    color: var(--cl-on-accent);
+    font-weight: 500;
+  }
+
+  .btn-secondary {
+    border: 2rpx solid var(--cl-control-line);
+    background: var(--cl-card);
+  }
+
+  .btn-secondary-text {
+    color: var(--cl-ink);
+    font-weight: 500;
+  }
+
+  .hud-pill.alert {
+    background: var(--cl-clay-strong);
+    border-color: var(--cl-clay-strong);
+  }
+}
