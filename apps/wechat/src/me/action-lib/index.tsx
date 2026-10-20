@@ -12,6 +12,10 @@ import {
 } from '@/services/actionLibPageService'
 import type { PublicActionItemDto } from '@/types/action'
 import './index.scss'
+import './picker.scss'
+import { ClButton, ClChip, ClTabs } from '@/components/ui'
+import { PickerActionRow } from './components/PickerActionRow'
+import { PickerDetailSheet } from './components/PickerDetailSheet'
 import { useTheme } from '@/hooks/useTheme'
 import { resolveWeappImageThumbnailUrl } from '@/utils/mediaUrl'
 import { impromptuService } from '@/services/impromptuService'
@@ -174,6 +178,30 @@ function getPrimaryPosition(action: Action | PublicActionItemDto) {
   return asList(action.positions)[0] || '全身'
 }
 
+/**
+ * "杠铃 · 胸大肌 / 三头肌": equipment first when the action's own labels say so, then up to three
+ * trained muscles. Names and descriptions are not used for equipment: "负重引体" contains "引体" but
+ * is not bodyweight-only.
+ */
+function getPickerMeta(action: Action | PublicActionItemDto) {
+  const labels = [...asList(action.attrs), action.category || ''].join(' ').toLowerCase()
+  const equipment = EQUIPMENT_FILTERS.find(item => (
+    item.key !== 'all' && item.keywords.some(keyword => labels.includes(keyword.toLowerCase()))
+  ))
+  const positions = asList(action.positions).slice(0, 3).join(' / ')
+  return [equipment?.label, positions].filter(Boolean).join(' · ')
+}
+
+const LIBRARY_TABS: Array<{ key: LibraryMode; label: string }> = [
+  { key: 'STRENGTH', label: '力量' },
+  { key: 'STREET', label: '街健' },
+  { key: 'CARDIO', label: '有氧' }
+]
+
+type PickerItem =
+  | { kind: 'owned'; action: Action }
+  | { kind: 'public'; action: PublicActionItemDto }
+
 function normalizeText(value?: string | null) {
   const nextValue = value?.trim() || ''
   return nextValue || null
@@ -275,6 +303,10 @@ export default function ActionLibPage() {
   const [editAttrs, setEditAttrs] = useState<string[]>([])
   const [submittingEdit, setSubmittingEdit] = useState(false)
 
+  const [pickerDetail, setPickerDetail] = useState<PickerItem | null>(null)
+  const [showEquipmentFilter, setShowEquipmentFilter] = useState(false)
+  const frequentLoadedRef = useRef(false)
+
   useEffect(() => {
     if (isPlanSelectionMode) {
       setActiveTab('public')
@@ -336,6 +368,7 @@ export default function ActionLibPage() {
       console.error('加载常用动作失败:', error)
       setFrequentActions([])
     } finally {
+      frequentLoadedRef.current = true
       setFrequentLoading(false)
     }
   }, [])
@@ -460,6 +493,21 @@ export default function ActionLibPage() {
       (libraryMode !== 'STRENGTH' || matchesFilter(action, activeEquipmentFilter))
     )
   }, [activeEquipmentFilter, activeMuscleFilter, libraryMode, publicActions, publicOnlyWithDemo])
+
+  // A new user has no "常用" yet: show the public library instead of an empty list.
+  useEffect(() => {
+    if (!isImpromptuSelectionMode || activeTab !== 'frequent') return
+    if (!frequentLoadedRef.current || frequentLoading || mySearchTerm.trim()) return
+    if (!frequentActions.some(action => matchesLibraryMode(action, libraryMode))) {
+      setActiveTab('public')
+    }
+  }, [activeTab, frequentActions, frequentLoading, isImpromptuSelectionMode, libraryMode, mySearchTerm])
+
+  useEffect(() => {
+    if (isSelectionMode) {
+      void Taro.setNavigationBarTitle({ title: '选动作' }).catch(() => undefined)
+    }
+  }, [isSelectionMode])
 
   const handleSelectSystemLibrary = (type: LibraryMode) => {
     if (libraryMode === type) return
@@ -612,6 +660,10 @@ export default function ActionLibPage() {
 
   const handleSelectPublicAction = async (action: PublicActionItemDto) => {
     if (!isSelectionMode || addingPublicId) return
+    if (isImpromptuSelectionMode && isSelectedAction(action)) {
+      removeSelectedAction(action)
+      return
+    }
 
     try {
       setAddingPublicId(action.id)
@@ -669,11 +721,17 @@ export default function ActionLibPage() {
     })
   }
 
-  const isSelectedAction = (action: Action | PublicActionItemDto) => selectedActions.some((item) => (
+  const isSameAction = (item: Action, action: Action | PublicActionItemDto) => (
     item.id === action.id ||
     (!!item.canonical_action_id && item.canonical_action_id === action.canonical_action_id) ||
     item.name.trim() === action.name.trim()
-  ))
+  )
+
+  const isSelectedAction = (action: Action | PublicActionItemDto) => selectedActions.some((item) => isSameAction(item, action))
+
+  const removeSelectedAction = (action: Action | PublicActionItemDto) => {
+    setSelectedActions((current) => current.filter((item) => !isSameAction(item, action)))
+  }
 
   const handleStartImpromptu = async () => {
     if (startingImpromptu || selectedActions.length === 0) return
@@ -998,6 +1056,185 @@ export default function ActionLibPage() {
             </View>
           )
         })}
+      </View>
+    )
+  }
+
+  const pickerItems: PickerItem[] = activeTab === 'public'
+    ? displayedPublicActions.map(action => ({ kind: 'public' as const, action }))
+    : (activeTab === 'frequent' ? displayedFrequentActions : displayedMineActions).map(action => ({ kind: 'owned' as const, action }))
+
+  const pickerLoading = checkingCurrentImpromptu ||
+    (activeTab === 'public' ? publicLoading : activeTab === 'frequent' ? frequentLoading : loading)
+
+  const togglePickerItem = (item: PickerItem) => {
+    if (item.kind === 'public') {
+      void handleSelectPublicAction(item.action)
+    } else {
+      toggleOwnedSelection(item.action)
+    }
+  }
+
+  const renderPickerList = () => {
+    if (pickerLoading && pickerItems.length === 0) {
+      return (
+        <View className='al-picker__list'>
+          {[1, 2, 3, 4, 5].map(i => <View key={i} className='al-picker__skeleton' />)}
+        </View>
+      )
+    }
+
+    if (pickerItems.length === 0) {
+      const searching = !!(activeTab === 'public' ? publicSearchTerm : mySearchTerm).trim()
+      return (
+        <View className='al-picker__state'>
+          <Text className='al-picker__state-title'>{searching ? '没有找到这个动作' : '这个分类下还没有动作'}</Text>
+          <Text className='al-picker__state-desc'>换个部位或关键词试试</Text>
+          {activeTab !== 'public' ? (
+            <Text className='al-picker__state-link' onClick={() => setActiveTab('public')}>去公共动作库找 ›</Text>
+          ) : isImpromptuSelectionMode ? (
+            <Text className='al-picker__state-link' onClick={handleCreate}>新建这个动作 ›</Text>
+          ) : null}
+        </View>
+      )
+    }
+
+    return (
+      <View className='al-picker__list'>
+        {pickerItems.map(item => (
+          <PickerActionRow
+            key={`${item.kind}-${item.action.id}`}
+            name={item.action.name || '未命名动作'}
+            meta={getPickerMeta(item.action)}
+            imageUrl={resolveWeappImageThumbnailUrl(item.action.reference_image_url, 240)}
+            selected={isSelectedAction(item.action)}
+            busy={item.kind === 'public' && addingPublicId === item.action.id}
+            single={isPlanSelectionMode}
+            onOpen={() => setPickerDetail(item)}
+            onToggle={() => togglePickerItem(item)}
+          />
+        ))}
+      </View>
+    )
+  }
+
+  if (isSelectionMode) {
+    const searchValue = activeTab === 'public' ? publicSearchTerm : mySearchTerm
+    const sourceTabs: Array<{ key: TabKey; label: string }> = isImpromptuSelectionMode
+      ? [{ key: 'frequent', label: '常用' }, { key: 'mine', label: '我的' }, { key: 'public', label: '公共动作库' }]
+      : []
+    const headingPrefix = libraryMode === 'STREET' ? '街健' : libraryMode === 'CARDIO' ? '有氧' : '力量'
+    const detailSelected = pickerDetail ? isSelectedAction(pickerDetail.action) : false
+
+    return (
+      <View className={`al-picker ${effectiveTheme === 'dark' ? 'cl-theme-dark' : ''}`}>
+        <View className='al-picker__head'>
+          <ClTabs items={LIBRARY_TABS} activeKey={libraryMode} onChange={handleSelectSystemLibrary} />
+          <View className='al-picker__search'>
+            <Text className='al-picker__search-icon'>⌕</Text>
+            <Input
+              className='al-picker__search-input'
+              placeholder='搜索动作'
+              value={searchValue}
+              onInput={(e) => {
+                const nextValue = e.detail.value
+                if (activeTab === 'public') setPublicSearchTerm(nextValue)
+                else setMySearchTerm(nextValue)
+              }}
+              confirmType='search'
+              onConfirm={handleSubmitSearch}
+            />
+            {searchValue ? (
+              <View className='al-picker__search-clear' onClick={handleClearSearch} ariaRole='button' ariaLabel='清空搜索'><Text>×</Text></View>
+            ) : null}
+          </View>
+          <ScrollView scrollX className='al-picker__chips' showScrollbar={false}>
+            <View className='al-picker__chips-row'>
+              {primaryFilters.map(item => (
+                <ClChip key={item.key} selected={selectedMuscle === item.key} onClick={() => setSelectedMuscle(item.key)}>
+                  {item.label}
+                </ClChip>
+              ))}
+            </View>
+          </ScrollView>
+          {(sourceTabs.length > 0 || libraryMode === 'STRENGTH') ? (
+            <View className='al-picker__bar'>
+              <View className='al-picker__sources'>
+                {sourceTabs.map(tab => (
+                  <Text
+                    key={tab.key}
+                    className={`al-picker__source ${activeTab === tab.key ? 'al-picker__source--active' : ''}`}
+                    onClick={() => setActiveTab(tab.key)}
+                  >
+                    {tab.label}
+                  </Text>
+                ))}
+              </View>
+              {libraryMode === 'STRENGTH' ? (
+                <Text
+                  className={`al-picker__filter ${showEquipmentFilter || selectedEquipment !== 'all' ? 'al-picker__filter--active' : ''}`}
+                  onClick={() => setShowEquipmentFilter(prev => !prev)}
+                >
+                  {selectedEquipment !== 'all' ? activeEquipmentFilter.label : '器械筛选'} {showEquipmentFilter ? '▴' : '▾'}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+          {libraryMode === 'STRENGTH' && showEquipmentFilter ? (
+            <ScrollView scrollX className='al-picker__chips' showScrollbar={false}>
+              <View className='al-picker__chips-row'>
+                {EQUIPMENT_FILTERS.map(item => (
+                  <ClChip key={item.key} selected={selectedEquipment === item.key} onClick={() => setSelectedEquipment(item.key)}>
+                    {item.label}
+                  </ClChip>
+                ))}
+              </View>
+            </ScrollView>
+          ) : null}
+        </View>
+
+        <View className='al-picker__heading'>
+          <Text className='al-picker__heading-title'>
+            {headingPrefix} · {activeMuscleFilter.label}
+            <Text className='al-picker__heading-hint'> {pickerItems.length} 个</Text>
+          </Text>
+          <Text className='al-picker__heading-hint'>{isPlanSelectionMode ? '点动作看要点 · 点 › 选择' : '点动作看要点 · 点 + 加入'}</Text>
+        </View>
+
+        {renderPickerList()}
+
+        {isImpromptuSelectionMode && selectedActions.length > 0 ? (
+          <View className='al-dock'>
+            <View className='al-dock__copy'>
+              <Text className='al-dock__count'>已选 {selectedActions.length} 个动作</Text>
+              <Text className='al-dock__names'>{selectedActions.map(action => action.name).join('、')}</Text>
+            </View>
+            <ClButton
+              className='al-dock__start'
+              loading={startingImpromptu}
+              loadingText='创建中'
+              onClick={() => void handleStartImpromptu()}
+            >
+              开始训练
+            </ClButton>
+          </View>
+        ) : null}
+
+        {pickerDetail ? (
+          <PickerDetailSheet
+            action={pickerDetail.action}
+            selected={detailSelected}
+            busy={pickerDetail.kind === 'public' && addingPublicId === pickerDetail.action.id}
+            single={isPlanSelectionMode}
+            onToggle={() => {
+              const item = pickerDetail
+              if (isPlanSelectionMode || !detailSelected) setPickerDetail(null)
+              togglePickerItem(item)
+            }}
+            onOpenDemo={() => cacheAndOpenActionDetail(pickerDetail.action)}
+            onClose={() => setPickerDetail(null)}
+          />
+        ) : null}
       </View>
     )
   }
