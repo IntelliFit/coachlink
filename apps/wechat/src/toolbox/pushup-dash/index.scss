@@ -36,18 +36,17 @@
 .pushup-phase-card {
   margin-top: 24rpx;
   min-height: 96rpx;
-  padding: 20rpx;
+  padding: 24rpx;
   border-radius: 24rpx;
-  background: #fff1e9;
-  border: 1px solid #ecd5c9;
+  background: var(--cl-sunk);
   box-sizing: border-box;
 }
 
 .pushup-phase-label {
   display: block;
   font-size: 22rpx;
-  font-weight: 700;
-  color: #8f5f4c;
+  font-weight: 500;
+  color: var(--cl-ink-3);
   line-height: 1.4;
   margin-bottom: 8rpx;
 }
@@ -55,7 +54,7 @@
 .pushup-phase-value {
   display: block;
   font-size: 28rpx;
-  font-weight: 800;
-  color: #40261b;
+  font-weight: 700;
+  color: var(--cl-ink);
   line-height: 1.4;
 }
