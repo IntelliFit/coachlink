@@ -453,3 +453,11 @@
 - **根因**：读出 `subscribed_weeks` 后无条件写回 `旧值 + 本次`，没有订单级幂等；订阅路径复用旧行直接覆盖。
 - **统一规则**：周数写入必须带"读取时的周数"条件并记录已到账订单号（`applied_subscription_order_ids`），冲突时重读重试；进行中订阅再次订阅累加。
 - **改动前自检**：任何"读出数值再加减写回"的地方，写入条件里有没有读取时的值？同一订单重复到达会不会再加一次？
+
+## 38) 公开教练接口 select("*") 原样返回：支付账户、邀请码、联系方式外泄（高风险）
+
+- **现象**：不登录调用 `/api/coach/get-all-coaches` 能拿到每位教练的汇付账户号和卡 token、邀请码、联系电话和邮箱；`get-coach` 带 `needInvitationInfo` 可以拿到任意教练的邀请链接；`get-aggregated-info` 登录后看别人主页也能拿到这些字段。
+- **根因**：三个接口在 `src/proxy.ts` 公开名单里，查询用 `select("*")` 直接返回整行；脱敏只在 aggregated-info 对游客做了一部分，而且漏了 `huifu_*`。
+- **统一规则**：公开或跨用户返回教练数据一律经过 `coachViewForViewer` / `toPublicCoachView`（`src/lib/coachPublicView.ts`），只有教练本人和管理员拿完整行；查看者用 `getCoachViewer(req)`（同时支持网页 session 和小程序 Bearer）。
+- **改动前自检**：新接口是否返回 `coaches` 整行？是否在公开名单里？查看者不是本人时，支付、邀请、`huifu_*`、联系方式是否被去掉？
+- **典型案例**（2026-10-20）：教练列表改版时在接口响应里发现；已统一收口三个接口。

@@ -2,6 +2,8 @@ import supabase from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
 import { GetAllCoachesDto } from "./entity";
 import { sanitizeCoachTrack } from "@/lib/coachApplicationOptions";
+import { coachViewForViewer } from "@/lib/coachPublicView";
+import { getCoachViewer } from "@/lib/coachViewer";
 
 const TRACK_SORT_ORDER = ["buddy", "growth", "professional"] as const;
 
@@ -32,6 +34,7 @@ export async function POST(req: Request) {
         serviceMode = '',
         targetStudentLevel = '',
     } = await req.json() as GetAllCoachesDto;
+    const viewer = await getCoachViewer(req);
 
     const from = (page - 1) * limit;
     const to = from + limit - 1;
@@ -168,7 +171,7 @@ export async function POST(req: Request) {
         }
 
         const coachesWithStats = (coaches || []).map((coach: any) => ({
-            ...coach,
+            ...coachViewForViewer(viewer, coach),
             studentCount: studentCountMap.get(coach.id) || 0,
             averageRating: avgRatingMap.get(coach.id) || 0,
         }));
@@ -224,7 +227,7 @@ export async function POST(req: Request) {
     }
 
     const coachesWithStats = coaches.map((coach: any) => ({
-        ...coach,
+        ...coachViewForViewer(viewer, coach),
         studentCount: studentCountMap.get(coach.id) || 0,
         averageRating: avgRatingMap.get(coach.id) || 0,
     }));
