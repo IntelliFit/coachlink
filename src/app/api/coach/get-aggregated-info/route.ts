@@ -8,23 +8,20 @@ import type {
 import redis from "@/lib/redisClient";
 import { COACH_PROFILE_VIEW, coachViewForViewer } from "@/lib/coachPublicView";
 import { getCoachViewer } from "@/lib/coachViewer";
+import {
+    enrichCoachFromApplication,
+    parseCachedReviewStats,
+    settleWithin,
+    summarizeRatings,
+    type ReviewStats,
+} from "@/lib/coachAggregatedInfo";
 
+const REVIEW_CACHE_TTL_SECONDS = 300;
 /**
- * 用于将“教练申请表”的资料补全到 coaches.profile：
- * - 只在 coaches.profile 缺少该字段（undefined）时才补全
- * - 不覆盖教练已经填写/清空后的字段（哪怕是 null / [] / {}）
+ * 评论统计缓存只是锦上添花：Redis 不可达时（本地开发解析不到 `redis` 主机名、
+ * 连接超时 10s）不能拖住整个接口，超过这个预算就直接查库。
  */
-function mergeProfile(base: any, incoming: Record<string, any>) {
-    if (!incoming) return base || null;
-    const merged = { ...(base || {}) };
-    Object.entries(incoming || {}).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        if (merged[key] === undefined) {
-            merged[key] = value;
-        }
-    });
-    return merged;
-}
+const REVIEW_CACHE_READ_BUDGET_MS = 200;
 
 async function getUniqueTags(userId: string) {
     const { data, error } = await supabase
@@ -38,15 +35,13 @@ async function getUniqueTags(userId: string) {
 
     // 提取并去重所有标签
     const allTags = data.flatMap((template) => template.tags || []);
-    const uniqueTags = Array.from(new Set(allTags));
-
-    return uniqueTags;
+    return Array.from(new Set(allTags));
 }
 
 async function getContentCount(coachId: string) {
     const { count, error } = await supabase
         .from("coach_contents")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("coach_id", coachId);
 
     if (error) {
@@ -60,7 +55,7 @@ async function getContentCount(coachId: string) {
 async function getStudentCount(coachId: string) {
     const { count, error } = await supabase
         .from("coach_subscriptions")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("coach_id", coachId)
         .eq("status", "active");
 
@@ -72,53 +67,69 @@ async function getStudentCount(coachId: string) {
     return count || 0;
 }
 
-async function getReviewCount(coachId: string) {
-    const cacheKey = `coach:reviews:${coachId}`;
-
-    // 尝试从缓存中获取数据
+async function readCachedReviewStats(cacheKey: string): Promise<ReviewStats | null> {
     try {
-        const cachedData = await redis.get(cacheKey);
-        if (cachedData) {
-            return JSON.parse(cachedData as string);
-        }
+        const cached = await settleWithin(redis.get(cacheKey), REVIEW_CACHE_READ_BUDGET_MS, null);
+        return parseCachedReviewStats(cached);
     } catch (err) {
         console.error("Redis get error:", err);
+        return null;
     }
+}
 
-    // 获取评论数量和平均评分
+async function getReviewStats(coachId: string): Promise<ReviewStats> {
+    const cacheKey = `coach:reviews:${coachId}`;
+    const cached = await readCachedReviewStats(cacheKey);
+    if (cached) return cached;
+
     const { data: reviewsData, error: reviewsError } = await supabase
         .from("student_comments")
         .select("rating")
         .eq("coach_id", coachId);
 
-    let reviewCount = 0;
-    let averageRating = 0;
-
-    if (!reviewsError && reviewsData) {
-        reviewCount = reviewsData.length;
-        if (reviewCount > 0) {
-            const totalRating = reviewsData.reduce(
-                (sum, review) => sum + review.rating,
-                0,
-            );
-            averageRating = parseFloat((totalRating / reviewCount).toFixed(1));
-        }
+    if (reviewsError) {
+        console.error("获取教练评论失败:", reviewsError);
     }
+    const result = summarizeRatings(reviewsError ? null : reviewsData);
 
-    // 将结果存入缓存，设置5分钟过期时间
-    const result = { reviewCount, averageRating };
-    try {
-        await redis.setEx(cacheKey, 300, JSON.stringify(result));
-    } catch (err) {
-        console.error("Redis set error:", err);
-    }
+    // 写缓存不阻塞响应，设置5分钟过期时间
+    redis.setEx(cacheKey, REVIEW_CACHE_TTL_SECONDS, JSON.stringify(result))
+        .catch((err) => console.error("Redis set error:", err));
 
     return result;
 }
 
-export async function POST(req: Request) {
-    const viewer = await getCoachViewer(req);
+async function getLatestApplication(userId: string) {
+    const { data, error } = await supabase
+        .from("coach_applications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
+    if (error) {
+        console.error("合并教练申请信息失败:", error);
+        return null;
+    }
+    return data;
+}
+
+async function getProfileAvatar(userId: string) {
+    const { data, error } = await supabase
+        .from("user_profiles")
+        .select("avatar_url")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (error) {
+        console.error("获取用户头像失败:", error);
+        return null;
+    }
+    return data?.avatar_url ?? null;
+}
+
+export async function POST(req: Request) {
     const {
         coachId,
     } = await req.json() as GetAggregatedInfoDto;
@@ -131,7 +142,16 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 获取教练基本信息
+    // 第一阶段：只依赖 coachId 的查询全部并行发出
+    const viewerPromise = getCoachViewer(req);
+    const statsPromise = Promise.all([
+        getStudentCount(coachId),
+        getContentCount(coachId),
+        getReviewStats(coachId),
+    ]);
+    // 教练不存在时会提前返回而不再 await；先挂一个处理器，避免这里的失败变成 unhandled rejection。
+    statsPromise.catch(() => undefined);
+
     const { data: coach, error: coachError } = await supabase
         .from("coaches")
         .select("*")
@@ -146,92 +166,24 @@ export async function POST(req: Request) {
         });
     }
 
-    // 合并教练申请中的字段，避免已审批教练丢失申请时填写的细节
-    let enrichedCoach = coach;
-    try {
-        const { data: latestApplication } = await supabase
-            .from("coach_applications")
-            .select("*")
-            .eq("user_id", coach.user_id)
-            .order("updated_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+    // 第二阶段：依赖 coach.user_id 的查询并行发出。
+    // 头像兜底（user_profiles，与导航栏头像保持一致）在教练头像为空时预取，合并申请后仍为空才使用。
+    const userId = coach.user_id;
+    const [latestApplication, profileAvatar, templateSpecialties] = await Promise.all([
+        userId ? getLatestApplication(userId) : Promise.resolve(null),
+        userId && !coach.avatar_url ? getProfileAvatar(userId) : Promise.resolve(null),
+        userId ? getUniqueTags(userId) : Promise.resolve([]),
+    ]);
 
-        if (latestApplication) {
-            const profileFromApplication = {
-                teachingPhilosophy: latestApplication.teaching_philosophy,
-                achievements: latestApplication.achievements,
-                caseStudies: latestApplication.case_studies,
-                credentials: latestApplication.credentials,
-                contactEmail: latestApplication.contact_email,
-                contactPhone: latestApplication.contact_phone,
-                socialLinks: latestApplication.social_links,
-                applicationMaterials: (latestApplication as any).application_materials,
-                supportFocus: latestApplication.support_focus,
-                coachTrack: latestApplication.coach_track,
-                serviceModes: latestApplication.service_modes,
-                targetStudentLevels: latestApplication.target_student_levels,
-            };
-
-            enrichedCoach = {
-                ...coach,
-                name: coach.name || latestApplication.name,
-                title: coach.title ?? latestApplication.title,
-                avatar_url: coach.avatar_url ?? latestApplication.avatar_url,
-                specialties: coach.specialties ?? latestApplication.specialties,
-                bio: coach.bio ?? latestApplication.bio,
-                coach_track: coach.coach_track ?? latestApplication.coach_track,
-                service_modes: coach.service_modes?.length
-                    ? coach.service_modes
-                    : latestApplication.service_modes,
-                target_student_levels: coach.target_student_levels?.length
-                    ? coach.target_student_levels
-                    : latestApplication.target_student_levels,
-                support_focus: coach.support_focus ?? latestApplication.support_focus,
-                years_experience: coach.years_experience ??
-                    latestApplication.years_experience,
-                achievements: coach.achievements ??
-                    latestApplication.achievements,
-                profile: mergeProfile(coach.profile, profileFromApplication),
-            };
-        }
-    } catch (err) {
-        console.error("合并教练申请信息失败:", err);
-    }
-
-    // 如果教练头像仍为空，尝试从 user_profiles 获取（与导航栏头像保持一致）
-    if (!enrichedCoach.avatar_url && coach.user_id) {
-        try {
-            const { data: userProfile } = await supabase
-                .from("user_profiles")
-                .select("avatar_url")
-                .eq("user_id", coach.user_id)
-                .maybeSingle();
-
-            if (userProfile?.avatar_url) {
-                enrichedCoach = {
-                    ...enrichedCoach,
-                    avatar_url: userProfile.avatar_url,
-                };
-            }
-        } catch (err) {
-            console.error("获取用户头像失败:", err);
-        }
-    }
+    const merged = enrichCoachFromApplication(coach, latestApplication);
+    const enrichedCoach = !merged.avatar_url && profileAvatar
+        ? { ...merged, avatar_url: profileAvatar }
+        : merged;
 
     const [
-        studentCount,
-        contentCount,
-        templateSpecialties,
-        { reviewCount, averageRating },
-    ] = await Promise.all([
-        getStudentCount(enrichedCoach.id),
-        getContentCount(enrichedCoach.id),
-        enrichedCoach.user_id
-            ? getUniqueTags(enrichedCoach.user_id)
-            : Promise.resolve([]),
-        getReviewCount(enrichedCoach.id),
-    ]);
+        viewer,
+        [studentCount, contentCount, { reviewCount, averageRating }],
+    ] = await Promise.all([viewerPromise, statsPromise]);
 
     const specialties = Array.from(
         new Set([
