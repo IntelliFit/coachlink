@@ -26,6 +26,7 @@ import {
   readStreetliftingCalcSummaryCache
 } from '@/utils/streetliftingCalcHistoryCache'
 import { drawStrengthPoster, type StrengthPosterData } from '../poster'
+import { formatRmTableRow } from './rmTableDisplay'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
@@ -432,14 +433,20 @@ export default function CalculatorResultPage() {
                 <Text>重量</Text>
                 <Text>百分比</Text>
               </View>
-              {rmTable.map((row, idx) => (
-                <View key={row.reps} className={`rm-row ${idx % 2 === 1 ? 'striped' : ''}`}>
-                  <Text>{row.reps} 次</Text>
-                  <Text>{row.weight.toFixed(1)} kg</Text>
-                  <Text>{row.percentage}%</Text>
-                </View>
-              ))}
+              {rmTable.map((row, idx) => {
+                const text = formatRmTableRow(row)
+                return (
+                  <View key={row.reps} className={`rm-row ${idx % 2 === 1 ? 'striped' : ''} ${text.assisted ? 'rm-row--assisted' : ''}`}>
+                    <Text>{row.reps} 次</Text>
+                    <Text>{text.weightText}</Text>
+                    <Text>{text.percentageText}</Text>
+                  </View>
+                )
+              })}
             </View>
+            {rmTable.some((row) => formatRmTableRow(row).assisted) ? (
+              <Text className='rm-table-note'>助力：这个次数下自重已经偏重，需要弹力带或辅助器械减去的重量。</Text>
+            ) : null}
           </View>
         </View>
       </ScrollView>

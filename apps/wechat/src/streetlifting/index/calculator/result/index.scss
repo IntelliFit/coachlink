@@ -258,6 +258,17 @@ $result-footer-height: 136rpx;
   &.striped {
     background: transparent;
   }
+
+  // 附加重量算出负数的行：显示"助力 X kg"，用次要色和正常的负重行区分
+  &.rm-row--assisted {
+    color: var(--cl-ink-3);
+  }
+}
+
+.rm-table-note {
+  color: var(--cl-ink-3);
+  font-size: 22rpx;
+  line-height: 32rpx;
 }
 
 // 底部操作
