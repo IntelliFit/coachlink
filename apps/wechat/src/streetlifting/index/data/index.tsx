@@ -91,7 +91,6 @@ export default function StreetliftingData() {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<'weight' | 'score' | 'date'>('weight')
   /** 展开后显示：全部动作～按 1RM 等筛选标签 */
-  const [filtersExpanded, setFiltersExpanded] = useState(false)
 
   const [formOpen, setFormOpen] = useState(false)
   const [profileLocked, setProfileLocked] = useState(false)
@@ -387,79 +386,67 @@ export default function StreetliftingData() {
   )
 
   return (
-    <View className={`data-page theme-${effectiveTheme}`}>
+    <View className={`data-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
       <View className='data-page-inner'>
-        <View className='btn-add' onClick={openSubmit}>
-          <Text className='iconfont icon-pencil btn-add-icon' />
-          <Text className='btn-add-text'>提交我的数据</Text>
-        </View>
-
-        {!loading && (
-          <>
-            <View className='stats-row'>
-              <View className='stat'>
-                <Text className='iconfont icon-ranking stat-icon' />
-                <Text className='stat-n'>{stats.total}</Text>
-                <Text className='stat-l'>筛选结果</Text>
-              </View>
-              <View className='stat'>
-                <Text className='iconfont icon-video stat-icon' />
-                <Text className='stat-n'>{stats.withVideo}</Text>
-                <Text className='stat-l'>含视频</Text>
-              </View>
-              <View className='stat'>
-                <Text className='iconfont icon-dumbbell stat-icon' />
-                <Text className='stat-n'>{stats.pullup}</Text>
-                <Text className='stat-l'>负重引体</Text>
-              </View>
-              <View className='stat'>
-                <Text className='iconfont icon-traing stat-icon' />
-                <Text className='stat-n'>{stats.dips}</Text>
-                <Text className='stat-l'>臂屈伸</Text>
-              </View>
-            </View>
-          </>
-        )}
-
-        <View className='search-toolbar'>
-          <Input
-            className='search-input search-input--toolbar'
-            placeholder='搜索用户名'
-            value={search}
-            onInput={(e) => setSearch(e.detail.value)}
-          />
-          <View className='filter-funnel' />
-          <Text
-            className='filter-expand-btn'
-            onClick={() => setFiltersExpanded((v) => !v)}
-          >
-            {filtersExpanded ? '收起筛选' : '展开筛选'}
-          </Text>
-        </View>
-        {filtersExpanded && (
-          <View className='filter-row'>
-            <Picker mode='selector' range={EXERCISE_OPTIONS} rangeKey='label' value={EXERCISE_OPTIONS.findIndex((o) => o.value === filterEx)} onChange={(e) => setFilterEx(EXERCISE_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
-              <View className='filter-btn'>{EXERCISE_OPTIONS.find((o) => o.value === filterEx)?.label || '动作'}</View>
-            </Picker>
-            <Picker mode='selector' range={GENDER_OPTIONS} rangeKey='label' value={GENDER_OPTIONS.findIndex((o) => o.value === filterGender)} onChange={(e) => setFilterGender(GENDER_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
-              <View className='filter-btn'>{GENDER_OPTIONS.find((o) => o.value === filterGender)?.label || '性别'}</View>
-            </Picker>
-            <Picker mode='selector' range={PULLUP_OPTIONS} rangeKey='label' value={PULLUP_OPTIONS.findIndex((o) => o.value === filterPullup)} onChange={(e) => setFilterPullup(PULLUP_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
-              <View className='filter-btn'>{PULLUP_OPTIONS.find((o) => o.value === filterPullup)?.label || '握法'}</View>
-            </Picker>
-            <Picker mode='selector' range={QUALITY_OPTIONS} rangeKey='label' value={QUALITY_OPTIONS.findIndex((o) => o.value === filterQuality)} onChange={(e) => setFilterQuality(QUALITY_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
-              <View className='filter-btn'>{QUALITY_OPTIONS.find((o) => o.value === filterQuality)?.label || '质量'}</View>
-            </Picker>
-            <Picker mode='selector' range={VIDEO_OPTIONS} rangeKey='label' value={VIDEO_OPTIONS.findIndex((o) => o.value === filterVideo)} onChange={(e) => setFilterVideo(VIDEO_OPTIONS[Number(e.detail.value)]?.value as any)}>
-              <View className='filter-btn'>{VIDEO_OPTIONS.find((o) => o.value === filterVideo)?.label || '视频'}</View>
-            </Picker>
-            <Picker mode='selector' range={SORT_OPTIONS} rangeKey='label' value={SORT_OPTIONS.findIndex((o) => o.value === sortBy)} onChange={(e) => setSortBy(SORT_OPTIONS[Number(e.detail.value)]?.value as any)}>
-              <View className='filter-btn'>{SORT_OPTIONS.find((o) => o.value === sortBy)?.label || '排序'}</View>
-            </Picker>
+        <View className='data-head'>
+          <View className='data-search'>
+            <Text className='iconfont icon-search data-search__icon' />
+            <Input
+              className='data-search__input'
+              placeholder='搜索用户名'
+              placeholderClass='data-search__placeholder'
+              value={search}
+              onInput={(e) => setSearch(e.detail.value)}
+            />
           </View>
-        )}
+          <View className='data-segment'>
+            {EXERCISE_OPTIONS.map((option) => (
+              <View
+                key={option.value}
+                className={`data-segment__item ${filterEx === option.value ? 'data-segment__item--active' : ''}`}
+                onClick={() => setFilterEx(option.value)}
+              >
+                <Text>{option.value === 'all' ? '全部' : option.label}</Text>
+              </View>
+            ))}
+          </View>
+          <ScrollView className='data-filter-scroll' scrollX enhanced showScrollbar={false}>
+            <View className='data-filter-row'>
+              {([
+                ['性别', GENDER_OPTIONS, filterGender, (v: string) => setFilterGender(v)],
+                ['握法', PULLUP_OPTIONS, filterPullup, (v: string) => setFilterPullup(v)],
+                ['质量', QUALITY_OPTIONS, filterQuality, (v: string) => setFilterQuality(v)],
+                ['视频', VIDEO_OPTIONS, filterVideo, (v: string) => setFilterVideo(v as typeof filterVideo)]
+              ] as Array<[string, Array<{ label: string; value: string }>, string, (v: string) => void]>).map(([title, options, value, onPick]) => (
+                <Picker
+                  key={title}
+                  mode='selector'
+                  range={options}
+                  rangeKey='label'
+                  value={Math.max(0, options.findIndex((o) => o.value === value))}
+                  onChange={(e) => onPick(options[Number(e.detail.value)]?.value || 'all')}
+                >
+                  <View className={`data-filter-chip ${value !== 'all' ? 'data-filter-chip--active' : ''}`}>
+                    <Text>{value === 'all' ? title : options.find((o) => o.value === value)?.label}</Text>
+                    <Text className='data-filter-chip__caret'>▾</Text>
+                  </View>
+                </Picker>
+              ))}
+              <View className='data-filter-divider' />
+              <Picker mode='selector' range={SORT_OPTIONS} rangeKey='label' value={Math.max(0, SORT_OPTIONS.findIndex((o) => o.value === sortBy))} onChange={(e) => setSortBy(SORT_OPTIONS[Number(e.detail.value)]?.value as any)}>
+                <View className='data-filter-chip'>
+                  <Text>{(SORT_OPTIONS.find((o) => o.value === sortBy)?.label || '排序').replace('按 ', '按')}</Text>
+                  <Text className='data-filter-chip__caret'>▾</Text>
+                </View>
+              </Picker>
+            </View>
+          </ScrollView>
+          {!loading && (
+            <Text className='data-summary cl-num'>{`${stats.total} 条成绩 · ${stats.withVideo} 条有视频`}</Text>
+          )}
+        </View>
 
-        <ScrollView className={filtersExpanded ? 'data-scroll' : 'data-scroll data-scroll--compact'} scrollY>
+        <ScrollView className='data-scroll' scrollY>
         {loading ? (
           renderSkeleton()
         ) : filtered.length === 0 ? (
@@ -472,62 +459,49 @@ export default function StreetliftingData() {
               const avatarUrl = (s.user_avatar_url && String(s.user_avatar_url).trim()) || ''
               const displayName = s.user_name || '匿名'
               return (
-                <View key={s.id} className='data-card'>
-                  <View className='data-card-head'>
-                    <View className='data-user-block'>
-                      {avatarUrl ? (
-                        <Image className='data-avatar' src={avatarUrl} mode='aspectFill' />
-                      ) : (
-                        <View className='data-avatar data-avatar--placeholder'>
-                          <Text className='data-avatar-letter'>{displayName.slice(0, 1)}</Text>
-                        </View>
-                      )}
-                      <View className='data-user-col'>
-                        <Text className='data-user'>{displayName}</Text>
-                        <Text className='data-submitted-at'>{formatSubmissionTime(s.created_at)}</Text>
+                <View key={s.id} className='data-row'>
+                  {avatarUrl ? (
+                    <Image className='data-avatar' src={avatarUrl} mode='aspectFill' />
+                  ) : (
+                    <View className='data-avatar data-avatar--placeholder'>
+                      <Text className='data-avatar-letter'>{displayName.slice(0, 1)}</Text>
+                    </View>
+                  )}
+                  <View className='data-row__main'>
+                    <View className='data-row__title'>
+                      <Text className='data-row__name' numberOfLines={1}>{displayName}</Text>
+                      <Text className='data-row__date'>{formatSubmissionTime(s.created_at)}</Text>
+                    </View>
+                    <Text className='data-row__tags' numberOfLines={1}>
+                      {[
+                        s.gender === 'Male' ? '男' : '女',
+                        s.exercise_type === 'weighted_pullup' ? '负重引体' : '臂屈伸',
+                        s.pullup_type ? (s.pullup_type === 'Overhand' ? '正手' : '反手') : null,
+                        qualityLabel(s.form_quality)
+                      ].filter(Boolean).join(' · ')}
+                    </Text>
+                    <Text className='data-row__stats cl-num' numberOfLines={1}>
+                      {`体重 ${s.bodyweight}kg · +${s.added_weight}kg × ${s.reps} · 1RM ${rm.toFixed(1)}`}
+                    </Text>
+                    {(!s.user_id || s.video_url) && (
+                      <View className='data-row__actions'>
+                        {s.video_url && (
+                          <Text className='data-row__action' onClick={() => {
+                            Taro.setClipboardData({ data: s.video_url!, success: () => Taro.showToast({ title: '视频链接已复制', icon: 'success' }) })
+                          }}>复制视频链接</Text>
+                        )}
+                        {!s.user_id && (
+                          <Text
+                            className={`data-row__action ${claimingIds.has(s.id) ? 'data-row__action--busy' : ''}`}
+                            onClick={() => { if (!claimingIds.has(s.id)) handleClaimClick(s.id) }}
+                          >认领这条</Text>
+                        )}
                       </View>
-                    </View>
-                    <View className='data-card-actions'>
-                      {!s.user_id && (
-                        <Button size='mini' className='btn-claim' onClick={() => handleClaimClick(s.id)} disabled={claimingIds.has(s.id)}>认领</Button>
-                      )}
-                      {s.video_url && (
-                        <Button size='mini' className='btn-video' onClick={() => {
-                          Taro.setClipboardData({ data: s.video_url!, success: () => Taro.showToast({ title: '链接已复制', icon: 'success' }) })
-                        }}>视频</Button>
-                      )}
-                    </View>
+                    )}
                   </View>
-                  <View className='data-tags'>
-                    <Text className='tag'>{s.gender === 'Male' ? '男' : '女'}</Text>
-                    <Text className='tag'>{s.exercise_type === 'weighted_pullup' ? '负重引体' : '臂屈伸'}</Text>
-                    {s.pullup_type && <Text className='tag'>{s.pullup_type === 'Overhand' ? '正手' : '反手'}</Text>}
-                    <Text className='tag quality'>{qualityLabel(s.form_quality)}</Text>
-                  </View>
-                  <View className='data-score-hero'>
-                    <View className='data-score-head'>
-                      <Text className='iconfont icon-strength data-score-icon' />
-                      <Text className='data-score-label'>力量分</Text>
-                    </View>
-                    <Text className='data-score-value'>{score.toFixed(1)}</Text>
-                  </View>
-                  <View className='data-grid'>
-                    <View className='data-cell'>
-                      <Text className='cell-l'>体重</Text>
-                      <Text className='cell-v' numberOfLines={1}>{s.bodyweight}kg</Text>
-                    </View>
-                    <View className='data-cell'>
-                      <Text className='cell-l'>负重</Text>
-                      <Text className='cell-v' numberOfLines={1}>{s.added_weight}kg</Text>
-                    </View>
-                    <View className='data-cell'>
-                      <Text className='cell-l'>次数</Text>
-                      <Text className='cell-v' numberOfLines={1}>{s.reps}</Text>
-                    </View>
-                    <View className='data-cell'>
-                      <Text className='cell-l'>1RM</Text>
-                      <Text className='cell-v' numberOfLines={1}>{rm.toFixed(1)}</Text>
-                    </View>
+                  <View className='data-row__score'>
+                    <Text className='data-row__score-value cl-num'>{score.toFixed(1)}</Text>
+                    <Text className='data-row__score-label'>力量分</Text>
                   </View>
                 </View>
               )
@@ -536,6 +510,14 @@ export default function StreetliftingData() {
         )}
         </ScrollView>
       </View>
+
+      {!formOpen && !claimDialogOpen && (
+        <View className='data-submit-bar'>
+          <View className='data-submit-bar__btn' onClick={openSubmit}>
+            <Text>提交我的成绩</Text>
+          </View>
+        </View>
+      )}
 
       {formOpen && (
         <View className='dialog-mask' onClick={() => { setFormOpen(false); resetForm() }}>

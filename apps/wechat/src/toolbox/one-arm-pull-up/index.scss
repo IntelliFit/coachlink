@@ -1,400 +1,333 @@
+@use '../../styles/tokens' as *;
+
+// 单手引体测算（2026-10 改版）：去掉深色头图和统计格，输入并排，结果/计划/说明统一用 v1 设计变量。
 .oap-page {
   min-height: 100vh;
-  box-sizing: border-box;
-  background: #f7f4ef;
-  color: #18231f;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
 
   .oap-content {
-    box-sizing: border-box;
-    width: 100%;
-    padding: 24rpx 24rpx 64rpx;
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-3;
+    padding: $cl-space-3 $cl-page-gutter calc(#{$cl-space-8} + env(safe-area-inset-bottom));
   }
 
+  // 通用卡片
   .intro-card,
   .input-card,
   .result-card,
   .session-card,
   .method-card {
-    box-sizing: border-box;
-    border-radius: 32rpx;
+    display: flex;
+    flex-direction: column;
+    padding: $cl-card-padding;
+    border: 2rpx solid var(--cl-line);
+    border-radius: $cl-radius-card;
+    background: var(--cl-card);
   }
 
   .intro-card {
-    overflow: hidden;
-    padding: 40rpx 32rpx;
-    background: #18231f;
-    color: #ffffff;
-    box-shadow: 0 24rpx 64rpx rgba(24, 35, 31, 0.14);
+    gap: $cl-space-1;
+    padding: $cl-space-1 0 0;
+    border: 0;
+    background: transparent;
   }
 
   .intro-kicker,
   .card-kicker,
   .section-kicker,
-  .session-kicker,
-  .metric-label,
-  .focus-label,
-  .formula-label,
-  .target-label,
-  .field-label,
-  .field-hint,
-  .intro-stat-value,
-  .intro-stat-label,
-  .result-title,
-  .result-summary,
-  .result-badge,
-  .progress-value,
-  .progress-unit,
-  .target-value,
-  .metric-value,
-  .focus-value,
-  .section-title,
-  .section-desc,
-  .session-title,
-  .training-name,
-  .training-dose,
-  .formula-value,
-  .method-equivalent,
-  .method-note,
-  .input-error {
-    display: block;
-  }
-
-  .intro-kicker,
-  .section-kicker,
-  .card-kicker {
-    font-size: 22rpx;
-    font-weight: 800;
-    letter-spacing: 2rpx;
-  }
-
-  .intro-kicker {
-    color: #f0c5b7;
+  .session-kicker {
+    color: var(--cl-ink-3);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
   }
 
   .intro-title {
-    display: block;
-    margin-top: 16rpx;
-    font-size: 48rpx;
-    font-weight: 900;
-    line-height: 1.25;
+    color: var(--cl-ink);
+    font-size: 44rpx;
+    line-height: 60rpx;
+    font-weight: 700;
   }
 
-  .intro-desc {
-    display: block;
-    margin-top: 24rpx;
-    color: #cbd5e1;
-    font-size: 24rpx;
-    line-height: 1.75;
+  .intro-desc,
+  .card-desc,
+  .section-desc {
+    color: var(--cl-ink-2);
+    font-size: 26rpx;
+    line-height: 40rpx;
   }
 
-  .intro-stats {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8rpx;
-    margin-top: 32rpx;
-  }
-
-  .intro-stat {
-    padding: 16rpx 8rpx;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 16rpx;
-    background: rgba(255, 255, 255, 0.05);
-    text-align: center;
-  }
-
-  .intro-stat-value {
-    font-size: 24rpx;
-    font-weight: 900;
-  }
-
-  .intro-stat-label {
-    margin-top: 8rpx;
-    color: #94a3b8;
-    font-size: 18rpx;
-  }
-
-  .input-card,
-  .result-card,
-  .session-card,
-  .method-card {
-    border: 1px solid #e2ddd6;
-    background: #ffffff;
-  }
-
+  // 输入
   .input-card {
-    margin-top: 24rpx;
-    padding: 32rpx;
-  }
-
-  .card-kicker,
-  .section-kicker {
-    color: #cf6d4e;
+    gap: $cl-space-3;
   }
 
   .card-title {
-    display: block;
-    margin-top: 8rpx;
-    font-size: 30rpx;
-    font-weight: 900;
-    line-height: 1.4;
+    color: var(--cl-ink);
+    font-size: $cl-font-card;
+    line-height: $cl-line-card;
+    font-weight: 700;
+  }
+
+  .card-desc {
+    margin-top: -16rpx;
+  }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $cl-space-3;
   }
 
   .field-block {
-    margin-top: 32rpx;
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-1;
+    min-width: 0;
   }
 
   .field-label {
-    margin-bottom: 16rpx;
-    font-size: 24rpx;
-    font-weight: 800;
+    color: var(--cl-ink-2);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+    font-weight: 500;
   }
 
   .input-shell {
-    position: relative;
-    overflow: hidden;
-    height: 96rpx;
-    border: 1px solid #d9d5ce;
-    border-radius: 24rpx;
-    background: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: $cl-space-1;
+    height: $cl-button-lg;
+    padding: 0 $cl-space-3;
+    box-sizing: border-box;
+    border: 2rpx solid var(--cl-line);
+    border-radius: $cl-radius-button;
+    background: var(--cl-sunk);
   }
 
   .number-input {
-    box-sizing: border-box;
-    width: 100%;
-    height: 96rpx;
-    padding: 0 96rpx 0 24rpx;
-    color: #18231f;
-    font-size: 34rpx;
-    font-weight: 900;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    color: var(--cl-ink);
+    font-family: var(--cl-font-num);
+    font-size: 40rpx;
+    font-weight: 700;
   }
 
   .input-unit {
-    position: absolute;
-    top: 0;
-    right: 24rpx;
-    height: 96rpx;
-    color: #94a3b8;
-    font-size: 22rpx;
-    font-weight: 800;
-    line-height: 96rpx;
+    flex-shrink: 0;
+    color: var(--cl-ink-3);
+    font-size: $cl-font-meta;
   }
 
   .field-hint {
-    margin-top: 8rpx;
-    color: #7c746d;
-    font-size: 20rpx;
-    line-height: 1.6;
+    color: var(--cl-ink-3);
+    font-size: 22rpx;
+    line-height: 32rpx;
   }
 
   .input-error {
-    margin-top: 24rpx;
-    padding: 16rpx;
-    border-radius: 16rpx;
-    background: #fff1f2;
-    color: #be123c;
-    font-size: 22rpx;
-    line-height: 1.6;
+    color: var(--cl-danger);
+    font-size: 24rpx;
+    line-height: 36rpx;
   }
 
+  // 结果
   .result-card {
-    margin-top: 24rpx;
-    padding: 32rpx;
+    gap: $cl-space-3;
   }
 
-  .result-heading,
-  .progress-heading,
-  .progress-ends,
-  .session-heading,
-  .formula-row {
+  .result-heading {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 16rpx;
+    gap: $cl-space-2;
   }
 
   .result-heading-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
     min-width: 0;
-    flex: 1;
   }
 
   .result-title {
-    margin-top: 8rpx;
-    font-size: 40rpx;
-    font-weight: 900;
-    line-height: 1.3;
+    color: var(--cl-ink);
+    font-size: $cl-font-section;
+    line-height: $cl-line-section;
+    font-weight: 700;
   }
 
   .result-summary {
-    margin-top: 8rpx;
-    color: #6f655d;
-    font-size: 22rpx;
-    line-height: 1.65;
+    color: var(--cl-ink-2);
+    font-size: 26rpx;
+    line-height: 40rpx;
   }
 
   .result-badge {
     flex-shrink: 0;
-    padding: 12rpx 16rpx;
-    border-radius: 9999rpx;
-    background: #cf6d4e;
-    color: #ffffff;
-    font-size: 20rpx;
-    font-weight: 900;
-  }
-
-  .result-card--foundation .result-badge {
-    background: #64748b;
-  }
-
-  .result-card--strength .result-badge {
-    background: #3f7c6b;
-  }
-
-  .result-card--bridge .result-badge {
-    background: #b7793d;
+    padding: 4rpx $cl-space-2;
+    border-radius: $cl-radius-tag;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+    font-family: var(--cl-font-num);
+    font-size: 24rpx;
+    font-weight: 500;
   }
 
   .result-card--ready .result-badge {
-    background: #9d4f3b;
+    background: var(--cl-done-soft);
+    color: var(--cl-done);
   }
 
   .progress-heading {
+    display: flex;
     align-items: flex-end;
-    margin-top: 40rpx;
+    justify-content: space-between;
+    gap: $cl-space-2;
   }
 
   .progress-value {
-    display: inline;
-    font-size: 72rpx;
-    font-weight: 900;
-    line-height: 1;
+    color: var(--cl-ink);
+    font-family: var(--cl-font-num);
+    font-size: 96rpx;
+    line-height: 96rpx;
+    font-weight: 700;
   }
 
   .progress-unit {
-    display: inline;
-    margin-left: 8rpx;
-    color: #94a3b8;
-    font-size: 28rpx;
-    font-weight: 800;
+    margin-left: 4rpx;
+    color: var(--cl-ink-3);
+    font-size: 32rpx;
   }
 
   .target-copy {
-    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4rpx;
   }
 
   .target-label {
-    color: #7c746d;
-    font-size: 20rpx;
+    color: var(--cl-ink-3);
+    font-size: 24rpx;
   }
 
   .target-value {
-    margin-top: 8rpx;
-    font-size: 24rpx;
-    font-weight: 900;
+    color: var(--cl-ink);
+    font-family: var(--cl-font-num);
+    font-size: 36rpx;
+    font-weight: 700;
   }
 
   .progress-track {
+    height: 16rpx;
+    margin-top: -8rpx;
     overflow: hidden;
-    height: 24rpx;
-    margin-top: 24rpx;
     border-radius: 9999rpx;
-    background: #eeeae4;
+    background: var(--cl-sunk);
   }
 
   .progress-fill {
-    height: 24rpx;
+    height: 100%;
     border-radius: 9999rpx;
-    background: #cf6d4e;
+    background: var(--cl-clay);
+  }
+
+  .result-card--ready .progress-fill {
+    background: var(--cl-done);
   }
 
   .progress-ends {
-    margin-top: 8rpx;
-    color: #8a8179;
-    font-size: 18rpx;
+    display: flex;
+    justify-content: space-between;
+    margin-top: -16rpx;
+    color: var(--cl-ink-3);
+    font-size: 22rpx;
   }
 
   .metric-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16rpx;
-    margin-top: 32rpx;
+    gap: $cl-space-2;
   }
 
   .metric-card {
-    padding: 24rpx;
-    border-radius: 24rpx;
-    background: #f7f4ef;
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    padding: $cl-space-2 $cl-space-3;
+    border-radius: $cl-radius-button;
+    background: var(--cl-sunk);
   }
 
   .metric-label {
-    color: #7c746d;
-    font-size: 20rpx;
-    line-height: 1.4;
+    color: var(--cl-ink-3);
+    font-size: 24rpx;
   }
 
   .metric-value {
-    margin-top: 8rpx;
-    font-size: 32rpx;
-    font-weight: 900;
+    color: var(--cl-ink);
+    font-family: var(--cl-font-num);
+    font-size: 36rpx;
+    line-height: 48rpx;
+    font-weight: 700;
   }
 
   .focus-card {
-    margin-top: 24rpx;
-    padding: 24rpx;
-    border-radius: 24rpx;
-    background: #18231f;
-    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    padding: $cl-space-3;
+    border-left: 8rpx solid var(--cl-clay);
+    border-radius: $cl-radius-tag;
+    background: var(--cl-clay-soft);
   }
 
   .focus-label {
-    color: #f0c5b7;
-    font-size: 20rpx;
-    font-weight: 800;
+    color: var(--cl-clay-text);
+    font-size: 24rpx;
   }
 
   .focus-value {
-    margin-top: 8rpx;
-    font-size: 28rpx;
-    font-weight: 900;
-    line-height: 1.45;
+    color: var(--cl-ink);
+    font-size: 30rpx;
+    line-height: 44rpx;
+    font-weight: 700;
   }
 
   .result-note {
-    margin-top: 24rpx;
-    padding: 24rpx;
-    border: 1px solid rgba(207, 109, 78, 0.24);
-    border-radius: 24rpx;
-    background: #fff7f3;
-    color: #584a42;
-    font-size: 22rpx;
-    line-height: 1.7;
+    color: var(--cl-ink-2);
+    font-size: 26rpx;
+    line-height: 40rpx;
   }
 
+  // 8 周计划
   .plan-section {
-    margin-top: 40rpx;
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-2;
+    margin-top: $cl-space-3;
   }
 
   .section-title {
-    margin-top: 8rpx;
-    font-size: 36rpx;
-    font-weight: 900;
-    line-height: 1.35;
-  }
-
-  .section-desc {
-    margin-top: 16rpx;
-    color: #6f655d;
-    font-size: 22rpx;
-    line-height: 1.7;
+    color: var(--cl-ink);
+    font-size: $cl-font-section;
+    line-height: $cl-line-section;
+    font-weight: 700;
   }
 
   .session-card {
-    margin-top: 24rpx;
-    padding: 32rpx;
+    gap: $cl-space-3;
+    margin-top: $cl-space-1;
   }
 
   .session-heading {
+    display: flex;
     align-items: center;
-    justify-content: flex-start;
+    gap: $cl-space-2;
   }
 
   .session-icon {
@@ -404,43 +337,41 @@
     width: 64rpx;
     height: 64rpx;
     flex-shrink: 0;
-    border-radius: 24rpx;
-    color: #ffffff;
-    font-size: 24rpx;
-    font-weight: 900;
+    border-radius: $cl-radius-tag;
+    font-family: var(--cl-font-num);
+    font-size: 30rpx;
+    font-weight: 700;
   }
 
   .session-icon--dark {
-    background: #18231f;
+    background: var(--cl-selected-bg);
+    color: var(--cl-selected-text);
   }
 
   .session-icon--brand {
-    background: #cf6d4e;
-  }
-
-  .session-kicker {
-    color: #7c746d;
-    font-size: 18rpx;
-    font-weight: 800;
+    background: var(--cl-clay-soft);
+    color: var(--cl-clay-text);
   }
 
   .session-title {
-    margin-top: 8rpx;
-    font-size: 28rpx;
-    font-weight: 900;
+    display: block;
+    color: var(--cl-ink);
+    font-size: $cl-font-card;
+    line-height: $cl-line-card;
+    font-weight: 700;
   }
 
   .training-list {
     display: flex;
     flex-direction: column;
-    gap: 24rpx;
-    margin-top: 32rpx;
   }
 
   .training-item {
     display: flex;
     align-items: flex-start;
-    gap: 16rpx;
+    gap: $cl-space-2;
+    padding: $cl-space-2 0;
+    border-top: 2rpx solid var(--cl-line-soft);
   }
 
   .training-index {
@@ -450,113 +381,69 @@
     width: 40rpx;
     height: 40rpx;
     flex-shrink: 0;
+    margin-top: 4rpx;
     border-radius: 9999rpx;
-    background: #f7f4ef;
-    color: #cf6d4e;
-    font-size: 20rpx;
-    font-weight: 900;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+    font-family: var(--cl-font-num);
+    font-size: 22rpx;
   }
 
   .training-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
     min-width: 0;
-    flex: 1;
   }
 
   .training-name {
-    font-size: 24rpx;
-    font-weight: 900;
-    line-height: 1.5;
+    color: var(--cl-ink);
+    font-size: 30rpx;
+    line-height: 44rpx;
+    font-weight: 500;
   }
 
   .training-dose {
-    margin-top: 8rpx;
-    color: #7c746d;
-    font-size: 20rpx;
-    line-height: 1.6;
+    color: var(--cl-ink-3);
+    font-size: 24rpx;
+    line-height: 36rpx;
   }
 
+  // 算法说明
   .method-card {
-    margin-top: 24rpx;
-    padding: 32rpx;
+    gap: $cl-space-2;
   }
 
   .formula-row {
+    display: flex;
     align-items: center;
-    margin-top: 24rpx;
-    padding-bottom: 24rpx;
-    border-bottom: 1px solid #eeeae4;
+    justify-content: space-between;
+    gap: $cl-space-2;
+    padding: $cl-space-2 0;
+    border-bottom: 2rpx solid var(--cl-line-soft);
   }
 
   .formula-label {
-    color: #7c746d;
-    font-size: 20rpx;
+    color: var(--cl-ink-2);
+    font-size: 26rpx;
   }
 
   .formula-value {
-    color: #18231f;
-    font-family: monospace;
-    font-size: 22rpx;
-    font-weight: 900;
-    text-align: right;
+    color: var(--cl-ink);
+    font-family: var(--cl-font-num);
+    font-size: 26rpx;
+    font-weight: 500;
   }
 
   .method-equivalent {
-    margin-top: 24rpx;
-    color: #cf6d4e;
-    font-size: 24rpx;
-    font-weight: 900;
+    color: var(--cl-ink);
+    font-size: 28rpx;
+    font-weight: 700;
   }
 
   .method-note {
-    margin-top: 16rpx;
-    color: #7c746d;
-    font-size: 20rpx;
-    line-height: 1.75;
-  }
-
-  &.theme-dark {
-    background: #111714;
-    color: #f8fafc;
-
-    .input-card,
-    .result-card,
-    .session-card,
-    .method-card {
-      border-color: #344039;
-      background: #1a231f;
-    }
-
-    .card-title,
-    .result-title,
-    .section-title,
-    .session-title,
-    .training-name,
-    .formula-value,
-    .metric-value {
-      color: #f8fafc;
-    }
-
-    .input-shell {
-      border-color: #46524c;
-      background: #111714;
-    }
-
-    .number-input {
-      color: #f8fafc;
-    }
-
-    .metric-card,
-    .training-index {
-      background: #111714;
-    }
-
-    .result-note {
-      background: #2e201b;
-      color: #f6ded5;
-    }
-
-    .formula-row {
-      border-bottom-color: #344039;
-    }
+    color: var(--cl-ink-3);
+    font-size: 24rpx;
+    line-height: 36rpx;
   }
 }
