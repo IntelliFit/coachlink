@@ -3,6 +3,7 @@ import { Card } from 'primereact/card';
 import { CoachActionRow } from '@/types';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import { selectPlanOneRMActions } from './planOneRMActions';
 
 interface OneRMConfigPanelProps {
     days: FormPlanTrainingDay[];
@@ -12,39 +13,11 @@ interface OneRMConfigPanelProps {
 }
 
 const OneRMConfigPanel: React.FC<OneRMConfigPanelProps> = ({ days, actions, value, onChange }) => {
-    // 找出所有使用了 "支持自动计算" 动作的 actionId
     const [relevantActions, setRelevantActions] = useState<CoachActionRow[]>([]);
 
     useEffect(() => {
-        const usedActionIds = new Set<string>();
-        const usedActionNames = new Set<string>();
-        days.forEach(day => {
-            day.actionSets.forEach(set => {
-                if (set.actionId && typeof set.actionId === 'string') {
-                    usedActionIds.add(set.actionId);
-                }
-                if (set.actionName && typeof set.actionName === 'string') {
-                    usedActionNames.add(set.actionName.trim().toLowerCase());
-                }
-            });
-        });
-
-        const canConfigureOneRM = (action: CoachActionRow) => {
-            const rawAction = action as CoachActionRow & Record<string, any>;
-            if (typeof rawAction.enableAutoWeightCompute === 'boolean') return rawAction.enableAutoWeightCompute;
-            if (typeof rawAction.enable_auto_weight_compute === 'boolean') return rawAction.enable_auto_weight_compute;
-            if (typeof rawAction.enableautoweightcompute === 'boolean') return rawAction.enableautoweightcompute;
-            return Array.isArray(action.attrs) && action.attrs.includes('强度');
-        };
-
-        // 筛选出：既在计划中使用，又开启了 enableAutoWeightCompute 的动作
-        const filtered = actions.filter(
-            a =>
-                (usedActionIds.has(a.id) ||
-                    (a.name ? usedActionNames.has(a.name.trim().toLowerCase()) : false)) &&
-                canConfigureOneRM(a)
-        );
-        setRelevantActions(filtered);
+        // 只列出服务端会保存 1RM、且计划里按 RM / %1RM 安排的动作
+        setRelevantActions(selectPlanOneRMActions(days, actions));
     }, [days, actions]);
 
     if (relevantActions.length === 0) {

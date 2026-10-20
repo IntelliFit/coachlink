@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { resolveCoachLinkAppRole } from '@coachlink/core'
+import { collectPlanOneRMActionIds, isOneRMEligibleAction } from '@coachlink/core/src/actionLoadMode'
 import { Alert, AppState, Image, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
@@ -397,6 +398,7 @@ type PlanActionLite = {
   attrs?: string[] | null
   enableAutoWeightCompute?: boolean | null
   enable_auto_weight_compute?: boolean | null
+  reference_1rm?: number | null
 }
 type PlanInstanceResponse = {
   instance?: PlanInstanceDetail | null
@@ -2467,6 +2469,11 @@ export function ActionEditScreen() {
   )
 }
 
+const positiveOneRM = (value: unknown) => {
+  const num = Number(value)
+  return value !== null && value !== undefined && value !== '' && Number.isFinite(num) && num > 0 ? num : null
+}
+
 export function PlanLibraryScreen() {
   const navigation = useNavigationAny()
   const [favorites, setFavorites] = useState<PlanFavoriteItem[]>([])
@@ -2488,7 +2495,7 @@ export function PlanLibraryScreen() {
       setFavorites(pickList(favoriteRes, ['favorites', 'items', 'data']) as PlanFavoriteItem[])
       setActions((pickList(actionRes, ['actions', 'items', 'data']) as PlanActionLite[]).map((item) => ({
         ...item,
-        enableAutoWeightCompute: item.enableAutoWeightCompute ?? item.enable_auto_weight_compute ?? normalizeStringList(item.attrs).includes('强度'),
+        enableAutoWeightCompute: item.enableAutoWeightCompute ?? item.enable_auto_weight_compute ?? null,
       })))
     } catch (err) {
       setError(errorMessage(err, '加载计划库失败'))
@@ -2503,31 +2510,32 @@ export function PlanLibraryScreen() {
     void load()
   }, [])
 
+  // 只有按 RM / %1RM 安排重量、且服务端允许保存 1RM 的动作才需要 1RM；
+  // 死虫、俯卧撑这类自重/核心动作，或只写 RPE 的计划，不会弹窗。
   function relevantOneRMActions(favorite: PlanFavoriteItem) {
-    const used = new Set<string>()
-    for (const day of favorite.training_days || []) {
-      for (const set of day.actionSets || []) {
-        const actionId = String((set as any).actionId || (set as any).action_id || '').trim()
-        if (actionId) used.add(actionId)
-      }
-    }
-    return actions.filter((action) => used.has(action.id) && (action.enableAutoWeightCompute || normalizeStringList(action.attrs).includes('强度')))
+    const used = collectPlanOneRMActionIds(favorite.training_days)
+    return actions.filter((action) => used.has(action.id) && isOneRMEligibleAction(action))
   }
 
   function applyFavorite(favorite: PlanFavoriteItem) {
     const needed = relevantOneRMActions(favorite)
-    if (needed.length > 0) {
-      setOneRMConfig({})
-      setOneRMFavorite(favorite)
+    if (!needed.some((action) => positiveOneRM(action.reference_1rm) === null)) {
+      void doApplyFavorite(favorite.id)
       return
     }
-    void doApplyFavorite(favorite.id)
+    setOneRMConfig(needed.reduce<Record<string, string>>((inputs, action) => {
+      const known = positiveOneRM(action.reference_1rm)
+      return { ...inputs, [action.id]: known === null ? '' : String(known) }
+    }, {}))
+    setOneRMFavorite(favorite)
   }
 
-  async function doApplyFavorite(favoriteId: string, oneRM?: Record<string, number>) {
+  // 1RM 由服务端在开始训练时从动作库读取，应用接口本身不接收 1RM
+  async function doApplyFavorite(favoriteId: string) {
+    setOneRMFavorite(null)
     setApplyingId(favoriteId)
     try {
-      await safeRequest('/api/student/plan-lib/apply-favorite', { body: { favoriteId, oneRMConfig: oneRM } })
+      await safeRequest('/api/student/plan-lib/apply-favorite', { body: { favoriteId } })
       Alert.alert('计划已激活', '已进入当前训练计划。', [
         { text: '去训练', onPress: () => navigation.navigate('MainTabs', { screen: 'TrainingTab' }) },
         { text: '留在此页', style: 'cancel' },
@@ -2536,19 +2544,33 @@ export function PlanLibraryScreen() {
       Alert.alert('应用失败', errorMessage(err))
     } finally {
       setApplyingId('')
-      setOneRMFavorite(null)
       setOneRMConfig({})
     }
   }
 
-  function confirmOneRMApply() {
+  async function saveOneRMInputs(favorite: PlanFavoriteItem) {
+    const updates = relevantOneRMActions(favorite)
+      .map((action) => ({ action, value: positiveOneRM(oneRMConfig[action.id]) }))
+      .filter(({ action, value }) => value !== null && value !== positiveOneRM(action.reference_1rm))
+      .map(({ action, value }) => ({ actionId: action.id, reference_1rm: value }))
+    if (updates.length === 0) return
+    try {
+      await safeRequest('/api/student/action-lib/batch-update-1rm', { body: { updates } })
+      const saved = new Map(updates.map((update) => [update.actionId, update.reference_1rm]))
+      setActions((prev) => prev.map((action) => (saved.has(action.id) ? { ...action, reference_1rm: saved.get(action.id) } : action)))
+    } catch (err) {
+      console.warn('[mobile me] save 1RM failed', err)
+      Alert.alert('1RM 未保存', '计划照常应用，可稍后在动作库补填 1RM。')
+    }
+  }
+
+  async function confirmOneRMApply() {
     if (!oneRMFavorite) return
-    const payload: Record<string, number> = {}
-    Object.entries(oneRMConfig).forEach(([key, value]) => {
-      const parsed = Number(value)
-      if (Number.isFinite(parsed) && parsed > 0) payload[key] = parsed
-    })
-    void doApplyFavorite(oneRMFavorite.id, payload)
+    const favorite = oneRMFavorite
+    setOneRMFavorite(null)
+    setApplyingId(favorite.id)
+    await saveOneRMInputs(favorite)
+    await doApplyFavorite(favorite.id)
   }
 
   function deleteFavorite(id: string) {
@@ -2614,22 +2636,22 @@ export function PlanLibraryScreen() {
       <Modal visible={Boolean(oneRMFavorite)} transparent animationType="fade" onRequestClose={() => setOneRMFavorite(null)}>
         <View style={local.modalMask}>
           <View style={local.modalCard}>
-            <Text style={local.modalTitle}>应用计划 - 1RM 配置</Text>
-            <Text style={local.itemMeta}>在应用「{oneRMFavorite?.name || '计划'}」前，请先设置以下动作的 1RM 值，用于自动计算训练负荷。</Text>
+            <Text style={local.modalTitle}>填写 1RM（选填）</Text>
+            <Text style={local.itemMeta}>「{oneRMFavorite?.name || '计划'}」中这些动作按 RM / %1RM 安排重量。填了 1RM，训练时会自动算出每组重量；不填也能开始，训练时自己填重量即可。</Text>
             <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing.sm }}>
               {oneRMActions.map((action) => (
                 <View key={action.id} style={local.onermRow}>
                   <Text style={local.onermName}>{action.name}</Text>
                   <View style={local.onermInputWrap}>
-                    <TextInput value={oneRMConfig[action.id] || ''} onChangeText={(value) => setOneRMConfig((prev) => ({ ...prev, [action.id]: value }))} keyboardType="decimal-pad" placeholder="1RM" placeholderTextColor={colors.textMuted} style={local.onermInput} />
+                    <TextInput value={oneRMConfig[action.id] || ''} onChangeText={(value) => setOneRMConfig((prev) => ({ ...prev, [action.id]: value }))} keyboardType="decimal-pad" placeholder="未填写" placeholderTextColor={colors.textMuted} style={local.onermInput} />
                     <Text style={local.itemMeta}>kg</Text>
                   </View>
                 </View>
               ))}
             </ScrollView>
             <View style={local.modalActions}>
-              <SolidButton label="跳过" variant="secondary" onPress={() => oneRMFavorite && void doApplyFavorite(oneRMFavorite.id)} />
-              <SolidButton label="确认应用" onPress={confirmOneRMApply} />
+              <SolidButton label="跳过，直接应用" variant="secondary" onPress={() => oneRMFavorite && void doApplyFavorite(oneRMFavorite.id)} />
+              <SolidButton label="保存并应用" onPress={() => void confirmOneRMApply()} />
             </View>
           </View>
         </View>
@@ -2664,7 +2686,7 @@ export function PlanEditScreen() {
       ])
       setActions((pickList(actionRes, ['actions', 'items', 'data']) as PlanActionLite[]).map((action) => ({
         ...action,
-        enableAutoWeightCompute: action.enableAutoWeightCompute ?? action.enable_auto_weight_compute ?? normalizeStringList(action.attrs).includes('强度'),
+        enableAutoWeightCompute: isOneRMEligibleAction(action),
       })))
       const favorite = favoriteRes?.favorite
       if (favorite) {

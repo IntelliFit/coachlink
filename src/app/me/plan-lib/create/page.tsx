@@ -19,6 +19,7 @@ import StudentSmartImportDialog from '../components/StudentSmartImportDialog';
 import { studentService } from '@/app/service/studentService';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import OneRMConfigPanel from '../components/OneRMConfigPanel';
+import { isOneRMEligibleAction } from '@coachlink/core/src/actionLoadMode';
 import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
 import {
@@ -90,14 +91,6 @@ const CreatePlanPage = () => {
 
             const res = await studentActionLibService.listActions({ page: 1, limit: 1000 });
             if (res?.actions) {
-                const parseAutoComputeFlag = (action: StudentActionRow & Record<string, any>) => {
-                    if (typeof action.enableAutoWeightCompute === 'boolean') return action.enableAutoWeightCompute;
-                    if (typeof action.enable_auto_weight_compute === 'boolean') return action.enable_auto_weight_compute;
-                    if (typeof action.enableautoweightcompute === 'boolean') return action.enableautoweightcompute;
-                    // 兜底：具备“强度”属性的力量动作，视为可配置 1RM
-                    return Array.isArray(action.attrs) && action.attrs.includes('强度');
-                };
-
                 const parseIncludesBodyWeightFlag = (action: StudentActionRow & Record<string, any>) => {
                     if (typeof action.includesBodyWeight === 'boolean') return action.includesBodyWeight;
                     if (typeof action.includes_body_weight === 'boolean') return action.includes_body_weight;
@@ -116,7 +109,8 @@ const CreatePlanPage = () => {
                     url: action.url,
                     created_at: action.created_at,
                     updated_at: action.updated_at,
-                    enableAutoWeightCompute: parseAutoComputeFlag(action as StudentActionRow & Record<string, any>),
+                    // 与服务端同规则：仅带“强度”属性不代表可按 1RM 自动算重（死虫、俯卧撑等）
+                    enableAutoWeightCompute: isOneRMEligibleAction(action as StudentActionRow & Record<string, any>),
                     includesBodyWeight: parseIncludesBodyWeightFlag(action as StudentActionRow & Record<string, any>),
                     canonical_action_id: action.canonical_action_id
                 }));
