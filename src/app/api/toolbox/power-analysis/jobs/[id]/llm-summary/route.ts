@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { getCoachlinkPlanLlm } from "@/lib/coachlinkLlm";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { buildPowerAnalysisPromptContext } from "@/lib/powerAnalysisAssessment";
 import type { ApiData } from "@/types/api";
-import type { PowerAnalysisJobDto } from "../../../types";
+import { isBarbellPowerAnalysisMode } from "@coachlink/core/src/powerAnalysisModes";
+import type { PowerAnalysisJobDto, PowerAnalysisMetrics } from "../../../types";
 import {
   expirePowerAnalysisJobIfNeeded,
   getOwnedPowerAnalysisJob,
@@ -17,15 +19,29 @@ export const maxDuration = 60;
 
 const db = serviceRoleSupabase as any;
 
-function getModeLabel(mode: string) {
-  const labels: Record<string, string> = {
-    pullup: "引体向上",
-    muscleup: "双力臂",
-    dip: "双杠臂屈伸",
-    pushup: "俯卧撑",
-    squat: "深蹲起身",
-  };
-  return labels[mode] || "引体向上";
+const SYSTEM_PROMPT = [
+  "你是 CoachLink 的动作视频分析教练。只根据给定的结构化指标和姿态检查结果给训练建议，不要编造视频里没提供的信息。",
+  "姿态检查里标为无法评估的项目，只能说明这次无法评估以及怎么拍才能评估，不能猜测结论。",
+  "不要给出具体关节角度、次数、重量或速度以外的新数字；不要做医学诊断，不推断伤病原因。",
+  "必须提醒这是基于视频姿态识别的估算，不是实验室测量。",
+  "只输出纯文本，禁止使用星号、Markdown 标题、Markdown 列表或代码块。",
+].join("");
+
+function buildUserPrompt(metrics: PowerAnalysisMetrics) {
+  const barbell = isBarbellPowerAnalysisMode(metrics.mode);
+  return [
+    "请用中文输出一段简洁但有训练价值的解读，分 4 小段：",
+    "1. 本次表现概览",
+    "2. 动作评估要点（先讲明显问题，再讲需注意的，最后一句带过做得好的）",
+    "3. 下一次训练建议（针对上面的问题给 1 到 3 个具体做法）",
+    "4. 误差与拍摄提醒",
+    barbell
+      ? "这是杠铃动作：重点讲平均速度和组内速度下降，可以据此建议下次是否加减重量；功率只是杠铃抬升功率，不要用它评价力量水平。"
+      : "这是自重或负重动作：可以结合功率和速度谈爆发力。",
+    "每段使用简短中文标题加全角冒号，标题和正文之间直接换行。不要输出任何星号。",
+    "",
+    buildPowerAnalysisPromptContext(metrics),
+  ].join("\n");
 }
 
 function sanitizePowerSummary(value: unknown) {
@@ -99,28 +115,11 @@ export async function POST(
     const completion = await client.chat.completions.create({
       model,
       messages: [
-        {
-          role: "system",
-          content:
-            "你是 CoachLink 的街健视频测试解读助手。只根据给定结构化指标做训练建议，不要编造视频里没提供的信息。必须强调这是基于视频姿态识别的估算，不是医学诊断或实验室测量。只输出纯文本，禁止使用星号、Markdown 标题、Markdown 列表或代码块。",
-        },
-        {
-          role: "user",
-          content: [
-            "请用中文输出一段简洁但有训练价值的解读，分 4 小段：",
-            "1. 本次表现概览",
-            "2. 爆发力/速度特点",
-            "3. 下一次训练建议",
-            "4. 误差与拍摄提醒",
-            "每段使用简短中文标题加全角冒号，标题和正文之间直接换行。不要输出任何星号。",
-            "",
-            `动作类型: ${getModeLabel(metrics.mode)}`,
-            `结构化指标 JSON: ${JSON.stringify(metrics)}`,
-          ].join("\n"),
-        },
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: buildUserPrompt(metrics) },
       ],
       temperature: 0.4,
-      max_tokens: 900,
+      max_tokens: 1100,
     });
 
     const content = completion.choices?.[0]?.message?.content?.trim();

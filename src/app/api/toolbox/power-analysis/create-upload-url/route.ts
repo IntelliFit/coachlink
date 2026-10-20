@@ -9,6 +9,7 @@ import {
   normalizePowerAnalysisQuality,
 } from "@/lib/powerAnalysisEntitlements";
 import type { ApiData } from "@/types/api";
+import { parsePowerAnalysisLoadInput } from "@coachlink/core/src/powerAnalysisModes";
 import type {
   CreatePowerAnalysisUploadUrlDto,
   CreatePowerAnalysisUploadUrlResponseDto,
@@ -56,7 +57,6 @@ export async function POST(req: Request) {
   const mode = normalizeMode(body?.mode);
   const heightCm = numberInRange(body?.heightCm, 100, 250);
   const weightKg = numberInRange(body?.weightKg, 30, 250);
-  const externalLoadKg = numberInRange(body?.externalLoadKg ?? 0, 0, 250);
   const originalFilename = String(body?.originalFilename || "").trim();
   const contentType = String(body?.contentType || "").trim();
   const fileSizeBytes = Number(body?.fileSizeBytes || 0);
@@ -64,12 +64,21 @@ export async function POST(req: Request) {
   const quality = normalizePowerAnalysisQuality(body?.quality) || "compressed";
   const overlayLanguage = normalizePowerAnalysisOverlayLanguage(body?.overlayLanguage);
 
-  if (!mode || heightCm === null || weightKg === null || externalLoadKg === null) {
+  if (!mode || heightCm === null || weightKg === null) {
     return NextResponse.json<ApiData<null>>(
-      { success: false, message: "请填写有效的动作类型、身高、体重和额外负重", data: null },
+      { success: false, message: "请填写有效的动作类型、身高和体重", data: null },
       { status: 400 },
     );
   }
+
+  const load = parsePowerAnalysisLoadInput(mode, body?.externalLoadKg, body?.plateDiameterCm);
+  if (!load.ok) {
+    return NextResponse.json<ApiData<null>>(
+      { success: false, message: load.message, data: null },
+      { status: 400 },
+    );
+  }
+  const { externalLoadKg, plateDiameterCm } = load;
 
   if (!originalFilename || !isSupportedVideoContentType(contentType)) {
     return NextResponse.json<ApiData<null>>(
@@ -196,7 +205,8 @@ export async function POST(req: Request) {
       metadata: {
         content_type: contentType,
         external_load_kg: externalLoadKg,
-        effective_weight_kg: weightKg + externalLoadKg,
+        effective_weight_kg: plateDiameterCm === null ? weightKg + externalLoadKg : externalLoadKg,
+        ...(plateDiameterCm === null ? {} : { plate_diameter_cm: plateDiameterCm }),
         upload_strategy: "signed_upload_transient",
         quality,
         overlay_language: overlayLanguage,
@@ -215,9 +225,13 @@ export async function POST(req: Request) {
 
   if (insertError || !job) {
     console.error("[power-analysis/create-upload-url] insert job failed:", insertError);
+    // 23514 = check_violation: the database does not yet allow this movement (migration pending).
+    const message = insertError?.code === "23514"
+      ? "这个动作的分析暂未开放，请稍后再试"
+      : insertError?.message || "创建任务失败";
     return NextResponse.json<ApiData<null>>(
-      { success: false, message: insertError?.message || "创建任务失败", data: null },
-      { status: 500 },
+      { success: false, message, data: null },
+      { status: insertError?.code === "23514" ? 503 : 500 },
     );
   }
 

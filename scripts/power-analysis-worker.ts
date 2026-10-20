@@ -141,6 +141,11 @@ function getJobMetadata(job: any) {
   return job?.metadata && typeof job.metadata === "object" ? job.metadata : {};
 }
 
+function getPlateDiameterCm(job: any) {
+  const value = Number(getJobMetadata(job).plate_diameter_cm ?? 45);
+  return Number.isFinite(value) && value >= 20 && value <= 50 ? value : 45;
+}
+
 function getOutputLanguage(job: any) {
   return String(getJobMetadata(job).overlay_language || "zh") === "en" ? "en" : "zh";
 }
@@ -179,6 +184,8 @@ async function runAnalyzer(job: any, workDir: string) {
     String(job.weight_kg),
     "--external-load-kg",
     String(getExternalLoadKg(job)),
+    "--plate-diameter-cm",
+    String(getPlateDiameterCm(job)),
     "--language",
     getOutputLanguage(job),
     "--quality",

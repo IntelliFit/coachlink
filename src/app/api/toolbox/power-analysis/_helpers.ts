@@ -1,5 +1,15 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { normalizePowerAnalysisQuality } from "@/lib/powerAnalysisEntitlements";
+import {
+  buildFallbackAssessmentLines,
+  normalizePowerAnalysisAssessment,
+  normalizePowerAnalysisMeasurement,
+} from "@/lib/powerAnalysisAssessment";
+import {
+  isBarbellPowerAnalysisMode,
+  normalizePowerAnalysisMode,
+  POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
+} from "@coachlink/core/src/powerAnalysisModes";
 import type {
   PowerAnalysisJobDto,
   PowerAnalysisQueueInfoDto,
@@ -10,13 +20,6 @@ import type {
 
 export const POWER_ANALYSIS_BUCKET = "videos" as const;
 export const POWER_ANALYSIS_RETENTION_HOURS = 24;
-export const POWER_ANALYSIS_MODE_VALUES: PowerAnalysisMode[] = [
-  "pullup",
-  "muscleup",
-  "dip",
-  "pushup",
-  "squat",
-];
 
 const db = serviceRoleSupabase as any;
 
@@ -70,10 +73,7 @@ export function isPowerAnalysisDailyLimitBypassed(userId: string) {
 }
 
 export function normalizeMode(value: unknown): PowerAnalysisMode | null {
-  const mode = String(value || "").trim().toLowerCase();
-  return POWER_ANALYSIS_MODE_VALUES.includes(mode as PowerAnalysisMode)
-    ? (mode as PowerAnalysisMode)
-    : null;
+  return normalizePowerAnalysisMode(value);
 }
 
 export function numberInRange(value: unknown, min: number, max: number): number | null {
@@ -122,13 +122,22 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
   const expiresAt = String(row?.expires_at || "");
   const expired = expiresAt ? new Date(expiresAt).getTime() <= Date.now() : false;
   const status = expired && row?.status !== "done" ? "expired" : row?.status;
+  const mode = normalizeMode(row?.mode) || "pullup";
+  const plateDiameterCm = Number(metadata.plate_diameter_cm);
 
   return {
     id: String(row?.id || ""),
-    mode: normalizeMode(row?.mode) || "pullup",
+    mode,
     heightCm: Number(row?.height_cm || 0),
     weightKg: Number(row?.weight_kg || 0),
     externalLoadKg,
+    ...(isBarbellPowerAnalysisMode(mode)
+      ? {
+          plateDiameterCm: Number.isFinite(plateDiameterCm) && plateDiameterCm > 0
+            ? plateDiameterCm
+            : POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
+        }
+      : {}),
     status,
     progress: Number(row?.progress || 0),
     metrics,
@@ -217,7 +226,8 @@ export async function getPowerAnalysisQueueInfo(row: any): Promise<PowerAnalysis
 export async function mapPowerAnalysisJobWithQueueInfo(row: any): Promise<PowerAnalysisJobDto> {
   const dto = mapPowerAnalysisJob(row);
   dto.queueInfo = await getPowerAnalysisQueueInfo(row);
-  if (dto.status === "done" && dto.metrics && row?.user_id) {
+  // Barbell lifting power is a different measurement; it stays out of the bodyweight challenge boards.
+  if (dto.status === "done" && dto.metrics && row?.user_id && !isBarbellPowerAnalysisMode(dto.mode)) {
     dto.ranking = await syncPowerAnalysisRanking(row.id, row.user_id);
   }
   return dto;
@@ -289,6 +299,7 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
         avgPowerW: Number(item.avgPowerW ?? item.power ?? item.avg_power_w ?? 0),
         horsepowerHp: Number(item.horsepowerHp ?? item.horsepower ?? item.horsepower_hp ?? 0),
         maxVelocityMps: Number(item.maxVelocityMps ?? item.max_velocity ?? item.max_velocity_mps ?? 0),
+        ...optionalNumbers(item, ["meanVelocityMps", "startTimeS", "endTimeS", "pauseS", "barHorizontalTravelCm"]),
       }))
     : [];
 
@@ -317,7 +328,9 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
         descriptionEn: String(ratingSource.descriptionEn ?? ratingSource.description_en ?? ""),
       }
     : undefined;
+  const velocityLoss = Number(summary.velocityLossPct);
   return {
+    ...(raw.analyzerVersion ? { analyzerVersion: String(raw.analyzerVersion) } : {}),
     mode,
     mass: mass
       ? {
@@ -334,10 +347,16 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
       bestVelocityMps: Number(summary.bestVelocityMps ?? summary.best_velocity_mps ?? 0),
       avgAscentTimeS: Number(summary.avgAscentTimeS ?? summary.avg_ascent_time_s ?? 0),
       avgDisplacementM: Number(summary.avgDisplacementM ?? summary.avg_displacement_m ?? 0),
+      ...optionalNumbers(summary, ["bestMeanVelocityMps", "avgMeanVelocityMps", "lastMeanVelocityMps"]),
+      ...(summary.velocityLossPct === undefined
+        ? {}
+        : { velocityLossPct: Number.isFinite(velocityLoss) && summary.velocityLossPct !== null ? velocityLoss : null }),
     },
     reps,
     timeSeries,
     rating,
+    assessment: normalizePowerAnalysisAssessment(raw.assessment),
+    measurement: normalizePowerAnalysisMeasurement(raw.measurement),
     video: video
       ? {
           inputSizeBytes: nonNegativeNumber(video.inputSizeBytes ?? video.input_size_bytes),
@@ -349,14 +368,18 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
         }
       : undefined,
     notes: Array.isArray(raw.notes) ? raw.notes.map(String) : undefined,
-    video: video
-      ? {
-          inputHasAudio: typeof video.inputHasAudio === "boolean" ? video.inputHasAudio : undefined,
-          outputHasAudio: typeof video.outputHasAudio === "boolean" ? video.outputHasAudio : undefined,
-          audioPreserved: typeof video.audioPreserved === "boolean" ? video.audioPreserved : undefined,
-        }
-      : undefined,
   };
+}
+
+function optionalNumbers(source: any, keys: string[]) {
+  const result: Record<string, number> = {};
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value === null || value === undefined || value === "") continue;
+    const n = Number(value);
+    if (Number.isFinite(n)) result[key] = n;
+  }
+  return result;
 }
 
 export async function getOwnedPowerAnalysisJob(jobId: string, userId: string) {
@@ -487,6 +510,19 @@ export function makeFallbackPowerSummary(metrics: PowerAnalysisMetrics) {
     return "这段视频没有稳定识别到完整上升动作。建议换一个全身无遮挡、侧前方或正前方、动作开始前后各留 1 秒的视频再测。";
   }
 
+  const assessmentLines = buildFallbackAssessmentLines(metrics);
+  if (isBarbellPowerAnalysisMode(metrics.mode)) {
+    const best = metrics.summary.bestMeanVelocityMps ?? 0;
+    const loss = metrics.summary.velocityLossPct;
+    return [
+      `本次共识别到 ${repCount} 次有效向心阶段，最佳平均速度约 ${best.toFixed(2)} m/s${
+        typeof loss === "number" ? `，组内速度下降约 ${loss.toFixed(0)}%` : ""
+      }。`,
+      ...assessmentLines,
+      "同一重量下平均速度变快通常说明能力在提升；组内速度下降越多，离力竭越近。拍摄角度和杠铃片识别会影响结果，不要把它当作实验室测量。",
+    ].join("\n");
+  }
+
   const bestHp = metrics.summary.bestHorsepowerHp;
   const bestPower = metrics.summary.bestPowerW;
   const bestVelocity = metrics.summary.bestVelocityMps;
@@ -494,6 +530,7 @@ export function makeFallbackPowerSummary(metrics: PowerAnalysisMetrics) {
   return [
     `本次共识别到 ${repCount} 次有效上升动作，最高功率约 ${bestPower.toFixed(0)} W（${bestHp.toFixed(2)} hp），最高上升速度约 ${bestVelocity.toFixed(2)} m/s。`,
     `平均上升时间约 ${avgTime.toFixed(2)} 秒，可把这个结果作为同一拍摄角度下的自我对比基线。`,
+    ...assessmentLines,
     "如果想继续提升，优先关注动作启动速度、顶端过渡效率和后半程速度衰减。视频角度、遮挡和身高标定会影响结果，因此不要把它当作正式实验室测量。",
   ].join("\n");
 }

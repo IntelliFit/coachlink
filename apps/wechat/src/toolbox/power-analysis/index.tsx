@@ -11,10 +11,20 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import { useTheme } from '@/hooks/useTheme'
+import {
+  isBarbellPowerAnalysisMode,
+  isValidPlateDiameterCm,
+  isValidPowerAnalysisLoadKg,
+  POWER_ANALYSIS_BARBELL_SHOOTING_TIP,
+  POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG,
+  POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
+  POWER_ANALYSIS_MODE_OPTIONS as MODE_OPTIONS,
+  type PowerAnalysisMode
+} from '@coachlink/core/src/powerAnalysisModes'
 import PowerCurveChart, { type PowerCurvePoint } from './PowerCurveChart'
+import AssessmentSection, { type PowerAnalysisAssessment, type PowerAnalysisMeasurement } from './AssessmentSection'
 import './index.scss'
 
-type PowerAnalysisMode = 'pullup' | 'muscleup' | 'dip' | 'pushup' | 'squat'
 type PowerAnalysisQuality = 'compressed' | 'original'
 type OverlayLanguage = 'zh' | 'en'
 type OverlayLanguagePreference = 'auto' | OverlayLanguage
@@ -28,6 +38,8 @@ interface PowerAnalysisRepMetric {
   avgPowerW: number
   horsepowerHp: number
   maxVelocityMps: number
+  meanVelocityMps?: number
+  pauseS?: number | null
 }
 
 interface PowerAnalysisMetrics {
@@ -45,8 +57,13 @@ interface PowerAnalysisMetrics {
     bestVelocityMps: number
     avgAscentTimeS: number
     avgDisplacementM: number
+    bestMeanVelocityMps?: number
+    avgMeanVelocityMps?: number
+    velocityLossPct?: number | null
   }
   reps: PowerAnalysisRepMetric[]
+  assessment?: PowerAnalysisAssessment
+  measurement?: PowerAnalysisMeasurement
   timeSeries?: PowerCurvePoint[]
   rating?: {
     level: 'low' | 'steady' | 'powerful' | 'beast'
@@ -153,14 +170,6 @@ interface SelectedVideo {
   height?: number
 }
 
-const MODE_OPTIONS: Array<{ label: string; value: PowerAnalysisMode; hint: string }> = [
-  { label: '引体向上', value: 'pullup', hint: '正面或侧前方，全身入镜' },
-  { label: '双力臂', value: 'muscleup', hint: '保留过杠阶段，避免遮挡' },
-  { label: '双杠臂屈伸', value: 'dip', hint: '肩、髋和双杠无遮挡' },
-  { label: '俯卧撑', value: 'pushup', hint: '侧面拍摄，肩髋都要清楚' },
-  { label: '深蹲起身', value: 'squat', hint: '侧前方全身，髋部可见' }
-]
-
 const TERMINAL_STATUSES: PowerAnalysisJobStatus[] = ['done', 'failed', 'expired']
 const SELECTED_VIDEO_ID = 'power-analysis-selected-video'
 const LAST_DOWNLOADABLE_JOB_STORAGE_KEY = 'power-analysis-last-downloadable-job-v1'
@@ -213,7 +222,26 @@ interface PowerComparisonRow {
 }
 
 function buildPowerComparisonRows(before: PowerAnalysisMetrics, after: PowerAnalysisMetrics): PowerComparisonRow[] {
+  // Barbell lifts are judged on mean velocity; bodyweight movements keep their original four rows.
+  const bothBarbell = isBarbellPowerAnalysisMode(before.mode) && isBarbellPowerAnalysisMode(after.mode)
+  const meanVelocityRows: PowerComparisonRow[] =
+    bothBarbell &&
+    typeof before.summary.bestMeanVelocityMps === 'number' &&
+    typeof after.summary.bestMeanVelocityMps === 'number'
+      ? [
+          {
+            key: 'bestMeanVelocityMps',
+            label: '最佳平均速度',
+            before: before.summary.bestMeanVelocityMps,
+            after: after.summary.bestMeanVelocityMps,
+            unit: 'm/s',
+            digits: 2,
+            higherIsBetter: true
+          }
+        ]
+      : []
   return [
+    ...meanVelocityRows,
     {
       key: 'bestPowerW',
       label: '最高功率',
@@ -253,8 +281,17 @@ function buildPowerComparisonRows(before: PowerAnalysisMetrics, after: PowerAnal
   ]
 }
 
-function getPowerComparisonVerdict(rows: PowerComparisonRow[], comparable: boolean) {
-  if (!comparable) return '动作类型不同，仅展示数值，不判断优劣'
+function getComparisonBlocker(before: PowerAnalysisJobDto | null, after: PowerAnalysisJobDto | null) {
+  if (!before || !after || before.mode !== after.mode) return '动作类型不同，仅展示数值，不判断优劣'
+  // Heavier bars move slower and produce more power, so only same-weight barbell tests are judged.
+  if (isBarbellPowerAnalysisMode(after.mode) && Number(before.externalLoadKg) !== Number(after.externalLoadKg)) {
+    return '杠铃重量不同，仅展示数值，不判断优劣'
+  }
+  return ''
+}
+
+function getPowerComparisonVerdict(rows: PowerComparisonRow[], blocker: string) {
+  if (blocker) return blocker
   let score = 0
   for (const row of rows) {
     const tolerance = Math.max(Math.abs(row.before) * 0.01, row.digits === 0 ? 1 : 0.01)
@@ -272,6 +309,25 @@ function formatComparisonDelta(row: PowerComparisonRow) {
   const delta = row.after - row.before
   const sign = delta > 0 ? '+' : ''
   return `${sign}${delta.toFixed(row.digits)} ${row.unit}`
+}
+
+function summaryTiles(metrics: PowerAnalysisMetrics, barbell: boolean) {
+  const { summary } = metrics
+  if (barbell) {
+    const loss = summary.velocityLossPct
+    return [
+      { label: '有效次数', value: String(metrics.repCount), accent: false },
+      { label: '最佳平均速度', value: `${formatMetric(summary.bestMeanVelocityMps, 2)} m/s`, accent: true },
+      { label: '组内速度下降', value: typeof loss === 'number' ? `${formatMetric(loss, 0)}%` : '-', accent: false },
+      { label: '杠铃抬升功率', value: `${formatMetric(summary.bestPowerW, 0)} W`, accent: false }
+    ]
+  }
+  return [
+    { label: '有效次数', value: String(metrics.repCount), accent: false },
+    { label: '最高功率', value: `${formatMetric(summary.bestPowerW, 0)} W`, accent: false },
+    { label: '最高马力', value: `${formatMetric(summary.bestHorsepowerHp, 2)} hp`, accent: true },
+    { label: '最快速度', value: `${formatMetric(summary.bestVelocityMps, 2)} m/s`, accent: false }
+  ]
 }
 
 function inferVideoName(filePath: string) {
@@ -578,6 +634,8 @@ export default function WechatPowerAnalysisPage() {
   const [heightCm, setHeightCm] = useState('175')
   const [weightKg, setWeightKg] = useState('70')
   const [externalLoadKg, setExternalLoadKg] = useState('0')
+  const [barbellKg, setBarbellKg] = useState(String(POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG))
+  const [plateDiameterCm, setPlateDiameterCm] = useState(String(POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM))
   const [quality, setQuality] = useState<PowerAnalysisQuality>('compressed')
   const [languagePreference, setLanguagePreference] = useState<OverlayLanguagePreference>('auto')
   const [entitlements, setEntitlements] = useState<PowerAnalysisEntitlements>(DEFAULT_ENTITLEMENTS)
@@ -599,9 +657,10 @@ export default function WechatPowerAnalysisPage() {
     []
   )
 
+  const resultModeValue = job?.mode ?? mode
   const selectedMode = useMemo(
-    () => MODE_OPTIONS.find((item) => item.value === mode) || MODE_OPTIONS[0],
-    [mode]
+    () => MODE_OPTIONS.find((item) => item.value === resultModeValue) || MODE_OPTIONS[0],
+    [resultModeValue]
   )
 
   const metrics = job?.metrics || null
@@ -613,14 +672,16 @@ export default function WechatPowerAnalysisPage() {
     [comparisonBaselineJob?.id, comparisonBaselineMetrics, job?.id, metrics]
   )
   const comparisonVerdict = comparisonRows.length > 0
-    ? getPowerComparisonVerdict(comparisonRows, comparisonBaselineJob?.mode === job?.mode)
+    ? getPowerComparisonVerdict(comparisonRows, getComparisonBlocker(comparisonBaselineJob, job))
     : ''
   const overlayLanguage = languagePreference === 'auto'
     ? detectSystemOverlayLanguage()
     : languagePreference
   const heightValue = Number(heightCm)
   const weightValue = Number(weightKg)
-  const externalLoadValue = Number(externalLoadKg)
+  const isBarbell = isBarbellPowerAnalysisMode(mode)
+  const resultIsBarbell = isBarbellPowerAnalysisMode(metrics?.mode)
+  const externalLoadValue = Number(isBarbell ? barbellKg : externalLoadKg)
   const formReady =
     Number.isFinite(heightValue) &&
     heightValue >= 100 &&
@@ -628,9 +689,8 @@ export default function WechatPowerAnalysisPage() {
     Number.isFinite(weightValue) &&
     weightValue >= 30 &&
     weightValue <= 250 &&
-    Number.isFinite(externalLoadValue) &&
-    externalLoadValue >= 0 &&
-    externalLoadValue <= 250
+    isValidPowerAnalysisLoadKg(mode, externalLoadValue) &&
+    (!isBarbell || isValidPlateDiameterCm(plateDiameterCm))
   const isBusy =
     ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase) ||
     job?.status === 'queued' ||
@@ -820,6 +880,14 @@ export default function WechatPowerAnalysisPage() {
     void generateSummary(job.id)
   }, [job?.id, job?.status, job?.llmSummary])
 
+  const handleSeekVideo = (timeS: number) => {
+    if (!video) return
+    Taro.pageScrollTo({ selector: '.selected-video-wrap', duration: 300 })
+    const context = Taro.createVideoContext(SELECTED_VIDEO_ID)
+    context.seek(Math.max(0, timeS - 0.5))
+    context.play()
+  }
+
   const stopPolling = () => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current)
@@ -853,7 +921,7 @@ export default function WechatPowerAnalysisPage() {
 
   const prepareUpload = async (nextVideo: SelectedVideo) => {
     if (!formReady) {
-      Taro.showToast({ title: '请先填写有效身高体重', icon: 'none' })
+      Taro.showToast({ title: isBarbell ? '请先填写有效身高体重和杠铃重量' : '请先填写有效身高体重', icon: 'none' })
       return
     }
 
@@ -908,6 +976,7 @@ export default function WechatPowerAnalysisPage() {
           heightCm: heightValue,
           weightKg: weightValue,
           externalLoadKg: externalLoadValue,
+          ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
           originalFilename: preparedVideo.name,
           contentType: preparedVideo.contentType,
           fileSizeBytes: preparedVideo.size,
@@ -1198,9 +1267,9 @@ export default function WechatPowerAnalysisPage() {
     <View className={`power-analysis-page theme-${effectiveTheme}`}>
       <View className='page-content'>
           <View className='intro-card'>
-            <Text className='intro-kicker'>多动作功率测试</Text>
-            <Text className='intro-title'>上传视频，估算功率、马力与最大速度</Text>
-            <Text className='intro-desc'>视频仅作为临时分析任务处理，完成后可保存带标注的视频结果。</Text>
+            <Text className='intro-kicker'>功率与动作分析</Text>
+            <Text className='intro-title'>上传视频，测速度功率，看动作问题</Text>
+            <Text className='intro-desc'>支持自重动作和深蹲、卧推、硬拉。视频仅作为临时分析任务处理，完成后可保存带标注的视频结果。</Text>
           </View>
 
           <View className='form-card'>
@@ -1228,8 +1297,9 @@ export default function WechatPowerAnalysisPage() {
                 </View>
               ))}
             </View>
+            {isBarbell && <Text className='barbell-tip'>{POWER_ANALYSIS_BARBELL_SHOOTING_TIP}</Text>}
 
-            <View className='input-grid'>
+            <View className={`input-grid ${isBarbell ? 'input-grid-barbell' : ''}`}>
               <View className='input-cell'>
                 <Text className='input-label'>身高 cm</Text>
                 <Input
@@ -1250,17 +1320,45 @@ export default function WechatPowerAnalysisPage() {
                   onInput={(event) => setWeightKg(String(event.detail.value || ''))}
                 />
               </View>
-              <View className='input-cell'>
-                <Text className='input-label'>额外负重 kg</Text>
-                <Input
-                  className='metric-input load-input'
-                  type='digit'
-                  value={externalLoadKg}
-                  disabled={settingsLocked}
-                  onInput={(event) => setExternalLoadKg(String(event.detail.value || ''))}
-                />
-              </View>
+              {isBarbell ? (
+                <>
+                  <View className='input-cell'>
+                    <Text className='input-label'>杠铃总重 kg</Text>
+                    <Input
+                      className='metric-input barbell-input'
+                      type='digit'
+                      value={barbellKg}
+                      disabled={settingsLocked}
+                      onInput={(event) => setBarbellKg(String(event.detail.value || ''))}
+                    />
+                  </View>
+                  <View className='input-cell'>
+                    <Text className='input-label'>杠铃片直径 cm</Text>
+                    <Input
+                      className='metric-input plate-input'
+                      type='digit'
+                      value={plateDiameterCm}
+                      disabled={settingsLocked}
+                      onInput={(event) => setPlateDiameterCm(String(event.detail.value || ''))}
+                    />
+                  </View>
+                </>
+              ) : (
+                <View className='input-cell'>
+                  <Text className='input-label'>额外负重 kg</Text>
+                  <Input
+                    className='metric-input load-input'
+                    type='digit'
+                    value={externalLoadKg}
+                    disabled={settingsLocked}
+                    onInput={(event) => setExternalLoadKg(String(event.detail.value || ''))}
+                  />
+                </View>
+              )}
             </View>
+            {isBarbell && (
+              <Text className='barbell-input-hint'>杠铃总重含杠铃杆和杠铃片；标准片直径 45 cm，请填写杠上最大那片的直径。</Text>
+            )}
 
             <View className='analysis-option-section'>
               <View className='option-heading-row'>
@@ -1388,27 +1486,17 @@ export default function WechatPowerAnalysisPage() {
 
             {!metrics ? (
               <View className='result-empty'>
-                <Text>提交视频后，功率、马力、速度和逐次数据会显示在这里。</Text>
+                <Text>提交视频后，速度、功率、逐次数据和动作评估会显示在这里。</Text>
               </View>
             ) : (
               <View>
                 <View className='summary-grid'>
-                  <View className='summary-item'>
-                    <Text className='summary-label'>有效次数</Text>
-                    <Text className='summary-value'>{metrics.repCount}</Text>
-                  </View>
-                  <View className='summary-item'>
-                    <Text className='summary-label'>最高功率</Text>
-                    <Text className='summary-value'>{formatMetric(metrics.summary.bestPowerW, 0)} W</Text>
-                  </View>
-                  <View className='summary-item accent'>
-                    <Text className='summary-label'>最高马力</Text>
-                    <Text className='summary-value'>{formatMetric(metrics.summary.bestHorsepowerHp, 2)} hp</Text>
-                  </View>
-                  <View className='summary-item'>
-                    <Text className='summary-label'>最快速度</Text>
-                    <Text className='summary-value'>{formatMetric(metrics.summary.bestVelocityMps, 2)} m/s</Text>
-                  </View>
+                  {summaryTiles(metrics, resultIsBarbell).map((tile) => (
+                    <View key={tile.label} className={`summary-item ${tile.accent ? 'accent' : ''}`}>
+                      <Text className='summary-label'>{tile.label}</Text>
+                      <Text className='summary-value'>{tile.value}</Text>
+                    </View>
+                  ))}
                 </View>
 
                 {typeof metrics.video?.inputHasAudio === 'boolean' && (
@@ -1533,17 +1621,34 @@ export default function WechatPowerAnalysisPage() {
                         <Text>#{rep.repIndex}</Text>
                       </View>
                       <View className='rep-main'>
-                        <Text className='rep-power'>{formatMetric(rep.avgPowerW, 0)} W · {formatMetric(rep.horsepowerHp, 2)} hp</Text>
+                        <Text className='rep-power'>
+                          {resultIsBarbell
+                            ? `平均速度 ${formatMetric(rep.meanVelocityMps, 2)} m/s · ${formatMetric(rep.avgPowerW, 0)} W`
+                            : `${formatMetric(rep.avgPowerW, 0)} W · ${formatMetric(rep.horsepowerHp, 2)} hp`}
+                        </Text>
                         <Text className='rep-detail'>
-                          位移 {formatMetric(rep.displacementM, 2)} m · 上升 {formatMetric(rep.ascentTimeS, 2)} s · 速度 {formatMetric(rep.maxVelocityMps, 2)} m/s
+                          位移 {formatMetric(rep.displacementM, 2)} m · 上升 {formatMetric(rep.ascentTimeS, 2)} s · 最大速度 {formatMetric(rep.maxVelocityMps, 2)} m/s
+                          {typeof rep.pauseS === 'number' ? ` · 停顿 ${formatMetric(rep.pauseS, 2)} s` : ''}
                         </Text>
                       </View>
                     </View>
                   ))}
                 </View>
+                {resultIsBarbell && (
+                  <Text className='barbell-power-note'>
+                    功率为杠铃抬升功率（杠铃总重 × g × 杠铃上升高度 ÷ 上升时间），只用来和自己同重量的记录比较，不代表力量水平。
+                  </Text>
+                )}
               </View>
             )}
           </View>
+
+          <AssessmentSection
+            assessment={metrics?.assessment}
+            measurement={metrics?.measurement}
+            canSeek={Boolean(video)}
+            onSeek={handleSeekVideo}
+          />
 
           {comparisonRows.length > 0 && comparisonBaselineMetrics && metrics && (
             <View className='comparison-card'>

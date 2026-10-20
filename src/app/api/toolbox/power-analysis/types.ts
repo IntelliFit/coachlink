@@ -1,4 +1,6 @@
-export type PowerAnalysisMode = "pullup" | "muscleup" | "dip" | "pushup" | "squat";
+import type { PowerAnalysisMode } from "@coachlink/core/src/powerAnalysisModes";
+
+export type { PowerAnalysisMode };
 export type PowerAnalysisQuality = "compressed" | "original";
 export type PowerAnalysisOverlayLanguage = "zh" | "en";
 export type PowerAnalysisJobStatus =
@@ -16,6 +18,12 @@ export interface PowerAnalysisRepMetric {
   avgPowerW: number;
   horsepowerHp: number;
   maxVelocityMps: number;
+  /** Displacement / concentric time. */
+  meanVelocityMps?: number;
+  startTimeS?: number;
+  endTimeS?: number;
+  pauseS?: number | null;
+  barHorizontalTravelCm?: number;
 }
 
 export interface PowerAnalysisTimeSeriesPoint {
@@ -34,7 +42,40 @@ export interface PowerAnalysisRating {
   descriptionEn: string;
 }
 
+export type PowerAnalysisCheckStatus = "good" | "info" | "warn" | "issue" | "unavailable";
+
+export interface PowerAnalysisCheck {
+  code: string;
+  titleZh: string;
+  status: PowerAnalysisCheckStatus;
+  detailZh: string;
+  repIndexes: number[];
+  timesS: number[];
+  value: number | null;
+  unit: string;
+}
+
+export interface PowerAnalysisAssessment {
+  version: string;
+  view: "front" | "side" | "oblique" | "unknown";
+  viewLabelZh: string;
+  recommendedViewZh: string;
+  counts: Record<PowerAnalysisCheckStatus, number>;
+  checks: PowerAnalysisCheck[];
+}
+
+export interface PowerAnalysisMeasurement {
+  target: "body_anchor" | "barbell_plate" | "barbell_body_proxy";
+  anchorLabelZh: string;
+  scaleSource: "plate_diameter" | "body_height" | "torso_segment" | "frame_fallback";
+  confidence: "high" | "medium" | "low";
+  plateDiameterCm?: number;
+  trackingCoverage?: number;
+  warningsZh: string[];
+}
+
 export interface PowerAnalysisMetrics {
+  analyzerVersion?: string;
   mode: PowerAnalysisMode;
   mass?: {
     bodyWeightKg: number;
@@ -50,10 +91,17 @@ export interface PowerAnalysisMetrics {
     bestVelocityMps: number;
     avgAscentTimeS: number;
     avgDisplacementM: number;
+    bestMeanVelocityMps?: number;
+    avgMeanVelocityMps?: number;
+    lastMeanVelocityMps?: number;
+    /** (fastest rep - last rep) / fastest rep, in percent. */
+    velocityLossPct?: number | null;
   };
   reps: PowerAnalysisRepMetric[];
   timeSeries?: PowerAnalysisTimeSeriesPoint[];
   rating?: PowerAnalysisRating;
+  assessment?: PowerAnalysisAssessment;
+  measurement?: PowerAnalysisMeasurement;
   video?: {
     inputSizeBytes?: number;
     outputSizeBytes?: number;
@@ -63,11 +111,6 @@ export interface PowerAnalysisMetrics {
     quality?: PowerAnalysisQuality;
   };
   notes?: string[];
-  video?: {
-    inputHasAudio?: boolean;
-    outputHasAudio?: boolean;
-    audioPreserved?: boolean;
-  };
 }
 
 export interface PowerAnalysisJobDto {
@@ -75,7 +118,9 @@ export interface PowerAnalysisJobDto {
   mode: PowerAnalysisMode;
   heightCm: number;
   weightKg: number;
+  /** Extra load for bodyweight movements; total bar mass for barbell lifts. */
   externalLoadKg: number;
+  plateDiameterCm?: number;
   status: PowerAnalysisJobStatus;
   progress: number;
   metrics: PowerAnalysisMetrics | null;
@@ -118,6 +163,7 @@ export interface CreatePowerAnalysisUploadUrlDto {
   heightCm: number;
   weightKg: number;
   externalLoadKg?: number;
+  plateDiameterCm?: number;
   originalFilename: string;
   contentType: string;
   fileSizeBytes: number;

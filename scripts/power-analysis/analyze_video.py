@@ -3,114 +3,29 @@ import argparse
 import json
 import math
 import os
-import shutil
-import subprocess
 import sys
 from collections import deque
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import mediapipe as mp
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+
+import pose_features as pf
+from assessment import build_assessment
+from barbell_reps import G, HP_WATT, refine_barbell_reps
+from mode_presets import SUPPORTED_MODES, get_mode_preset, is_barbell_mode
+from movement_rules import RuleContext
+from plate_tracker import track_plate
+from render_overlay import render_output_video
+from video_encoding import finalize_output_video
 
 
-G = 9.80665
-HP_WATT = 735.499
-FACE_LANDMARK_INDEXES = set(range(0, 11))
-BODY_POSE_CONNECTIONS = [
-    connection
-    for connection in mp.solutions.pose.POSE_CONNECTIONS
-    if connection[0] not in FACE_LANDMARK_INDEXES and connection[1] not in FACE_LANDMARK_INDEXES
-]
-FONT_CANDIDATES = [
-    os.environ.get("POWER_ANALYSIS_CJK_FONT", ""),
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
-    "C:/Windows/Fonts/msyh.ttc",
-    "C:/Windows/Fonts/simhei.ttf",
-]
-_FONT_CACHE: Dict[int, Any] = {}
-
-
-MODE_PRESETS: Dict[str, Dict[str, Any]] = {
-    "pullup": {
-        "label": "Pull-up",
-        "labelZh": "引体向上",
-        "anchor": "shoulder",
-        "anchorLabel": "shoulder line",
-        "startThreshold": 0.22,
-        "endThreshold": 0.06,
-        "minDisplacement": 0.12,
-        "minTime": 0.12,
-        "maxTime": 5.5,
-        "stillSeconds": 0.12,
-        "bodyMassFactor": 1.0,
-        "viewHint": "Use a side or front 45-degree full-body view with the bar and feet visible.",
-    },
-    "muscleup": {
-        "label": "Muscle-up",
-        "labelZh": "双力臂",
-        "anchor": "shoulder",
-        "anchorLabel": "shoulder line",
-        "startThreshold": 0.32,
-        "endThreshold": 0.06,
-        "minDisplacement": 0.18,
-        "minTime": 0.12,
-        "maxTime": 5.5,
-        "stillSeconds": 0.12,
-        "bodyMassFactor": 1.0,
-        "viewHint": "Use a side or front 45-degree full-body view; avoid hiding the transition over the bar.",
-    },
-    "dip": {
-        "label": "Dip",
-        "labelZh": "双杠臂屈伸",
-        "anchor": "shoulder",
-        "anchorLabel": "shoulder line",
-        "startThreshold": 0.18,
-        "endThreshold": 0.05,
-        "minDisplacement": 0.09,
-        "minTime": 0.12,
-        "maxTime": 5.0,
-        "stillSeconds": 0.14,
-        "bodyMassFactor": 1.0,
-        "viewHint": "Use a side/front 45-degree view with shoulders, hips, and bars unobstructed.",
-    },
-    "pushup": {
-        "label": "Push-up",
-        "labelZh": "俯卧撑",
-        "anchor": "shoulder",
-        "anchorLabel": "shoulder line",
-        "startThreshold": 0.10,
-        "endThreshold": 0.035,
-        "minDisplacement": 0.045,
-        "minTime": 0.12,
-        "maxTime": 4.5,
-        "stillSeconds": 0.14,
-        "bodyMassFactor": 0.65,
-        "viewHint": "Use a clean side view; keep shoulders and hips visible throughout the rep.",
-    },
-    "squat": {
-        "label": "Squat",
-        "labelZh": "深蹲起身",
-        "anchor": "hip",
-        "anchorLabel": "hip line",
-        "startThreshold": 0.16,
-        "endThreshold": 0.045,
-        "minDisplacement": 0.10,
-        "minTime": 0.20,
-        "maxTime": 7.0,
-        "stillSeconds": 0.18,
-        "bodyMassFactor": 1.0,
-        "viewHint": "Use a side 45-degree full-body view; keep hips, shoulders, and feet in frame.",
-    },
-}
-
-SUPPORTED_MODES = list(MODE_PRESETS.keys())
-
-
-def get_mode_preset(mode: str) -> Dict[str, Any]:
-    return MODE_PRESETS.get(mode, MODE_PRESETS["pullup"])
+ANALYZER_VERSION = "2.0.0"
+DEFAULT_PLATE_DIAMETER_CM = 45.0
+# Torso (shoulder to hip joint) as a share of standing height, used when lying down.
+TORSO_HEIGHT_RATIO = 0.288
 
 
 def emit_progress(value: int) -> None:
@@ -121,51 +36,6 @@ def round_float(value: float, digits: int = 3) -> float:
     if not math.isfinite(value):
         return 0.0
     return round(float(value), digits)
-
-
-def get_cjk_font(size: int) -> Any:
-    size = max(12, int(size))
-    if size in _FONT_CACHE:
-        return _FONT_CACHE[size]
-    for candidate in FONT_CANDIDATES:
-        if candidate and os.path.exists(candidate):
-            _FONT_CACHE[size] = ImageFont.truetype(candidate, size=size)
-            return _FONT_CACHE[size]
-    _FONT_CACHE[size] = ImageFont.load_default()
-    return _FONT_CACHE[size]
-
-
-def draw_text_commands(frame: Any, commands: List[Dict[str, Any]], language: str) -> Any:
-    if language != "zh":
-        for command in commands:
-            cv2.putText(
-                frame,
-                str(command["text"]),
-                (int(command["x"]), int(command["y"])),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                float(command.get("fontScale", 0.72)),
-                tuple(command.get("color", (255, 255, 255))),
-                int(command.get("thickness", 2)),
-                cv2.LINE_AA,
-            )
-        return frame
-
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image = Image.fromarray(rgb)
-    painter = ImageDraw.Draw(image)
-    for command in commands:
-        font_size = int(command.get("fontSize", 24))
-        bgr = tuple(command.get("color", (255, 255, 255)))
-        rgb_color = (int(bgr[2]), int(bgr[1]), int(bgr[0]))
-        painter.text(
-            (int(command["x"]), int(command["y"]) - font_size),
-            str(command["text"]),
-            font=get_cjk_font(font_size),
-            fill=rgb_color,
-            stroke_width=1,
-            stroke_fill=(0, 0, 0),
-        )
-    return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
 
 
 def moving_average(values: List[Optional[float]], window: int = 5) -> List[Optional[float]]:
@@ -180,91 +50,12 @@ def moving_average(values: List[Optional[float]], window: int = 5) -> List[Optio
     return result
 
 
-def infer_scale_m_per_px(landmarks: Any, frame_height: int, height_cm: float) -> Optional[float]:
-    pose = mp.solutions.pose
-    candidates = [
-        pose.PoseLandmark.NOSE,
-        pose.PoseLandmark.LEFT_EYE,
-        pose.PoseLandmark.RIGHT_EYE,
-    ]
-    foot_candidates = [
-        pose.PoseLandmark.LEFT_HEEL,
-        pose.PoseLandmark.RIGHT_HEEL,
-        pose.PoseLandmark.LEFT_FOOT_INDEX,
-        pose.PoseLandmark.RIGHT_FOOT_INDEX,
-        pose.PoseLandmark.LEFT_ANKLE,
-        pose.PoseLandmark.RIGHT_ANKLE,
-    ]
-
-    top_y: Optional[float] = None
-    bottom_y: Optional[float] = None
-    for item in candidates:
-        lm = landmarks[item]
-        if getattr(lm, "visibility", 1.0) >= 0.35:
-            y = lm.y * frame_height
-            top_y = y if top_y is None else min(top_y, y)
-    for item in foot_candidates:
-        lm = landmarks[item]
-        if getattr(lm, "visibility", 1.0) >= 0.25:
-            y = lm.y * frame_height
-            bottom_y = y if bottom_y is None else max(bottom_y, y)
-
-    if top_y is None or bottom_y is None:
-        return None
-    pixel_height = abs(bottom_y - top_y)
-    if pixel_height < 80:
-        return None
-    return (height_cm / 100.0) / pixel_height
+def to_optional_list(values: np.ndarray) -> List[Optional[float]]:
+    return [float(value) if math.isfinite(float(value)) else None for value in values]
 
 
-def average_landmark_y(
-    landmarks: Any,
-    frame_height: int,
-    items: List[Any],
-    min_visibility: float = 0.35,
-) -> Optional[float]:
-    ys: List[float] = []
-    for item in items:
-        lm = landmarks[item]
-        if getattr(lm, "visibility", 1.0) >= min_visibility:
-            ys.append(lm.y * frame_height)
-    if not ys:
-        return None
-    return sum(ys) / len(ys)
-
-
-def shoulder_y(landmarks: Any, frame_height: int) -> Optional[float]:
-    pose = mp.solutions.pose
-    items = [pose.PoseLandmark.LEFT_SHOULDER, pose.PoseLandmark.RIGHT_SHOULDER]
-    return average_landmark_y(landmarks, frame_height, items)
-
-
-def hip_y(landmarks: Any, frame_height: int) -> Optional[float]:
-    pose = mp.solutions.pose
-    items = [pose.PoseLandmark.LEFT_HIP, pose.PoseLandmark.RIGHT_HIP]
-    return average_landmark_y(landmarks, frame_height, items)
-
-
-def torso_y(landmarks: Any, frame_height: int) -> Optional[float]:
-    pose = mp.solutions.pose
-    items = [
-        pose.PoseLandmark.LEFT_SHOULDER,
-        pose.PoseLandmark.RIGHT_SHOULDER,
-        pose.PoseLandmark.LEFT_HIP,
-        pose.PoseLandmark.RIGHT_HIP,
-    ]
-    return average_landmark_y(landmarks, frame_height, items, min_visibility=0.3)
-
-
-def anchor_y(landmarks: Any, frame_height: int, anchor: str) -> Optional[float]:
-    if anchor == "hip":
-        return hip_y(landmarks, frame_height) or torso_y(landmarks, frame_height)
-    if anchor == "torso":
-        return torso_y(landmarks, frame_height) or shoulder_y(landmarks, frame_height)
-    return shoulder_y(landmarks, frame_height)
-
-
-def collect_pose_track(video_path: str, height_cm: float, mode: str) -> Tuple[float, int, int, float, List[Optional[float]]]:
+def collect_landmarks(video_path: str) -> Tuple[float, int, int, np.ndarray]:
+    """One MediaPipe pass; every later step (metrics, rules, overlay) reads this track."""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise RuntimeError("Cannot open input video")
@@ -278,51 +69,196 @@ def collect_pose_track(video_path: str, height_cm: float, mode: str) -> Tuple[fl
     if frame_width <= 0 or frame_height <= 0:
         raise RuntimeError("Cannot read video dimensions")
 
-    y_track: List[Optional[float]] = []
-    scales: List[float] = []
-    preset = get_mode_preset(mode)
-    anchor = str(preset["anchor"])
-
-    pose_mod = mp.solutions.pose
-    with pose_mod.Pose(
+    rows: List[np.ndarray] = []
+    missing = np.full((33, 3), np.nan, dtype=np.float64)
+    with mp.solutions.pose.Pose(
         static_image_mode=False,
         model_complexity=1,
         enable_segmentation=False,
         min_detection_confidence=0.45,
         min_tracking_confidence=0.45,
     ) as pose:
-        index = 0
         while True:
             ok, frame = cap.read()
             if not ok:
                 break
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            result = pose.process(rgb)
+            result = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             if result.pose_landmarks:
-                landmarks = result.pose_landmarks.landmark
-                y_track.append(anchor_y(landmarks, frame_height, anchor))
-                scale = infer_scale_m_per_px(landmarks, frame_height, height_cm)
-                if scale:
-                    scales.append(scale)
+                rows.append(pf.landmarks_to_row(result.pose_landmarks.landmark, frame_width, frame_height))
             else:
-                y_track.append(None)
-
-            index += 1
-            if frame_count and index % max(1, frame_count // 20) == 0:
-                emit_progress(10 + int(index / frame_count * 35))
-
+                rows.append(missing)
+            if frame_count and len(rows) % max(1, frame_count // 20) == 0:
+                emit_progress(10 + int(len(rows) / frame_count * 35))
     cap.release()
 
-    if not any(y is not None for y in y_track):
+    track = np.stack(rows) if rows else pf.empty_track(0)
+    if not np.any(np.isfinite(track[:, :, 0])):
         raise RuntimeError("No stable pose landmarks detected")
+    return fps, frame_width, frame_height, track
 
-    if scales:
-        scale_m_per_px = float(np.median(np.array(scales)))
+
+def average_visible_y(track: np.ndarray, indexes: List[int], min_visibility: float) -> np.ndarray:
+    ys = track[:, indexes, 1].astype(np.float64)
+    visible = track[:, indexes, 2] >= min_visibility
+    count = visible.sum(axis=1)
+    total = np.where(visible, ys, 0.0).sum(axis=1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(count > 0, total / np.maximum(count, 1), np.nan)
+
+
+def body_anchor_y(track: np.ndarray, anchor: str) -> np.ndarray:
+    shoulder = average_visible_y(track, [11, 12], 0.35)
+    hip = average_visible_y(track, [23, 24], 0.35)
+    torso = average_visible_y(track, [11, 12, 23, 24], 0.3)
+    if anchor == "hip":
+        return np.where(np.isfinite(hip), hip, torso)
+    if anchor == "torso":
+        return np.where(np.isfinite(torso), torso, shoulder)
+    return shoulder
+
+
+def height_scale_m_per_px(
+    track: np.ndarray, frame_height: int, height_cm: float, standing_only: bool = False
+) -> Optional[float]:
+    """Median of (height / head-to-foot pixels) over frames with head and feet visible.
+
+    standing_only uses the tallest frames instead, for lifts where the lifter is bent over
+    for most of the clip (deadlift setup, squat hole); the median would then halve the height.
+    """
+    head = track[:, [0, 2, 5], :]
+    feet = track[:, [29, 30, 31, 32, 27, 28], :]
+    top = np.where(head[:, :, 2] >= 0.35, head[:, :, 1], np.inf).min(axis=1)
+    bottom = np.where(feet[:, :, 2] >= 0.25, feet[:, :, 1], -np.inf).max(axis=1)
+    pixel_height = np.abs(bottom - top)
+    valid = np.isfinite(pixel_height) & (pixel_height >= 80)
+    if not np.any(valid):
+        return None
+    if standing_only:
+        return float((height_cm / 100.0) / np.percentile(pixel_height[valid], 90))
+    return float(np.median((height_cm / 100.0) / pixel_height[valid]))
+
+
+def torso_scale_m_per_px(track: np.ndarray, height_cm: float) -> Optional[float]:
+    lengths = pf.torso_length(track)
+    lengths = lengths[np.isfinite(lengths) & (lengths >= 40)]
+    if lengths.size < 5:
+        return None
+    return (height_cm / 100.0) * TORSO_HEIGHT_RATIO / float(np.median(lengths))
+
+
+def frame_fallback_scale(frame_height: int, height_cm: float) -> float:
+    # Assume the visible body occupies about 80% of frame height.
+    return (height_cm / 100.0) / max(frame_height * 0.8, 1)
+
+
+def expected_bar_points(track: np.ndarray, part: str, side: str) -> np.ndarray:
+    """Rough bar position from the body, permissive on visibility because plates hide hands."""
+    preferred = pf.side_points(track, side, part, 0.1)
+    both = pf.side_points(track, "both", part, 0.05)
+    return np.where(np.isfinite(preferred), preferred, both)
+
+
+@dataclass
+class Measured:
+    """What the analyzer follows: y_track finds reps and draws curves; timing_y times barbell reps."""
+    y_track: List[Optional[float]]
+    scale: float
+    measurement: Dict[str, Any]
+    bar_points: Optional[np.ndarray] = None
+    timing_y: Optional[np.ndarray] = None
+    plate_radius: Optional[float] = None
+
+
+def measure_body_anchor(track: np.ndarray, mode: str, frame_height: int, height_cm: float) -> Measured:
+    preset = get_mode_preset(mode)
+    scale = height_scale_m_per_px(track, frame_height, height_cm)
+    source = "body_height"
+    if scale is None:
+        scale, source = frame_fallback_scale(frame_height, height_cm), "frame_fallback"
+    anchor = body_anchor_y(track, str(preset["anchor"]))
+    if not np.any(np.isfinite(anchor)):
+        raise RuntimeError("No stable pose landmarks detected")
+    y_track = moving_average(to_optional_list(anchor))
+    measurement = {
+        "target": "body_anchor",
+        "anchorLabelZh": "髋部" if preset["anchor"] == "hip" else "肩部",
+        "scaleSource": source,
+        "confidence": "medium" if source == "body_height" else "low",
+    }
+    return Measured(y_track=y_track, scale=scale, measurement=measurement)
+
+
+def measure_barbell(args: argparse.Namespace, track: np.ndarray, fps: float, frame_height: int) -> Measured:
+    preset = get_mode_preset(args.mode)
+    side = pf.choose_side(track)
+    part = str(preset.get("bodyProxy") or "wrist")
+    expected = expected_bar_points(track, part, side)
+    plate, reason = track_plate(
+        args.input,
+        expected,
+        fps,
+        args.plate_diameter_cm,
+        on_progress=lambda share: emit_progress(45 + int(share * 7)),
+        head_points=pf.points(track, 0, 0.1),
+    )
+    body_scale = height_scale_m_per_px(track, frame_height, args.height_cm, standing_only=True)
+    max_gap = int(fps * 0.2)
+    if plate is not None:
+        bar_points = plate.centers
+        timing_y = plate.raw_centers[:, 1]
+        scale = plate.scale_m_per_px
+        warnings: List[str] = []
+        if args.mode != "bench_press" and body_scale:
+            ratio = scale / body_scale
+            if ratio < 0.7 or ratio > 1.4:
+                warnings.append("按杠铃片直径与按身高换算的尺寸相差较大，请确认杠铃片直径是否填写正确")
+        measurement = {
+            "target": "barbell_plate",
+            "anchorLabelZh": "杠铃片中心",
+            "scaleSource": "plate_diameter",
+            "plateDiameterCm": round_float(args.plate_diameter_cm, 1),
+            "trackingCoverage": round_float(plate.coverage, 3),
+            "confidence": plate.confidence,
+            "warningsZh": warnings,
+        }
+        radius = plate.radius_px
     else:
-        # Fallback: assume the visible body occupies about 80% of frame height.
-        scale_m_per_px = (height_cm / 100.0) / max(frame_height * 0.8, 1)
+        bar_points = pf.smooth(expected[:, 0], max(1, int(round(fps * 0.1)))), pf.smooth(expected[:, 1], max(1, int(round(fps * 0.1))))
+        bar_points = np.stack(bar_points, axis=1)
+        timing_y = pf.interpolate_gaps(bar_points[:, 1], max_gap)
+        if args.mode == "bench_press":
+            scale, source = torso_scale_m_per_px(track, args.height_cm), "torso_segment"
+        else:
+            scale, source = body_scale, "body_height"
+        if scale is None:
+            scale, source = frame_fallback_scale(frame_height, args.height_cm), "frame_fallback"
+        measurement = {
+            "target": "barbell_body_proxy",
+            "anchorLabelZh": "手腕" if part == "wrist" else "肩部",
+            "scaleSource": source,
+            "confidence": "low",
+            "fallbackReason": reason,
+            "warningsZh": ["没有识别到杠铃片，速度和功率按身体位置估算，误差较大；请侧面拍摄并让近侧杠铃片完整入镜"],
+        }
+        radius = None
+    smoothed_y = pf.smooth(pf.interpolate_gaps(bar_points[:, 1], max_gap), max(1, int(round(fps * 0.12))))
+    return Measured(
+        y_track=to_optional_list(smoothed_y),
+        scale=scale,
+        measurement=measurement,
+        bar_points=bar_points,
+        timing_y=timing_y,
+        plate_radius=radius,
+    )
 
-    return fps, frame_width, frame_height, scale_m_per_px, moving_average(y_track)
+
+def body_scale_for_rules(args: argparse.Namespace, track: np.ndarray, frame_height: int, fallback: float) -> float:
+    """Scale at the lifter's body (not the plate) for posture checks in barbell lifts."""
+    if args.mode == "bench_press":
+        scale = torso_scale_m_per_px(track, args.height_cm)
+    else:
+        scale = height_scale_m_per_px(track, frame_height, args.height_cm, standing_only=True)
+    return scale or fallback
 
 
 def detect_reps(
@@ -331,11 +267,12 @@ def detect_reps(
     scale_m_per_px: float,
     effective_mass_kg: float,
     mode: str,
+    min_displacement: Optional[float] = None,
 ) -> List[Dict[str, float]]:
     preset = get_mode_preset(mode)
     start_threshold = float(preset["startThreshold"])
     end_threshold = float(preset["endThreshold"])
-    min_displacement = float(preset["minDisplacement"])
+    min_displacement = float(preset["minDisplacement"] if min_displacement is None else min_displacement)
     min_time = float(preset["minTime"])
     max_time = float(preset["maxTime"])
     still_frames_needed = max(3, int(round(fps * float(preset["stillSeconds"]))))
@@ -429,13 +366,56 @@ def filter_partial_startup_reps(reps: List[Dict[str, float]], mode: str) -> List
     return filtered
 
 
+
+def locate_rep_extremes(rep: Dict[str, Any], y: np.ndarray, fps: float, tolerance_px: float) -> Tuple[int, int]:
+    """Bottom = last frame at the lowest point before the ascent; top = first frame reaching the highest point."""
+    start, end = int(rep["startFrame"]), int(rep["endFrame"])
+    lo = max(0, start - int(fps * 0.6))
+    hi = min(y.size - 1, start + int(fps * 0.2))
+    before = y[lo:hi + 1]
+    bottom = start
+    if np.any(np.isfinite(before)):
+        lowest = np.nanmax(before)
+        candidates = np.flatnonzero(np.isfinite(before) & (before >= lowest - tolerance_px))
+        bottom = lo + int(candidates[-1])
+    ascent = y[bottom:end + 1]
+    top = end
+    if np.any(np.isfinite(ascent)):
+        highest = np.nanmin(ascent)
+        candidates = np.flatnonzero(np.isfinite(ascent) & (ascent <= highest + tolerance_px))
+        top = bottom + int(candidates[0])
+    return bottom, max(top, bottom + 1)
+
+
+def annotate_body_reps(reps: List[Dict[str, Any]], y_track: List[Optional[float]], fps: float, scale: float) -> None:
+    """Adds timing fields; keeps the original displacement/time/power values unchanged."""
+    y = np.array([np.nan if value is None else value for value in y_track], dtype=np.float64)
+    for rep in reps:
+        bottom, top = locate_rep_extremes(rep, y, fps, 0.01 / max(scale, 1e-6))
+        time_s = float(rep.get("ascentTimeS") or 0)
+        rep["bottomFrame"] = bottom
+        rep["topFrame"] = top
+        rep["meanVelocityMps"] = round_float(float(rep.get("displacementM") or 0) / time_s if time_s > 0 else 0.0, 3)
+        rep["startTimeS"] = round_float(int(rep["startFrame"]) / fps, 2)
+        rep["endTimeS"] = round_float(int(rep["endFrame"]) / fps, 2)
+
+
 def build_mass_metrics(
     body_weight_kg: float,
     external_load_kg: float,
     body_mass_factor: float = 1.0,
+    barbell: bool = False,
 ) -> Dict[str, float]:
     body_weight = max(0.0, float(body_weight_kg))
     external_load = max(0.0, float(external_load_kg))
+    if barbell:
+        # Only the bar is lifted against gravity in this measurement.
+        return {
+            "bodyWeightKg": round_float(body_weight, 2),
+            "externalLoadKg": round_float(external_load, 2),
+            "bodyMassFactor": 0.0,
+            "effectiveMassKg": round_float(external_load, 2),
+        }
     factor = min(1.0, max(0.1, float(body_mass_factor)))
     return {
         "bodyWeightKg": round_float(body_weight, 2),
@@ -445,14 +425,29 @@ def build_mass_metrics(
     }
 
 
+def velocity_summary(reps: List[Dict[str, Any]]) -> Dict[str, Any]:
+    means = [float(rep.get("meanVelocityMps") or 0) for rep in reps]
+    if not means:
+        return {"bestMeanVelocityMps": 0, "avgMeanVelocityMps": 0, "lastMeanVelocityMps": 0, "velocityLossPct": None}
+    best = max(means)
+    loss = (best - means[-1]) / best * 100 if len(means) >= 2 and best > 0 else None
+    return {
+        "bestMeanVelocityMps": round_float(best, 3),
+        "avgMeanVelocityMps": round_float(float(np.mean(means)), 3),
+        "lastMeanVelocityMps": round_float(means[-1], 3),
+        "velocityLossPct": None if loss is None else round_float(max(0.0, loss), 1),
+    }
+
+
 def build_metrics(
     mode: str,
-    reps: List[Dict[str, float]],
+    reps: List[Dict[str, Any]],
     body_weight_kg: float,
     external_load_kg: float,
 ) -> Dict[str, Any]:
     preset = get_mode_preset(mode)
-    mass = build_mass_metrics(body_weight_kg, external_load_kg, float(preset["bodyMassFactor"]))
+    barbell = is_barbell_mode(mode)
+    mass = build_mass_metrics(body_weight_kg, external_load_kg, float(preset["bodyMassFactor"]), barbell)
     if not reps:
         return {
             "mode": mode,
@@ -465,6 +460,7 @@ def build_metrics(
                 "bestVelocityMps": 0,
                 "avgAscentTimeS": 0,
                 "avgDisplacementM": 0,
+                **velocity_summary([]),
             },
             "reps": [],
             "notes": [
@@ -477,11 +473,12 @@ def build_metrics(
     velocities = [float(r["maxVelocityMps"]) for r in reps]
     times = [float(r["ascentTimeS"]) for r in reps]
     displacements = [float(r["displacementM"]) for r in reps]
-    load_note = (
-        f"Power is estimated from effective mass, vertical {preset['anchorLabel']} displacement, and ascent time."
-        if mass["externalLoadKg"] > 0
-        else f"Power is estimated from effective body mass, vertical {preset['anchorLabel']} displacement, and ascent time."
-    )
+    if barbell:
+        load_note = "Power is the barbell lifting power: bar mass x g x vertical bar rise / concentric time."
+    elif mass["externalLoadKg"] > 0:
+        load_note = f"Power is estimated from effective mass, vertical {preset['anchorLabel']} displacement, and ascent time."
+    else:
+        load_note = f"Power is estimated from effective body mass, vertical {preset['anchorLabel']} displacement, and ascent time."
     return {
         "mode": mode,
         "mass": mass,
@@ -493,12 +490,13 @@ def build_metrics(
             "bestVelocityMps": round_float(max(velocities), 3),
             "avgAscentTimeS": round_float(float(np.mean(times)), 3),
             "avgDisplacementM": round_float(float(np.mean(displacements)), 3),
+            **velocity_summary(reps),
         },
         "reps": reps,
         "notes": [
             load_note,
             f"Recommended view: {preset['viewHint']}",
-            "Camera angle, occlusion, body landmark stability, and height calibration affect accuracy.",
+            "Camera angle, occlusion, body landmark stability, and scale calibration affect accuracy.",
         ],
     }
 
@@ -595,493 +593,51 @@ def build_time_series(
     return points
 
 
-def render_output_video(
-    input_path: str,
-    output_path: str,
-    metrics: Dict[str, Any],
-    y_track: List[Optional[float]],
-    scale_m_per_px: float,
-    language: str,
-) -> None:
-    cap = cv2.VideoCapture(input_path)
-    if not cap.isOpened():
-        raise RuntimeError("Cannot reopen input video")
-
-    fps = float(cap.get(cv2.CAP_PROP_FPS) or 30)
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-    out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
-    if not out.isOpened():
-        cap.release()
-        raise RuntimeError("Cannot create intermediate analysis video")
-
-    pose_mod = mp.solutions.pose
-    draw = mp.solutions.drawing_utils
-    summary = metrics.get("summary", {})
-    mass = metrics.get("mass") if isinstance(metrics.get("mass"), dict) else {}
-    effective_mass_kg = float(mass.get("effectiveMassKg") or 0)
-    preset = get_mode_preset(str(metrics.get("mode") or "pullup"))
-    is_zh = language == "zh"
-    mode_label = str(preset["labelZh"] if is_zh else preset["label"])
-    rep_count = int(metrics.get("repCount") or 0)
-    reps = metrics.get("reps") if isinstance(metrics.get("reps"), list) else []
-    rating = metrics.get("rating") if isinstance(metrics.get("rating"), dict) else {}
-    rating_label = str(rating.get("labelZh") if is_zh else rating.get("labelEn") or "")
-    hold_frames = max(1, int(round(fps * 1.4)))
-    header_lines = (
-        [
-            f"教链 {mode_label}功率测试",
-            f"有效次数：{rep_count}   最佳功率：{summary.get('bestPowerW', 0):.0f} W",
-            f"等级：{rating_label}   最大速度：{summary.get('bestVelocityMps', 0):.2f} m/s",
-        ]
-        if is_zh
-        else [
-            f"CoachLink {mode_label} Power Test",
-            f"Reps: {rep_count}   Best power: {summary.get('bestPowerW', 0):.0f} W",
-            f"Rating: {rating_label}   Max speed: {summary.get('bestVelocityMps', 0):.2f} m/s",
-        ]
-    )
-
-    def frame_y(frame_index: int) -> Optional[float]:
-        if 0 <= frame_index < len(y_track):
-            return y_track[frame_index]
-        return None
-
-    def velocity_at(frame_index: int) -> float:
-        current_y = frame_y(frame_index)
-        prev_y = frame_y(frame_index - 1)
-        if current_y is None or prev_y is None:
-            return 0.0
-        return ((prev_y - current_y) * scale_m_per_px) * fps
-
-    def rep_frame(rep: Dict[str, Any], key: str, default: int) -> int:
-        value = rep.get(key)
-        try:
-            return int(value)
-        except Exception:
-            return default
-
-    def active_rep_at(frame_index: int) -> Optional[Dict[str, Any]]:
-        for rep in reps:
-            if not isinstance(rep, dict):
-                continue
-            start = rep_frame(rep, "startFrame", -1)
-            end = rep_frame(rep, "endFrame", -1)
-            if start <= frame_index <= end:
-                return rep
-        return None
-
-    def recent_rep_at(frame_index: int) -> Optional[Dict[str, Any]]:
-        recent: Optional[Dict[str, Any]] = None
-        recent_end = -1
-        for rep in reps:
-            if not isinstance(rep, dict):
-                continue
-            end = rep_frame(rep, "endFrame", -1)
-            if end <= frame_index <= end + hold_frames and end > recent_end:
-                recent = rep
-                recent_end = end
-        return recent
-
-    def draw_panel(frame: Any, x: int, y: int, lines: List[str], color: Tuple[int, int, int]) -> None:
-        if not lines:
-            return
-        font_scale = 0.72 if frame_width < 900 else 0.82
-        line_h = 30 if frame_width < 900 else 34
-        width = min(frame_width - x - 24, 560 if frame_width < 900 else 640)
-        height = 24 + line_h * len(lines)
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (x, y), (x + width, y + height), (0, 0, 0), -1)
-        cv2.addWeighted(overlay, 0.58, frame, 0.42, 0, frame)
-        cv2.rectangle(frame, (x, y), (x + width, y + height), color, 2)
-        text_commands: List[Dict[str, Any]] = []
-        for i, text in enumerate(lines):
-            text_commands.append(
-                {
-                    "text": text,
-                    "x": x + 18,
-                    "y": y + 32 + i * line_h,
-                    "fontScale": font_scale,
-                    "fontSize": 24 if frame_width < 900 else 28,
-                    "color": (255, 255, 255),
-                    "thickness": 2,
-                }
-            )
-        frame[:] = draw_text_commands(frame, text_commands, language)
-
-    def draw_pose_box(frame: Any, landmarks: Any) -> None:
-        visible = [
-            lm
-            for index, lm in enumerate(landmarks)
-            if index not in FACE_LANDMARK_INDEXES
-            if getattr(lm, "visibility", 1.0) >= 0.25
-        ]
-        if not visible:
-            return
-        x_min = max(0, int(min(lm.x * frame_width for lm in visible) - 18))
-        x_max = min(frame_width - 1, int(max(lm.x * frame_width for lm in visible) + 18))
-        y_min = max(0, int(min(lm.y * frame_height for lm in visible) - 18))
-        y_max = min(frame_height - 1, int(max(lm.y * frame_height for lm in visible) + 18))
-        cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 220, 255), 2)
-
-    with pose_mod.Pose(
-        static_image_mode=False,
-        model_complexity=1,
-        enable_segmentation=False,
-        min_detection_confidence=0.45,
-        min_tracking_confidence=0.45,
-    ) as pose:
-        index = 0
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                break
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            result = pose.process(rgb)
-            if result.pose_landmarks:
-                draw_pose_box(frame, result.pose_landmarks.landmark)
-                draw.draw_landmarks(
-                    frame,
-                    result.pose_landmarks,
-                    BODY_POSE_CONNECTIONS,
-                    landmark_drawing_spec=None,
-                    connection_drawing_spec=draw.DrawingSpec(
-                        color=(255, 190, 80),
-                        thickness=2,
-                        circle_radius=1,
-                    ),
-                )
-
-            overlay = frame.copy()
-            cv2.rectangle(overlay, (24, 24), (min(frame_width - 24, 760), 150), (0, 0, 0), -1)
-            frame = cv2.addWeighted(overlay, 0.55, frame, 0.45, 0)
-            header_commands = [
-                {
-                    "text": text,
-                    "x": 44,
-                    "y": 62 + i * 34,
-                    "fontScale": 0.78,
-                    "fontSize": 26,
-                    "color": (255, 255, 255),
-                    "thickness": 2,
-                }
-                for i, text in enumerate(header_lines)
-            ]
-            frame = draw_text_commands(frame, header_commands, language)
-
-            current_velocity = velocity_at(index)
-            active_rep = active_rep_at(index)
-            recent_rep = None if active_rep else recent_rep_at(index)
-            panel_y = max(168, min(max(168, frame_height - 210), 176))
-
-            if active_rep:
-                start = rep_frame(active_rep, "startFrame", index)
-                start_y = frame_y(start)
-                current_y = frame_y(index)
-                elapsed = max((index - start) / fps, 1.0 / fps)
-                displacement = 0.0
-                if start_y is not None and current_y is not None:
-                    displacement = max(0.0, (start_y - current_y) * scale_m_per_px)
-                live_power = (effective_mass_kg * G * displacement / elapsed) if effective_mass_kg > 0 else 0.0
-                panel_lines = (
-                    [
-                        f"第 {int(active_rep.get('repIndex') or 0)} 次上升",
-                        f"实时功率：{live_power:.0f} W   速度：{max(0.0, current_velocity):.2f} m/s",
-                        f"位移：{displacement:.2f} m   时间：{elapsed:.2f} s",
-                    ]
-                    if is_zh
-                    else [
-                        f"LIVE REP #{int(active_rep.get('repIndex') or 0)}",
-                        f"Power: {live_power:.0f} W   Speed: {max(0.0, current_velocity):.2f} m/s",
-                        f"Travel: {displacement:.2f} m   Time: {elapsed:.2f} s",
-                    ]
-                )
-                draw_panel(frame, 28, panel_y, panel_lines, (0, 220, 255))
-            elif recent_rep:
-                panel_lines = (
-                    [
-                        f"第 {int(recent_rep.get('repIndex') or 0)} 次结果",
-                        f"功率：{float(recent_rep.get('avgPowerW') or 0):.0f} W   速度：{float(recent_rep.get('maxVelocityMps') or 0):.2f} m/s",
-                        f"位移：{float(recent_rep.get('displacementM') or 0):.2f} m   时间：{float(recent_rep.get('ascentTimeS') or 0):.2f} s",
-                    ]
-                    if is_zh
-                    else [
-                        f"REP #{int(recent_rep.get('repIndex') or 0)} RESULT",
-                        f"Power: {float(recent_rep.get('avgPowerW') or 0):.0f} W   Speed: {float(recent_rep.get('maxVelocityMps') or 0):.2f} m/s",
-                        f"Travel: {float(recent_rep.get('displacementM') or 0):.2f} m   Time: {float(recent_rep.get('ascentTimeS') or 0):.2f} s",
-                    ]
-                )
-                draw_panel(frame, 28, panel_y, panel_lines, (0, 180, 255))
-            else:
-                panel_lines = (
-                    ["动作追踪中", f"实时速度：{max(0.0, current_velocity):.2f} m/s"]
-                    if is_zh
-                    else ["LIVE TRACKING", f"Speed: {max(0.0, current_velocity):.2f} m/s"]
-                )
-                draw_panel(frame, 28, max(168, min(max(168, frame_height - 120), 176)), panel_lines, (80, 180, 80))
-
-            if index < len(y_track) and y_track[index] is not None:
-                y = int(y_track[index] or 0)
-                cv2.circle(frame, (frame_width - 64, max(32, min(frame_height - 32, y))), 8, (0, 220, 255), -1)
-
-            out.write(frame)
-            index += 1
-            if frame_count and index % max(1, frame_count // 20) == 0:
-                emit_progress(55 + int(index / frame_count * 35))
-
-    cap.release()
-    out.release()
-
-
-def env_int(name: str, fallback: int, minimum: int, maximum: int) -> int:
-    try:
-        value = int(os.environ.get(name, str(fallback)))
-    except (TypeError, ValueError):
-        return fallback
-    return min(maximum, max(minimum, value))
-
-
-def require_executable(env_name: str, fallback: str) -> str:
-    configured = str(os.environ.get(env_name, fallback)).strip() or fallback
-    resolved = shutil.which(configured)
-    if not resolved:
-        raise RuntimeError(f"Required executable is unavailable: {configured}")
-    return resolved
-
-
-def has_audio_stream(video_path: str, ffprobe_bin: str) -> bool:
-    result = subprocess.run(
-        [
-            ffprobe_bin,
-            "-v",
-            "error",
-            "-select_streams",
-            "a:0",
-            "-show_entries",
-            "stream=index",
-            "-of",
-            "csv=p=0",
-            video_path,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "Cannot inspect video audio stream")
-    return bool(result.stdout.strip())
-
-
-def get_video_duration_seconds(video_path: str, ffprobe_bin: str) -> float:
-    result = subprocess.run(
-        [
-            ffprobe_bin,
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration",
-            "-of",
-            "default=noprint_wrappers=1:nokey=1",
-            video_path,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "Cannot inspect video duration")
-    try:
-        duration = float(result.stdout.strip())
-    except (TypeError, ValueError):
-        duration = 0.0
-    if duration <= 0:
-        raise RuntimeError("Cannot determine video duration")
-    return duration
-
-
-def run_ffmpeg(command: List[str], output_path: str, failure_message: str) -> None:
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        if os.path.exists(output_path):
-            os.remove(output_path)
-        raise RuntimeError(result.stderr.strip() or failure_message)
-    if not os.path.exists(output_path) or os.path.getsize(output_path) <= 0:
-        raise RuntimeError(failure_message)
-
-
-def constrain_output_size(
-    output_path: str,
-    max_output_bytes: int,
-    duration_seconds: float,
-    ffmpeg_bin: str,
-    preset: str,
-) -> bool:
-    if os.path.getsize(output_path) <= max_output_bytes:
-        return False
-
-    limited_path = f"{output_path}.limited.mp4"
-    target_total_bps = max(96_000, int((max_output_bytes * 8 / duration_seconds) * 0.82))
-    target_video_bps = max(64_000, target_total_bps - 128_000)
-    command = [
-        ffmpeg_bin,
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-i",
-        output_path,
-        "-map",
-        "0:v:0",
-        "-map",
-        "0:a:0?",
-        "-c:v",
-        "libx264",
-        "-preset",
-        preset,
-        "-b:v",
-        str(target_video_bps),
-        "-maxrate",
-        str(target_video_bps),
-        "-bufsize",
-        str(target_video_bps * 2),
-        "-pix_fmt",
-        "yuv420p",
-        "-c:a",
-        "copy",
-        "-movflags",
-        "+faststart",
-        limited_path,
-    ]
-    run_ffmpeg(command, limited_path, "FFmpeg failed to limit analysis video size")
-    os.replace(limited_path, output_path)
-    return True
-
-
-def finalize_output_video(input_path: str, rendered_path: str, output_path: str, quality: str) -> Dict[str, Any]:
-    ffmpeg_bin = require_executable("POWER_ANALYSIS_FFMPEG_BIN", "ffmpeg")
-    ffprobe_bin = require_executable("POWER_ANALYSIS_FFPROBE_BIN", "ffprobe")
-    input_has_audio = has_audio_stream(input_path, ffprobe_bin)
-    is_original_quality = quality == "original"
-    crf = env_int(
-        "POWER_ANALYSIS_ORIGINAL_VIDEO_CRF" if is_original_quality else "POWER_ANALYSIS_VIDEO_CRF",
-        18 if is_original_quality else 23,
-        16 if is_original_quality else 18,
-        24 if is_original_quality else 32,
-    )
-    preset = str(
-        os.environ.get(
-            "POWER_ANALYSIS_ORIGINAL_VIDEO_PRESET" if is_original_quality else "POWER_ANALYSIS_VIDEO_PRESET",
-            "slow" if is_original_quality else "medium",
-        )
-    ).strip().lower()
-    if preset not in {"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow"}:
-        preset = "medium"
-    audio_kbps = env_int(
-        "POWER_ANALYSIS_ORIGINAL_AUDIO_BITRATE_KBPS" if is_original_quality else "POWER_ANALYSIS_AUDIO_BITRATE_KBPS",
-        192 if is_original_quality else 128,
-        64,
-        320,
-    )
-    output_max_mb = env_int("POWER_ANALYSIS_OUTPUT_MAX_MB", 50, 1, 200)
-    output_max_ratio_percent = env_int("POWER_ANALYSIS_OUTPUT_MAX_RATIO_PERCENT", 100, 50, 100)
-    input_size_bytes = os.path.getsize(input_path)
-    max_output_bytes = min(
-        output_max_mb * 1024 * 1024,
-        max(1, input_size_bytes * output_max_ratio_percent // 100),
-    )
-    duration_seconds = get_video_duration_seconds(input_path, ffprobe_bin)
-
-    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-    command = [
-        ffmpeg_bin,
-        "-y",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-i",
-        rendered_path,
-        "-i",
-        input_path,
-        "-map",
-        "0:v:0",
-        "-map",
-        "1:a:0?",
-        "-map_metadata",
-        "1",
-        "-c:v",
-        "libx264",
-        "-preset",
-        preset,
-        "-crf",
-        str(crf),
-        "-pix_fmt",
-        "yuv420p",
-        "-c:a",
-        "copy",
-        "-movflags",
-        "+faststart",
-        output_path,
-    ]
-    try:
-        run_ffmpeg(command, output_path, "FFmpeg failed to encode analysis video")
-    except RuntimeError:
-        if not input_has_audio:
-            raise
-        audio_codec_index = command.index("-c:a") + 1
-        command[audio_codec_index] = "aac"
-        movflags_index = command.index("-movflags")
-        command[movflags_index:movflags_index] = ["-b:a", f"{audio_kbps}k"]
-        run_ffmpeg(command, output_path, "FFmpeg failed to encode analysis video with audio fallback")
-
-    size_limited = constrain_output_size(
-        output_path,
-        max_output_bytes,
-        duration_seconds,
-        ffmpeg_bin,
-        preset,
-    )
-
-    output_has_audio = has_audio_stream(output_path, ffprobe_bin)
-    if input_has_audio and not output_has_audio:
-        os.remove(output_path)
-        raise RuntimeError("Analysis video lost the original audio stream")
-
-    return {
-        "inputSizeBytes": input_size_bytes,
-        "outputSizeBytes": os.path.getsize(output_path),
-        "outputSizeLimitBytes": max_output_bytes,
-        "outputSizeLimited": size_limited,
-        "inputHasAudio": input_has_audio,
-        "outputHasAudio": output_has_audio,
-        "audioPreserved": input_has_audio == output_has_audio,
-        "codec": "h264",
-        "crf": crf,
-        "quality": quality,
-    }
-
-
 def run(args: argparse.Namespace) -> Dict[str, Any]:
     emit_progress(8)
-    fps, width, height, scale, y_track = collect_pose_track(args.input, args.height_cm, args.mode)
-    emit_progress(48)
-    external_load_kg = max(0.0, float(args.external_load_kg or 0))
+    fps, width, height, track = collect_landmarks(args.input)
+    emit_progress(45)
     preset = get_mode_preset(args.mode)
-    effective_mass_kg = float(
-        build_mass_metrics(args.weight_kg, external_load_kg, float(preset["bodyMassFactor"]))["effectiveMassKg"]
+    barbell = is_barbell_mode(args.mode)
+    external_load_kg = max(0.0, float(args.external_load_kg or 0))
+    measured = (
+        measure_barbell(args, track, fps, height)
+        if barbell
+        else measure_body_anchor(track, args.mode, height, args.height_cm)
     )
-    reps = detect_reps(y_track, fps, scale, effective_mass_kg, args.mode)
+    y_track, scale, bar_points, measurement = measured.y_track, measured.scale, measured.bar_points, measured.measurement
+    emit_progress(52)
+
+    effective_mass_kg = float(
+        build_mass_metrics(args.weight_kg, external_load_kg, float(preset["bodyMassFactor"]), barbell)["effectiveMassKg"]
+    )
+    if barbell:
+        raw_reps = detect_reps(y_track, fps, scale, effective_mass_kg, args.mode, min_displacement=0.05)
+        reps = refine_barbell_reps(
+            raw_reps, y_track, measured.timing_y, fps, scale, effective_mass_kg, float(preset["minDisplacement"])
+        )
+    else:
+        reps = detect_reps(y_track, fps, scale, effective_mass_kg, args.mode)
+        annotate_body_reps(reps, y_track, fps, scale)
+
     metrics = build_metrics(args.mode, reps, args.weight_kg, external_load_kg)
-    metrics["rating"] = build_power_rating(metrics)
-    metrics["timeSeries"] = build_time_series(
-        y_track,
+    metrics["analyzerVersion"] = ANALYZER_VERSION
+    if not barbell:
+        metrics["rating"] = build_power_rating(metrics)
+    metrics["timeSeries"] = build_time_series(y_track, reps, fps, scale, effective_mass_kg)
+
+    context = RuleContext(
+        args.mode,
+        track,
         reps,
         fps,
         scale,
-        effective_mass_kg,
+        bar_points=bar_points,
+        bar_from_plate=measurement.get("target") == "barbell_plate",
+        body_scale_m_per_px=body_scale_for_rules(args, track, height, scale) if barbell else None,
     )
+    metrics["assessment"] = build_assessment(context)
+    metrics["measurement"] = measurement
     metrics["video"] = {
         "fps": round_float(fps, 3),
         "width": width,
@@ -1089,15 +645,26 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
         "scaleMPerPx": round_float(scale, 6),
     }
     emit_progress(55)
+
     rendered_path = f"{args.output}.rendered.mp4"
     try:
         render_output_video(
             args.input,
             rendered_path,
-            metrics,
-            y_track,
-            scale,
-            args.language,
+            {
+                "metrics": metrics,
+                "preset": preset,
+                "track": track,
+                "y_track": y_track,
+                "scale_m_per_px": scale,
+                "fps": fps,
+                "language": args.language,
+                "bar_points": bar_points,
+                "plate_radius_px": measured.plate_radius,
+                "events": sorted(context.events, key=lambda event: event["frame"]),
+                "side": context.angle_side,
+            },
+            on_progress=lambda share: emit_progress(55 + int(share * 35)),
         )
         emit_progress(92)
         metrics["video"].update(
@@ -1110,6 +677,13 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     return metrics
 
 
+def plate_diameter_arg(value: str) -> float:
+    diameter = float(value)
+    if not 20 <= diameter <= 50:
+        raise argparse.ArgumentTypeError("plate diameter must be between 20 and 50 cm")
+    return diameter
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="CoachLink transient power analysis")
     parser.add_argument("--input", required=True)
@@ -1119,6 +693,7 @@ def main() -> int:
     parser.add_argument("--height-cm", type=float, required=True)
     parser.add_argument("--weight-kg", type=float, required=True)
     parser.add_argument("--external-load-kg", type=float, default=0)
+    parser.add_argument("--plate-diameter-cm", type=plate_diameter_arg, default=DEFAULT_PLATE_DIAMETER_CM)
     parser.add_argument("--language", choices=["zh", "en"], default="zh")
     parser.add_argument("--quality", choices=["compressed", "original"], default="compressed")
     args = parser.parse_args()

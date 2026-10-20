@@ -11,18 +11,22 @@ import type {
   PowerAnalysisJobDto,
   PowerAnalysisMode,
 } from "@/app/api/toolbox/power-analysis/types";
+import {
+  isBarbellPowerAnalysisMode,
+  isValidPlateDiameterCm,
+  isValidPowerAnalysisLoadKg,
+  POWER_ANALYSIS_BARBELL_SHOOTING_TIP,
+  POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG,
+  POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
+  POWER_ANALYSIS_MODE_OPTIONS as MODE_OPTIONS,
+} from "@coachlink/core/src/powerAnalysisModes";
+import AssessmentCard from "./AssessmentCard";
 
 type UploadPhase = "idle" | "creating" | "uploading" | "uploaded" | "enqueueing" | "queued" | "done";
 
 const ACTIVE_JOB_STORAGE_KEY = "coachlink:power-analysis:active-job";
-
-const MODE_OPTIONS: Array<{ label: string; value: PowerAnalysisMode; hint: string }> = [
-  { label: "引体向上", value: "pullup", hint: "正面或侧前方，全身入镜" },
-  { label: "双力臂", value: "muscleup", hint: "保留过杠阶段，避免遮挡" },
-  { label: "双杠臂屈伸", value: "dip", hint: "肩、髋和双杠无遮挡" },
-  { label: "俯卧撑", value: "pushup", hint: "侧面拍摄，肩髋都要清楚" },
-  { label: "深蹲起身", value: "squat", hint: "侧前方全身，髋部可见" },
-];
+const INPUT_CLASS =
+  "h-11 w-full rounded-xl border border-surface-200 bg-surface-0 px-3 text-sm outline-none focus:border-[#CF6D4E]";
 
 function formatMetric(value: number | undefined, digits = 1) {
   const n = Number(value || 0);
@@ -34,6 +38,25 @@ function formatFileSize(size: number) {
   if (!Number.isFinite(size) || size <= 0) return "";
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function summaryTiles(metrics: NonNullable<PowerAnalysisJobDto["metrics"]>, barbell: boolean) {
+  const { summary } = metrics;
+  if (barbell) {
+    const loss = summary.velocityLossPct;
+    return [
+      { label: "有效次数", value: String(metrics.repCount), accent: false },
+      { label: "最佳平均速度", value: `${formatMetric(summary.bestMeanVelocityMps, 2)} m/s`, accent: true },
+      { label: "组内速度下降", value: typeof loss === "number" ? `${formatMetric(loss, 0)}%` : "-", accent: false },
+      { label: "杠铃抬升功率", value: `${formatMetric(summary.bestPowerW, 0)} W`, accent: false },
+    ];
+  }
+  return [
+    { label: "有效次数", value: String(metrics.repCount), accent: false },
+    { label: "最高功率", value: `${formatMetric(summary.bestPowerW, 0)} W`, accent: false },
+    { label: "最高马力", value: `${formatMetric(summary.bestHorsepowerHp, 2)} hp`, accent: true },
+    { label: "最快速度", value: `${formatMetric(summary.bestVelocityMps, 2)} m/s`, accent: false },
+  ];
 }
 
 async function readApi<T>(response: Response): Promise<T> {
@@ -80,26 +103,34 @@ export default function PowerAnalysisToolPage() {
   const [heightCm, setHeightCm] = useState("175");
   const [weightKg, setWeightKg] = useState("70");
   const [externalLoadKg, setExternalLoadKg] = useState("0");
+  const [barbellKg, setBarbellKg] = useState(String(POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG));
+  const [plateDiameterCm, setPlateDiameterCm] = useState(String(POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM));
   const [file, setFile] = useState<File | null>(null);
+  const previewRef = useRef<HTMLVideoElement | null>(null);
   const [phase, setPhase] = useState<UploadPhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [job, setJob] = useState<PowerAnalysisJobDto | null>(null);
   const [llmLoading, setLlmLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  const resultModeValue = job?.mode ?? mode;
   const selectedMode = useMemo(
-    () => MODE_OPTIONS.find((item) => item.value === mode) || MODE_OPTIONS[0],
-    [mode],
+    () => MODE_OPTIONS.find((item) => item.value === resultModeValue) || MODE_OPTIONS[0],
+    [resultModeValue],
   );
 
   const metrics = job?.metrics || null;
+  const isBarbell = isBarbellPowerAnalysisMode(mode);
+  const resultIsBarbell = isBarbellPowerAnalysisMode(metrics?.mode);
+  const loadValue = isBarbell ? barbellKg : externalLoadKg;
   const formReady =
     Number(heightCm) >= 100 &&
     Number(heightCm) <= 250 &&
     Number(weightKg) >= 30 &&
     Number(weightKg) <= 250 &&
-    Number(externalLoadKg) >= 0 &&
-    Number(externalLoadKg) <= 250;
+    isValidPowerAnalysisLoadKg(mode, loadValue) &&
+    (!isBarbell || isValidPlateDiameterCm(plateDiameterCm));
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const isUploading = ["creating", "uploading"].includes(phase);
   const isAnalyzing = ["enqueueing", "queued"].includes(phase) || job?.status === "queued" || job?.status === "processing";
   const settingsLocked = isUploading || isAnalyzing || phase === "uploaded";
@@ -113,6 +144,24 @@ export default function PowerAnalysisToolPage() {
       if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const seekPreview = (timeS: number) => {
+    const player = previewRef.current;
+    if (!player) return;
+    player.currentTime = Math.max(0, timeS - 0.5);
+    player.scrollIntoView({ behavior: "smooth", block: "center" });
+    void player.play().catch(() => undefined);
+  };
 
   useEffect(() => {
     const restoreJob = async () => {
@@ -214,7 +263,11 @@ export default function PowerAnalysisToolPage() {
 
   const prepareUpload = async (nextFile: File) => {
     if (!formReady) {
-      showToast({ severity: "warn", summary: "参数不完整", detail: "请先填写有效的身高、体重和额外负重。" });
+      showToast({
+        severity: "warn",
+        summary: "参数不完整",
+        detail: isBarbell ? "请先填写有效的身高、体重、杠铃总重和杠铃片直径。" : "请先填写有效的身高、体重和额外负重。",
+      });
       return;
     }
 
@@ -235,7 +288,8 @@ export default function PowerAnalysisToolPage() {
             mode,
             heightCm: Number(heightCm),
             weightKg: Number(weightKg),
-            externalLoadKg: Number(externalLoadKg),
+            externalLoadKg: Number(loadValue),
+            ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
             originalFilename: nextFile.name,
             contentType: nextFile.type || "video/mp4",
             fileSizeBytes: nextFile.size,
@@ -374,9 +428,9 @@ export default function PowerAnalysisToolPage() {
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,420px)_1fr]">
           <section className="rounded-2xl border border-surface-200 bg-surface-0 p-5 shadow-sm">
             <div className="mb-5">
-              <h1 className="text-2xl font-black tracking-tight text-surface-900">功率与速度测试</h1>
+              <h1 className="text-2xl font-black tracking-tight text-surface-900">功率与动作分析</h1>
               <p className="mt-2 text-sm leading-6 text-surface-600">
-                上传自重或负重动作视频，分析完成后可下载带实时标注的视频。
+                上传自重动作或三大项视频，得到速度、功率和动作评估，并可下载带实时标注的视频。
               </p>
             </div>
 
@@ -404,9 +458,14 @@ export default function PowerAnalysisToolPage() {
                     </button>
                   ))}
                 </div>
+                {isBarbell && (
+                  <div className="mt-2 rounded-xl border border-[#F0C6B9] bg-[#FDF2EC] px-3 py-2 text-xs leading-5 text-[#8F432D]">
+                    {POWER_ANALYSIS_BARBELL_SHOOTING_TIP}
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className={isBarbell ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3 sm:grid-cols-3"}>
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-bold text-surface-800">身高 cm</span>
                   <input
@@ -414,7 +473,7 @@ export default function PowerAnalysisToolPage() {
                     onChange={(e) => setHeightCm(e.target.value)}
                     disabled={settingsLocked}
                     inputMode="decimal"
-                    className="h-11 w-full rounded-xl border border-surface-200 bg-surface-0 px-3 text-sm outline-none focus:border-[#CF6D4E]"
+                    className={INPUT_CLASS}
                   />
                 </label>
                 <label className="block">
@@ -424,20 +483,50 @@ export default function PowerAnalysisToolPage() {
                     onChange={(e) => setWeightKg(e.target.value)}
                     disabled={settingsLocked}
                     inputMode="decimal"
-                    className="h-11 w-full rounded-xl border border-surface-200 bg-surface-0 px-3 text-sm outline-none focus:border-[#CF6D4E]"
+                    className={INPUT_CLASS}
                   />
                 </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-sm font-bold text-surface-800">额外负重 kg</span>
-                  <input
-                    value={externalLoadKg}
-                    onChange={(e) => setExternalLoadKg(e.target.value)}
-                    disabled={settingsLocked}
-                    inputMode="decimal"
-                    className="h-11 w-full rounded-xl border border-surface-200 bg-surface-0 px-3 text-sm outline-none focus:border-[#CF6D4E]"
-                  />
-                </label>
+                {isBarbell ? (
+                  <>
+                    <label className="block">
+                      <span className="mb-1.5 block text-sm font-bold text-surface-800">杠铃总重 kg</span>
+                      <input
+                        value={barbellKg}
+                        onChange={(e) => setBarbellKg(e.target.value)}
+                        disabled={settingsLocked}
+                        inputMode="decimal"
+                        className={INPUT_CLASS}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-sm font-bold text-surface-800">杠铃片直径 cm</span>
+                      <input
+                        value={plateDiameterCm}
+                        onChange={(e) => setPlateDiameterCm(e.target.value)}
+                        disabled={settingsLocked}
+                        inputMode="decimal"
+                        className={INPUT_CLASS}
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <label className="block">
+                    <span className="mb-1.5 block text-sm font-bold text-surface-800">额外负重 kg</span>
+                    <input
+                      value={externalLoadKg}
+                      onChange={(e) => setExternalLoadKg(e.target.value)}
+                      disabled={settingsLocked}
+                      inputMode="decimal"
+                      className={INPUT_CLASS}
+                    />
+                  </label>
+                )}
               </div>
+              {isBarbell && (
+                <div className="-mt-2 text-xs text-surface-500">
+                  杠铃总重含杠铃杆和杠铃片；标准片直径 45 cm，请填写杠上最大那片的直径。
+                </div>
+              )}
 
               <label className="block rounded-2xl border border-dashed border-surface-300 bg-surface-50 p-4">
                 <span className="mb-2 flex items-center gap-2 text-sm font-bold text-surface-800">
@@ -525,28 +614,31 @@ export default function PowerAnalysisToolPage() {
 
               {!metrics ? (
                 <div className="rounded-xl border border-surface-200 bg-surface-50 p-5 text-sm text-surface-600">
-                  提交视频后，功率、马力、最大速度和逐次数据会显示在这里。
+                  提交视频后，速度、功率、逐次数据和动作评估会显示在这里。
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                    <div className="rounded-xl border border-surface-200 bg-surface-50 p-4">
-                      <div className="text-xs text-surface-500">有效次数</div>
-                      <div className="mt-1 text-2xl font-black text-surface-900">{metrics.repCount}</div>
-                    </div>
-                    <div className="rounded-xl border border-surface-200 bg-surface-50 p-4">
-                      <div className="text-xs text-surface-500">最高功率</div>
-                      <div className="mt-1 text-2xl font-black text-surface-900">{formatMetric(metrics.summary.bestPowerW, 0)} W</div>
-                    </div>
-                    <div className="rounded-xl border border-surface-200 bg-surface-50 p-4">
-                      <div className="text-xs text-surface-500">最高马力</div>
-                      <div className="mt-1 text-2xl font-black text-[#CF6D4E]">{formatMetric(metrics.summary.bestHorsepowerHp, 2)} hp</div>
-                    </div>
-                    <div className="rounded-xl border border-surface-200 bg-surface-50 p-4">
-                      <div className="text-xs text-surface-500">最快速度</div>
-                      <div className="mt-1 text-2xl font-black text-surface-900">{formatMetric(metrics.summary.bestVelocityMps, 2)} m/s</div>
-                    </div>
+                    {summaryTiles(metrics, resultIsBarbell).map((tile) => (
+                      <div key={tile.label} className="rounded-xl border border-surface-200 bg-surface-50 p-4">
+                        <div className="text-xs text-surface-500">{tile.label}</div>
+                        <div className={`mt-1 text-2xl font-black ${tile.accent ? "text-[#CF6D4E]" : "text-surface-900"}`}>
+                          {tile.value}
+                        </div>
+                      </div>
+                    ))}
                   </div>
+
+                  {previewUrl && (
+                    <video
+                      ref={previewRef}
+                      src={previewUrl}
+                      controls
+                      muted
+                      playsInline
+                      className="max-h-80 w-full rounded-xl border border-surface-200 bg-surface-900"
+                    />
+                  )}
 
                   <div className="overflow-hidden rounded-xl border border-surface-200">
                     <table className="min-w-full text-sm">
@@ -555,9 +647,10 @@ export default function PowerAnalysisToolPage() {
                           <th className="px-3 py-3">次数</th>
                           <th className="px-3 py-3">位移</th>
                           <th className="px-3 py-3">上升时间</th>
-                          <th className="px-3 py-3">功率</th>
-                          <th className="px-3 py-3">马力</th>
+                          <th className="px-3 py-3">平均速度</th>
                           <th className="px-3 py-3">最大速度</th>
+                          <th className="px-3 py-3">功率</th>
+                          {!resultIsBarbell && <th className="px-3 py-3">马力</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -566,17 +659,33 @@ export default function PowerAnalysisToolPage() {
                             <td className="px-3 py-2 font-bold text-surface-900">#{rep.repIndex}</td>
                             <td className="px-3 py-2 text-surface-700">{formatMetric(rep.displacementM, 2)} m</td>
                             <td className="px-3 py-2 text-surface-700">{formatMetric(rep.ascentTimeS, 2)} s</td>
-                            <td className="px-3 py-2 text-surface-700">{formatMetric(rep.avgPowerW, 0)} W</td>
-                            <td className="px-3 py-2 text-surface-700">{formatMetric(rep.horsepowerHp, 2)} hp</td>
+                            <td className="px-3 py-2 text-surface-700">
+                              {rep.meanVelocityMps === undefined ? "-" : `${formatMetric(rep.meanVelocityMps, 2)} m/s`}
+                            </td>
                             <td className="px-3 py-2 text-surface-700">{formatMetric(rep.maxVelocityMps, 2)} m/s</td>
+                            <td className="px-3 py-2 text-surface-700">{formatMetric(rep.avgPowerW, 0)} W</td>
+                            {!resultIsBarbell && (
+                              <td className="px-3 py-2 text-surface-700">{formatMetric(rep.horsepowerHp, 2)} hp</td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                  {resultIsBarbell && (
+                    <div className="text-xs leading-5 text-surface-500">
+                      功率为杠铃抬升功率（杠铃总重 × g × 杠铃上升高度 ÷ 上升时间），只用来和自己同重量的记录比较，不代表力量水平。
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
+            <AssessmentCard
+              assessment={metrics?.assessment}
+              measurement={metrics?.measurement}
+              onSeek={previewUrl ? seekPreview : undefined}
+            />
 
             <div className="rounded-2xl border border-surface-200 bg-surface-0 p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between gap-3">
