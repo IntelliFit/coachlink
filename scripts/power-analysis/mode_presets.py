@@ -120,6 +120,16 @@ MODE_PRESETS: Dict[str, Dict[str, Any]] = {
         "bodyMassFactor": 0.0,
         "viewHint": "Film from the side at hip height with the near plate fully in frame.",
     },
+    # Any movement the user names. Reps come from generic_motion, not these thresholds.
+    "custom": {
+        "label": "Custom",
+        "labelZh": "其他动作",
+        "anchor": "generic",
+        "anchorLabel": "most moving body part",
+        "generic": True,
+        "bodyMassFactor": 0.0,
+        "viewHint": "Fix the phone, keep the whole body in frame and pause one second before and after the set.",
+    },
 }
 
 SUPPORTED_MODES = list(MODE_PRESETS.keys())
@@ -131,3 +141,7 @@ def get_mode_preset(mode: str) -> Dict[str, Any]:
 
 def is_barbell_mode(mode: str) -> bool:
     return bool(get_mode_preset(mode).get("barbell"))
+
+
+def is_generic_mode(mode: str) -> bool:
+    return bool(get_mode_preset(mode).get("generic"))

@@ -1075,6 +1075,21 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
+  // Ninth option: span the row so the grid does not end with a lone card.
+  .mode-card-custom {
+    grid-column: span 2;
+    min-height: 96rpx;
+  }
+
+  .custom-name-cell {
+    margin-top: 16rpx;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 16rpx;
+    padding: 16rpx;
+    box-sizing: border-box;
+  }
+
   .barbell-input-hint,
   .barbell-power-note {
     display: block;

@@ -5,7 +5,9 @@
  */
 export type PowerAnalysisBodyMode = 'pullup' | 'muscleup' | 'dip' | 'pushup' | 'squat'
 export type PowerAnalysisBarbellMode = 'back_squat' | 'bench_press' | 'deadlift'
-export type PowerAnalysisMode = PowerAnalysisBodyMode | PowerAnalysisBarbellMode
+/** Any movement the user names; analyzed with generic motion primitives (trial). */
+export type PowerAnalysisCustomMode = 'custom'
+export type PowerAnalysisMode = PowerAnalysisBodyMode | PowerAnalysisBarbellMode | PowerAnalysisCustomMode
 
 export interface PowerAnalysisModeOption {
   value: PowerAnalysisMode
@@ -22,7 +24,8 @@ export const POWER_ANALYSIS_MODE_OPTIONS: PowerAnalysisModeOption[] = [
   { value: 'squat', label: '深蹲起身', hint: '侧前方全身，髋部可见', barbell: false },
   { value: 'back_squat', label: '杠铃深蹲', hint: '侧面拍摄，近侧杠铃片完整入镜', barbell: true },
   { value: 'bench_press', label: '卧推', hint: '侧面拍摄，近侧杠铃片完整入镜', barbell: true },
-  { value: 'deadlift', label: '硬拉', hint: '侧面拍摄，近侧杠铃片完整入镜', barbell: true }
+  { value: 'deadlift', label: '硬拉', hint: '侧面拍摄，近侧杠铃片完整入镜', barbell: true },
+  { value: 'custom', label: '其他动作', hint: '任意动作，试验阶段', barbell: false }
 ]
 
 export const POWER_ANALYSIS_MODES: PowerAnalysisMode[] = POWER_ANALYSIS_MODE_OPTIONS.map((item) => item.value)
@@ -35,6 +38,11 @@ export const POWER_ANALYSIS_PLATE_DIAMETER_RANGE_CM = { min: 20, max: 50 } as co
 export const POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM = 45
 export const POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG = 60
 
+export const POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH = 20
+
+export const POWER_ANALYSIS_CUSTOM_SHOOTING_TIP =
+  '其他动作为试验功能：手机固定、全身入镜，动作前后各停 1 秒。系统自动找出运动最大的部位来计次，给出幅度、节奏、对称和稳定性，不计算功率和评级；AI 观察只看去掉人脸的关键帧，仅供参考。'
+
 export const POWER_ANALYSIS_BARBELL_SHOOTING_TIP =
   '三大项请侧面拍摄，手机固定在髋部高度，近侧杠铃片完整入镜；系统会自动识别杠铃片来测速。'
 
@@ -45,6 +53,33 @@ export function normalizePowerAnalysisMode(value: unknown): PowerAnalysisMode | 
 
 export function isBarbellPowerAnalysisMode(mode: unknown): mode is PowerAnalysisBarbellMode {
   return POWER_ANALYSIS_MODE_OPTIONS.some((item) => item.value === mode && item.barbell)
+}
+
+export function isCustomPowerAnalysisMode(mode: unknown): mode is PowerAnalysisCustomMode {
+  return mode === 'custom'
+}
+
+/** Only the preset bodyweight movements enter the power/speed challenge boards. */
+export function isRankedPowerAnalysisMode(mode: unknown): boolean {
+  return normalizePowerAnalysisMode(mode) !== null && !isBarbellPowerAnalysisMode(mode) && !isCustomPowerAnalysisMode(mode)
+}
+
+export type PowerAnalysisCustomActionNameInput = { ok: true; name: string } | { ok: false; message: string }
+
+/**
+ * Movement name typed by the user for the custom mode. It is shown on the result and
+ * quoted to the vision model as data, so control characters, quotes and markup are stripped.
+ */
+export function parsePowerAnalysisCustomActionName(value: unknown): PowerAnalysisCustomActionNameInput {
+  const name = String(value ?? '')
+    .replace(/[\u0000-\u001f\u007f<>{}[\]`"'\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!name) return { ok: false, message: '请填写动作名称' }
+  if (Array.from(name).length > POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH) {
+    return { ok: false, message: `动作名称最多 ${POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH} 个字` }
+  }
+  return { ok: true, name }
 }
 
 export function getPowerAnalysisModeLabel(mode: unknown): string {

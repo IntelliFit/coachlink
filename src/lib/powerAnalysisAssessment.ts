@@ -2,6 +2,7 @@ import type {
   PowerAnalysisAssessment,
   PowerAnalysisCheck,
   PowerAnalysisCheckStatus,
+  PowerAnalysisCustomInfo,
   PowerAnalysisMeasurement,
   PowerAnalysisMetrics,
 } from "@/app/api/toolbox/power-analysis/types";
@@ -120,9 +121,61 @@ function formatCheckForPrompt(check: PowerAnalysisCheck): string {
   return `- [${statusZh[check.status]}] ${check.titleZh}：${check.detailZh}`;
 }
 
+const CUSTOM_AXES = ["vertical", "horizontal", "diagonal"] as const;
+
+function shortText(value: unknown, limit: number): string {
+  return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
+export function normalizePowerAnalysisCustomInfo(value: unknown): PowerAnalysisCustomInfo | undefined {
+  const raw = asObject(value);
+  if (!raw) return undefined;
+  const labels = Array.isArray(raw.phaseLabelsZh) ? raw.phaseLabelsZh : [];
+  const mainJoint = shortText(raw.mainJoint, 20);
+  return {
+    actionNameZh: shortText(raw.actionNameZh, 20) || "其他动作",
+    primaryPart: shortText(raw.primaryPart, 20),
+    primaryPartZh: shortText(raw.primaryPartZh, 20),
+    axis: pick(raw.axis, CUSTOM_AXES, "diagonal"),
+    phaseLabelsZh: [shortText(labels[0], 8) || "去程", shortText(labels[1], 8) || "回程"],
+    mainJoint: mainJoint || null,
+    mainJointZh: mainJoint ? shortText(raw.mainJointZh, 20) || null : null,
+  };
+}
+
+function average(values: number[]): number {
+  return values.length ? values.reduce((sum, item) => sum + item, 0) / values.length : 0;
+}
+
+export function buildCustomFallbackSummary(metrics: PowerAnalysisMetrics): string {
+  const name = metrics.custom?.actionNameZh || "其他动作";
+  const repCount = metrics.repCount || metrics.reps.length;
+  if (repCount <= 0) {
+    return `这段「${name}」视频没有找到重复的动作周期。建议手机固定、全身入镜，动作前后各停 1 秒，至少做 2 次再测。`;
+  }
+  const [first, second] = metrics.custom?.phaseLabelsZh ?? ["去程", "回程"];
+  const rom = average(metrics.reps.map((rep) => rep.displacementM)) * 100;
+  const phase1 = average(metrics.reps.map((rep) => rep.phase1TimeS ?? 0));
+  const phase2 = average(metrics.reps.map((rep) => rep.phase2TimeS ?? 0));
+  const part = metrics.custom?.primaryPartZh || "主要部位";
+  const checks = (metrics.assessment?.checks ?? []).filter((check) => !check.code.startsWith("custom.vlm"));
+  const flagged = checks.filter((check) => check.status === "warn");
+  return [
+    `本次「${name}」识别到 ${repCount} 次，按${part}计次，平均幅度约 ${rom.toFixed(0)} cm，${first}约 ${phase1.toFixed(1)} 秒、${second}约 ${phase2.toFixed(1)} 秒。`,
+    flagged.length > 0
+      ? `需要注意：${flagged.map((check) => `${check.titleZh}，${check.detailZh}`).join("；")}。`
+      : "幅度、节奏和稳定性没有发现明显异常。",
+    "其他动作是试验功能，只给通用的幅度、节奏、对称和稳定性，不计算专项标准；结果受机位和遮挡影响，适合和自己同机位的记录比较。",
+  ].join("\n");
+}
+
 /** Plain-text context for the LLM summary: only measured or explicitly abstained items. */
 export function buildPowerAnalysisPromptContext(metrics: PowerAnalysisMetrics): string {
-  const lines = [`动作类型: ${getPowerAnalysisModeLabel(metrics.mode)}`];
+  const custom = metrics.custom;
+  const label = custom
+    ? `${getPowerAnalysisModeLabel(metrics.mode)}（用户填写的动作名称：「${custom.actionNameZh}」，按${custom.primaryPartZh || "运动最大的部位"}计次）`
+    : getPowerAnalysisModeLabel(metrics.mode);
+  const lines = [`动作类型: ${label}`];
   const barbell = isBarbellPowerAnalysisMode(metrics.mode);
   if (barbell) {
     lines.push(`杠铃总重: ${metrics.mass?.externalLoadKg ?? 0} kg（功率只计算杠铃被抬起的部分）`);

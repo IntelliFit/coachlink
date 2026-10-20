@@ -6,6 +6,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+import generic_motion as gm
 import pose_features as pf
 from hud import ACCENT_BGR, Card, Layout, TextItem, draw_cards, pill, render_text
 
@@ -21,7 +22,8 @@ JOINT_BGR = (255, 255, 255)
 BAR_BGR = (0, 214, 255)
 TAG_BGR = {"issue": (64, 64, 226), "warn": (36, 132, 240)}
 LABEL_BGR = (34, 30, 28)
-JOINT_LABELS = {"knee": ("膝", "Knee"), "hip": ("髋", "Hip"), "elbow": ("肘", "Elbow")}
+JOINT_LABELS = {"knee": ("膝", "Knee"), "hip": ("髋", "Hip"), "elbow": ("肘", "Elbow"), "shoulder": ("肩", "Shoulder")}
+TRAIL_BGR = (61, 138, 255)
 CARD_LABELS = {
     "power": ("功率  POWER", "POWER"),
     "workout": ("动作  WORKOUT", "WORKOUT"),
@@ -29,6 +31,8 @@ CARD_LABELS = {
     "bar": ("杠铃  BARBELL", "BARBELL"),
     "speed": ("速度  SPEED", "SPEED"),
     "last": ("上一次平均速度", "LAST REP MEAN"),
+    "rom": ("幅度  RANGE", "RANGE"),
+    "tempo": ("上一次节奏", "LAST REP TEMPO"),
 }
 KEY_JOINT_BY_MODE = {
     "pullup": "elbow",
@@ -84,6 +88,7 @@ class OverlayRenderer:
         plate_radius_px: Optional[float],
         events: List[Dict[str, Any]],
         side: str,
+        custom_motion: Optional[gm.GenericMotion] = None,
     ) -> None:
         self.metrics = metrics
         self.preset = preset
@@ -109,12 +114,19 @@ class OverlayRenderer:
         self.best_speed = max(0.1, float(summary.get("bestVelocityMps") or 0))
         self.best_mean = max(0.05, float(summary.get("bestMeanVelocityMps") or 0))
         self.speed = upward_speed(y_track, scale_m_per_px, fps)
-        self.key_joint = KEY_JOINT_BY_MODE.get(str(metrics.get("mode") or ""))
-        self.joint_angles = (
-            pf.smooth(pf.joint_angle(track, self.key_joint, side), max(1, int(round(fps * 0.08))))
-            if self.key_joint
-            else None
-        )
+        self.custom = custom_motion if custom_motion is not None and custom_motion.signal is not None else None
+        if self.custom is not None:
+            self.key_joint = self.custom.main_joint
+            self.joint_angles = self.custom.joint_series
+            roms = [float(rep.get("displacementM") or 0) for rep in self.reps]
+            self.median_rom = max(0.01, float(np.median(roms)) if roms else 0.01)
+        else:
+            self.key_joint = KEY_JOINT_BY_MODE.get(str(metrics.get("mode") or ""))
+            self.joint_angles = (
+                pf.smooth(pf.joint_angle(track, self.key_joint, side), max(1, int(round(fps * 0.08))))
+                if self.key_joint
+                else None
+            )
 
     def _label(self, key: str) -> str:
         return CARD_LABELS[key][0 if self.is_zh else 1]
@@ -139,7 +151,47 @@ class OverlayRenderer:
             return max(0.0, self.effective_mass * G * (start_y - current_y) * self.scale / elapsed)
         return float(last.get("avgPowerW") or 0) if last else 0.0
 
+    def _custom_cards(self, index: int) -> List[Card]:
+        assert self.custom is not None and self.custom.signal is not None
+        active, last = self._active_rep(index), self._last_done(index)
+        done = sum(1 for r in self.reps if int(r.get("endFrame", -1)) < index) + (1 if active else 0)
+        name = str(self.preset["labelZh"] if self.is_zh else self.preset["label"])
+        prefix = "动作  " if self.is_zh else ""
+        cards = [Card(f"{prefix}{name}", str(done), "次" if self.is_zh else "REPS", big=True)]
+        values = self.custom.signal.values
+        rom = float(last.get("displacementM") or 0) if last else 0.0
+        if active:
+            start = int(active.get("startFrame", index))
+            if 0 <= start < values.size and index < values.size and np.isfinite(values[start]) and np.isfinite(values[index]):
+                rom = abs(float(values[index] - values[start])) * self.scale
+        cards.append(Card(self._label("rom"), f"{rom * 100:.0f}", "CM", rom / self.median_rom))
+        if self.external_load > 0:
+            cards.append(Card(self._label("weight"), f"+{self.external_load:.0f}", "KG", None))
+        if last:
+            first, second = self.custom.phase_labels_zh
+            label = f"上一次 {first}/{second}" if self.is_zh else self._label("tempo")
+            tempo = f"{float(last.get('phase1TimeS') or 0):.1f}/{float(last.get('phase2TimeS') or 0):.1f}"
+            cards.append(Card(label, tempo, "S", None))
+        return cards
+
+    def _draw_primary_trail(self, frame: np.ndarray, index: int) -> None:
+        if self.custom is None or self.custom.signal is None:
+            return
+        points = self.custom.signal.points
+        if index >= points.shape[0]:
+            return
+        s = self.layout.scale
+        trail = points[max(0, index - int(self.fps * 1.5)):index + 1]
+        trail = trail[np.all(np.isfinite(trail), axis=1)].astype(np.int32)
+        if trail.shape[0] >= 2:
+            cv2.polylines(frame, [trail.reshape(-1, 1, 2)], False, TRAIL_BGR, max(2, int(4 * s)), cv2.LINE_AA)
+        point = points[index]
+        if np.all(np.isfinite(point)):
+            cv2.circle(frame, (int(point[0]), int(point[1])), max(6, int(10 * s)), TRAIL_BGR, -1, cv2.LINE_AA)
+
     def _cards(self, index: int) -> List[Card]:
+        if self.custom is not None:
+            return self._custom_cards(index)
         active, last = self._active_rep(index), self._last_done(index)
         power = self._live_power(index, active, last)
         done = sum(1 for r in self.reps if int(r.get("endFrame", -1)) < index) + (1 if active else 0)
@@ -242,6 +294,7 @@ class OverlayRenderer:
     def draw(self, frame: np.ndarray, index: int) -> np.ndarray:
         self._draw_skeleton(frame, index)
         self._draw_bar(frame, index)
+        self._draw_primary_trail(frame, index)
         texts: List[TextItem] = []
         bottom = draw_cards(frame, self._cards(index), self.layout, texts)
         s = self.layout.scale

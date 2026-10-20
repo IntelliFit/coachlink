@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getTaskQueueConfig } from "../src/lib/taskqueue/config";
 import { getMemoryTaskQueue } from "../src/lib/taskqueue/memorySingleton";
 import type { Delivery, TaskQueue } from "../src/lib/taskqueue/types";
+import { addCustomVlmObservations, isCustomVlmEnabled } from "../src/lib/powerAnalysisVlmRunner";
+import { parsePowerAnalysisCustomActionName } from "../packages/core/src/powerAnalysisModes";
 
 const nodeRequire = eval("require") as NodeRequire;
 const fs = nodeRequire("fs") as typeof import("fs");
@@ -146,6 +148,11 @@ function getPlateDiameterCm(job: any) {
   return Number.isFinite(value) && value >= 20 && value <= 50 ? value : 45;
 }
 
+function getCustomActionName(job: any) {
+  const parsed = parsePowerAnalysisCustomActionName(getJobMetadata(job).custom_action_name);
+  return parsed.ok ? parsed.name : "其他动作";
+}
+
 function getOutputLanguage(job: any) {
   return String(getJobMetadata(job).overlay_language || "zh") === "en" ? "en" : "zh";
 }
@@ -191,6 +198,11 @@ async function runAnalyzer(job: any, workDir: string) {
     "--quality",
     getOutputQuality(job),
   ];
+  const custom = job.mode === "custom";
+  const keyframesDir = path.join(workDir, "keyframes");
+  if (custom) {
+    args.push("--action-name", getCustomActionName(job), "--keyframes-dir", keyframesDir);
+  }
 
   await new Promise<void>((resolve, reject) => {
     const child = spawnChildProcess(pythonBin, args, {
@@ -237,7 +249,17 @@ async function runAnalyzer(job: any, workDir: string) {
     throw new Error("Analyzer did not produce output files");
   }
 
-  const metrics = JSON.parse(await fsPromises.readFile(metricsPath, "utf8"));
+  const analyzed = JSON.parse(await fsPromises.readFile(metricsPath, "utf8"));
+  const metrics = custom
+    ? await addCustomVlmObservations({
+        metrics: analyzed,
+        actionName: getCustomActionName(job),
+        // Only the analyzer's own de-identified keyframes; basename blocks any path in the manifest.
+        readKeyframeFile: (name) => fsPromises.readFile(path.join(keyframesDir, path.basename(name))),
+        enabled: isCustomVlmEnabled(process.env),
+        log: (message) => console.log(`[power-worker][${job.id}] ${message}`),
+      })
+    : analyzed;
   const outputStoragePath =
     job.output_storage_path ||
     `toolbox/power-analysis/tmp/${job.user_id}/${job.id}/output.mp4`;

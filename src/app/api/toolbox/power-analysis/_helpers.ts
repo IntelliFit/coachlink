@@ -1,12 +1,16 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { normalizePowerAnalysisQuality } from "@/lib/powerAnalysisEntitlements";
 import {
+  buildCustomFallbackSummary,
   buildFallbackAssessmentLines,
   normalizePowerAnalysisAssessment,
+  normalizePowerAnalysisCustomInfo,
   normalizePowerAnalysisMeasurement,
 } from "@/lib/powerAnalysisAssessment";
 import {
   isBarbellPowerAnalysisMode,
+  isCustomPowerAnalysisMode,
+  isRankedPowerAnalysisMode,
   normalizePowerAnalysisMode,
   POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
 } from "@coachlink/core/src/powerAnalysisModes";
@@ -124,6 +128,7 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
   const status = expired && row?.status !== "done" ? "expired" : row?.status;
   const mode = normalizeMode(row?.mode) || "pullup";
   const plateDiameterCm = Number(metadata.plate_diameter_cm);
+  const customActionName = String(metadata.custom_action_name ?? "").trim();
 
   return {
     id: String(row?.id || ""),
@@ -138,6 +143,7 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
             : POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
         }
       : {}),
+    ...(isCustomPowerAnalysisMode(mode) && customActionName ? { customActionName } : {}),
     status,
     progress: Number(row?.progress || 0),
     metrics,
@@ -226,8 +232,8 @@ export async function getPowerAnalysisQueueInfo(row: any): Promise<PowerAnalysis
 export async function mapPowerAnalysisJobWithQueueInfo(row: any): Promise<PowerAnalysisJobDto> {
   const dto = mapPowerAnalysisJob(row);
   dto.queueInfo = await getPowerAnalysisQueueInfo(row);
-  // Barbell lifting power is a different measurement; it stays out of the bodyweight challenge boards.
-  if (dto.status === "done" && dto.metrics && row?.user_id && !isBarbellPowerAnalysisMode(dto.mode)) {
+  // Barbell lifting power and custom movements are different measurements; they stay out of the challenge boards.
+  if (dto.status === "done" && dto.metrics && row?.user_id && isRankedPowerAnalysisMode(dto.mode)) {
     dto.ranking = await syncPowerAnalysisRanking(row.id, row.user_id);
   }
   return dto;
@@ -299,7 +305,18 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
         avgPowerW: Number(item.avgPowerW ?? item.power ?? item.avg_power_w ?? 0),
         horsepowerHp: Number(item.horsepowerHp ?? item.horsepower ?? item.horsepower_hp ?? 0),
         maxVelocityMps: Number(item.maxVelocityMps ?? item.max_velocity ?? item.max_velocity_mps ?? 0),
-        ...optionalNumbers(item, ["meanVelocityMps", "startTimeS", "endTimeS", "pauseS", "barHorizontalTravelCm"]),
+        ...optionalNumbers(item, [
+          "meanVelocityMps",
+          "startTimeS",
+          "endTimeS",
+          "pauseS",
+          "barHorizontalTravelCm",
+          "phase1TimeS",
+          "phase2TimeS",
+          "holdTimeS",
+          "jointMinDeg",
+          "jointMaxDeg",
+        ]),
       }))
     : [];
 
@@ -329,6 +346,7 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
       }
     : undefined;
   const velocityLoss = Number(summary.velocityLossPct);
+  const custom = mode === "custom" ? normalizePowerAnalysisCustomInfo(raw.custom) : undefined;
   return {
     ...(raw.analyzerVersion ? { analyzerVersion: String(raw.analyzerVersion) } : {}),
     mode,
@@ -357,6 +375,7 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
     rating,
     assessment: normalizePowerAnalysisAssessment(raw.assessment),
     measurement: normalizePowerAnalysisMeasurement(raw.measurement),
+    ...(custom ? { custom } : {}),
     video: video
       ? {
           inputSizeBytes: nonNegativeNumber(video.inputSizeBytes ?? video.input_size_bytes),
@@ -505,6 +524,8 @@ export async function failStalePowerAnalysisJobsForUser(userId: string) {
 }
 
 export function makeFallbackPowerSummary(metrics: PowerAnalysisMetrics) {
+  if (isCustomPowerAnalysisMode(metrics.mode)) return buildCustomFallbackSummary(metrics);
+
   const repCount = metrics.repCount || metrics.reps.length;
   if (repCount <= 0) {
     return "这段视频没有稳定识别到完整上升动作。建议换一个全身无遮挡、侧前方或正前方、动作开始前后各留 1 秒的视频再测。";

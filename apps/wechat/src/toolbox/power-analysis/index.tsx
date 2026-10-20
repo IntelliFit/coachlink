@@ -13,9 +13,13 @@ import {
 import { useTheme } from '@/hooks/useTheme'
 import {
   isBarbellPowerAnalysisMode,
+  isCustomPowerAnalysisMode,
   isValidPlateDiameterCm,
   isValidPowerAnalysisLoadKg,
+  parsePowerAnalysisCustomActionName,
   POWER_ANALYSIS_BARBELL_SHOOTING_TIP,
+  POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH,
+  POWER_ANALYSIS_CUSTOM_SHOOTING_TIP,
   POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG,
   POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
   POWER_ANALYSIS_MODE_OPTIONS as MODE_OPTIONS,
@@ -40,6 +44,19 @@ interface PowerAnalysisRepMetric {
   maxVelocityMps: number
   meanVelocityMps?: number
   pauseS?: number | null
+  phase1TimeS?: number
+  phase2TimeS?: number
+  holdTimeS?: number
+  jointMinDeg?: number
+  jointMaxDeg?: number
+}
+
+/** What the generic analyzer followed for a custom movement. */
+interface PowerAnalysisCustomInfo {
+  actionNameZh: string
+  primaryPartZh: string
+  phaseLabelsZh: [string, string]
+  mainJointZh: string | null
 }
 
 interface PowerAnalysisMetrics {
@@ -64,6 +81,7 @@ interface PowerAnalysisMetrics {
   reps: PowerAnalysisRepMetric[]
   assessment?: PowerAnalysisAssessment
   measurement?: PowerAnalysisMeasurement
+  custom?: PowerAnalysisCustomInfo
   timeSeries?: PowerCurvePoint[]
   rating?: {
     level: 'low' | 'steady' | 'powerful' | 'beast'
@@ -90,6 +108,7 @@ interface PowerAnalysisJobDto {
   heightCm: number
   weightKg: number
   externalLoadKg: number
+  customActionName?: string
   status: PowerAnalysisJobStatus
   progress: number
   metrics: PowerAnalysisMetrics | null
@@ -221,7 +240,25 @@ interface PowerComparisonRow {
   higherIsBetter: boolean
 }
 
+function buildCustomComparisonRows(before: PowerAnalysisMetrics, after: PowerAnalysisMetrics): PowerComparisonRow[] {
+  return [
+    { key: 'repCount', label: '有效次数', before: before.repCount, after: after.repCount, unit: '次', digits: 0, higherIsBetter: true },
+    {
+      key: 'avgDisplacementM',
+      label: '平均幅度',
+      before: Number(before.summary.avgDisplacementM || 0) * 100,
+      after: Number(after.summary.avgDisplacementM || 0) * 100,
+      unit: 'cm',
+      digits: 0,
+      higherIsBetter: true
+    }
+  ]
+}
+
 function buildPowerComparisonRows(before: PowerAnalysisMetrics, after: PowerAnalysisMetrics): PowerComparisonRow[] {
+  if (isCustomPowerAnalysisMode(before.mode) || isCustomPowerAnalysisMode(after.mode)) {
+    return buildCustomComparisonRows(before, after)
+  }
   // Barbell lifts are judged on mean velocity; bodyweight movements keep their original four rows.
   const bothBarbell = isBarbellPowerAnalysisMode(before.mode) && isBarbellPowerAnalysisMode(after.mode)
   const meanVelocityRows: PowerComparisonRow[] =
@@ -283,6 +320,7 @@ function buildPowerComparisonRows(before: PowerAnalysisMetrics, after: PowerAnal
 
 function getComparisonBlocker(before: PowerAnalysisJobDto | null, after: PowerAnalysisJobDto | null) {
   if (!before || !after || before.mode !== after.mode) return '动作类型不同，仅展示数值，不判断优劣'
+  if (isCustomPowerAnalysisMode(after.mode)) return '其他动作为试验功能，仅展示数值，不判断优劣'
   // Heavier bars move slower and produce more power, so only same-weight barbell tests are judged.
   if (isBarbellPowerAnalysisMode(after.mode) && Number(before.externalLoadKg) !== Number(after.externalLoadKg)) {
     return '杠铃重量不同，仅展示数值，不判断优劣'
@@ -311,7 +349,33 @@ function formatComparisonDelta(row: PowerComparisonRow) {
   return `${sign}${delta.toFixed(row.digits)} ${row.unit}`
 }
 
+function averageOf(values: number[]) {
+  return values.length ? values.reduce((sum, item) => sum + item, 0) / values.length : 0
+}
+
+function customSummaryTiles(metrics: PowerAnalysisMetrics) {
+  const [first, second] = metrics.custom?.phaseLabelsZh ?? ['去程', '回程']
+  return [
+    { label: '有效次数', value: String(metrics.repCount), accent: true },
+    { label: '平均幅度', value: `${formatMetric(averageOf(metrics.reps.map((rep) => rep.displacementM * 100)), 0)} cm`, accent: false },
+    { label: `平均${first}`, value: `${formatMetric(averageOf(metrics.reps.map((rep) => rep.phase1TimeS ?? 0)), 1)} s`, accent: false },
+    { label: `平均${second}`, value: `${formatMetric(averageOf(metrics.reps.map((rep) => rep.phase2TimeS ?? 0)), 1)} s`, accent: false }
+  ]
+}
+
+function customRepText(metrics: PowerAnalysisMetrics, rep: PowerAnalysisRepMetric) {
+  const [first, second] = metrics.custom?.phaseLabelsZh ?? ['去程', '回程']
+  const joint = typeof rep.jointMinDeg === 'number'
+    ? ` · ${metrics.custom?.mainJointZh || '关节'} ${formatMetric(rep.jointMinDeg, 0)}°～${formatMetric(rep.jointMaxDeg, 0)}°`
+    : ''
+  return {
+    main: `幅度 ${formatMetric(rep.displacementM * 100, 0)} cm${joint}`,
+    detail: `${first} ${formatMetric(rep.phase1TimeS, 2)} s · ${second} ${formatMetric(rep.phase2TimeS, 2)} s · 停留 ${formatMetric(rep.holdTimeS, 2)} s`
+  }
+}
+
 function summaryTiles(metrics: PowerAnalysisMetrics, barbell: boolean) {
+  if (isCustomPowerAnalysisMode(metrics.mode)) return customSummaryTiles(metrics)
   const { summary } = metrics
   if (barbell) {
     const loss = summary.velocityLossPct
@@ -636,6 +700,7 @@ export default function WechatPowerAnalysisPage() {
   const [externalLoadKg, setExternalLoadKg] = useState('0')
   const [barbellKg, setBarbellKg] = useState(String(POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG))
   const [plateDiameterCm, setPlateDiameterCm] = useState(String(POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM))
+  const [customActionName, setCustomActionName] = useState('')
   const [quality, setQuality] = useState<PowerAnalysisQuality>('compressed')
   const [languagePreference, setLanguagePreference] = useState<OverlayLanguagePreference>('auto')
   const [entitlements, setEntitlements] = useState<PowerAnalysisEntitlements>(DEFAULT_ENTITLEMENTS)
@@ -680,7 +745,12 @@ export default function WechatPowerAnalysisPage() {
   const heightValue = Number(heightCm)
   const weightValue = Number(weightKg)
   const isBarbell = isBarbellPowerAnalysisMode(mode)
+  const isCustom = isCustomPowerAnalysisMode(mode)
   const resultIsBarbell = isBarbellPowerAnalysisMode(metrics?.mode)
+  const resultIsCustom = isCustomPowerAnalysisMode(metrics?.mode)
+  const resultLabel = isCustomPowerAnalysisMode(job?.mode) && job?.customActionName
+    ? `其他动作 · ${job.customActionName}`
+    : selectedMode.label
   const externalLoadValue = Number(isBarbell ? barbellKg : externalLoadKg)
   const formReady =
     Number.isFinite(heightValue) &&
@@ -690,7 +760,8 @@ export default function WechatPowerAnalysisPage() {
     weightValue >= 30 &&
     weightValue <= 250 &&
     isValidPowerAnalysisLoadKg(mode, externalLoadValue) &&
-    (!isBarbell || isValidPlateDiameterCm(plateDiameterCm))
+    (!isBarbell || isValidPlateDiameterCm(plateDiameterCm)) &&
+    (!isCustom || parsePowerAnalysisCustomActionName(customActionName).ok)
   const isBusy =
     ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase) ||
     job?.status === 'queued' ||
@@ -921,7 +992,10 @@ export default function WechatPowerAnalysisPage() {
 
   const prepareUpload = async (nextVideo: SelectedVideo) => {
     if (!formReady) {
-      Taro.showToast({ title: isBarbell ? '请先填写有效身高体重和杠铃重量' : '请先填写有效身高体重', icon: 'none' })
+      Taro.showToast({
+        title: isBarbell ? '请先填写有效身高体重和杠铃重量' : isCustom ? '请先填写动作名称和有效身高体重' : '请先填写有效身高体重',
+        icon: 'none'
+      })
       return
     }
 
@@ -977,6 +1051,7 @@ export default function WechatPowerAnalysisPage() {
           weightKg: weightValue,
           externalLoadKg: externalLoadValue,
           ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
+          ...(isCustom ? { customActionName: customActionName.trim() } : {}),
           originalFilename: preparedVideo.name,
           contentType: preparedVideo.contentType,
           fileSizeBytes: preparedVideo.size,
@@ -1298,6 +1373,23 @@ export default function WechatPowerAnalysisPage() {
               ))}
             </View>
             {isBarbell && <Text className='barbell-tip'>{POWER_ANALYSIS_BARBELL_SHOOTING_TIP}</Text>}
+            {isCustom && (
+              <>
+                <Text className='barbell-tip'>{POWER_ANALYSIS_CUSTOM_SHOOTING_TIP}</Text>
+                <View className='custom-name-cell'>
+                  <Text className='input-label'>动作名称</Text>
+                  <Input
+                    className='metric-input custom-name-input'
+                    type='text'
+                    value={customActionName}
+                    maxlength={POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH}
+                    placeholder='例如：哑铃弯举、保加利亚分腿蹲'
+                    disabled={settingsLocked}
+                    onInput={(event) => setCustomActionName(String(event.detail.value || ''))}
+                  />
+                </View>
+              </>
+            )}
 
             <View className={`input-grid ${isBarbell ? 'input-grid-barbell' : ''}`}>
               <View className='input-cell'>
@@ -1345,7 +1437,7 @@ export default function WechatPowerAnalysisPage() {
                 </>
               ) : (
                 <View className='input-cell'>
-                  <Text className='input-label'>额外负重 kg</Text>
+                  <Text className='input-label'>{isCustom ? '负重 kg（选填）' : '额外负重 kg'}</Text>
                   <Input
                     className='metric-input load-input'
                     type='digit'
@@ -1469,7 +1561,7 @@ export default function WechatPowerAnalysisPage() {
           <View className='result-card'>
             <View className='result-header'>
               <View>
-                <Text className='result-kicker'>{selectedMode.label}</Text>
+                <Text className='result-kicker'>{resultLabel}</Text>
                 <Text className='section-title'>分析结果</Text>
               </View>
               <View className='result-actions'>
@@ -1620,6 +1712,12 @@ export default function WechatPowerAnalysisPage() {
                       <View className='rep-index'>
                         <Text>#{rep.repIndex}</Text>
                       </View>
+                      {resultIsCustom ? (
+                      <View className='rep-main'>
+                        <Text className='rep-power'>{customRepText(metrics, rep).main}</Text>
+                        <Text className='rep-detail'>{customRepText(metrics, rep).detail}</Text>
+                      </View>
+                      ) : (
                       <View className='rep-main'>
                         <Text className='rep-power'>
                           {resultIsBarbell
@@ -1631,9 +1729,15 @@ export default function WechatPowerAnalysisPage() {
                           {typeof rep.pauseS === 'number' ? ` · 停顿 ${formatMetric(rep.pauseS, 2)} s` : ''}
                         </Text>
                       </View>
+                      )}
                     </View>
                   ))}
                 </View>
+                {resultIsCustom && (
+                  <Text className='barbell-power-note'>
+                    「{metrics.custom?.actionNameZh || '其他动作'}」按{metrics.custom?.primaryPartZh || '运动最大的部位'}计次，试验功能，不套用专项标准，不计算功率和评级。
+                  </Text>
+                )}
                 {resultIsBarbell && (
                   <Text className='barbell-power-note'>
                     功率为杠铃抬升功率（杠铃总重 × g × 杠铃上升高度 ÷ 上升时间），只用来和自己同重量的记录比较，不代表力量水平。

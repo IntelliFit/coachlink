@@ -4,7 +4,7 @@ import { getCoachlinkPlanLlm } from "@/lib/coachlinkLlm";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { buildPowerAnalysisPromptContext } from "@/lib/powerAnalysisAssessment";
 import type { ApiData } from "@/types/api";
-import { isBarbellPowerAnalysisMode } from "@coachlink/core/src/powerAnalysisModes";
+import { isBarbellPowerAnalysisMode, isCustomPowerAnalysisMode } from "@coachlink/core/src/powerAnalysisModes";
 import type { PowerAnalysisJobDto, PowerAnalysisMetrics } from "../../../types";
 import {
   expirePowerAnalysisJobIfNeeded,
@@ -29,15 +29,18 @@ const SYSTEM_PROMPT = [
 
 function buildUserPrompt(metrics: PowerAnalysisMetrics) {
   const barbell = isBarbellPowerAnalysisMode(metrics.mode);
+  const modeHint = isCustomPowerAnalysisMode(metrics.mode)
+    ? "这是用户自己填写名称的其他动作（试验功能）：只能根据次数、幅度、节奏、左右对称和稳定性给建议，不要套用某个专项动作的标准，不谈功率和评级。标为 AI 观察的项目是视觉模型看关键帧给出的候选观察，提及时要说明仅供参考。"
+    : barbell
+      ? "这是杠铃动作：重点讲平均速度和组内速度下降，可以据此建议下次是否加减重量；功率只是杠铃抬升功率，不要用它评价力量水平。"
+      : "这是自重或负重动作：可以结合功率和速度谈爆发力。";
   return [
     "请用中文输出一段简洁但有训练价值的解读，分 4 小段：",
     "1. 本次表现概览",
     "2. 动作评估要点（先讲明显问题，再讲需注意的，最后一句带过做得好的）",
     "3. 下一次训练建议（针对上面的问题给 1 到 3 个具体做法）",
     "4. 误差与拍摄提醒",
-    barbell
-      ? "这是杠铃动作：重点讲平均速度和组内速度下降，可以据此建议下次是否加减重量；功率只是杠铃抬升功率，不要用它评价力量水平。"
-      : "这是自重或负重动作：可以结合功率和速度谈爆发力。",
+    modeHint,
     "每段使用简短中文标题加全角冒号，标题和正文之间直接换行。不要输出任何星号。",
     "",
     buildPowerAnalysisPromptContext(metrics),

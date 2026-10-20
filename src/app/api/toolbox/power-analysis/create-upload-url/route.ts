@@ -9,7 +9,11 @@ import {
   normalizePowerAnalysisQuality,
 } from "@/lib/powerAnalysisEntitlements";
 import type { ApiData } from "@/types/api";
-import { parsePowerAnalysisLoadInput } from "@coachlink/core/src/powerAnalysisModes";
+import {
+  isCustomPowerAnalysisMode,
+  parsePowerAnalysisCustomActionName,
+  parsePowerAnalysisLoadInput,
+} from "@coachlink/core/src/powerAnalysisModes";
 import type {
   CreatePowerAnalysisUploadUrlDto,
   CreatePowerAnalysisUploadUrlResponseDto,
@@ -79,6 +83,18 @@ export async function POST(req: Request) {
     );
   }
   const { externalLoadKg, plateDiameterCm } = load;
+
+  let customActionName: string | null = null;
+  if (isCustomPowerAnalysisMode(mode)) {
+    const parsedName = parsePowerAnalysisCustomActionName(body?.customActionName);
+    if (parsedName.ok === false) {
+      return NextResponse.json<ApiData<null>>(
+        { success: false, message: parsedName.message, data: null },
+        { status: 400 },
+      );
+    }
+    customActionName = parsedName.name;
+  }
 
   if (!originalFilename || !isSupportedVideoContentType(contentType)) {
     return NextResponse.json<ApiData<null>>(
@@ -207,6 +223,7 @@ export async function POST(req: Request) {
         external_load_kg: externalLoadKg,
         effective_weight_kg: plateDiameterCm === null ? weightKg + externalLoadKg : externalLoadKg,
         ...(plateDiameterCm === null ? {} : { plate_diameter_cm: plateDiameterCm }),
+        ...(customActionName === null ? {} : { custom_action_name: customActionName }),
         upload_strategy: "signed_upload_transient",
         quality,
         overlay_language: overlayLanguage,
