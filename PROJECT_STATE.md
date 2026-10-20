@@ -1,3 +1,14 @@
+## 功率分析三大项 + UI 改版上线（2026-10-20/21，dev 与 main 均已上线）
+
+- 用户在体验版验收通过后，main 也已切换：网页 coachlink-main a7e758c2 → 6491b6b8（3/3 就绪，coachlink.fit healthy/功率分析页/login 200，新代码已在页面中，未登录上传 401）；分析程序 coachlink-power-worker-main :latest(90933f41) → 155e1c02（已加入 coachlink-power-workers 消费组）。dev → main 的合并 PR 已开，待两个审批。
+
+- dev b44b11a0 已推送：功率分析 69e23bde（三大项杠铃片追踪、8 个动作姿态评估、卡片样式结果视频）+ feat/ui-refresh 合并（含选动作页 74f73510、俯卧撑突围样式 ad4cbbf9）。5505ac48、af2d1fc4 留到下一版。
+- 正式库：用户在 SQL Editor 执行 20261018180000（任务表 mode 约束扩到 8 个动作），返回约束含 8 个动作；执行前只读核对 1342 条旧任务全部符合。
+- dev 已上线：分析程序 coachlink-power-worker@sha256:155e1c02…（以线上 90933f41 为基础只替换 scripts/src，镜像内 19 项测试通过）；网页 coachlink@sha256:6491b6b8…（a32dc5b2 源码，550 页）。两者都改为不可变 digest，原 dev 标签镜像不再被 Keel 跟踪。
+- main 未动：网页仍 a7e758c2，分析程序仍 90933f41（:latest）。用户在体验版验收后再切 main（同样先核对旧 digest 再 patch）。
+- 小程序体验版 2026.10.20.1917 已上传（官方 CLI，显式 appid，总包 10,032,745 / 主包 1,960,815 字节），包来自 b44b11a0 付费版构建。
+- 服务器构建注意：coachlink 依赖缓存镜像 be769081 已被清理，新缓存为 coachlink-deps:lock-c5e86f3b6d1b（Alpine/npm 用腾讯云和 npmmirror）；Debian 源从服务器下载极慢，分析程序依赖不变时应以线上镜像为基础只换代码。服务器上还有 18 天前磁盘不足时被驱逐的 power-worker Pod 残留记录（不影响运行）。
+
 ## 订阅修复上线与 anon key 收口（2026-10-18）
 
 - 2026-10-18 用户在 Supabase SQL Editor 执行 20261018120000 迁移（选 Run and enable RLS）。实测：anon key 读 users/user_profiles/coaches/订阅/计划/训练/chat 等全部 401，service key 正常（users 5282 行）；两域 healthy/login 200，公开教练列表 POST 200 返回 10 位；生产日志 20 分钟内无权限错误。第三个镜像 a7e758c2（9d62d437）已上线 main/dev；main、dev 已直推同步到 4f4e4925，PR #46 自动标记已合并。
