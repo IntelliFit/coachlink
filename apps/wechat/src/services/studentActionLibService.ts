@@ -33,6 +33,9 @@ class StudentActionLibService extends BaseService {
     positions?: string[] | null
     attrs?: string[] | null
     type?: string | null
+    enableAutoWeightCompute?: boolean
+    includesBodyWeight?: boolean
+    reference_1rm?: number | null
   }) {
     const res = await this.post('add-action', data)
     if (res.success && res.data) return res.data
@@ -48,6 +51,9 @@ class StudentActionLibService extends BaseService {
     positions?: string[] | null
     attrs?: string[] | null
     type?: string | null
+    enableAutoWeightCompute?: boolean
+    includesBodyWeight?: boolean
+    reference_1rm?: number | null
   }) {
     const res = await this.post('update-action', data)
     if (res.success && res.data) return res.data
