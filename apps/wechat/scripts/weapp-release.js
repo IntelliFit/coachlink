@@ -250,9 +250,11 @@ async function upload(options, context) {
     console.log(
       `[weapp-release] upload provider=devtools appid=${context.appid} version=${version} port=${port}`
     )
+    // shell mode on Windows joins argv unquoted, so paths like "C:\Program Files (x86)" must be quoted.
+    const quote = (value) => (process.platform === 'win32' && /\s/.test(value) ? `"${value}"` : value)
     execFileSync(
-      devtoolsCli,
-      ['upload', '--project', RELEASE_DIR, '--port', String(port), '-v', version, '-d', desc],
+      quote(devtoolsCli),
+      ['upload', '--project', quote(RELEASE_DIR), '--port', String(port), '-v', version, '-d', quote(desc)],
       {
         cwd: PROJECT_DIR,
         stdio: 'inherit',
