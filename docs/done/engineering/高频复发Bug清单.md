@@ -468,4 +468,4 @@
 - **根因**：复制模板时所有 STRENGTH 动作都带默认参数属性 `["组数","次数","强度","休息时间"]`，"强度"只是参数字段；多处客户端写成 `enableAutoWeightCompute || attrs.includes('强度')`，而服务端 `isOneRMEligibleAction` 是"且"。小程序 `batchUpdate1RM` 还把 `reference1RM` 原样发给读 `reference_1rm` 的接口，结果写成 null。
 - **统一规则**：1RM 资格只用 `packages/core/src/actionLoadMode.ts` 的 `isOneRMEligibleAction`（与 `src/lib/oneRmEligibility.ts` 一致）；只有计划里该动作按 RM / %1RM 安排时才需要 1RM（`collectPlanOneRMActionIds`）；训练页负重/自重用 `resolveActionLoadMode`，自重组重量明确存 0。
 - **改动前自检**：是否又出现 `attrs.includes('强度')` 的"或"判断？提示用户填的值有没有真正落库？接口字段名是否与服务端一致？
-- **未收口**：Web `src/app/me/plan-lib/*`、`OneRMConfigPanel.tsx`，APP `apps/mobile/src/screens/me/MeScreens.tsx` 仍是"或"判断（2026-10-20）。
+- **已收口**（2026-10-20）：Web `src/app/me/plan-lib/*`（`planOneRMActions.ts`）、`OneRMConfigPanel.tsx`，APP `apps/mobile/src/screens/me/MeScreens.tsx` 已改为"且"判断，并只在计划按 RM / %1RM 安排时询问。
