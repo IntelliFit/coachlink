@@ -7,7 +7,7 @@ import { CoachActionRow } from '@/types';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 import { useToastContext } from '@/context/ToastContext';
-import { isOneRMEligibleAction } from '@/lib/oneRmEligibility';
+import { selectPlanOneRMActions } from './planOneRMActions';
 
 interface StudentOneRMConfigPanelProps {
     days: FormPlanTrainingDay[];
@@ -16,8 +16,6 @@ interface StudentOneRMConfigPanelProps {
     onChange: (newValue: Record<string, number>) => void;
     onSaved?: () => void | Promise<void>;
 }
-
-const normalizeName = (name?: string | null) => (name || '').trim().toLowerCase();
 
 const StudentOneRMConfigPanel: React.FC<StudentOneRMConfigPanelProps> = ({
     days,
@@ -29,37 +27,7 @@ const StudentOneRMConfigPanel: React.FC<StudentOneRMConfigPanelProps> = ({
     const { showToast } = useToastContext();
     const [saving, setSaving] = useState(false);
 
-    const eligibleActions = useMemo(() => {
-        const usedActionIds = new Set<string>();
-        const usedActionNames = new Set<string>();
-
-        days.forEach(day => {
-            day.actionSets?.forEach((set: any) => {
-                const actionId = set.action_id || set.actionId;
-                if (actionId && typeof actionId === 'string') {
-                    usedActionIds.add(actionId);
-                }
-                if (set.actionName && typeof set.actionName === 'string') {
-                    usedActionNames.add(normalizeName(set.actionName));
-                }
-            });
-        });
-
-        return actions.filter(action => {
-            const isUsed =
-                usedActionIds.has(action.id) ||
-                (action.name ? usedActionNames.has(normalizeName(action.name)) : false);
-
-            if (!isUsed) return false;
-
-            return isOneRMEligibleAction({
-                type: action.type,
-                attrs: action.attrs || undefined,
-                enableAutoWeightCompute:
-                    action.enableAutoWeightCompute ?? (action as any).enable_auto_weight_compute,
-            });
-        });
-    }, [days, actions]);
+    const eligibleActions = useMemo(() => selectPlanOneRMActions(days, actions), [days, actions]);
 
     const handleValueChange = (actionId: string, nextValue: number | null) => {
         const next = { ...value };
