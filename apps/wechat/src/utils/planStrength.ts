@@ -1,4 +1,5 @@
 import type { PlanActionOption, PlanActionSet } from '@/types/plan'
+import { isOneRMEligibleAction } from './oneRmEligibility'
 import { calcRecommendedLoad } from './rmCalculator'
 
 export interface PlanOneRMRecord {
@@ -285,11 +286,8 @@ export const resolveEditableDisplayName = (set: PlanActionSet) => {
   return customName
 }
 
-export const isAutoLoadEligible = (action?: PlanActionOption | null) => {
-  if (!action) return false
-  const attrs = Array.isArray(action.attrs) ? action.attrs : []
-  return Boolean(action.enableAutoWeightCompute || attrs.includes('强度'))
-}
+// Same rule as the server: the generic 强度 attr alone does not make a move loadable.
+export const isAutoLoadEligible = (action?: PlanActionOption | null) => isOneRMEligibleAction(action)
 
 export const buildStrengthPreview = (params: Record<string, any>, options: {
   action?: PlanActionOption

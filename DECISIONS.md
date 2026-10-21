@@ -1490,3 +1490,8 @@
 - 小程序新组件只引用 tokens-css.scss 的 CSS 变量，深色模式靠变量切换，不再往 theme-dark.scss 逐类加 !important 覆盖；旧页面迁移后删除对应覆盖。
 - 动作示意图在列表/卡片中用 COS imageMogr2 缩略图（utils/mediaUrl.ts resolveWeappImageThumbnailUrl），previewImage 仍用原图。
 - 节奏：设计领先开发一批；在 feat/ui-refresh 分支完成第 0 批（公共部分）+ 第 1 批（已定稿页面）后整批发版，避免线上新旧风格混杂。
+
+## 计划应用 1RM 弹窗与训练页自重记录（2026-10-20）
+
+- 应用计划前只为"计划里按 RM / %1RM 安排、且服务端允许保存 1RM、且动作库还没有 1RM"的动作弹窗；只写 RPE 的计划（知识库免费计划大多如此）不弹。填写值经 `batch-update-1rm` 写入动作库 `reference_1rm`，开始训练时由服务端读取；"跳过"直接应用。
+- 训练页按 `resolveActionLoadMode` 判断：有计划/历史公斤数、开启自动算重、或名称/属性含器械词的动作先显示重量；其余默认"自重"，只填次数并把重量存 0，用户可点"+ 加负重"切换（本次训练内有效）。

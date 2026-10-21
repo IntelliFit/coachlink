@@ -9,6 +9,7 @@ import './index.scss'
 import { Book, Calendar, Clock, Close } from '@nutui/icons-react-taro'
 import { useTheme } from '@/hooks/useTheme'
 import { StableInput as Input } from '@/components/StableInput'
+import { collectPlanOneRMActionIds, isOneRMEligibleAction } from '@coachlink/core/src/actionLoadMode'
 
 interface PlanFavorite {
   id: string
@@ -21,8 +22,15 @@ interface PlanFavorite {
 interface Action {
   id: string
   name: string
-  enableAutoWeightCompute?: boolean
-  attrs?: string[]
+  type?: string | null
+  enableAutoWeightCompute?: boolean | null
+  attrs?: string[] | null
+  reference_1rm?: number | null
+}
+
+const positiveOneRM = (value: unknown) => {
+  const num = Number(value)
+  return Number.isFinite(num) && num > 0 ? num : null
 }
 
 export default function PlanLibPage() {
@@ -35,7 +43,7 @@ export default function PlanLibPage() {
   // 1RM配置相关状态
   const [showOneRMDialog, setShowOneRMDialog] = useState(false)
   const [currentFavorite, setCurrentFavorite] = useState<PlanFavorite | null>(null)
-  const [oneRMConfig, setOneRMConfig] = useState<Record<string, number>>({})
+  const [oneRMInputs, setOneRMInputs] = useState<Record<string, string>>({})
 
   const loadFavorites = useCallback(async () => {
     try {
@@ -58,8 +66,7 @@ export default function PlanLibPage() {
       if (actionsRes?.actions) {
         setActions(actionsRes.actions.map((a: any) => ({
           ...a,
-          enableAutoWeightCompute: a.enable_auto_weight_compute || 
-            (Array.isArray(a.attrs) && a.attrs.includes('强度'))
+          enableAutoWeightCompute: a.enableAutoWeightCompute ?? a.enable_auto_weight_compute ?? null
         })))
       }
     } catch (error) {
@@ -86,65 +93,78 @@ export default function PlanLibPage() {
     Taro.navigateTo({ url: `/me/plan-lib/edit/index?id=${id}` })
   }
 
-  // 获取计划中需要配置1RM的动作
+  // 只有按 RM / %1RM 安排重量、且服务端允许保存 1RM 的动作才需要 1RM；
+  // 死虫、俯卧撑这类自重/核心动作，或只写 RPE 的计划，不会弹窗。
   const getRelevantActions = (favorite: PlanFavorite) => {
-    const trainingDays = favorite.training_days || []
-    const usedActionIds = new Set<string>()
-    
-    trainingDays.forEach((day: any) => {
-      (day.actionSets || []).forEach((set: any) => {
-        const actionId = set.actionId || set.action_id
-        if (actionId) usedActionIds.add(actionId)
-      })
-    })
-
-    return actions.filter(action => {
-      const isUsed = usedActionIds.has(action.id)
-      const canConfigureOneRM = action.enableAutoWeightCompute || 
-        (Array.isArray(action.attrs) && action.attrs.includes('强度'))
-      return isUsed && canConfigureOneRM
-    })
+    const usedActionIds = collectPlanOneRMActionIds(favorite.training_days)
+    return actions.filter(action => usedActionIds.has(action.id) && isOneRMEligibleAction(action))
   }
 
-  // 处理应用计划
-  const handleApply = async (favorite: PlanFavorite) => {
+  const handleApply = (favorite: PlanFavorite) => {
     const relevantActions = getRelevantActions(favorite)
-    
-    // 如果没有需要配置1RM的动作，直接应用
-    if (relevantActions.length === 0) {
+    const missingOneRM = relevantActions.some(action => positiveOneRM(action.reference_1rm) === null)
+    if (!missingOneRM) {
       doApply(favorite.id)
       return
     }
 
-    // 有需要配置1RM的动作，显示配置弹窗
     setCurrentFavorite(favorite)
-    setOneRMConfig({})
+    setOneRMInputs(relevantActions.reduce<Record<string, string>>((inputs, action) => {
+      const known = positiveOneRM(action.reference_1rm)
+      return { ...inputs, [action.id]: known === null ? '' : String(known) }
+    }, {}))
     setShowOneRMDialog(true)
   }
 
-  // 执行应用计划
-  const doApply = async (favoriteId: string, oneRMConfig?: Record<string, number>) => {
+  // 1RM 由服务端在开始训练时从动作库读取，应用接口本身不接收 1RM
+  const doApply = async (favoriteId: string) => {
     setApplyingId(favoriteId)
     try {
-      const res = await studentPlanLibService.applyFavorite(favoriteId, oneRMConfig)
+      const res = await studentPlanLibService.applyFavorite(favoriteId)
       if (res) {
         Taro.showToast({ title: '计划已激活', icon: 'success' })
         setTimeout(() => {
           Taro.reLaunch({ url: '/pages/index/index' })
         }, 800)
+      } else {
+        Taro.showToast({ title: '应用失败', icon: 'none' })
       }
     } catch (error) {
+      console.error('应用计划失败:', error)
       Taro.showToast({ title: '应用失败', icon: 'none' })
     } finally {
       setApplyingId(null)
     }
   }
 
-  // 确认1RM配置并应用
-  const handleConfirmOneRM = () => {
+  const saveOneRMInputs = async (favorite: PlanFavorite) => {
+    const updates = getRelevantActions(favorite)
+      .map(action => ({ action, value: positiveOneRM(oneRMInputs[action.id]) }))
+      .filter(({ action, value }) => value !== null && value !== positiveOneRM(action.reference_1rm))
+      .map(({ action, value }) => ({ actionId: action.id, reference1RM: value }))
+    if (updates.length === 0) return
+    try {
+      await studentActionLibService.batchUpdate1RM(updates)
+    } catch (error) {
+      console.error('保存1RM失败:', error)
+      Taro.showToast({ title: '1RM 未保存，可稍后在动作库补填', icon: 'none' })
+    }
+  }
+
+  const closeOneRMDialog = () => setShowOneRMDialog(false)
+
+  const handleConfirmOneRM = async () => {
     if (!currentFavorite) return
     setShowOneRMDialog(false)
-    doApply(currentFavorite.id, oneRMConfig)
+    setApplyingId(currentFavorite.id)
+    await saveOneRMInputs(currentFavorite)
+    doApply(currentFavorite.id)
+  }
+
+  const handleSkipOneRM = () => {
+    if (!currentFavorite) return
+    setShowOneRMDialog(false)
+    doApply(currentFavorite.id)
   }
 
   const handleDelete = async (id: string) => {
@@ -171,15 +191,18 @@ export default function PlanLibPage() {
 
     return (
       <View className='onerm-dialog'>
-        <View className='dialog-overlay' onClick={() => setShowOneRMDialog(false)} />
+        <View className='dialog-overlay' onClick={closeOneRMDialog} />
         <View className='dialog-content'>
           <View className='dialog-header'>
-            <Text className='dialog-title'>应用计划 - 1RM配置</Text>
-            <View className='dialog-close' onClick={() => setShowOneRMDialog(false)}><Close /></View>
+            <View className='dialog-heading'>
+              <Text className='dialog-title'>填写 1RM（选填）</Text>
+              <Text className='dialog-subtitle'>{currentFavorite.name}</Text>
+            </View>
+            <View className='dialog-close' onClick={closeOneRMDialog}><Close /></View>
           </View>
           <ScrollView className='dialog-body' scrollY>
             <Text className='dialog-desc'>
-              在应用「{currentFavorite.name}」前，请先设置以下动作的1RM值，这将用于自动计算训练负荷
+              这些动作按 RM / %1RM 安排重量。填了 1RM，训练时会自动算出每组重量；不填也能开始，训练时自己填重量即可。
             </Text>
             <View className='onerm-list'>
               {relevantActions.map(action => (
@@ -189,11 +212,11 @@ export default function PlanLibPage() {
                     <Input
                       className='onerm-input'
                       type='digit'
-                      placeholder='输入1RM'
-                      value={oneRMConfig[action.id] ? String(oneRMConfig[action.id]) : ''}
+                      placeholder='未填写'
+                      value={oneRMInputs[action.id] || ''}
                       onInput={e => {
-                        const val = e.detail.value === '' ? 0 : parseFloat(e.detail.value)
-                        setOneRMConfig(prev => ({ ...prev, [action.id]: val }))
+                        const value = e.detail.value
+                        setOneRMInputs(prev => ({ ...prev, [action.id]: value }))
                       }}
                     />
                     <Text className='onerm-unit'>kg</Text>
@@ -203,11 +226,11 @@ export default function PlanLibPage() {
             </View>
           </ScrollView>
           <View className='dialog-footer'>
-            <View className='btn-secondary' onClick={() => setShowOneRMDialog(false)}>
-              <Text>跳过</Text>
+            <View className='btn-secondary' onClick={handleSkipOneRM}>
+              <Text>跳过，直接应用</Text>
             </View>
             <View className='btn-primary' onClick={handleConfirmOneRM}>
-              <Text>确认应用</Text>
+              <Text>保存并应用</Text>
             </View>
           </View>
         </View>

@@ -11,7 +11,8 @@
 
 - 用户确认按"设计领先一批、分批开发、整批发版"推进。设计稿画布 https://claude.ai/artifact/TK5ukQQrZr5ycHg6ToNrBa （暖纸·陶土规范、小程序 9 页、网页发现页）；已定：主按钮 #B4553A、底部 5 个 Tab、不改分包结构。
 - 代码在独立 worktree D:/projects_mjw/coachlink-ui-refresh，分支 feat/ui-refresh（基于 main be98b37d），node_modules 用目录联接共享主检出。主检出未切分支。
-- 注意：weapp-automation 的 D:/projects_mjw/_slots/coachlink-1 当前是指向该 worktree 的目录联接（用于独立 DevTools 窗口验收），不是普通槽位；第 0 批结束后拆除。
+- 验收窗口：DevTools 直接打开 D:/projects_mjw/coachlink-ui-refresh/apps/wechat（自动化端口 9441，不经 weapp-automation 登记）。曾用 _slots/coachlink-1 目录联接，DevTools 在联接路径上重编译后常启动失败，已于 2026-10-18 16:05 拆除。分支 Web 服务在 3000 端口由该 worktree 提供。
+- 线上测试数据（用户确认）：测试账号 17749473210 ↔ 枭马葛 订阅 42a161d9、计划 d3cb7adf（引体+臂屈伸-8周 改良版（UI测试）），第 1 天执行记录含 2 组完成；完整 id 在会话 scratchpad/db/ui-test-seed-ids.json，验收结束需按 id 清理（执行记录、组视频/PR 历史、计划、订阅）。
 - 第 0 批内容：设计变量 styles/_tokens.scss + tokens-css.scss（含深色）、旧 --bg-page 等变量改指新值；components/ui 公共组件；底部导航改白色贴底栏并去掉 300ms 轮询；打卡图组标签次数被截断（改紧凑写法+先缩字号）；动作示意图改用 COS imageMogr2 缩略图（原图约 1.5MB/张）。
 - 第 1 批（定稿页面）实施训练执行页时必须对照 DECISIONS 2026-10-07「训练重设计必须完整保留逐组能力」及 docs/work/today-training-home-v3-redesign-2026-10-07.md 保留矩阵。
 

@@ -7,10 +7,14 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
+import { isOneRMEligibleAction } from '@coachlink/core/src/actionLoadMode'
 
 const POSITIONS = ['胸部', '背部', '肩部', '手臂', '核心', '腿部', '臀部', '全身']
 const ATTRS = ['力量', '耐力', '爆发力', '柔韧性', '平衡', '强度']
 const TYPES = ['STRENGTH', 'CARDIO', 'FLEXIBILITY', 'BALANCE']
+
+// Rows arrive camelCase from Supabase, snake_case from older APIs.
+const readFlag = (camel: unknown, snake: unknown) => Boolean(camel ?? snake)
 
 export default function ActionEditPage() {
   const { effectiveTheme } = useTheme()
@@ -25,6 +29,9 @@ export default function ActionEditPage() {
   const [selectedAttrs, setSelectedAttrs] = useState<string[]>([])
   const [type, setType] = useState('STRENGTH')
   const [reference1RM, setReference1RM] = useState('')
+  // 自动算重是用户的显式选择；「强度」只是训练参数字段，不能据此推断
+  const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState(false)
+  const [includesBodyWeight, setIncludesBodyWeight] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(isEdit)
 
@@ -47,6 +54,8 @@ export default function ActionEditPage() {
           setSelectedAttrs(Array.isArray(action.attrs) ? action.attrs : [])
           setType(action.type || 'STRENGTH')
           setReference1RM(action.reference_1rm ? String(action.reference_1rm) : '')
+          setEnableAutoWeightCompute(readFlag(action.enableAutoWeightCompute, action.enable_auto_weight_compute))
+          setIncludesBodyWeight(readFlag(action.includesBodyWeight, action.includes_body_weight))
         }
       }
     } catch (error) {
@@ -69,11 +78,21 @@ export default function ActionEditPage() {
     )
   }
 
+  const isStrength = type === 'STRENGTH'
+  const isOneRMEligible = isOneRMEligibleAction({ type, attrs: selectedAttrs, enableAutoWeightCompute })
+
   const handleSave = async () => {
     if (!name.trim()) {
       Taro.showToast({ title: '请输入动作名称', icon: 'none' })
       return
     }
+    // 1RM 输入框只对符合条件的动作显示，隐藏时残留的内容不参与校验
+    const parsedReference1RM = isOneRMEligible && reference1RM.trim() ? Number(reference1RM) : null
+    if (parsedReference1RM !== null && (!Number.isFinite(parsedReference1RM) || parsedReference1RM <= 0)) {
+      Taro.showToast({ title: '1RM 请输入大于 0 的数字，或留空', icon: 'none' })
+      return
+    }
+    const autoWeight = isStrength && enableAutoWeightCompute
 
     setSaving(true)
     try {
@@ -83,22 +102,19 @@ export default function ActionEditPage() {
         url: url.trim() || null,
         positions: selectedPositions.length > 0 ? selectedPositions : null,
         attrs: selectedAttrs.length > 0 ? selectedAttrs : null,
-        type
+        type,
+        // 必须显式传：力量动作更新时缺省该字段，服务端会把「包含自重」清掉
+        enableAutoWeightCompute: autoWeight,
+        includesBodyWeight: autoWeight && includesBodyWeight,
+        reference_1rm: isOneRMEligible ? parsedReference1RM : null
       }
 
-      if (isEdit) {
-        await studentActionLibService.updateAction({ id: actionId, ...data })
-        if (reference1RM) {
-          await studentActionLibService.batchUpdate1RM([{
-            actionId,
-            reference1RM: parseFloat(reference1RM)
-          }])
-        }
-        Taro.showToast({ title: '更新成功', icon: 'success' })
-      } else {
-        await studentActionLibService.addAction(data)
-        Taro.showToast({ title: '创建成功', icon: 'success' })
-      }
+      const saved = isEdit
+        ? await studentActionLibService.updateAction({ id: actionId, ...data })
+        : await studentActionLibService.addAction(data)
+      // 失败时 request 已弹出服务端原因，留在本页让用户修改
+      if (!saved) return
+      Taro.showToast({ title: isEdit ? '更新成功' : '创建成功', icon: 'success' })
 
       setTimeout(() => {
         Taro.navigateBack()
@@ -163,17 +179,6 @@ export default function ActionEditPage() {
               />
             </View>
 
-            <View className='form-field'>
-              <Text className='field-label'>1RM (kg)</Text>
-              <Input
-                className='field-input'
-                type='digit'
-                value={reference1RM}
-                onInput={e => setReference1RM(e.detail.value)}
-                placeholder='输入极限重量'
-              />
-              <Text className='field-hint'>用于自动计算训练重量</Text>
-            </View>
           </View>
 
           <View className='form-section'>
@@ -219,8 +224,48 @@ export default function ActionEditPage() {
                 </View>
               ))}
             </View>
-            <Text className='section-hint'>选择「强度」属性将启用1RM自动计算</Text>
           </View>
+
+          {isStrength ? (
+            <View className='form-section'>
+              <Text className='section-title'>智能重量计算</Text>
+              <Text className='section-desc'>
+                开启后，计划里按 RM / %1RM 安排的组会根据 1RM 自动算出重量，需同时选择「强度」属性。死虫、俯卧撑这类自重或核心动作保持关闭即可。
+              </Text>
+              <View className='option-list'>
+                <View
+                  className={`option-item ${enableAutoWeightCompute ? 'selected' : ''}`}
+                  onClick={() => setEnableAutoWeightCompute(prev => !prev)}
+                >
+                  <Text>按 1RM 自动算重</Text>
+                </View>
+                {enableAutoWeightCompute ? (
+                  <View
+                    className={`option-item ${includesBodyWeight ? 'selected' : ''}`}
+                    onClick={() => setIncludesBodyWeight(prev => !prev)}
+                  >
+                    <Text>包含自重（如引体向上）</Text>
+                  </View>
+                ) : null}
+              </View>
+              {enableAutoWeightCompute && !selectedAttrs.includes('强度') ? (
+                <Text className='section-hint'>还需在上方选择「强度」属性，自动算重才会生效</Text>
+              ) : null}
+              {isOneRMEligible ? (
+                <View className='form-field onerm-field'>
+                  <Text className='field-label'>参考 1RM (kg)</Text>
+                  <Input
+                    className='field-input'
+                    type='digit'
+                    value={reference1RM}
+                    onInput={e => setReference1RM(e.detail.value)}
+                    placeholder='未填写'
+                  />
+                  <Text className='field-hint'>用于自动计算训练重量，可留空</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
 
           <View className='bottom-actions'>
             <View className='secondary-btn' onClick={() => Taro.navigateBack()}>

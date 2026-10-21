@@ -2788,6 +2788,80 @@
   }
 }
 
+/* 组记录区 v2：自重动作只显示次数；重量框给数字留足宽度；次要操作统一为一行小胶囊。 */
+.training-execution-page.tx-v1 .set-item {
+  .record-inline-row.bodyweight .record-input-cell.reps {
+    flex-basis: 100%;
+  }
+
+  /* 两侧留出 14rpx 偏移 + 64rpx 按钮 + 8rpx 间隙，数字和单位居中且不压按钮 */
+  .record-value-wrap {
+    padding: 0 88rpx;
+  }
+
+  .record-inline-input {
+    flex: 0 1 160rpx;
+    width: 160rpx;
+    min-width: 0;
+    font-size: 40rpx;
+  }
+
+  .record-input-placeholder {
+    color: var(--cl-ink-2);
+    font-size: 32rpx;
+    font-weight: 400;
+  }
+
+  .record-stepper-hit {
+    top: 14rpx;
+    width: 64rpx;
+    height: 64rpx;
+    line-height: 64rpx;
+    font-size: 36rpx;
+
+    &:first-child {
+      right: 14rpx;
+    }
+
+    &:last-child {
+      left: 14rpx;
+    }
+  }
+
+  .set-secondary-row {
+    flex-wrap: nowrap;
+    gap: 16rpx;
+    overflow: hidden;
+  }
+
+  .set-chip {
+    flex: 0 1 auto;
+    min-width: 0;
+    height: 64rpx;
+    line-height: 60rpx;
+    padding: 0 24rpx;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 2rpx solid var(--cl-line);
+    border-radius: 9999rpx;
+    background: var(--cl-card);
+    color: var(--cl-ink-2);
+    font-size: 24rpx;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    &.active {
+      border-color: var(--cl-clay);
+      background: var(--cl-clay-soft);
+      color: var(--cl-clay-strong);
+    }
+
+    &:active {
+      opacity: 0.7;
+    }
+  }
+}
+
 /* 旧浅色主题块大量使用 !important，以下几处必须同样声明才能生效。 */
 .training-execution-page.tx-v1 {
   .record-complete-btn {

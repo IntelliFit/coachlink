@@ -1,4 +1,5 @@
 import type { PlanActionOption, PlanActionSet, PlanEditorValue, PlanItemType, PlanQuestionItem, PlanTrainingDay } from '@/types/plan'
+import { isOneRMEligibleAction } from './oneRmEligibility'
 
 export interface PlanBatchResult {
   days: PlanTrainingDay[]
@@ -206,10 +207,7 @@ export const collectRelevantActions = (days: PlanTrainingDay[], actions: PlanAct
 }
 
 export const collectOneRMActions = (days: PlanTrainingDay[], actions: PlanActionOption[]) => {
-  return collectRelevantActions(days, actions).filter((action) => {
-    const attrs = Array.isArray(action.attrs) ? action.attrs : []
-    return Boolean(action.enableAutoWeightCompute || attrs.includes('强度'))
-  })
+  return collectRelevantActions(days, actions).filter((action) => isOneRMEligibleAction(action))
 }
 
 export const getTrainingWeekDays = (days: PlanTrainingDay[]) => {

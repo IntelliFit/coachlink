@@ -5,6 +5,7 @@ import { hasReadExecutionPlanNotice, markExecutionPlanNoticeRead } from '@/utils
 import React from 'react'
 import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type TrainingIntent } from '@coachlink/core/src/trainingAccess'
 import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation'
+import { resolveActionLoadMode, type ActionLoadMode } from '@coachlink/core/src/actionLoadMode'
 import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, getTrainingSetVolume, formatRecordedTrainingSet, inheritedTimedSetDefaults } from '@coachlink/core/src/trainingSetMetrics'
 import RecordCompletionButton from '@/components/RecordCompletionButton'
 import { formatPosterSetText } from './posterSetText'
@@ -414,6 +415,8 @@ function TrainingExecution() {
   const [currentSetIndex, setCurrentSetIndex] = React.useState(0)
   const [expandedSetKey, setExpandedSetKey] = React.useState<string | null>(null)
   const [openSetMoreKey, setOpenSetMoreKey] = React.useState<string | null>(null)
+  // 用户在本次训练里手动切换的负重方式（按动作序号），优先于自动判断
+  const [loadModeOverrides, setLoadModeOverrides] = React.useState<Record<number, ActionLoadMode>>({})
   const [editingSetKey, setEditingSetKey] = React.useState<string | null>(null)
   const [completing, setCompleting] = React.useState(false)
   const [cancelling, setCancelling] = React.useState(false)
@@ -1341,6 +1344,45 @@ function TrainingExecution() {
   }, [])
 
   // 完成一组
+  // 自重/核心动作（死虫、俯卧撑）只记次数，重量存 0；带器械或已有重量的动作才要求填重量
+  const getActionLoadMode = (action: ActionExecution | undefined, actionIdx: number) => {
+    const detail = (action && actions[action.action_id]) || {}
+    const sets = action?.sets || []
+    const executionAttrs = (action as any)?.attrs
+    const autoMode = resolveActionLoadMode(
+      {
+        ...detail,
+        name: action?.action_name || detail.name,
+        attrs: [
+          ...(Array.isArray(detail.attrs) ? detail.attrs : []),
+          ...(Array.isArray(executionAttrs) ? executionAttrs : [])
+        ]
+      },
+      {
+        plannedWeights: sets.map((s) => s.planned_weight),
+        recordedWeights: sets.map((s) => s.actual_weight)
+      }
+    )
+    return {
+      autoMode,
+      mode: loadModeOverrides[actionIdx] ?? autoMode,
+      weightLabel: autoMode === 'bodyweight' || detail.includesBodyWeight ? '外加重量' : '重量'
+    }
+  }
+
+  const switchActionLoadMode = (actionIdx: number, setKey: string, mode: ActionLoadMode) => {
+    setLoadModeOverrides((prev) => ({ ...prev, [actionIdx]: mode }))
+    if (mode === 'bodyweight') {
+      setWeight(0)
+      setWeightInput('0')
+      updateSetDraft(setKey, { weight: 0, weightInput: '0' })
+    } else if (weight === 0) {
+      setWeight(null)
+      setWeightInput('')
+      updateSetDraft(setKey, { weight: null, weightInput: '' })
+    }
+  }
+
   const handleCompleteSet = async () => {
     if (cancelling || uploadingVideo) return
     if (!execution) return
@@ -1368,7 +1410,10 @@ function TrainingExecution() {
       Taro.showToast({ title: '请输入保持时长（秒）', icon: 'none' })
       return
     }
-    if (!timed && isWeightRequiredForSet(currentSet) && (weight === null || weight === undefined)) {
+    const bodyweightSet = !timed && getActionLoadMode(currentAction, expandedAction).mode === 'bodyweight'
+    // 自重明确存 0（空值不是 0），见 DECISIONS「自重与时间训练记录口径」
+    const recordedWeight = timed ? null : bodyweightSet ? 0 : weight
+    if (!timed && !bodyweightSet && isWeightRequiredForSet(currentSet) && (weight === null || weight === undefined)) {
       Taro.showToast({ title: '请输入重量', icon: 'none' })
       return
     }
@@ -1382,14 +1427,14 @@ function TrainingExecution() {
             execution.id,
             expandedAction,
             currentSetIndex,
-            { actualWeight: timed ? null : weight, actualReps: timed ? null : reps, actualDuration: timed ? reps : undefined, notes: setNotes, rpe, isPR: markAsPR }
+            { actualWeight: recordedWeight, actualReps: timed ? null : reps, actualDuration: timed ? reps : undefined, notes: setNotes, rpe, isPR: markAsPR }
           )
         : await executionService.completeSet(
             execution.id,
             expandedAction,
             currentSetIndex,
             {
-              actualWeight: timed ? null : weight,
+              actualWeight: recordedWeight,
               actualReps: timed ? null : reps,
               actualDuration: timed ? reps : undefined,
               rpe: rpe,
@@ -1410,7 +1455,7 @@ function TrainingExecution() {
         updatedSets[currentSetIndex] = {
           ...updatedSets[currentSetIndex],
           status: 'completed',
-          actual_weight: timed ? null : weight,
+          actual_weight: recordedWeight,
           actual_reps: timed ? null : reps,
           ...(timed ? { actual_duration: reps } : {}),
           rpe: rpe,
@@ -2869,6 +2914,7 @@ function TrainingExecution() {
                       <>
                         <View className="sets-list">
                           {action.sets?.map((set: SetData, setIdx: number) => {
+                            const loadMode = getActionLoadMode(action, actionIdx)
                             const isCurrentSet = setIdx === currentSetIndex
                             const isCompletedSet = set.status === 'completed'
                             const setKey = setKeyOf(actionIdx, setIdx)
@@ -2880,6 +2926,7 @@ function TrainingExecution() {
                             )
                             const setDraft = setDrafts[setKey]
                             const timedSet = isTimedTrainingSet(set, action)
+                            const bodyweightSet = !timedSet && loadMode.mode === 'bodyweight'
                             const plannedWeightText = String(set.planned_weight || '').trim()
                             const plannedRepsText = formatPlannedRepsText(set)
                             const plannedSummary = [
@@ -2888,13 +2935,13 @@ function TrainingExecution() {
                               set.planned_intensity || null
                             ].filter(Boolean).join(' · ')
                             const actualSummary = timedSet ? formatRecordedTrainingSet(set, action) : [
-                              set.actual_weight !== null && set.actual_weight !== undefined ? `${set.actual_weight}kg` : null,
+                              set.actual_weight !== null && set.actual_weight !== undefined ? (Number(set.actual_weight) === 0 ? '自重' : `${set.actual_weight}kg`) : null,
                               set.actual_reps !== null && set.actual_reps !== undefined ? `${set.actual_reps}次` : null,
                               set.rpe ? `RPE ${set.rpe}` : null
                             ].filter(Boolean).join(' · ')
                             const draftSummary = timedSet && setDraft ? (setDraft.reps ? `保持 ${setDraft.reps} 秒` : '') : setDraft
                               ? [
-                                  setDraft.weight !== null && setDraft.weight !== undefined ? `${formatKgValueForGym(setDraft.weight)}kg` : null,
+                                  bodyweightSet ? '自重' : setDraft.weight !== null && setDraft.weight !== undefined ? `${formatKgValueForGym(setDraft.weight)}kg` : null,
                                   setDraft.reps !== null && setDraft.reps !== undefined ? `${setDraft.reps}次` : null,
                                   setDraft.rpe ? `RPE ${setDraft.rpe}` : null
                                 ].filter(Boolean).join(' · ')
@@ -2956,16 +3003,17 @@ function TrainingExecution() {
 
                                 {showSetForm && (
                                   <View className="set-record-form">
-                                    <View className={`record-inline-row ${timedSet ? 'timed' : ''}`}>
-                                      {!timedSet && <View className="record-input-cell weight">
-                                        <Text className="record-input-label">外加重量</Text>
+                                    <View className={`record-inline-row ${timedSet ? 'timed' : ''} ${bodyweightSet ? 'bodyweight' : ''}`}>
+                                      {!timedSet && !bodyweightSet && <View className="record-input-cell weight">
+                                        <Text className="record-input-label">{loadMode.weightLabel}（kg）</Text>
                                         <View className="record-adjust-input">
                                           <View className="record-value-wrap">
                                             <Input
                                               type="digit"
                                               className="record-inline-input"
                                               value={weightInput}
-                                              placeholder={set.planned_weight ? String(set.planned_weight) : '填重量'}
+                                              placeholder={isConcreteWeightValue(set.planned_weight) ? String(parseFirstNumber(set.planned_weight)) : '—'}
+                                              placeholderClass="record-input-placeholder"
                                               onInput={(e) => {
                                                 const rawValue = e.detail.value
                                                 const parsed = parseInputNumber(rawValue, 'float')
@@ -2974,7 +3022,6 @@ function TrainingExecution() {
                                                 updateSetDraft(setKey, { weightInput: rawValue, weight: parsed })
                                               }}
                                             />
-                                            <Text className="record-unit">kg</Text>
                                           </View>
                                           <View className="record-stepper">
                                             <Text className="record-stepper-hit" onClick={(e) => {
@@ -2990,7 +3037,7 @@ function TrainingExecution() {
                                         </View>
                                       </View>}
                                       <View className="record-input-cell reps">
-                                        <Text className="record-input-label">{timedSet ? '保持时长' : '次数'}</Text>
+                                        <Text className="record-input-label">{timedSet ? '保持时长' : bodyweightSet ? '次数 · 自重' : '次数'}</Text>
                                         <View className="record-adjust-input">
                                           <View className="record-value-wrap">
                                             <Input
@@ -3045,29 +3092,29 @@ function TrainingExecution() {
                                     </View>
 
                                     <View className="set-secondary-row">
-                                      {!timedSet && <Button size="mini" className="bodyweight-btn" onClick={() => {
-                                        setWeight(0)
-                                        setWeightInput('0')
-                                        updateSetDraft(setKey, { weight: 0, weightInput: '0' })
-                                      }}>{weight === 0 ? '已选自重 / 无负重' : '自重 / 无负重'}</Button>}
+                                      {!timedSet && (
+                                        <Text
+                                          className="set-chip"
+                                          onClick={() => switchActionLoadMode(actionIdx, setKey, bodyweightSet ? 'weighted' : 'bodyweight')}
+                                        >
+                                          {bodyweightSet ? '+ 加负重' : '改为自重'}
+                                        </Text>
+                                      )}
                                       <Text
-                                        className={`progress-toggle ${markAsPR ? 'active' : ''}`}
+                                        className={`set-chip ${markAsPR ? 'active' : ''}`}
                                         onClick={() => {
                                           const next = !markAsPR
                                           setMarkAsPR(next)
                                           updateSetDraft(setKey, { markAsPR: next })
                                         }}
                                       >
-                                        {markAsPR ? '已标记进步组' : '标记进步组'}
+                                        {markAsPR ? '✓ 进步组' : '标记进步组'}
                                       </Text>
-                                      <Button size="mini" className="ghost-tool-btn" onClick={handleChooseVideo} loading={uploadingVideo}>
-                                        {hasAttachedVideo ? '更换本组视频' : '上传本组视频'}
-                                      </Button>
                                       <Text
-                                        className={`set-more-toggle ${isMoreOpen ? 'open' : ''}`}
+                                        className={`set-chip ${isMoreOpen || moreSummary ? 'active' : ''}`}
                                         onClick={() => setOpenSetMoreKey(isMoreOpen ? null : setKey)}
                                       >
-                                        备注 / 视频链接{moreSummary ? ` · ${moreSummary}` : ''}
+                                        {moreSummary ? `备注/视频 · ${moreSummary}` : '备注/视频'}
                                       </Text>
                                     </View>
 

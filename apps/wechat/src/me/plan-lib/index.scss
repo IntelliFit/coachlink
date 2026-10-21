@@ -318,10 +318,26 @@
       padding: 16rpx 16rpx 16rpx 24rpx;
       border-bottom: 1rpx solid #ebe3dd;
 
+      .dialog-heading {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 8rpx;
+        min-width: 0;
+      }
+
       .dialog-title {
         font-size: 32rpx;
         font-weight: 700;
         color: #2f2925;
+      }
+
+      .dialog-subtitle {
+        overflow: hidden;
+        font-size: 24rpx;
+        color: #7b7069;
+        white-space: nowrap;
+        text-overflow: ellipsis;
       }
 
       .dialog-close {
@@ -371,7 +387,7 @@
           gap: 8rpx;
 
           .onerm-input {
-            width: 144rpx;
+            width: 176rpx;
             height: 64rpx;
             padding: 0 16rpx;
             border: 1rpx solid #d9ccc4;
@@ -459,6 +475,7 @@
   .plan-desc,
   .empty-desc,
   .onerm-dialog .dialog-desc,
+  .onerm-dialog .dialog-subtitle,
   .onerm-dialog .onerm-unit {
     color: #b8aea7;
   }

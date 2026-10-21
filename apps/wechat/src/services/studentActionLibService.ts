@@ -33,6 +33,9 @@ class StudentActionLibService extends BaseService {
     positions?: string[] | null
     attrs?: string[] | null
     type?: string | null
+    enableAutoWeightCompute?: boolean
+    includesBodyWeight?: boolean
+    reference_1rm?: number | null
   }) {
     const res = await this.post('add-action', data)
     if (res.success && res.data) return res.data
@@ -48,6 +51,9 @@ class StudentActionLibService extends BaseService {
     positions?: string[] | null
     attrs?: string[] | null
     type?: string | null
+    enableAutoWeightCompute?: boolean
+    includesBodyWeight?: boolean
+    reference_1rm?: number | null
   }) {
     const res = await this.post('update-action', data)
     if (res.success && res.data) return res.data
@@ -77,7 +83,9 @@ class StudentActionLibService extends BaseService {
 
   /** 批量更新1RM */
   async batchUpdate1RM(updates: Array<{ actionId: string; reference1RM: number | null }>) {
-    const res = await this.post<{ updated: number }>('batch-update-1rm', { updates })
+    // The API reads snake_case reference_1rm; an unknown key is treated as "clear".
+    const payload = updates.map(({ actionId, reference1RM }) => ({ actionId, reference_1rm: reference1RM }))
+    const res = await this.post<{ updated: number }>('batch-update-1rm', { updates: payload })
     if (res.success && res.data) return res.data
     return null
   }
