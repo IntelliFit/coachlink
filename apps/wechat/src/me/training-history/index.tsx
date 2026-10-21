@@ -15,6 +15,8 @@ import {
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
+import { ClButton, ClTag } from '@/components/ui'
+import { toBeijingDateKey } from '@coachlink/core/src/beijingTime'
 
 const getMonthKey = (date: Date) => {
   const year = date.getFullYear()
@@ -90,6 +92,7 @@ export default function TrainingHistoryPage() {
         }
         setCalendarDays(dayMap)
         setMonthStats(stats || null)
+        autoSelectDay(dayMap)
       } catch (error) {
         Taro.showToast({ title: '训练记录加载失败', icon: 'none' })
       } finally {
@@ -98,6 +101,18 @@ export default function TrainingHistoryPage() {
     }
     loadMonth()
   }, [monthKey])
+
+  // Open on something useful: the latest trained day up to today in this month, else today.
+  const autoSelectRef = React.useRef(false)
+  const autoSelectDay = (dayMap: Record<string, number>) => {
+    if (autoSelectRef.current) return
+    const today = toBeijingDateKey(new Date())
+    const trained = Object.keys(dayMap).filter((date) => dayMap[date] > 0 && date <= today).sort()
+    const pick = trained[trained.length - 1] || (today.startsWith(monthKey) ? today : '')
+    if (!pick) return
+    autoSelectRef.current = true
+    void loadDay(pick)
+  }
 
   const loadDay = async (date: string) => {
     setLoadingDay(true)
@@ -140,165 +155,135 @@ export default function TrainingHistoryPage() {
     }
   }, [])
 
+  const today = toBeijingDateKey(new Date())
+  const [yearText, monthText] = monthKey.split('-')
+  const stats = [
+    { key: 'days', label: '训练天数', value: monthStats?.trainingDays ?? 0 },
+    { key: 'sessions', label: '训练次数', value: monthStats?.totalSessions ?? 0 },
+    { key: 'sets', label: '完成组数', value: monthStats?.totalSets ?? 0 }
+  ]
+  const shiftMonth = (delta: number) => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1))
+
   return (
-    <View className={`training-history-page theme-${effectiveTheme}`}>
-      <View className='page-header'>
-        <View className='header-left' onClick={() => Taro.navigateBack()}>
-          <Text className='back-icon'>←</Text>
-        </View>
-        <View className='impromptu-btn' onClick={handleImpromptu}>
-          <Text> 即兴锻炼</Text>
-        </View>
-      </View>
-
-      <ScrollView scrollY className='page-scroll'>
-        {loading ? (
-          <View className='calendar-card loading'>
-            <LoadingSpinner size={48} />
+    <View className={`th-page theme-${effectiveTheme} ${effectiveTheme === 'dark' ? 'cl-theme-dark' : ''}`}>
+      <ScrollView scrollY className='th-scroll'>
+        <View className='th-body'>
+          <View className='th-stats'>
+            {stats.map((item) => (
+              <View key={item.key} className='th-stat'>
+                <Text className='th-stat__value cl-num'>{item.value}</Text>
+                <Text className='th-stat__label'>本月{item.label}</Text>
+              </View>
+            ))}
           </View>
-        ) : (
-          <View className='calendar-card'>
-            <View className='calendar-nav'>
-              <Text className='month-label'>{monthKey}</Text>
-              <View className='nav-btns'>
-                <Text
-                  className='nav-btn'
-                  onClick={() =>
-                    setCurrentMonth(
-                      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
-                    )
-                  }
-                >
-                  ‹
-                </Text>
-                <Text
-                  className='nav-btn'
-                  onClick={() =>
-                    setCurrentMonth(
-                      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
-                    )
-                  }
-                >
-                  ›
-                </Text>
-              </View>
-            </View>
-            <View className='calendar-grid'>
-              {['日', '一', '二', '三', '四', '五', '六'].map(w => (
-                <View key={w} className='weekday-cell'>
-                  <Text>{w}</Text>
-                </View>
-              ))}
-              {monthGrid.map((cell, idx) => (
-                <View
-                  key={`${cell.dateKey || 'blank'}-${idx}`}
-                  className={`day-cell ${!cell.dateKey ? 'empty' : ''} ${selectedDate === cell.dateKey ? 'selected' : ''}`}
-                  onClick={() => cell.dateKey && loadDay(cell.dateKey)}
-                >
-                  {cell.day && (
-                    <>
-                      <Text className='day-num'>{cell.day}</Text>
-                      {cell.dateKey && calendarDays[cell.dateKey] > 0 && (
-                        <Text className='day-sessions'>{calendarDays[cell.dateKey]}次</Text>
-                      )}
-                    </>
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
+          {monthStats ? (
+            <Text className='th-source'>
+              即兴 {monthStats.sourceBreakdown?.impromptu || 0} 次 · 我的计划 {monthStats.sourceBreakdown?.selfPlan || 0} 次 · 教练计划 {monthStats.sourceBreakdown?.coachPlan || 0} 次
+            </Text>
+          ) : null}
 
-        {monthStats && (
-          <View className='stats-card'>
-            <View className='stat-row'>
-              <View className='stat-item'>
-                <Text className='stat-label'>训练天数</Text>
-                <Text className='stat-value'>{monthStats.trainingDays}</Text>
-              </View>
-              <View className='stat-item'>
-                <Text className='stat-label'>训练次数</Text>
-                <Text className='stat-value'>{monthStats.totalSessions}</Text>
+          <View className='th-calendar'>
+            <View className='th-calendar__nav'>
+              <Text className='th-calendar__month cl-num'>{yearText}年{Number(monthText)}月</Text>
+              <View className='th-calendar__arrows'>
+                <View className='th-calendar__arrow' ariaRole='button' ariaLabel='上个月' onClick={() => shiftMonth(-1)}><Text>‹</Text></View>
+                <View className='th-calendar__arrow' ariaRole='button' ariaLabel='下个月' onClick={() => shiftMonth(1)}><Text>›</Text></View>
               </View>
             </View>
-            <View className='stat-row'>
-              <View className='stat-item'>
-                <Text className='stat-label'>完成组数</Text>
-                <Text className='stat-value'>{monthStats.totalSets}</Text>
-              </View>
-              <View className='stat-item'>
-                <Text className='stat-label'>来源占比</Text>
-                <Text className='stat-value stat-breakdown'>
-                  即兴{monthStats.sourceBreakdown?.impromptu || 0} / 我的{monthStats.sourceBreakdown?.selfPlan || 0} / 教练{monthStats.sourceBreakdown?.coachPlan || 0}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        <View className='detail-card'>
-          <Text className='detail-title'>
-            {selectedDate ? `${selectedDate} 训练明细` : '选择日期查看训练明细'}
-          </Text>
-          {loadingDay ? (
-            <LoadingSpinner size={48} />
-          ) : dayItems.length === 0 ? (
-            <Text className='empty-text'>暂无训练记录</Text>
-          ) : (
-            <View className='detail-list'>
-              {dayItems.map(item => (
-                <View
-                  key={`${item.sourceType}-${item.id}`}
-                  className='detail-item'
-                  onClick={() => setExpandedItemId(prev => (prev === item.id ? null : item.id))}
-                >
-                  <View className='detail-item-header'>
-                    <View>
-                      <Text className='item-title'>{item.title}</Text>
-                      <Text className='item-time'>
-                        {formatHourMinute(item.startedAt)}
-                      </Text>
+            {loading ? (
+              <View className='th-calendar__loading'><LoadingSpinner size={48} /></View>
+            ) : (
+              <View className='th-calendar__grid'>
+                {['日', '一', '二', '三', '四', '五', '六'].map((w) => (
+                  <Text key={w} className='th-calendar__weekday'>{w}</Text>
+                ))}
+                {monthGrid.map((cell, idx) => {
+                  const sessions = cell.dateKey ? calendarDays[cell.dateKey] || 0 : 0
+                  const classes = [
+                    'th-day',
+                    !cell.dateKey ? 'th-day--empty' : '',
+                    sessions > 0 ? 'th-day--trained' : '',
+                    cell.dateKey === today ? 'th-day--today' : '',
+                    selectedDate === cell.dateKey ? 'th-day--selected' : ''
+                  ].filter(Boolean).join(' ')
+                  return (
+                    <View
+                      key={`${cell.dateKey || 'blank'}-${idx}`}
+                      className={classes}
+                      ariaRole={cell.dateKey ? 'button' : undefined}
+                      ariaLabel={cell.dateKey ? `${cell.day}日${sessions > 0 ? `，训练 ${sessions} 次` : ''}` : undefined}
+                      onClick={() => cell.dateKey && loadDay(cell.dateKey)}
+                    >
+                      {cell.day ? <Text className='th-day__num cl-num'>{cell.day}</Text> : null}
+                      {sessions > 0 ? <View className='th-day__dot' /> : null}
                     </View>
-                    <View className='item-tags'>
-                      <Text className='tag source'>{getSourceLabel(item.sourceType)}</Text>
-                      <Text className='tag sets'>
-                        {item.completedSets}/{item.totalSets}组
-                      </Text>
-                    </View>
-                  </View>
-                  {expandedItemId === item.id && (
-                    <View className='detail-item-expand'>
-                      {Array.isArray(item.actionSummaries) && item.actionSummaries.length > 0 ? (
-                        item.actionSummaries.map((action: any, idx: number) => (
-                          <View key={idx} className='action-row'>
-                            <Text>{action.actionName}</Text>
-                            <Text className='action-sets'>
-                              {action.completedSets}/{action.totalSets}组
-                            </Text>
-                          </View>
-                        ))
-                      ) : (
-                        <Text className='empty-text'>暂无动作明细</Text>
-                      )}
-                      {item.status === 'completed' && (
-                        <View className='item-actions'>
-                          <View
-                            className={`share-action ${sharingItemId === item.id ? 'disabled' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              void handleShareHistoryItem(item)
-                            }}
-                          >
-                            <Text>{sharingItemId === item.id ? '正在准备分享...' : '分享本次训练'}</Text>
-                          </View>
+                  )
+                })}
+              </View>
+            )}
+          </View>
+
+          <View className='th-detail'>
+            <Text className='th-detail__title'>
+              {selectedDate ? `${Number(selectedDate.slice(5, 7))}月${Number(selectedDate.slice(8, 10))}日的训练` : '选择日期查看训练明细'}
+            </Text>
+            {loadingDay ? (
+              <View className='th-calendar__loading'><LoadingSpinner size={48} /></View>
+            ) : dayItems.length === 0 ? (
+              <Text className='th-empty'>{selectedDate ? '这天没有训练记录' : '点日历上的日期查看当天训练'}</Text>
+            ) : (
+              <View className='th-list'>
+                {dayItems.map((item) => {
+                  const expanded = expandedItemId === item.id
+                  return (
+                    <View
+                      key={`${item.sourceType}-${item.id}`}
+                      className='th-item'
+                      onClick={() => setExpandedItemId((prev) => (prev === item.id ? null : item.id))}
+                    >
+                      <View className='th-item__head'>
+                        <View className='th-item__copy'>
+                          <Text className='th-item__title'>{item.title}</Text>
+                          <Text className='th-item__meta cl-num'>
+                            {formatHourMinute(item.startedAt)} · {item.completedSets}/{item.totalSets} 组
+                          </Text>
                         </View>
-                      )}
+                        <ClTag tone={item.sourceType === 'COACH_PLAN' ? 'clay' : 'neutral'}>{getSourceLabel(item.sourceType)}</ClTag>
+                        <Text className={`th-item__arrow ${expanded ? 'th-item__arrow--open' : ''}`}>›</Text>
+                      </View>
+                      {expanded ? (
+                        <View className='th-item__body'>
+                          {Array.isArray(item.actionSummaries) && item.actionSummaries.length > 0 ? (
+                            item.actionSummaries.map((action: any, idx: number) => (
+                              <View key={idx} className='th-action'>
+                                <Text className='th-action__name'>{action.actionName}</Text>
+                                <Text className='th-action__sets cl-num'>{action.completedSets}/{action.totalSets} 组</Text>
+                              </View>
+                            ))
+                          ) : (
+                            <Text className='th-empty'>暂无动作明细</Text>
+                          )}
+                          {item.status === 'completed' ? (
+                            <Text
+                              className={`th-item__share ${sharingItemId === item.id ? 'th-item__share--busy' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                void handleShareHistoryItem(item)
+                              }}
+                            >
+                              {sharingItemId === item.id ? '正在准备分享…' : '分享本次训练 ›'}
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : null}
                     </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
+                  )
+                })}
+              </View>
+            )}
+          </View>
+
+          <ClButton variant='secondary' block onClick={handleImpromptu}>开始即兴训练</ClButton>
         </View>
       </ScrollView>
     </View>

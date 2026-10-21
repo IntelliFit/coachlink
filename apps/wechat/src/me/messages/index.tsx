@@ -7,7 +7,7 @@ import { authService } from '@/services/authService'
 import { chatService, type ChatroomItem, CHAT_UNREAD_BADGE_REFRESH_EVENT } from '@/services/chatService'
 import { request } from '@/utils/request'
 import { openCoachChat } from '@/utils/coachChat'
-import { Location, Message } from '@nutui/icons-react-taro'
+import { Message } from '@nutui/icons-react-taro'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 
@@ -295,7 +295,7 @@ function MessagesPage() {
           ) : filteredChatrooms.length === 0 ? (
             <View className='empty-state'>
               <View className='empty-icon-wrap'>
-                <Location width={32} height={32} color='#CF6D4E' />
+                <Message width={32} height={32} color='#B4553A' />
               </View>
               <Text className='empty-text'>暂无会话</Text>
               <Text className='empty-hint'>下拉刷新，或从上方进入好友页添加联系人</Text>

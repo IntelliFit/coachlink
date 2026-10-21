@@ -2,25 +2,25 @@
 .contact-info {
   margin: 24rpx 0;
   padding: 24rpx;
-  background: #f9f9f9;
+  background: var(--cl-sunk);
   border-radius: 8rpx;
 }
 .contact-label {
   font-size: 26rpx;
-  color: #999;
+  color: var(--cl-ink-3);
   display: block;
   margin-top: 16rpx;
   &:first-child { margin-top: 0; }
 }
 .contact-value {
   font-size: 30rpx;
-  color: #333;
+  color: var(--cl-ink);
   display: block;
   margin-bottom: 8rpx;
 }
 .contact-hint {
   font-size: 24rpx;
-  color: #999;
+  color: var(--cl-ink-3);
   display: block;
   margin-top: 0rpx;
 }
@@ -33,7 +33,7 @@
   text-align: center;
   font-size: 30rpx;
   &.primary {
-    background: #cf6d4e;
-    color: #fff;
+    background: var(--cl-clay-strong);
+    color: var(--cl-on-accent);
   }
 }

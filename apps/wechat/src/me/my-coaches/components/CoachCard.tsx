@@ -100,16 +100,17 @@ export default function CoachCard({ subscription, aggregated, onDetail, onRenew,
       <View className='metrics-row'>
         <View className='metric-item'>
           <Text className='metric-label'>内容</Text>
-          <Text className='metric-value'>{aggregated?.contentCount ?? 0}</Text>
+          <Text className='metric-value'>{aggregated ? aggregated.contentCount ?? 0 : '—'}</Text>
         </View>
         <View className='metric-item'>
           <Text className='metric-label'>学员</Text>
-          <Text className='metric-value'>{aggregated?.studentCount ?? 0}</Text>
+          <Text className='metric-value'>{aggregated ? aggregated.studentCount ?? 0 : '—'}</Text>
         </View>
         <View className='metric-item'>
           <Text className='metric-label'>评分</Text>
           <Text className='metric-value metric-value-rating'>
-            {aggregated?.averageRating?.toFixed(1) ?? '0.0'}
+            {/* Stats arrive a few seconds after the card; show a dash, not a misleading 0. */}
+            {!aggregated ? '—' : aggregated.averageRating ? aggregated.averageRating.toFixed(1) : '暂无'}
           </Text>
         </View>
       </View>

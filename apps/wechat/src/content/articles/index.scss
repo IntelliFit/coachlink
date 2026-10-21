@@ -1,6 +1,6 @@
 .articles-page {
   min-height: 100vh;
-  background: #f8f8f6;
+  background: var(--cl-paper);
   padding: 24rpx 32rpx 64rpx;
 }
 
@@ -13,7 +13,7 @@
   font-size: 44rpx;
   line-height: 1.2;
   font-weight: 800;
-  color: #111111;
+  color: var(--cl-ink);
 }
 
 .articles-page-sub {
@@ -22,7 +22,7 @@
   font-size: 26rpx;
   line-height: 1.5;
   font-weight: 600;
-  color: #7a8190;
+  color: var(--cl-ink-2);
 }
 
 .articles-total {
@@ -31,7 +31,7 @@
   font-size: 22rpx;
   line-height: 1.35;
   font-weight: 700;
-  color: #99a2b3;
+  color: var(--cl-ink-3);
 }
 
 .articles-list {
@@ -42,8 +42,8 @@
 
 .article-card {
   padding: 24rpx;
-  background: #ffffff;
-  border: 2rpx solid #e4e8ee;
+  background: var(--cl-card);
+  border: 2rpx solid var(--cl-line);
   border-radius: 24rpx;
 
   &:active {
@@ -70,7 +70,7 @@
   height: 40rpx;
   border-radius: 20rpx;
   overflow: hidden;
-  border: 2rpx solid #edf0f5;
+  border: 2rpx solid var(--cl-line);
   flex-shrink: 0;
 }
 
@@ -95,7 +95,7 @@
   font-size: 22rpx;
   line-height: 1.35;
   font-weight: 700;
-  color: #5f697a;
+  color: var(--cl-ink-2);
 }
 
 .article-badge {
@@ -114,25 +114,25 @@
 }
 
 .article-badge-free {
-  background: #edf7ef;
-  color: #2b8a58;
+  background: var(--cl-done-soft);
+  color: var(--cl-done);
 }
 
 .article-badge-paid {
-  background: #fef3e4;
-  color: #b45309;
+  background: var(--cl-clay-soft);
+  color: var(--cl-warn-text);
 }
 
 .article-badge-locked {
-  background: #f8f8f6;
-  color: #99a2b3;
+  background: var(--cl-sunk);
+  color: var(--cl-ink-3);
 }
 
 .article-date {
   font-size: 20rpx;
   line-height: 1.35;
   font-weight: 700;
-  color: #99a2b3;
+  color: var(--cl-ink-3);
 }
 
 .article-card-title {
@@ -140,7 +140,7 @@
   font-size: 28rpx;
   line-height: 1.45;
   font-weight: 800;
-  color: #1d2433;
+  color: var(--cl-ink);
   margin-bottom: 8rpx;
 }
 
@@ -148,7 +148,7 @@
   display: block;
   font-size: 24rpx;
   line-height: 1.5;
-  color: #667082;
+  color: var(--cl-ink-2);
   margin-bottom: 16rpx;
 }
 
@@ -184,7 +184,7 @@
 
 .article-link-secondary {
   text {
-    color: #7c8596;
+    color: var(--cl-ink-2);
   }
 }
 
@@ -198,7 +198,7 @@
   font-size: 26rpx;
   line-height: 1.5;
   font-weight: 700;
-  color: #99a2b3;
+  color: var(--cl-ink-3);
 }
 
 .articles-skeleton {
@@ -209,14 +209,14 @@
 
 .skeleton-card {
   padding: 24rpx;
-  background: #ffffff;
-  border: 2rpx dashed #e4e8ee;
+  background: var(--cl-card);
+  border: 2rpx dashed var(--cl-line);
   border-radius: 24rpx;
 }
 
 .skeleton-line {
   height: 20rpx;
-  background: #eef1f5;
+  background: var(--cl-line);
   border-radius: 10rpx;
   animation: skeleton-pulse 1.4s ease-in-out infinite;
 }

@@ -1,0 +1,290 @@
+@use '../../styles/tokens' as *;
+
+/* 训练完成总结页（全屏，替代原来的底部弹层 + 反馈弹窗）。只用 v1 设计变量。 */
+.ws-page {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+}
+
+.ws-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.ws-body {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-4;
+  padding: $cl-space-6 $cl-page-gutter $cl-space-4;
+}
+
+.ws-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.ws-title {
+  color: var(--cl-ink);
+  font-size: $cl-font-title;
+  line-height: $cl-line-title;
+  font-weight: 700;
+}
+
+.ws-subtitle {
+  color: var(--cl-ink-2);
+  font-size: $cl-font-meta;
+  line-height: $cl-line-meta;
+}
+
+.ws-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $cl-space-2;
+}
+
+.ws-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  padding: $cl-space-3;
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-card;
+  background: var(--cl-card);
+}
+
+.ws-stat__label {
+  color: var(--cl-ink-3);
+  font-size: 24rpx;
+  line-height: 32rpx;
+}
+
+.ws-stat__value {
+  color: var(--cl-ink);
+  font-size: $cl-font-section;
+  line-height: $cl-line-section;
+  font-weight: 700;
+}
+
+.ws-stat__unit {
+  color: var(--cl-ink-3);
+  font-size: 24rpx;
+  font-weight: 400;
+}
+
+.ws-note {
+  color: var(--cl-ink-3);
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.ws-section {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-2;
+}
+
+.ws-section__title {
+  color: var(--cl-ink);
+  font-size: $cl-font-card;
+  line-height: $cl-line-card;
+  font-weight: 700;
+}
+
+.ws-pr {
+  display: flex;
+  align-items: center;
+  gap: $cl-space-2;
+  padding: $cl-space-3;
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-button;
+  background: var(--cl-card);
+}
+
+.ws-pr__copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.ws-pr__name {
+  overflow: hidden;
+  color: var(--cl-ink);
+  font-size: $cl-font-body;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ws-pr__meta {
+  color: var(--cl-ink-3);
+  font-size: 24rpx;
+}
+
+.ws-pr__record {
+  flex-shrink: 0;
+  color: var(--cl-clay-text);
+  font-size: $cl-font-body;
+  font-weight: 700;
+}
+
+.ws-bodymaps {
+  display: flex;
+  gap: $cl-space-2;
+  padding: $cl-space-3;
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-card;
+  background: #FFFFFF;
+}
+
+.ws-bodymap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+/* The poster body-map PNGs (308×500) carry 32px opaque black bands top and bottom for the
+   dark poster. Crop them here: show only the 436px body area and shift the image up. */
+.ws-bodymap__stack {
+  position: relative;
+  width: 288rpx;
+  height: 400rpx;
+  overflow: hidden;
+}
+
+.ws-bodymap__img {
+  position: absolute;
+  top: -34rpx;
+  left: 0;
+  width: 288rpx;
+  height: 468rpx;
+}
+
+.ws-bodymap__caption {
+  color: #736A5F;
+  font-size: 22rpx;
+}
+
+.ws-muscle {
+  display: flex;
+  align-items: center;
+  gap: $cl-space-2;
+}
+
+.ws-muscle__name {
+  width: 160rpx;
+  flex-shrink: 0;
+  color: var(--cl-ink-2);
+  font-size: $cl-font-meta;
+}
+
+.ws-muscle__track {
+  flex: 1;
+  height: 16rpx;
+  overflow: hidden;
+  border-radius: $cl-radius-pill;
+  background: var(--cl-sunk);
+}
+
+.ws-muscle__fill {
+  height: 100%;
+  border-radius: $cl-radius-pill;
+  background: var(--cl-clay);
+}
+
+.ws-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $cl-space-2;
+  padding: $cl-space-2 0;
+  border-bottom: 2rpx solid var(--cl-line-soft);
+}
+
+.ws-action__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cl-ink);
+  font-size: $cl-font-body;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ws-action__meta {
+  flex-shrink: 0;
+  color: var(--cl-ink-3);
+  font-size: $cl-font-meta;
+}
+
+.ws-feel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: $cl-space-1;
+}
+
+.ws-feel__option {
+  height: $cl-button-sm + 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid var(--cl-line);
+  border-radius: $cl-radius-button;
+  background: var(--cl-card);
+  color: var(--cl-ink-2);
+  font-size: 24rpx;
+
+  &--on {
+    border-color: var(--cl-selected-bg);
+    background: var(--cl-selected-bg);
+    color: var(--cl-selected-text);
+    font-weight: 500;
+  }
+}
+
+.ws-feedback {
+  width: 100%;
+  height: 176rpx;
+  padding: $cl-space-2 $cl-space-3;
+  box-sizing: border-box;
+  border: 2rpx solid var(--cl-control-line);
+  border-radius: $cl-radius-button;
+  background: var(--cl-card);
+  color: var(--cl-ink);
+  font-size: $cl-font-body;
+  line-height: $cl-line-body;
+}
+
+.ws-feedback__count {
+  align-self: flex-end;
+  color: var(--cl-ink-4);
+  font-size: 22rpx;
+}
+
+.ws-bar {
+  display: flex;
+  gap: $cl-space-2;
+  padding: $cl-space-2 $cl-page-gutter calc(#{$cl-space-2} + env(safe-area-inset-bottom));
+  border-top: 2rpx solid var(--cl-line);
+  background: var(--cl-card);
+}
+
+.ws-bar__poster {
+  flex: 1;
+}
+
+.ws-bar__done {
+  flex: 1.4;
+}

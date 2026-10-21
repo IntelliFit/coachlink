@@ -1,6 +1,6 @@
 .fitness-card-page {
   min-height: 100vh;
-  background: #F3F4F6;
+  background: var(--cl-paper);
 }
 
 .page-scroll {
@@ -12,7 +12,7 @@
 }
 
 .profile-preview {
-  background: #FFFFFF;
+  background: var(--cl-card);
   border-radius: 24rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
@@ -29,7 +29,7 @@
   display: block;
   font-size: 36rpx;
   font-weight: 700;
-  color: #222222;
+  color: var(--cl-ink);
   line-height: 1.4;
 }
 
@@ -37,29 +37,29 @@
   flex-shrink: 0;
   padding: 8rpx 16rpx;
   border-radius: 9999rpx;
-  background: #FFF1EC;
+  background: var(--cl-clay-soft);
 }
 
 .completion-badge--done {
-  background: #EAF7F1;
+  background: var(--cl-done-soft);
 }
 
 .completion-badge-text {
   font-size: 22rpx;
   font-weight: 700;
-  color: #CF6D4E;
+  color: var(--cl-clay);
   line-height: 1.4;
 }
 
 .completion-badge--done .completion-badge-text {
-  color: #2F7D68;
+  color: var(--cl-done);
 }
 
 .preview-desc {
   display: block;
   margin-top: 8rpx;
   font-size: 24rpx;
-  color: #888888;
+  color: var(--cl-ink-3);
   line-height: 1.6;
 }
 
@@ -67,18 +67,18 @@
   margin-top: 16rpx;
   padding: 16rpx;
   border-radius: 16rpx;
-  background: #FFF8F5;
+  background: var(--cl-clay-soft);
 }
 
 .completion-hint-text {
   display: block;
   font-size: 24rpx;
-  color: #8A4B38;
+  color: var(--cl-clay-text);
   line-height: 1.5;
 }
 
 .field-list {
-  background: #FFFFFF;
+  background: var(--cl-card);
   border-radius: 24rpx;
   overflow: hidden;
 }
@@ -90,7 +90,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 24rpx;
-  border-bottom: 1rpx solid #F0F0F0;
+  border-bottom: 1rpx solid var(--cl-sunk);
   box-sizing: border-box;
 }
 
@@ -103,7 +103,7 @@
 }
 
 .field-row:active {
-  background: #F8F8F8;
+  background: var(--cl-sunk);
 }
 
 .field-row-main {
@@ -116,26 +116,26 @@
 
 .field-label {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--cl-ink-3);
   line-height: 1.4;
 }
 
 .field-value {
   font-size: 30rpx;
   font-weight: 600;
-  color: #222222;
+  color: var(--cl-ink);
   line-height: 1.4;
   word-break: break-word;
 }
 
 .field-value--empty {
-  color: #999999;
+  color: var(--cl-ink-3);
 }
 
 .field-arrow {
   flex-shrink: 0;
   font-size: 40rpx;
-  color: #CCCCCC;
+  color: var(--cl-line);
   line-height: 1;
 }
 
@@ -161,7 +161,7 @@
 }
 
 .avatar-empty {
-  background: #F5F1EE;
+  background: var(--cl-sunk);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -169,7 +169,7 @@
 
 .avatar-empty-text {
   font-size: 24rpx;
-  color: #CF6D4E;
+  color: var(--cl-clay);
 }
 
 .dialog-body {
@@ -183,7 +183,7 @@
 .multi-hint {
   display: block;
   font-size: 24rpx;
-  color: #999999;
+  color: var(--cl-ink-3);
   line-height: 1.5;
   margin-bottom: 24rpx;
 }
@@ -197,23 +197,23 @@
 .tag-chip {
   padding: 16rpx 24rpx;
   border-radius: 9999rpx;
-  background: #F5F5F5;
-  border: 1rpx solid #EEEEEE;
+  background: var(--cl-sunk);
+  border: 1rpx solid var(--cl-line);
 }
 
 .tag-chip--active {
-  background: #CF6D4E;
-  border-color: #CF6D4E;
+  background: var(--cl-clay-strong);
+  border-color: var(--cl-clay);
 }
 
 .tag-chip-text {
   font-size: 26rpx;
-  color: #666666;
+  color: var(--cl-ink-2);
   line-height: 1.4;
 }
 
 .tag-chip--active .tag-chip-text {
-  color: #FFFFFF;
+  color: var(--cl-on-accent);
 }
 
 .fitness-picker-popup {

@@ -388,7 +388,7 @@ export default function BookDetail() {
               />
             ) : (
               <View className='book-cover-placeholder'>
-                <Icon component={BookIcon} size={48} color='#9ca3af' />
+                <Icon component={BookIcon} size={40} color='#B4553A' />
               </View>
             )}
           </View>

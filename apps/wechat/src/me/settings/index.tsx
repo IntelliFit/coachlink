@@ -178,7 +178,7 @@ function SettingsPage() {
                     <Text className='item-desc'>定期更换密码保护账号安全</Text>
                   </View>
                 </View>
-                <Text className='item-arrow'>→</Text>
+                <Text className='item-arrow'>›</Text>
               </View>
             </View>
           </View>
@@ -234,14 +234,14 @@ function SettingsPage() {
                     <Text className='item-desc'>清除本地缓存和未保存草稿，不会退出登录</Text>
                   </View>
                 </View>
-                <Text className='item-arrow'>→</Text>
+                <Text className='item-arrow'>›</Text>
               </View>
               <View className='setting-item' onClick={handleLogout}>
                 <View className='item-left'>
                   <View className='item-icon'><Power /></View>
                   <Text className='item-title'>退出登录</Text>
                 </View>
-                <Text className='item-arrow'>→</Text>
+                <Text className='item-arrow'>›</Text>
               </View>
             </View>
           </View>

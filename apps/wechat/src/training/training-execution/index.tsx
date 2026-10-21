@@ -12,6 +12,7 @@ import { formatPosterSetText } from './posterSetText'
 import { previousCompletedWeight } from './setDefaults'
 import { resolveWeappImageThumbnailUrl } from '@/utils/mediaUrl'
 import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
+import { ClButton, ClTag } from '@/components/ui'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { trainingService } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
@@ -45,6 +46,7 @@ import posterBackGlutes from '@/assets/body-map/poster/back-glutes.png'
 import posterBackLegs from '@/assets/body-map/poster/back-legs.png'
 import posterBackShoulders from '@/assets/body-map/poster/back-shoulders.png'
 import './index.scss'
+import './workoutSummary.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { useSharePoster } from '@/hooks/useSharePoster'
 import {
@@ -453,7 +455,6 @@ function TrainingExecution() {
   const [feedbackContent, setFeedbackContent] = React.useState('')
   const [feedbackDifficulty, setFeedbackDifficulty] = React.useState<number>(3)
   const [feedbackSubmitting, setFeedbackSubmitting] = React.useState(false)
-  const [pendingSharePath, setPendingSharePath] = React.useState('')
   const [showWorkoutSummary, setShowWorkoutSummary] = React.useState(false)
   const startTrainingRef = React.useRef<((requestedIntent?: TrainingIntent) => Promise<void>) | null>(null)
   const startTrainingInFlightRef = React.useRef<Promise<void> | null>(null)
@@ -1532,54 +1533,6 @@ function TrainingExecution() {
     setShowWorkoutSummary(true)
   }, [])
 
-  const handleSkipFeedback = React.useCallback(() => {
-    const sharePath = pendingSharePath
-    setShowFeedbackDialog(false)
-    setFeedbackContent('')
-    setFeedbackDifficulty(3)
-    setPendingSharePath('')
-    handlePostFinishFlow(sharePath)
-  }, [handlePostFinishFlow, pendingSharePath])
-
-  const handleSubmitFeedback = React.useCallback(async () => {
-    if (!execution?.id || feedbackSubmitting) return
-
-    const content = feedbackContent.trim()
-    if (!content) {
-      Taro.showToast({ title: '请先填写反馈内容', icon: 'none' })
-      return
-    }
-
-    const sharePath = pendingSharePath
-    setFeedbackSubmitting(true)
-    try {
-      const res = await executionService.submitFeedback({
-        executionId: execution.id,
-        content,
-        difficultyRating: feedbackDifficulty
-      })
-      if (res) {
-        Taro.showToast({ title: '反馈已发送', icon: 'success' })
-      } else {
-        Taro.showToast({ title: '反馈发送失败，已继续', icon: 'none' })
-      }
-    } catch (e: any) {
-      const message = String(e?.message || '')
-      if (message.includes('已提交过反馈')) {
-        Taro.showToast({ title: '本次训练已提交过反馈', icon: 'none' })
-      } else {
-        Taro.showToast({ title: '反馈发送失败，已继续', icon: 'none' })
-      }
-    } finally {
-      setFeedbackSubmitting(false)
-      setShowFeedbackDialog(false)
-      setFeedbackContent('')
-      setFeedbackDifficulty(3)
-      setPendingSharePath('')
-      handlePostFinishFlow(sharePath)
-    }
-  }, [execution?.id, feedbackContent, feedbackDifficulty, feedbackSubmitting, handlePostFinishFlow, pendingSharePath])
-
   // 完成训练
   const handleFinishTraining = async () => {
     if (isReadOnly && !canLateCompleteTimedOut) {
@@ -1657,12 +1610,8 @@ function TrainingExecution() {
                 }
               }
 
-              if (shouldAskCoachFeedback) {
-                setPendingSharePath(sharePath)
-                setShowFeedbackDialog(true)
-                return
-              }
-
+              // Coach plans ask for feedback inside the summary page (no separate dialog).
+              setShowFeedbackDialog(shouldAskCoachFeedback)
               handlePostFinishFlow(sharePath)
             } else {
               Taro.showToast({ title: '完成失败', icon: 'none' })
@@ -1755,12 +1704,8 @@ function TrainingExecution() {
                 }
               }
 
-              if (shouldAskCoachFeedback) {
-                setPendingSharePath(sharePath)
-                setShowFeedbackDialog(true)
-                return
-              }
-
+              // Coach plans ask for feedback inside the summary page (no separate dialog).
+              setShowFeedbackDialog(shouldAskCoachFeedback)
               handlePostFinishFlow(sharePath)
             } else {
               Taro.showToast({ title: '完成失败', icon: 'none' })
@@ -2536,6 +2481,13 @@ function TrainingExecution() {
     .map((muscle) => WORKOUT_POSTER_BODY_MAP_LAYERS[muscle]?.back)
     .filter((src): src is string => Boolean(src))
   const workoutSummaryMaxScore = Math.max(1, ...workoutSummary.muscles.map((item) => item.score))
+  const workoutPlannedSetTotal = actionExecutions.reduce((sum: number, item: ActionExecution) => sum + (item.total_sets || 0), 0)
+  const workoutPrSets: Array<{ key: string; name: string; setNumber: number; record: string }> = []
+  workoutSummary.actionRows.forEach((row: any) => {
+    ;(row.sets || []).filter((set: any) => set.isPr).forEach((set: any) => {
+      workoutPrSets.push({ key: `${row.id}-${set.setNumber}`, name: row.name, setNumber: set.setNumber, record: set.recordText })
+    })
+  })
   const isWorkoutCompleted = isCompletedExecution
   const canOpenWorkoutSummary = isWorkoutCompleted && workoutSummary.completedSetTotal > 0
   const posterNickname = String(currentUser?.nickname || currentUser?.name || '训练者').trim() || '训练者'
@@ -2723,6 +2675,32 @@ function TrainingExecution() {
   const handleLeaveAfterSummary = () => {
     setShowWorkoutSummary(false)
     handleBackToTodayTraining()
+  }
+
+  /** "完成" on the summary page: send the optional coach feedback, then leave. */
+  const handleCompleteSummary = async () => {
+    if (feedbackSubmitting) return
+    const content = feedbackContent.trim()
+    if (showFeedbackDialog && content && execution?.id) {
+      setFeedbackSubmitting(true)
+      try {
+        const res = await executionService.submitFeedback({
+          executionId: execution.id,
+          content,
+          difficultyRating: feedbackDifficulty
+        })
+        Taro.showToast({ title: res ? '反馈已发送' : '反馈发送失败，已继续', icon: res ? 'success' : 'none' })
+      } catch (e: any) {
+        const message = String(e?.message || '')
+        Taro.showToast({ title: message.includes('已提交过反馈') ? '本次训练已提交过反馈' : '反馈发送失败，已继续', icon: 'none' })
+      } finally {
+        setFeedbackSubmitting(false)
+      }
+    }
+    setShowFeedbackDialog(false)
+    setFeedbackContent('')
+    setFeedbackDifficulty(3)
+    handleLeaveAfterSummary()
   }
 
   const executionNoticePopup = <ExecutionPlanNoticePopup visible={executionNoticeVisible}
@@ -3510,108 +3488,176 @@ function TrainingExecution() {
       )}
 
       {showWorkoutSummary && (
-        <View className="workout-summary-mask" onClick={() => setShowWorkoutSummary(false)}>
-          <View className="workout-summary-sheet" onClick={(e) => e.stopPropagation()}>
-            <View className="summary-header">
-              <View>
-                <Text className="summary-eyebrow">TRAINING COMPLETE</Text>
-                <Text className="summary-title">训练完成</Text>
+        <View className="ws-page">
+          <ScrollView scrollY className="ws-scroll">
+            <View className="ws-body">
+              <View className="ws-head">
+                <Text className="ws-title">训练完成</Text>
+                <Text className="ws-subtitle">
+                  {[
+                    isImpromptuMode ? '即兴锻炼' : `第 ${dayIndex} 天`,
+                    formatWorkoutPosterDateLabel(execution?.completed_at || execution?.started_at),
+                    planTitle && !isImpromptuMode ? planTitle : ''
+                  ].filter(Boolean).join(' · ')}
+                </Text>
               </View>
-              <Text className="summary-close" onClick={() => setShowWorkoutSummary(false)}>关闭</Text>
-            </View>
 
-            <View className="summary-heatmap-row">
-              <View className="summary-body-map">
-                <View className="summary-body-image-stack">
-                  <Image className="summary-body-image" src={posterFrontBase} mode="aspectFit" />
-                  {heatmapFrontLayers.map((src) => (
-                    <Image key={src} className="summary-body-image summary-body-image--layer" src={src} mode="aspectFit" />
-                  ))}
-                </View>
-                <Text className="summary-body-caption">正面</Text>
-              </View>
-              <View className="summary-body-map">
-                <View className="summary-body-image-stack">
-                  <Image className="summary-body-image" src={posterBackBase} mode="aspectFit" />
-                  {heatmapBackLayers.map((src) => (
-                    <Image key={src} className="summary-body-image summary-body-image--layer" src={src} mode="aspectFit" />
-                  ))}
-                </View>
-                <Text className="summary-body-caption">背面</Text>
-              </View>
-            </View>
-
-            <View className="summary-stat-grid">
-              {workoutSummary.totalVolume > 0 ? (
-                <View className="summary-stat">
-                  <Text className="summary-stat-value">{Math.round(workoutSummary.totalVolume)}</Text>
-                  <Text className="summary-stat-label">总容量 kg</Text>
-                </View>
-              ) : null}
-              {workoutSummary.cardioDistanceKm > 0 ? (
-                <View className="summary-stat">
-                  <Text className="summary-stat-value">{workoutSummary.cardioDistanceKm.toFixed(1)}</Text>
-                  <Text className="summary-stat-label">有氧公里</Text>
-                </View>
-              ) : null}
-              <View className="summary-stat">
-                <Text className="summary-stat-value">{workoutSummary.completedSetTotal}</Text>
-                <Text className="summary-stat-label">完成项目</Text>
-              </View>
-              <View className="summary-stat">
-                <Text className="summary-stat-value">{workoutSummary.durationMin || '-'}</Text>
-                <Text className="summary-stat-label">分钟</Text>
-              </View>
-              {workoutSummary.calories > 0 ? (
-                <View className="summary-stat">
-                  <Text className="summary-stat-value">{Math.round(workoutSummary.calories)}</Text>
-                  <Text className="summary-stat-label">AI估算 kcal</Text>
-                </View>
-              ) : null}
-            </View>
-            <Text className="summary-energy-note">
-              {workoutSummary.calories > 0
-                ? `热量按体重、实际时长与2024运动MET估算${execution?.energy_estimate?.method === 'ai_assisted_2024_compendium' ? '，AI用于强度分类' : ''}；未接入心率设备时不等同实验室实测。`
-                : '完善个人体重并记录有氧时长后，才能生成可复算的训练热量估算。'}
-            </Text>
-
-            <View className="summary-muscle-list">
-              {(workoutSummary.muscles.length > 0 ? workoutSummary.muscles : [{ label: '全身', score: 1 }]).slice(0, 5).map((item) => (
-                <View key={item.label} className="summary-muscle-row">
-                  <Text className="summary-muscle-name">{item.label}</Text>
-                  <View className="summary-muscle-track">
-                    <View className="summary-muscle-fill" style={{ width: `${Math.max(12, Math.round((item.score / workoutSummaryMaxScore) * 100))}%` }} />
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            <ScrollView scrollY className="summary-action-list">
-              {workoutSummary.actionRows.slice(0, 8).map((item) => (
-                <View key={item.id} className="summary-action-row">
-                  <Text className="summary-action-name">{item.name}</Text>
-                  <Text className="summary-action-meta">
-                    {item.type === 'CARDIO'
-                      ? [
-                          item.durationMin > 0 ? `${Math.round(item.durationMin)}分钟` : null,
-                          item.distanceKm > 0 ? `${item.distanceKm.toFixed(1)}km` : null,
-                          item.calories > 0 ? `${Math.round(item.calories)}kcal` : null
-                        ].filter(Boolean).join(' · ') || '已完成'
-                      : `${item.setsCount}组 · ${Math.round(item.volume)}kg${item.calories > 0 ? ` · ${Math.round(item.calories)}kcal` : ''}`}
+              <View className="ws-stats">
+                <View className="ws-stat">
+                  <Text className="ws-stat__label">完成组数</Text>
+                  <Text className="ws-stat__value cl-num">
+                    {workoutSummary.completedSetTotal}
+                    {workoutPlannedSetTotal > 0 ? <Text className="ws-stat__unit"> / {workoutPlannedSetTotal}</Text> : null}
                   </Text>
                 </View>
-              ))}
-              {workoutSummary.actionRows.length === 0 && (
-                <Text className="summary-empty">本次暂无已完成力量组，先保存几组再生成训练热力图。</Text>
-              )}
-            </ScrollView>
-
-            <View className="summary-actions">
-              <Text className="summary-secondary-btn" onClick={handleLeaveAfterSummary}>返回</Text>
-              <Text className={`summary-primary-btn ${workoutPosterGenerating ? 'disabled' : ''}`} onClick={handleGenerateWorkoutPoster}>
-                {workoutPosterGenerating ? '生成中...' : '生成打卡图'}
+                {workoutSummary.totalVolume > 0 ? (
+                  <View className="ws-stat">
+                    <Text className="ws-stat__label">总容量</Text>
+                    <Text className="ws-stat__value cl-num">{Math.round(workoutSummary.totalVolume).toLocaleString('en-US')}<Text className="ws-stat__unit"> kg</Text></Text>
+                  </View>
+                ) : null}
+                {workoutSummary.cardioDistanceKm > 0 ? (
+                  <View className="ws-stat">
+                    <Text className="ws-stat__label">有氧距离</Text>
+                    <Text className="ws-stat__value cl-num">{workoutSummary.cardioDistanceKm.toFixed(1)}<Text className="ws-stat__unit"> km</Text></Text>
+                  </View>
+                ) : null}
+                <View className="ws-stat">
+                  <Text className="ws-stat__label">时长</Text>
+                  <Text className="ws-stat__value cl-num">{workoutSummary.durationMin || '-'}<Text className="ws-stat__unit"> 分钟</Text></Text>
+                </View>
+                {workoutSummary.calories > 0 ? (
+                  <View className="ws-stat">
+                    <Text className="ws-stat__label">AI 估算消耗</Text>
+                    <Text className="ws-stat__value cl-num">{Math.round(workoutSummary.calories)}<Text className="ws-stat__unit"> kcal</Text></Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text className="ws-note">
+                {workoutSummary.calories > 0
+                  ? `热量按体重、实际时长与2024运动MET估算${execution?.energy_estimate?.method === 'ai_assisted_2024_compendium' ? '，AI用于强度分类' : ''}；未接入心率设备时不等同实验室实测。`
+                  : '完善个人体重并记录有氧时长后，才能生成可复算的训练热量估算。'}
               </Text>
+
+              {workoutPrSets.length > 0 ? (
+                <View className="ws-section">
+                  <Text className="ws-section__title">这次的进步</Text>
+                  {workoutPrSets.map((item) => (
+                    <View key={item.key} className="ws-pr">
+                      <ClTag tone="clay">新纪录</ClTag>
+                      <View className="ws-pr__copy">
+                        <Text className="ws-pr__name">{item.name}</Text>
+                        <Text className="ws-pr__meta">第 {item.setNumber} 组</Text>
+                      </View>
+                      <Text className="ws-pr__record cl-num">{item.record}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              <View className="ws-section">
+                <Text className="ws-section__title">练到的肌群</Text>
+                <View className="ws-bodymaps">
+                  <View className="ws-bodymap">
+                    <View className="ws-bodymap__stack">
+                      <Image className="ws-bodymap__img" src={posterFrontBase} mode="aspectFit" />
+                      {heatmapFrontLayers.map((src) => (
+                        <Image key={src} className="ws-bodymap__img ws-bodymap__img--layer" src={src} mode="aspectFit" />
+                      ))}
+                    </View>
+                    <Text className="ws-bodymap__caption">正面</Text>
+                  </View>
+                  <View className="ws-bodymap">
+                    <View className="ws-bodymap__stack">
+                      <Image className="ws-bodymap__img" src={posterBackBase} mode="aspectFit" />
+                      {heatmapBackLayers.map((src) => (
+                        <Image key={src} className="ws-bodymap__img ws-bodymap__img--layer" src={src} mode="aspectFit" />
+                      ))}
+                    </View>
+                    <Text className="ws-bodymap__caption">背面</Text>
+                  </View>
+                </View>
+                {(workoutSummary.muscles.length > 0 ? workoutSummary.muscles : [{ label: '全身', score: 1 }]).slice(0, 5).map((item) => (
+                  <View key={item.label} className="ws-muscle">
+                    <Text className="ws-muscle__name">{item.label}</Text>
+                    <View className="ws-muscle__track">
+                      <View className="ws-muscle__fill" style={{ width: `${Math.max(12, Math.round((item.score / workoutSummaryMaxScore) * 100))}%` }} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              <View className="ws-section">
+                <Text className="ws-section__title">完成的动作</Text>
+                {workoutSummary.actionRows.length === 0 ? (
+                  <Text className="ws-note">本次暂无已完成力量组，先保存几组再生成训练热力图。</Text>
+                ) : workoutSummary.actionRows.map((item) => (
+                  <View key={item.id} className="ws-action">
+                    <Text className="ws-action__name">{item.name}</Text>
+                    <Text className="ws-action__meta cl-num">
+                      {item.type === 'CARDIO'
+                        ? [
+                            item.durationMin > 0 ? `${Math.round(item.durationMin)}分钟` : null,
+                            item.distanceKm > 0 ? `${item.distanceKm.toFixed(1)}km` : null,
+                            item.calories > 0 ? `${Math.round(item.calories)}kcal` : null
+                          ].filter(Boolean).join(' · ') || '已完成'
+                        : item.volume > 0 ? `${item.setsCount} 组 · ${Math.round(item.volume)} kg` : `${item.setsCount} 组`}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              {showFeedbackDialog ? (
+                <View className="ws-section">
+                  <Text className="ws-section__title">训练感受如何？</Text>
+                  <View className="ws-feel">
+                    {FEEDBACK_DIFFICULTY_OPTIONS.map((item) => (
+                      <View
+                        key={item.value}
+                        className={`ws-feel__option ${feedbackDifficulty === item.value ? 'ws-feel__option--on' : ''}`}
+                        ariaRole="button"
+                        ariaLabel={feedbackDifficulty === item.value ? `${item.label}，已选` : item.label}
+                        onClick={() => {
+                          if (!feedbackSubmitting) setFeedbackDifficulty(item.value)
+                        }}
+                      >
+                        <Text>{item.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Textarea
+                    className="ws-feedback"
+                    maxlength={500}
+                    value={feedbackContent}
+                    cursorSpacing={96}
+                    showConfirmBar={false}
+                    placeholder="写一句反馈，教练会在沟通中看到（可不填）"
+                    onInput={(e) => setFeedbackContent(String(e.detail.value || '').slice(0, 500))}
+                  />
+                  <Text className="ws-feedback__count cl-num">{feedbackContent.length}/500</Text>
+                </View>
+              ) : null}
             </View>
+          </ScrollView>
+
+          <View className="ws-bar">
+            <ClButton
+              variant="secondary"
+              className="ws-bar__poster"
+              loading={workoutPosterGenerating}
+              loadingText="生成中"
+              onClick={handleGenerateWorkoutPoster}
+            >
+              生成打卡图
+            </ClButton>
+            <ClButton
+              className="ws-bar__done"
+              loading={feedbackSubmitting}
+              loadingText="提交中"
+              onClick={() => void handleCompleteSummary()}
+            >
+              {showFeedbackDialog && feedbackContent.trim() ? '提交并完成' : '完成'}
+            </ClButton>
           </View>
         </View>
       )}
@@ -3625,62 +3671,6 @@ function TrainingExecution() {
         />
       </View>
 
-      {showFeedbackDialog && (
-        <View className="feedback-modal-mask">
-          <View className="feedback-modal" onClick={(e) => e.stopPropagation()}>
-            <View className="feedback-modal-header">
-              <Text className="feedback-modal-title">训练感受如何？</Text>
-              <Text className="feedback-modal-subtitle">写一句反馈，教练会在沟通中看到</Text>
-            </View>
-
-            <View className="feedback-difficulty-wrap">
-              {FEEDBACK_DIFFICULTY_OPTIONS.map((item) => (
-                <View
-                  key={item.value}
-                  className={`difficulty-option ${feedbackDifficulty === item.value ? 'active' : ''}`}
-                  onClick={() => {
-                    if (!feedbackSubmitting) setFeedbackDifficulty(item.value)
-                  }}
-                >
-                  <Text className="difficulty-mark">{item.mark}</Text>
-                  <Text className="difficulty-label">{item.label}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Textarea
-              className="feedback-input"
-              maxlength={500}
-              value={feedbackContent}
-              cursorSpacing={96}
-              showConfirmBar={false}
-              placeholder="例如：深蹲感觉可以加一点重量，卧推动作还不稳定..."
-              onInput={(e) => setFeedbackContent(String(e.detail.value || '').slice(0, 500))}
-            />
-            <Text className="feedback-count">{feedbackContent.length}/500</Text>
-
-            <View className="feedback-actions">
-              <Button
-                size="mini"
-                className="feedback-skip-btn"
-                disabled={feedbackSubmitting}
-                onClick={handleSkipFeedback}
-              >
-                跳过
-              </Button>
-              <Button
-                size="mini"
-                className="feedback-submit-btn"
-                loading={feedbackSubmitting}
-                disabled={!feedbackContent.trim()}
-                onClick={() => void handleSubmitFeedback()}
-              >
-                发送给教练
-              </Button>
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   )
 }

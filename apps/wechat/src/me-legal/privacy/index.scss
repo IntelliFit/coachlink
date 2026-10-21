@@ -1,6 +1,6 @@
 .doc-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  background: var(--cl-paper);
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -12,7 +12,7 @@
   box-sizing: border-box;
 }
 .doc-card {
-  background: #fff;
+  background: var(--cl-card);
   border-radius: 16rpx;
   padding: 40rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
@@ -23,7 +23,7 @@
 .doc-title {
   font-size: 36rpx;
   font-weight: bold;
-  color: #333;
+  color: var(--cl-ink);
   margin-bottom: 16rpx;
   display: block;
   word-wrap: break-word;
@@ -31,7 +31,7 @@
 }
 .doc-meta {
   font-size: 24rpx;
-  color: #999;
+  color: var(--cl-ink-3);
   line-height: 1.8;
   margin-bottom: 32rpx;
   display: block;
@@ -42,13 +42,13 @@
 .doc-section-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #222;
+  color: var(--cl-ink);
   margin-bottom: 16rpx;
   display: block;
 }
 .doc-content {
   font-size: 28rpx;
-  color: #666;
+  color: var(--cl-ink-2);
   line-height: 1.8;
   margin-bottom: 8rpx;
   display: block;
