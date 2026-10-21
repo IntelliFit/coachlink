@@ -168,7 +168,7 @@ export default function StreetliftingLocationsPage() {
     const loadContributorLeaderboard = async () => {
         setLoadingContributors(true);
         try {
-            const data = await streetliftingIndexService.listLocationContributors({ limit: 30 });
+            const data = await streetliftingIndexService.listLocationContributors();
             setContributors(data?.contributors || []);
         } catch (e: any) {
             console.error("[streetlifting-index][locations] contributors error:", e);

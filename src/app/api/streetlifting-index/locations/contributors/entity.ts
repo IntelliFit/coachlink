@@ -1,4 +1,5 @@
 export interface StreetliftingLocationContributorsDto {
+    /** Omit to return all contributors; explicit limits retain the legacy top-N query. */
     limit?: number;
 }
 

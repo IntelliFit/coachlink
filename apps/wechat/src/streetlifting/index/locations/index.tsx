@@ -452,7 +452,7 @@ export default function StreetliftingLocations() {
     if (loadingContributors) return
     setLoadingContributors(true)
     try {
-      const data = await streetliftingIndexService.listLocationContributors({ limit: 10 })
+      const data = await streetliftingIndexService.listLocationContributors()
       setContributors(data?.contributors || [])
     } catch (e) {
       Taro.showToast({ title: (e as Error)?.message || '贡献榜加载失败', icon: 'none' })
@@ -1539,7 +1539,7 @@ export default function StreetliftingLocations() {
                 </View>
               ) : (
                 <View className='contribution-list'>
-                  {contributors.slice(0, 10).map((item, index) => (
+                  {contributors.map((item, index) => (
                     <View key={item.contributor_key} className='contribution-item'>
                       <View className='contribution-rank'>
                         <Text>{index + 1}</Text>
@@ -1663,7 +1663,7 @@ export default function StreetliftingLocations() {
                 </View>
               ) : (
                 <View className='contribution-list'>
-                  {contributors.slice(0, 10).map((item, index) => (
+                  {contributors.map((item, index) => (
                     <View key={item.contributor_key} className='contribution-item'>
                       <View className='contribution-rank'>
                         <Text>{index + 1}</Text>
