@@ -1,4 +1,12 @@
-## 功率分析三大项 + UI 改版上线（2026-10-20/21，dev 与 main 均已上线）
+## 全量合并发布：1RM/自重、UI 改版第二批、教练聚合接口提速、任意动作分析（2026-10-21）
+
+- 合并到 dev 并直推 GitHub dev/main（05d8cf56）：主检出未提交的小程序 1RM/自重记录改动（a0dd541f）、claude/funny-lovelace-e83abf（Web/APP 1RM 判定）、perf/aggregated-info-speed（get-aggregated-info 约 11s→0.7s）、feat/ui-refresh 第二批 8 个提交；唯一冲突 plan-detail/index.scss 取已用 v1 tokens 的本地版。推送需 `-c credential.username=SmallHorseBrother`（Zhu-Pengming 无权限，默认会弹 GCM 选账号窗口卡住）。
+- 门禁：typecheck 通过；vitest 113 文件 833/834 通过，唯一失败 `src/lib/streetliftingLocationOverview.test.ts` recentMonths 断言为 main 上既有问题（1f9ecf1b 起，与本次无关，未改测试）；e2e 会写正式库未跑。
+- 数据库：无需改动（20261018180000、20261021120000 用户此前已在 SQL Editor 执行）。
+- 镜像从干净 worktree D:/CodexWork/coachlink-release-2026-10-20/src（05d8cf56）本机构建，Next 550 页；Web `coachlink@sha256:a381b812…`（05d8cf5/dev/main/latest 四标签同摘要）。main/dev 是 digest 固定、Keel 不跟标签，已核对旧 digest（main 6491b6b8、dev 314c0149）后 `kubectl set image` 切换，两套 3/3 rollout 成功；两域 healthy/login/功率分析页 200，buildTime 2026-10-21T01:44:47Z。
+- 小程序：本机 release 构建 2929 模块/972 文件，仅含 coachlink.fit/dev.coachlink.fit；DevTools CLI 上传开发版 2026.10.21.0946（总包 9,968,074 / 主包 1,965,556 字节，描述 release-05d8cf5-1rm-ui-refresh-power）。DevTools 服务端口当时是 43678，不是脚本默认 28264；CLI 在端口不对时打印 × 但退出码 0，脚本会误报 upload done，须看日志里的 √ upload。未提审、未发布。
+- 本机 Docker Desktop 在推送中 WSL 引擎崩溃（0xc00000fd），`docker desktop restart` 后镜像仍在；Web 镜像重试后推送成功。本机构建的 Worker（4.6GB）大层连续 3 次 CCR timeout，放弃本机推送。
+- Worker 改为服务器构建：服务器 git clone GitHub 卡死 30 分钟，改为本机 `git -c core.autocrlf=false archive`（否则 CRLF 导致 package-lock 哈希不符）只打包 scripts/src/packages/tsconfig/package-lock，scp 到服务器，以线上 155e1c02 为基础叠加代码（~/coachlink-rel20261021-worker.sh，须 setsid nohup 启动）。新镜像 `coachlink-power-worker@sha256:a67a5384…`（标签 power-20261021-05d8cf56），镜像内 50 项 Python 测试通过（`PYTHONPATH=.:tests python -m unittest discover -s tests -p "test_*.py"`，tests 无 __init__ 不能用 -t）。worker-dev 8c8220a4 → a67a5384、worker-main 155e1c02 → a67a5384，均 rollout 成功并加入 Kafka 消费组。CCR 上 coachlink-power-worker 的 :latest/:main 标签未更新（部署用 digest，不受影响）。
 
 - 用户在体验版验收通过后，main 也已切换：网页 coachlink-main a7e758c2 → 6491b6b8（3/3 就绪，coachlink.fit healthy/功率分析页/login 200，新代码已在页面中，未登录上传 401）；分析程序 coachlink-power-worker-main :latest(90933f41) → 155e1c02（已加入 coachlink-power-workers 消费组）。dev → main 的合并 PR 已开，待两个审批。
 
