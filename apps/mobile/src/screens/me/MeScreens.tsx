@@ -126,6 +126,7 @@ type StudentActionItem = {
   reference_1rm?: number | null
   includesBodyWeight?: boolean
   enableAutoWeightCompute?: boolean
+  enable_auto_weight_compute?: boolean | null
   canonical_action_id?: string | null
   category?: string | null
   reference_image_url?: string | null
@@ -2301,6 +2302,10 @@ export function CopyCoachActionsScreen() {
   )
 }
 
+// The flag is an explicit user choice; the generic 强度 parameter attr must not imply it.
+const readAutoWeightFlag = (action?: StudentActionItem | null) =>
+  Boolean(action?.enableAutoWeightCompute ?? action?.enable_auto_weight_compute)
+
 export function ActionEditScreen() {
   const navigation = useNavigationAny()
   const route = useRouteAny<'ActionEdit'>()
@@ -2315,6 +2320,7 @@ export function ActionEditScreen() {
   const [reference1RM, setReference1RM] = useState(initialAction?.reference_1rm ? String(initialAction.reference_1rm) : '')
   const [suggestedTime, setSuggestedTime] = useState(initialAction?.suggested_time || '')
   const [includesBodyWeight, setIncludesBodyWeight] = useState(Boolean(initialAction?.includesBodyWeight))
+  const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState(readAutoWeightFlag(initialAction))
   const [initialLoading, setInitialLoading] = useState(Boolean(id && !initialAction))
   const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -2336,6 +2342,7 @@ export function ActionEditScreen() {
       setReference1RM(action.reference_1rm ? String(action.reference_1rm) : '')
       setSuggestedTime(action.suggested_time || '')
       setIncludesBodyWeight(Boolean(action.includesBodyWeight))
+      setEnableAutoWeightCompute(readAutoWeightFlag(action))
     } catch (error) {
       setLoadError(errorMessage(error, '动作加载失败'))
     } finally {
@@ -2346,6 +2353,8 @@ export function ActionEditScreen() {
   useEffect(() => {
     void loadExistingAction()
   }, [loadExistingAction])
+
+  const isOneRMEligible = isOneRMEligibleAction({ type, attrs, enableAutoWeightCompute })
 
   function toggleOption(value: string, list: string[], setter: (next: string[]) => void) {
     setter(list.includes(value) ? list.filter((item) => item !== value) : [...list, value])
@@ -2360,12 +2369,14 @@ export function ActionEditScreen() {
       Alert.alert('演示链接格式不正确', '请输入以 http:// 或 https:// 开头的链接。')
       return
     }
-    const parsedReference1RM = reference1RM.trim() ? Number(reference1RM) : null
+    // The 1RM field is hidden for ineligible actions, so its stale text must not block saving.
+    const parsedReference1RM = isOneRMEligible && reference1RM.trim() ? Number(reference1RM) : null
     if (parsedReference1RM != null && (!Number.isFinite(parsedReference1RM) || parsedReference1RM <= 0)) {
       Alert.alert('1RM 格式不正确', '请输入大于 0 的数字，或留空。')
       return
     }
     const isStrength = type === 'STRENGTH'
+    const autoWeight = isStrength && enableAutoWeightCompute
     setLoading(true)
     try {
       await safeRequest(id ? '/api/student/action-lib/update-action' : '/api/student/action-lib/add-action', {
@@ -2377,9 +2388,10 @@ export function ActionEditScreen() {
           type,
           positions: isStrength ? (positions.length > 0 ? positions : ['全身']) : null,
           attrs: isStrength ? (attrs.length > 0 ? attrs : null) : null,
-          reference_1rm: isStrength ? parsedReference1RM : null,
-          enableAutoWeightCompute: isStrength && attrs.includes('强度'),
-          includesBodyWeight: isStrength && attrs.includes('强度') && includesBodyWeight,
+          reference_1rm: isOneRMEligible ? parsedReference1RM : null,
+          // Always sent explicitly: update-action clears includesBodyWeight when a STRENGTH update omits it.
+          enableAutoWeightCompute: autoWeight,
+          includesBodyWeight: autoWeight && includesBodyWeight,
           suggested_time: type === 'DIET' ? (suggestedTime.trim() || null) : null,
         },
       })
@@ -2449,8 +2461,36 @@ export function ActionEditScreen() {
                     </Pressable>
                   ))}
                 </View>
-                <Text style={local.actionEditHint}>选择“强度”后启用计划自动算重；参考 1RM 仅用于符合条件的力量动作。</Text>
-                <FormField label="参考 1RM（kg）" value={reference1RM} onChangeText={setReference1RM} keyboardType="numeric" placeholder="例如：100" />
+              </Card>
+              <Card>
+                <Text style={local.actionEditSectionTitle}>智能重量计算</Text>
+                <Text style={local.actionEditHint}>开启后，计划里按 RM / %1RM 安排的组会根据 1RM 自动算出重量，需同时选择“强度”属性。死虫、俯卧撑这类自重或核心动作保持关闭即可。</Text>
+                <View style={local.actionEditOptionGrid}>
+                  <Pressable
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: enableAutoWeightCompute }}
+                    onPress={() => setEnableAutoWeightCompute((prev) => !prev)}
+                    style={[local.actionEditOption, enableAutoWeightCompute && local.actionEditOptionActive]}
+                  >
+                    <Text style={[local.actionEditOptionText, enableAutoWeightCompute && local.actionEditOptionTextActive]}>按 1RM 自动算重</Text>
+                  </Pressable>
+                  {enableAutoWeightCompute ? (
+                    <Pressable
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: includesBodyWeight }}
+                      onPress={() => setIncludesBodyWeight((prev) => !prev)}
+                      style={[local.actionEditOption, includesBodyWeight && local.actionEditOptionActive]}
+                    >
+                      <Text style={[local.actionEditOptionText, includesBodyWeight && local.actionEditOptionTextActive]}>包含自重（如引体向上）</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                {enableAutoWeightCompute && !attrs.includes('强度') ? (
+                  <Text style={local.actionEditHint}>还需在上方选择“强度”属性，自动算重才会生效。</Text>
+                ) : null}
+                {isOneRMEligible ? (
+                  <FormField label="参考 1RM（kg）" value={reference1RM} onChangeText={setReference1RM} keyboardType="numeric" placeholder="例如：100" />
+                ) : null}
               </Card>
             </>
           ) : null}
