@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
-import { PLATFORM_COMMISSION_PERCENT } from '@coachlink/core/src/coachPolicy';
+import {
+    COACH_GROUP_QR_PATH,
+    COACH_GROUP_QR_VALID_UNTIL,
+    PLATFORM_COMMISSION_PERCENT,
+} from '@coachlink/core/src/coachPolicy';
 import { resolveCoachSettlementDelayDays } from '@/lib/platformCommission';
 import { getCoachWithdrawalRules } from '@/lib/coachWithdrawalRules';
 
@@ -149,8 +153,20 @@ export default function CoachHandbookPage() {
                 ))}
             </div>
 
-            <footer className="mt-10 rounded-xl bg-surface-100 p-4 text-sm text-surface-600">
-                审核通过后，平台运营会通过电话或微信邀请你加入教练群，培训和政策更新都会在群里同步。
+            <footer id="group" className="mt-10 rounded-xl bg-surface-100 p-4 text-sm text-surface-600 flex flex-col sm:flex-row gap-4 items-center">
+                <img
+                    src={COACH_GROUP_QR_PATH}
+                    alt="教链教练群二维码"
+                    width={160}
+                    className="rounded-lg bg-white shrink-0"
+                />
+                <div>
+                    <p className="font-semibold text-surface-900 m-0 mb-1">加入教练群</p>
+                    <p className="m-0 leading-6">
+                        微信扫码加入教练群，入职培训和政策更新都会在群里同步。
+                        二维码有效期至 {COACH_GROUP_QR_VALID_UNTIL}，过期后平台运营也会通过电话或微信邀请你。
+                    </p>
+                </div>
             </footer>
         </article>
     );

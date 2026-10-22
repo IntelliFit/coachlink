@@ -25,6 +25,8 @@ import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
 import { XPayTrialEntry } from '@/components/XPayTrialEntry'
+import { API_BASE_URL } from '@/utils/request'
+import { COACH_GROUP_QR_PATH } from '@coachlink/core/src/coachPolicy'
 
 interface ProfileActionItem {
   key: string
@@ -38,7 +40,7 @@ interface ProfileActionItem {
   badge?: string
 }
 
-const COACH_BETA_GROUP_IMAGE = 'https://cdn-assets.coachlink.fit/beta-groups/coach-wechat-group.png'
+const COACH_BETA_GROUP_IMAGE = `${API_BASE_URL.replace(/\/+$/, '')}${COACH_GROUP_QR_PATH}`
 
 function CoachMyProfile() {
   const { effectiveTheme } = useTheme()
