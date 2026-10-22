@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     const { data: coach, error: coachError } = await supabase
         .from("coaches")
-        .select("*")
+        .select("id")
         .eq("user_id", session.user.id)
         .single();
 
@@ -34,12 +34,42 @@ export async function POST(req: Request) {
         });
     }
 
-    const { data: manualOrders, error: manualOrderErr } = await serviceRoleSupabase
-        .from("coach_subscription_orders" as any)
-        .select("*")
-        .eq("coach_id", coach.id)
-        .eq("status", "pending_confirmation")
-        .order("created_at", { ascending: false });
+    // 四条列表查询只依赖 coach.id，并行发起；错误按原先的先后顺序检查
+    const [
+        { data: manualOrders, error: manualOrderErr },
+        { data: systemOrders, error: systemOrderErr },
+        { data: manualSubscriptions, error: manualErr },
+        { data: systemSubscriptions, error: systemErr },
+    ] = await Promise.all([
+        serviceRoleSupabase
+            .from("coach_subscription_orders" as any)
+            .select("*")
+            .eq("coach_id", coach.id)
+            .eq("status", "pending_confirmation")
+            .order("created_at", { ascending: false }),
+        serviceRoleSupabase
+            .from("coach_subscription_orders" as any)
+            .select("*")
+            .eq("coach_id", coach.id)
+            .eq("status", "paid")
+            .eq("payment_confirmed_by", "system")
+            .is("coach_seen_at", null)
+            .order("payment_confirmed_at", { ascending: false }),
+        supabase
+            .from("coach_subscriptions")
+            .select("*")
+            .eq("coach_id", coach.id)
+            .eq("status", "waiting")
+            .order("created_at", { ascending: false }),
+        supabase
+            .from("coach_subscriptions")
+            .select("*")
+            .eq("coach_id", coach.id)
+            .eq("status", "active")
+            .eq("payment_confirmed_by", "system")
+            .is("coach_seen_at", null)
+            .order("payment_confirmed_at", { ascending: false }),
+    ]);
 
     if (manualOrderErr && !isSubscriptionOrderTableMissingError(manualOrderErr.message)) {
         return NextResponse.json({
@@ -48,15 +78,6 @@ export async function POST(req: Request) {
         });
     }
 
-    const { data: systemOrders, error: systemOrderErr } = await serviceRoleSupabase
-        .from("coach_subscription_orders" as any)
-        .select("*")
-        .eq("coach_id", coach.id)
-        .eq("status", "paid")
-        .eq("payment_confirmed_by", "system")
-        .is("coach_seen_at", null)
-        .order("payment_confirmed_at", { ascending: false });
-
     if (systemOrderErr && !isSubscriptionOrderTableMissingError(systemOrderErr.message)) {
         return NextResponse.json({
             success: false,
@@ -64,28 +85,12 @@ export async function POST(req: Request) {
         });
     }
 
-    const { data: manualSubscriptions, error: manualErr } = await supabase
-        .from("coach_subscriptions")
-        .select("*")
-        .eq("coach_id", coach.id)
-        .eq("status", "waiting")
-        .order("created_at", { ascending: false });
-
     if (manualErr) {
         return NextResponse.json({
             success: false,
             message: manualErr.message,
         });
     }
-
-    const { data: systemSubscriptions, error: systemErr } = await supabase
-        .from("coach_subscriptions")
-        .select("*")
-        .eq("coach_id", coach.id)
-        .eq("status", "active")
-        .eq("payment_confirmed_by", "system")
-        .is("coach_seen_at", null)
-        .order("payment_confirmed_at", { ascending: false });
 
     if (systemErr) {
         return NextResponse.json({
