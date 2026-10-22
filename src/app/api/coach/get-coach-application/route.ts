@@ -13,7 +13,7 @@ import type {
 export async function POST(req: Request) {
     const session = await getServerSession();
     const authResult = session?.user?.id
-        ? { isAuthenticated: true, userId: session.user.id }
+        ? { isAuthenticated: true, userId: session.user.id, user: session.user }
         : await getAuthUser(req);
     if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
@@ -25,6 +25,7 @@ export async function POST(req: Request) {
 
     // 通过 session 获取用户 ID
     const userId = authResult.userId;
+    const isAdmin = !!(authResult.user as { is_admin?: boolean } | undefined)?.is_admin;
 
     const body = await req.json() as GetCoachApplicationDto;
 
@@ -32,16 +33,16 @@ export async function POST(req: Request) {
         .from('coach_applications')
         .select('*');
 
-    // 如果提供了ID，则按ID查询
-    if (body.id) {
+    // 申请里有手机号、邮箱、地址和资质材料：只有管理员能按 id / userId 查别人的申请，
+    // 普通用户无论传什么参数都只能查到自己的。
+    if (isAdmin && body.id) {
         query = query.eq('id', body.id);
-    }
-    // 如果没有提供ID但提供了userId，则按user_id查询
-    else if (body.userId) {
+    } else if (isAdmin && body.userId) {
         query = query.eq('user_id', body.userId);
-    }
-    // 默认查询当前用户的申请
-    else {
+    } else {
+        if (body.id) {
+            query = query.eq('id', body.id);
+        }
         query = query.eq('user_id', userId);
     }
 

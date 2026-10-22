@@ -6,6 +6,11 @@ import { onRenewalPaid } from "@/lib/coachingAutomation";
 import { finalizeSubscriptionOrder } from "@/lib/subscriptionOrders";
 import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitlementSnapshot";
 import {
+    resolveCoachSettlementDelayDays,
+    resolveSettlementCoachAmountFen,
+    splitOrderAmountFen,
+} from "@/lib/platformCommission";
+import {
     type SplitActual,
     transferByBalancePayment,
     generateReqSeqId,
@@ -99,11 +104,7 @@ function amountFenOf(order: {
 }
 
 function splitAmountsFen(totalFen: number) {
-    const platformFee = Math.floor((totalFen * 20) / 100);
-    return {
-        coachAmount: totalFen - platformFee,
-        platformFee,
-    };
+    return splitOrderAmountFen(totalFen);
 }
 
 function getSettlementDelayDays(order: Record<string, any>) {
@@ -112,9 +113,7 @@ function getSettlementDelayDays(order: Record<string, any>) {
         return 0;
     }
 
-    const configured = Number(process.env.COACH_SUBSCRIPTION_SETTLEMENT_DELAY_DAYS ?? "7");
-    if (!Number.isFinite(configured)) return 7;
-    return Math.max(0, configured);
+    return resolveCoachSettlementDelayDays();
 }
 
 function calculateEligibleAt(order: Record<string, any>) {
@@ -388,7 +387,8 @@ export async function executeBalancePayment(
             };
         }
 
-        const { coachAmount } = splitAmountsFen(totalFen);
+        // 结算单在付款时就写下了当时比例的教练金额，分账按记录转，不按现行比例重算
+        const coachAmount = resolveSettlementCoachAmountFen(claimed, totalFen);
         const result = await transferByBalancePayment({
             reqDate,
             reqSeqId,

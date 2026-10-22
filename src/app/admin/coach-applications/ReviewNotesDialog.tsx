@@ -5,19 +5,37 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputTextarea } from 'primereact/inputtextarea';
 
+export type ReviewNotesMode = 'reject' | 'needs_info';
+
+const MODE_COPY: Record<ReviewNotesMode, { header: string; placeholder: string; hint: string }> = {
+    reject: {
+        header: '请输入驳回原因',
+        placeholder: '请输入拒绝该申请的原因或审核意见...',
+        hint: '请输入拒绝该教练申请的具体原因，这将帮助申请人了解如何改进并重新提交申请。',
+    },
+    needs_info: {
+        header: '请说明需要补充的材料',
+        placeholder: '例如：请补充个人简介、训练经历和 1-2 份学员案例或资质证明',
+        hint: '申请人会收到系统私信，可在「我的 → 申请成为教练」补充后重新提交。',
+    },
+};
+
 interface ReviewNotesDialogProps {
     visible: boolean;
     applicationId: string;
+    mode?: ReviewNotesMode;
     onSubmit: (notes: string) => void;
     onHide: () => void;
 }
 
-const ReviewNotesDialog: React.FC<ReviewNotesDialogProps> = ({ 
-    visible, 
+const ReviewNotesDialog: React.FC<ReviewNotesDialogProps> = ({
+    visible,
     applicationId,
+    mode = 'reject',
     onSubmit,
     onHide
 }) => {
+    const copy = MODE_COPY[mode];
     const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
@@ -59,7 +77,7 @@ const ReviewNotesDialog: React.FC<ReviewNotesDialogProps> = ({
 
     return (
         <Dialog
-            header="请输入审核意见"
+            header={copy.header}
             visible={visible}
             onHide={onHide}
             style={{ width: '50vw' }}
@@ -76,11 +94,11 @@ const ReviewNotesDialog: React.FC<ReviewNotesDialogProps> = ({
                     onChange={(e) => setNotes(e.target.value)}
                     rows={5}
                     className="w-full"
-                    placeholder="请输入拒绝该申请的原因或审核意见..."
+                    placeholder={copy.placeholder}
                 />
             </div>
             <div className="text-sm text-surface-500">
-                请输入拒绝该教练申请的具体原因，这将帮助申请人了解如何改进并重新提交申请。
+                {copy.hint}
             </div>
         </Dialog>
     );

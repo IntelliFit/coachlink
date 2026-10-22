@@ -237,6 +237,7 @@ export async function proxy(request: NextRequest) {
         pathname.startsWith("/articles/") ||
         pathname.startsWith("/coach/discovery") ||
         pathname.startsWith("/coach/profile") ||
+        pathname === "/coach/handbook" ||
         pathname.startsWith(AUTH_BASE_URL) ||
         pathname.startsWith(WECHAT_AUTH_BASE_URL)
     ) {

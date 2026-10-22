@@ -13,6 +13,7 @@ import {
     normalizeCoachApplicationMaterials,
 } from '@/lib/coachApplicationMaterials';
 import { notifyPlatformOwners } from '@/lib/platformNotice';
+import { isValidCoachContactPhone } from '@coachlink/core/src/coachPolicy';
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
@@ -20,6 +21,19 @@ import type {
     CreateCoachApplicationDto,
     CreateCoachApplicationResponseDto
 } from './entity';
+
+async function loadAccountPhone(userId: string): Promise<string | null> {
+    const { data, error } = await serviceRoleSupabase
+        .from('users')
+        .select('phone')
+        .eq('id', userId)
+        .maybeSingle();
+    if (error) {
+        console.error('[create-coach-application] load account phone failed:', error);
+        return null;
+    }
+    return data?.phone || null;
+}
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -38,6 +52,19 @@ export async function POST(req: Request) {
     const userId = authResult.userId;
 
     const body = await req.json() as CreateCoachApplicationDto;
+
+    // 审核要电话联系申请人。新版三端都必填；老版本客户端可能没传，用账号手机号兜底，
+    // 不直接拒绝——老版小程序服务层失败不抛错，拒绝会被当成「已提交」吞掉。
+    const submittedPhone = String(body.contactPhone ?? '').trim();
+    if (submittedPhone && !isValidCoachContactPhone(submittedPhone)) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: '请填写有效的手机号',
+            data: null
+        }, { status: 400 });
+    }
+    const contactPhone = submittedPhone || await loadAccountPhone(userId);
+
     const coachTrack = sanitizeCoachTrack(body.coachTrack);
     const serviceModes = sanitizeServiceModes(body.serviceModes);
     const targetStudentLevels = sanitizeTargetStudentLevels(body.targetStudentLevels);
@@ -74,7 +101,7 @@ export async function POST(req: Request) {
             case_studies: legacyFields.caseStudies,
             application_materials: applicationMaterials,
             contact_email: body.contactEmail,
-            contact_phone: body.contactPhone,
+            contact_phone: contactPhone,
             resume_url: body.resumeUrl,
             portfolio_url: body.portfolioUrl,
             social_links: legacyFields.socialLinks,
@@ -118,7 +145,7 @@ export async function POST(req: Request) {
             ['头衔', body.title],
             ['从业年限', body.yearsExperience],
             ['城市', [body.province, body.city].filter(Boolean).join(' ')],
-            ['联系电话', body.contactPhone],
+            ['联系电话', contactPhone || '未留手机号'],
         ],
         adminPath: '/admin/coach-applications',
     });

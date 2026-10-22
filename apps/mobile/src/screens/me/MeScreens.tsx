@@ -2,6 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { resolveCoachLinkAppRole } from '@coachlink/core'
 import { collectPlanOneRMActionIds, isOneRMEligibleAction } from '@coachlink/core/src/actionLoadMode'
+import {
+  COACH_APPLICATION_POLICY_CONSENT,
+  COACH_APPLICATION_POLICY_POINTS,
+  COACH_HANDBOOK_PATH,
+  isValidCoachContactPhone,
+} from '@coachlink/core/src/coachPolicy'
 import { Alert, AppState, Image, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
@@ -5037,6 +5043,7 @@ export function CoachApplicationScreen() {
   const [materialLink, setMaterialLink] = useState({ label: '', url: '' })
   const [socialDraft, setSocialDraft] = useState({ name: '抖音', url: '' })
   const [showSocialEditor, setShowSocialEditor] = useState(false)
+  const [policyAccepted, setPolicyAccepted] = useState(false)
 
   function patch(next: Partial<CoachApplicationForm>) {
     setForm((prev) => ({ ...prev, ...next }))
@@ -5151,6 +5158,15 @@ export function CoachApplicationScreen() {
       Alert.alert('请填写常住城市')
       return
     }
+    // 审核时平台要电话/微信联系申请人，手机号必填
+    if (!isValidCoachContactPhone(form.contactPhone)) {
+      Alert.alert('请填写有效的手机号', '审核时平台会电话或微信联系你')
+      return
+    }
+    if (!policyAccepted) {
+      Alert.alert('请阅读并勾选同意入驻须知')
+      return
+    }
     setSaving(true)
     try {
       const materials = normalizeCoachApplicationMaterials(form.applicationMaterials)
@@ -5237,7 +5253,7 @@ export function CoachApplicationScreen() {
             <FormField label="简介" value={form.bio} onChangeText={(bio) => patch({ bio })} multiline placeholder="请简要介绍您的专业背景" />
             <FormField label="从业年限" value={form.yearsExperience} onChangeText={(yearsExperience) => patch({ yearsExperience })} keyboardType="numeric" />
             <FormField label="邮箱" value={form.contactEmail} onChangeText={(contactEmail) => patch({ contactEmail })} />
-            <FormField label="手机号" value={form.contactPhone} onChangeText={(contactPhone) => patch({ contactPhone })} />
+            <FormField label="手机号 *" value={form.contactPhone} onChangeText={(contactPhone) => patch({ contactPhone })} keyboardType="phone-pad" placeholder="审核时平台会电话或微信联系你" />
           </Card>
 
           <Card style={local.applicationSection}>
@@ -5325,6 +5341,22 @@ export function CoachApplicationScreen() {
                 </View>
               </View>
             ) : <SolidButton label="添加社交媒体" variant="secondary" onPress={() => setShowSocialEditor(true)} />}
+          </Card>
+
+          <Card style={local.applicationSection}>
+            <Text style={local.sectionTitle}>入驻须知</Text>
+            {COACH_APPLICATION_POLICY_POINTS.map((point) => (
+              <Text key={point} style={local.sectionDesc}>· {point}</Text>
+            ))}
+            <Pressable onPress={() => Linking.openURL(`${API_BASE_URL.replace(/\/+$/, '')}${COACH_HANDBOOK_PATH}`)}>
+              <Text style={local.policyLink}>查看《教练手册》</Text>
+            </Pressable>
+            <Pressable onPress={() => setPolicyAccepted((prev) => !prev)} style={local.policyConsent}>
+              <View style={[local.policyCheck, policyAccepted && local.policyCheckOn]}>
+                {policyAccepted ? <Text style={local.policyCheckMark}>✓</Text> : null}
+              </View>
+              <Text style={local.policyConsentText}>{COACH_APPLICATION_POLICY_CONSENT}</Text>
+            </Pressable>
           </Card>
 
           <SolidButton label={review?.status === 'pending' ? '更新申请' : '提交申请'} loading={saving} onPress={submit} />
@@ -8886,6 +8918,43 @@ const local = StyleSheet.create({
   },
   applicationSection: {
     gap: spacing.sm,
+  },
+  policyLink: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  policyConsent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  policyCheck: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  policyCheckOn: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  policyCheckMark: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  policyConsentText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 20,
   },
   sectionDesc: {
     color: colors.textSecondary,

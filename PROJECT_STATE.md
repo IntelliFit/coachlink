@@ -1,3 +1,12 @@
+## 教练入驻：审核积压处理、申请接口越权修复、抽成 10%、开店进度与《教练手册》（2026-10-22）
+
+- 线上数据（用户逐项指示后执行，已回读核对）：通过赵上、Epitaph、计划执行者8479（建 coaches、is_coach=true、发欢迎私信，私信暂不带手册链接）；街健探索者5130、动作打磨者8181 改待补充材料并私信补充项；测试号沈妈妈、MAX 申请改 rejected 不发私信，coaches 仍 suspended，未删任何行。审核人沿用此前 20 次通过的管理员账号。教练名单与手机号 CSV 在 D:/CodexWork/coachlink-coach-ops/coaches-2026-10-22.csv（含个人信息，不入库）。
+- 10-21 前没收到申请私信的原因：平台待办通知 620280d3 直到 10-21 发布才上线，5 个申请都早于它；链路本身已验证可送达。
+- 本地代码（未提交、未部署）：申请列表仅管理员、详情非管理员只能查自己；审核联动抽到 `src/lib/coachApplicationReview.ts`，待补充材料也发私信；后台审核页显示手机号、待补充材料按钮、批量批准、状态多选，新增「开店进度」页签（`/api/admin/coach-onboarding`）；三端申请手机号必填 + 入驻须知勾选；平台服务费 10%（`packages/core/src/coachPolicy.ts`），分账改读结算单记录金额；公开页 `/coach/handbook`。
+- 服务端手机号：格式错误拒绝；为空用账号手机号兜底（老版小程序服务层失败不抛错，直接拒绝会被当成「已提交」吞掉）；申请人重新提交留空不覆盖已有号码。代码评审（opus）无高危，CSV 公式注入、草稿问卷计入开店、小程序手机号不能输 + 已修。
+- 门禁：typecheck 通过、APP typecheck 通过；vitest 876/877，唯一失败仍是既有 streetliftingLocationOverview。未跑 e2e（写正式库）；Web/小程序 UI 未在浏览器/DevTools 验收。
+- 待办：发布前须先上线才能让新教练按 10% 结算；群二维码 7 天过期，建议换企业微信活码；汇付开户流程问题待用户说明具体现象。
+
 ## 全量合并发布：1RM/自重、UI 改版第二批、教练聚合接口提速、任意动作分析（2026-10-21）
 
 - 合并到 dev 并直推 GitHub dev/main（05d8cf56）：主检出未提交的小程序 1RM/自重记录改动（a0dd541f）、claude/funny-lovelace-e83abf（Web/APP 1RM 判定）、perf/aggregated-info-speed（get-aggregated-info 约 11s→0.7s）、feat/ui-refresh 第二批 8 个提交；唯一冲突 plan-detail/index.scss 取已用 v1 tokens 的本地版。推送需 `-c credential.username=SmallHorseBrother`（Zhu-Pengming 无权限，默认会弹 GCM 选账号窗口卡住）。

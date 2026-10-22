@@ -15,6 +15,8 @@ import SocialLinkField from './SocialLinkField';
 import SubmitButton from './SubmitButton';
 import ReviewInfoDisplay from './ReviewInfoDisplay';
 import ApplicationMaterialEditor from './ApplicationMaterialEditor';
+import CoachPolicyNotice from './CoachPolicyNotice';
+import { isValidCoachContactPhone } from '@coachlink/core/src/coachPolicy';
 import MapLocationPicker from '@/components/MapLocationPicker';
 import { getCurrentLocation } from '@/lib/locationService';
 
@@ -111,6 +113,7 @@ const CoachApplicationPage = () => {
     // UI状态
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [policyAccepted, setPolicyAccepted] = useState(false);
     const [profile, setProfile] = useState<UserProfilesRow | null>(null);
     const [locating, setLocating] = useState(false);
     const [locationAttempted, setLocationAttempted] = useState(false);
@@ -551,6 +554,27 @@ const CoachApplicationPage = () => {
                 return;
             }
 
+            // 审核时平台要电话/微信联系申请人，手机号必填
+            if (!isValidCoachContactPhone(formData.contactPhone)) {
+                showToast({
+                    severity: 'warn',
+                    summary: '警告',
+                    detail: '请填写有效的手机号，审核时平台会电话或微信联系你',
+                    life: 3000
+                });
+                return;
+            }
+
+            if (!policyAccepted) {
+                showToast({
+                    severity: 'warn',
+                    summary: '警告',
+                    detail: '请阅读并勾选同意入驻须知',
+                    life: 3000
+                });
+                return;
+            }
+
             // 构造社交媒体链接对象
             const socialLinksObj: Record<string, string> = {};
             formData.socialLinks.forEach(link => {
@@ -902,10 +926,11 @@ const CoachApplicationPage = () => {
                     <CoachFormField
                         id="contactPhone"
                         name="contactPhone"
-                        label="联系电话"
+                        label="手机号"
                         value={formData.contactPhone}
                         onChange={handleInputChange}
-                        placeholder="请输入联系电话"
+                        placeholder="审核时平台会电话或微信联系你"
+                        required
                     />
 
                     {/* 个人简介 */}
@@ -989,6 +1014,8 @@ const CoachApplicationPage = () => {
                         hint="* 系统已自动获取位置并在地图上标记。您可以点击地图、拖动标记调整位置，或点击「重新定位」按钮重新获取当前位置。"
                     />
                 </div>
+
+                <CoachPolicyNotice accepted={policyAccepted} onChange={setPolicyAccepted} />
 
                 <SubmitButton saving={saving} onClick={handleSubmit} />
             </Card>

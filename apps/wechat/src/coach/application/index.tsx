@@ -7,6 +7,13 @@ import { authService } from '@/services/authService'
 import BottomNav from '@/components/BottomNav'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { API_BASE_URL } from '@/utils/request'
+import {
+  COACH_APPLICATION_POLICY_CONSENT,
+  COACH_APPLICATION_POLICY_POINTS,
+  COACH_HANDBOOK_PATH,
+  isValidCoachContactPhone
+} from '@coachlink/core/src/coachPolicy'
 import {
   createEmptyCoachMaterial,
   deriveLegacyFieldsFromMaterials,
@@ -49,6 +56,7 @@ function CoachApplication() {
   const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [policyAccepted, setPolicyAccepted] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     title: '',
@@ -417,6 +425,15 @@ function CoachApplication() {
       Taro.showToast({ title: '请填写常住城市', icon: 'none' })
       return
     }
+    // 审核时平台要电话/微信联系申请人，手机号必填
+    if (!isValidCoachContactPhone(formData.contactPhone)) {
+      Taro.showToast({ title: '请填写有效的手机号', icon: 'none' })
+      return
+    }
+    if (!policyAccepted) {
+      Taro.showToast({ title: '请阅读并勾选同意入驻须知', icon: 'none' })
+      return
+    }
 
     try {
       setSaving(true)
@@ -454,7 +471,7 @@ function CoachApplication() {
 
       if (existingApp?.application) {
         // 更新现有申请
-        await coachService.updateCoachApplication({
+        const updated = await coachService.updateCoachApplication({
           id: existingApp.application.id,
           name: formData.name,
           title: formData.title || null,
@@ -478,10 +495,12 @@ function CoachApplication() {
           county: formData.county || null,
           address: formData.address || null
         })
+        // 服务层失败时返回 null 而不抛错，不能当成功提示
+        if (!updated) throw new Error('提交失败，请稍后重试')
         Taro.showToast({ title: '申请已更新', icon: 'success' })
       } else {
         // 创建新申请
-        await coachService.createCoachApplication({
+        const created = await coachService.createCoachApplication({
           name: formData.name,
           title: formData.title || null,
           bio: formData.bio || null,
@@ -504,6 +523,7 @@ function CoachApplication() {
           county: formData.county || null,
           address: formData.address || null
         })
+        if (!created) throw new Error('提交失败，请稍后重试')
         Taro.showToast({ title: '申请已提交', icon: 'success' })
       }
 
@@ -528,8 +548,17 @@ function CoachApplication() {
 
   const statusMap: Record<string, { text: string; color: string }> = {
     pending: { text: '待审核', color: '#f59e0b' },
+    reviewing: { text: '审核中', color: '#f59e0b' },
+    needs_info: { text: '待补充材料', color: '#ea580c' },
     approved: { text: '已通过', color: '#10b981' },
     rejected: { text: '已拒绝', color: '#ef4444' }
+  }
+
+  const copyHandbookLink = () => {
+    Taro.setClipboardData({
+      data: `${API_BASE_URL.replace(/\/+$/, '')}${COACH_HANDBOOK_PATH}`,
+      success: () => Taro.showToast({ title: '手册链接已复制，可在浏览器打开', icon: 'none' })
+    })
   }
 
   return (
@@ -684,19 +713,21 @@ function CoachApplication() {
           </View>
 
           <View className="form-item">
-            <Text className="label">联系方式</Text>
+            <Text className="label">邮箱（选填）</Text>
             <Input
               className="input"
               value={formData.contactEmail}
               onInput={(e) => setFormData(prev => ({ ...prev, contactEmail: e.detail.value }))}
               placeholder="邮箱"
             />
+          </View>
+          <View className="form-item">
+            <Text className="label">手机号 *</Text>
             <Input
               className="input"
-              style={{ marginTop: 8 }}
               value={formData.contactPhone}
               onInput={(e) => setFormData(prev => ({ ...prev, contactPhone: e.detail.value }))}
-              placeholder="手机号"
+              placeholder="审核时平台会电话或微信联系你"
             />
           </View>
         </View>
@@ -912,6 +943,22 @@ function CoachApplication() {
               </View>
             </View>
           )}
+        </View>
+
+        <View className="form-section policy-section">
+          <View className="section-head">
+            <Text className="section-title policy-title">入驻须知</Text>
+            <Text className="policy-link" onClick={copyHandbookLink}>复制《教练手册》链接</Text>
+          </View>
+          {COACH_APPLICATION_POLICY_POINTS.map((point) => (
+            <Text key={point} className="policy-point">· {point}</Text>
+          ))}
+          <View className="policy-consent" onClick={() => setPolicyAccepted(prev => !prev)}>
+            <View className={`policy-check ${policyAccepted ? 'checked' : ''}`}>
+              {policyAccepted && <Text className="policy-check-mark">✓</Text>}
+            </View>
+            <Text className="policy-consent-text">{COACH_APPLICATION_POLICY_CONSENT}</Text>
+          </View>
         </View>
 
         <View className="submit-section">

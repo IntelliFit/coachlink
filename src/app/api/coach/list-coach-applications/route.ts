@@ -19,6 +19,15 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
+    // 列表包含所有申请人的手机号、邮箱和资质材料，只给管理员看。
+    if (!(session.user as { is_admin?: boolean }).is_admin) {
+        return NextResponse.json({
+            success: false,
+            message: '无权限查看教练申请列表',
+            data: null
+        }, { status: 403 });
+    }
+
     const body = await req.json() as ListCoachApplicationsDto;
 
     const page = body.page ?? 1;
@@ -30,9 +39,13 @@ export async function POST(req: Request) {
         .from('coach_applications')
         .select('*', { count: 'exact' });
 
-    // 如果提供了状态筛选条件
-    if (body.status) {
-        query = query.eq('status', body.status);
+    // 后台状态筛选是多选，可能传单个状态或状态数组
+    const statuses = (Array.isArray(body.status) ? body.status : [body.status])
+        .filter((status): status is string => typeof status === 'string' && status.length > 0);
+    if (statuses.length === 1) {
+        query = query.eq('status', statuses[0]);
+    } else if (statuses.length > 1) {
+        query = query.in('status', statuses);
     }
 
     // 分页查询

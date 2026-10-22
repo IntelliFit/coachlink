@@ -10,8 +10,9 @@ import type {
     UpdateCoachApplicationDto,
     UpdateCoachApplicationResponseDto,
 } from "./entity";
-import { sendSystemMessage } from "@/lib/chat";
 import { notifyPlatformOwners } from "@/lib/platformNotice";
+import { applyCoachReviewSideEffects, isCoachReviewStatus } from "@/lib/coachApplicationReview";
+import { isValidCoachContactPhone } from "@coachlink/core/src/coachPolicy";
 
 const APPLICATION_STATUS_LABELS: Record<string, string> = {
     pending: "待审核",
@@ -28,37 +29,6 @@ import {
     deriveLegacyFieldsFromMaterials,
     normalizeCoachApplicationMaterials,
 } from "@/lib/coachApplicationMaterials";
-
-function buildCoachProfileFromApplication(application: any) {
-    const profile: Record<string, any> = {};
-
-    if (application?.teaching_philosophy !== undefined) {
-        profile.teachingPhilosophy = application.teaching_philosophy;
-    }
-    if (application?.achievements !== undefined) {
-        profile.achievements = application.achievements;
-    }
-    if (application?.case_studies !== undefined) {
-        profile.caseStudies = application.case_studies;
-    }
-    if (application?.credentials !== undefined) {
-        profile.credentials = application.credentials;
-    }
-    if (application?.contact_email !== undefined) {
-        profile.contactEmail = application.contact_email;
-    }
-    if (application?.contact_phone !== undefined) {
-        profile.contactPhone = application.contact_phone;
-    }
-    if (application?.social_links !== undefined) {
-        profile.socialLinks = application.social_links;
-    }
-    if (application?.application_materials !== undefined) {
-        profile.applicationMaterials = application.application_materials;
-    }
-
-    return profile;
-}
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -170,7 +140,18 @@ export async function POST(req: Request) {
         updateData.contact_email = body.contactEmail;
     }
     if (body.contactPhone !== undefined) {
-        updateData.contact_phone = body.contactPhone;
+        const submittedPhone = String(body.contactPhone ?? "").trim();
+        if (submittedPhone && !isValidCoachContactPhone(submittedPhone)) {
+            return NextResponse.json<ApiData<null>>({
+                success: false,
+                message: "请填写有效的手机号",
+                data: null,
+            }, { status: 400 });
+        }
+        // 手机号是审核联系方式：申请人重新提交时留空不覆盖已有号码，管理员可以清空
+        if (submittedPhone || isAdmin) {
+            updateData.contact_phone = submittedPhone || null;
+        }
     }
     if (body.resumeUrl !== undefined) updateData.resume_url = body.resumeUrl;
     if (body.portfolioUrl !== undefined) {
@@ -255,111 +236,21 @@ export async function POST(req: Request) {
     }
 
     if (isAdmin) {
-        // 根据选择的值进行后续处理
-        if (body.status === "approved") {
-            const latestApplication = data || existingApplication;
-            const coachProfile = buildCoachProfileFromApplication(latestApplication);
-            const coachUpsertData = {
-                user_id: existingApplication.user_id,
-                name: latestApplication.name || existingApplication.name,
-                title: latestApplication.title ?? null,
-                avatar_url: latestApplication.avatar_url ?? null,
-                specialties: latestApplication.specialties ?? null,
-                bio: latestApplication.bio ?? null,
-                years_experience: latestApplication.years_experience ?? null,
-                achievements: latestApplication.achievements ?? null,
-                coach_track: latestApplication.coach_track ?? "professional",
-                service_modes: latestApplication.service_modes ?? [],
-                target_student_levels:
-                    latestApplication.target_student_levels ?? [],
-                support_focus: latestApplication.support_focus ?? null,
-                profile: Object.keys(coachProfile).length ? coachProfile : null,
-                province: latestApplication.province ?? null,
-                city: latestApplication.city ?? null,
-                county: latestApplication.county ?? null,
-                address: latestApplication.address ?? null,
-                latitude: latestApplication.latitude ?? null,
-                longitude: latestApplication.longitude ?? null,
-                status: "approved",
-                updated_at: new Date().toISOString(),
-            };
-
-            // 如果不存在教练账号则创建
-            const { data: existCoach, error: existCoachError } = await supabase
-                .from("coaches")
-                .select("*")
-                .eq("user_id", existingApplication.user_id)
-                .maybeSingle();
-
-            if (existCoachError) {
+        // 根据选择的值进行后续处理：同步 coaches / users 并私信申请人
+        if (body.status && isCoachReviewStatus(body.status)) {
+            const result = await applyCoachReviewSideEffects({
+                status: body.status,
+                existingApplication,
+                latestApplication: data,
+                reviewNotes: body.reviewNotes,
+            });
+            if (!result.ok) {
                 return NextResponse.json<ApiData<null>>({
                     success: false,
-                    message: "查询教练失败: " + existCoachError.message,
+                    message: result.message,
                     data: null,
                 }, { status: 500 });
             }
-
-            if (!existCoach) {
-                const { error: createCoachError } = await supabase
-                    .from("coaches")
-                    .insert({
-                        ...coachUpsertData,
-                    });
-
-                if (createCoachError) {
-                    return NextResponse.json<ApiData<null>>({
-                        success: false,
-                        message: "创建教练失败: " + createCoachError.message,
-                        data: null,
-                    }, { status: 500 });
-                }
-            } else {
-                const { error: updateCoachError } = await supabase
-                    .from("coaches")
-                    .update(coachUpsertData)
-                    .eq("id", existCoach.id);
-
-                if (updateCoachError) {
-                    return NextResponse.json<ApiData<null>>({
-                        success: false,
-                        message: "更新教练信息失败: " + updateCoachError.message,
-                        data: null,
-                    }, { status: 500 });
-                }
-            }
-
-            // 更新用户的 is_coach 标识，这样用户才能切换到教练端
-            // 注意：coach_status 保持为 'approved'（数据库约束不允许 'coach'）
-            // 前端通过 is_coach=true 来判断是否已完成教练身份认证
-            const { error: updateProfileError } = await serviceRoleSupabase
-                .from("users")
-                .update({ is_coach: true, coach_status: "approved" })
-                .eq("id", existingApplication.user_id);
-
-            if (updateProfileError) {
-                console.error("更新用户教练标识失败:", updateProfileError);
-                // 不返回错误，因为教练记录已创建成功
-            }
-
-            await sendSystemMessage(existingApplication.user_id, {
-                content:
-                    "您提交的教练申请已经通过🎉，恭喜您成为了一名教链平台的教练。在正式开始您的招生生意前，您需要先完成 [订阅设置](/dashboard/pricing) 和 [学员问卷](/dashboard/questionnaire) 这两部分的编辑，这样，才能最大限度利用教链平台提供的功能为您服务。",
-            });
-        } else if (body.status === "reviewing" || body.status === "needs_info") {
-            await serviceRoleSupabase
-                .from("users")
-                .update({ is_coach: false, coach_status: "pending" })
-                .eq("id", existingApplication.user_id);
-        } else if (body.status === "rejected") {
-            await serviceRoleSupabase
-                .from("users")
-                .update({ is_coach: false, coach_status: "rejected" })
-                .eq("id", existingApplication.user_id);
-            await sendSystemMessage(existingApplication.user_id, {
-                content: `您提交的教练申请未通过，原因： ${
-                    body.reviewNotes || "无"
-                }。\n您可以在 [申请成为教练](/coach/application) 查看原因并加以修改。`,
-            });
         }
     } else if (existingApplication.status !== "approved") {
         await serviceRoleSupabase

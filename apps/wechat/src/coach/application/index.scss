@@ -703,6 +703,64 @@
     }
   }
 
+  .policy-section {
+    .policy-title {
+      margin-bottom: 0;
+    }
+
+    .policy-link {
+      font-size: 12px;
+      color: #CF6D4E;
+      flex-shrink: 0;
+    }
+
+    .policy-point {
+      display: block;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #374151;
+      margin-bottom: 8rpx;
+    }
+
+    .policy-consent {
+      display: flex;
+      align-items: flex-start;
+      gap: 16rpx;
+      margin-top: 24rpx;
+      padding-top: 24rpx;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .policy-check {
+      width: 40rpx;
+      height: 40rpx;
+      flex-shrink: 0;
+      border: 2px solid #d1d5db;
+      border-radius: 8rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+
+      &.checked {
+        background: #CF6D4E;
+        border-color: #CF6D4E;
+      }
+    }
+
+    .policy-check-mark {
+      color: #fff;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .policy-consent-text {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #111827;
+    }
+  }
+
   .submit-section {
     padding: 16px 0 32px;
 

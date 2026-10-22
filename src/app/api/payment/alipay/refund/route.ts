@@ -18,6 +18,7 @@ import {
     refundHuifuPaymentOrder,
 } from "@/lib/huifuMiniProgramPay";
 import { markSettlementRefunded } from "@/app/api/payment/alipay/fulfillPaidOrder";
+import { LEGACY_DIRECT_PAY_COMMISSION_PERCENT, splitOrderAmountFen } from "@/lib/platformCommission";
 
 function asObject(value: unknown): Record<string, any> {
     return value && typeof value === "object" && !Array.isArray(value)
@@ -42,9 +43,9 @@ function isCoachRevenueOrderType(orderType: unknown) {
     return isCoachSubscriptionOrderType(orderType) || isCoachContentPurchaseOrderType(orderType);
 }
 
+// 只用于没有钱包入账记录的老直连订单（汇付订单退款以结算单金额为准），按当时的 20% 规则冲回
 function coachNetAmountFromGross(totalFen: number) {
-    const platformFee = Math.floor((totalFen * 20) / 100);
-    return totalFen - platformFee;
+    return splitOrderAmountFen(totalFen, LEGACY_DIRECT_PAY_COMMISSION_PERCENT).coachAmount;
 }
 
 function isAcceptedHuifuResult(result: Record<string, any>) {

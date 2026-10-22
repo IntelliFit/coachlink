@@ -469,3 +469,18 @@
 - **统一规则**：1RM 资格只用 `packages/core/src/actionLoadMode.ts` 的 `isOneRMEligibleAction`（与 `src/lib/oneRmEligibility.ts` 一致）；只有计划里该动作按 RM / %1RM 安排时才需要 1RM（`collectPlanOneRMActionIds`）；训练页负重/自重用 `resolveActionLoadMode`，自重组重量明确存 0。
 - **改动前自检**：是否又出现 `attrs.includes('强度')` 的"或"判断？提示用户填的值有没有真正落库？接口字段名是否与服务端一致？
 - **已收口**（2026-10-20）：Web `src/app/me/plan-lib/*`（`planOneRMActions.ts`）、`OneRMConfigPanel.tsx`，APP `apps/mobile/src/screens/me/MeScreens.tsx` 已改为"且"判断，并只在计划按 RM / %1RM 安排时询问。
+
+## 40) 只校验登录、不校验身份：教练申请列表/详情可被任意登录用户拉取（高风险）
+
+- **现象**：任何登录用户 POST `/api/coach/list-coach-applications` 能拿到全部申请（手机号、邮箱、地址、经纬度、资质材料）；`get-coach-application` 传别人的 `id` 或 `userId` 能看别人的申请。
+- **根因**：接口只判断 `session.user.id` 存在；默认 `supabase` 客户端用 service key，绕过 RLS，库里没有第二道防线。
+- **统一规则**：管理用接口必须同时校验 `is_admin`；按 `id` / `userId` 读单条时，非管理员一律追加 `.eq('user_id', 当前用户)`，不能信任请求里的 id。
+- **改动前自检**：接口返回的是不是"别人的数据"？只有 `if (!session?.user?.id)` 而没有 `is_admin` / 归属判断吗？请求体里的 `id` / `userId` 能不能换成别人的？
+- **典型案例**（2026-10-22）：梳理教练入驻流程时发现，已收口两个接口并补 `tests/backend/api/coach/coach-applications-access.test.ts`。
+
+## 41) 结算延后执行却按现行比例重算：改抽成比例时跨版本订单分错钱（高风险）
+
+- **现象**：订单付款时按 20% 写好结算单，7 天结算期后才分账；若期间抽成改成 10%，分账步骤重新 `totalFen × 比例` 会给教练转 90%，与结算单记录的 80% 不一致。
+- **根因**：`fulfillPaidOrder.ts` 分账时调用 `splitAmountsFen(totalFen)` 重算，没有用结算单里的 `coach_amount`。
+- **统一规则**：抽成比例只在 `packages/core/src/coachPolicy.ts`；创建结算单时写死金额，之后分账、退款一律读结算单（`resolveSettlementCoachAmountFen`），老直连订单退款按 `LEGACY_DIRECT_PAY_COMMISSION_PERCENT`。
+- **改动前自检**：延后执行的资金步骤，用的是"当时记录的金额"还是"现在重新算的金额"？改比例之前，结算期内还有多少未分账订单？
