@@ -173,13 +173,15 @@ export function describeReason(code: string, messages: BojiAnalysisDto['messages
 }
 
 export function bojiMetricCards(analysis: BojiAnalysisDto): BojiMetricCard[] {
-  return BOJI_METRIC_ORDER.flatMap((key) => {
+  // 不用 flatMap：小程序的 TS lib 和部分旧基础库不支持。
+  const cards: BojiMetricCard[] = [];
+  for (const key of BOJI_METRIC_ORDER) {
     const metric = analysis.report.metrics[key];
-    if (!metric) return [];
+    if (!metric) continue;
     const text = metric.status === 'unavailable'
-      ? { headline: '这张照片测不了', details: [] }
+      ? { headline: '这张照片测不了', details: [] as string[] }
       : describeMetric(key, metric.values);
-    return [{
+    cards.push({
       key,
       ...TITLES[key],
       status: metric.status,
@@ -187,8 +189,9 @@ export function bojiMetricCards(analysis: BojiAnalysisDto): BojiMetricCard[] {
       headline: text.headline,
       details: text.details,
       reasons: metric.reasons.map((code) => describeReason(code, analysis.messages)),
-    }];
-  });
+    });
+  }
+  return cards;
 }
 
 export function bojiTotalScore(analysis: BojiAnalysisDto): number | null {
