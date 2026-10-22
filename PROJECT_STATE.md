@@ -6,6 +6,14 @@
 - 服务端手机号：格式错误拒绝；为空用账号手机号兜底（老版小程序服务层失败不抛错，直接拒绝会被当成「已提交」吞掉）；申请人重新提交留空不覆盖已有号码。代码评审（opus）无高危，CSV 公式注入、草稿问卷计入开店、小程序手机号不能输 + 已修。
 - 门禁：typecheck 通过、APP typecheck 通过；vitest 876/877，唯一失败仍是既有 streetliftingLocationOverview。未跑 e2e（写正式库）；Web/小程序 UI 未在浏览器/DevTools 验收。
 - 待办：发布前须先上线才能让新教练按 10% 结算；群二维码 7 天过期，建议换企业微信活码；汇付开户流程问题待用户说明具体现象。
+- 发布（用户授权提交 dev、按原流程发 Web/API、小程序上传开发版）：328a0435 已推 GitHub dev/main（叠在另一会话已上线的 51309674 之上，线上 Web 为 a9ff2e69 = 51309674）。干净 worktree D:/CodexWork/coachlink-release-2026-10-22/src 本机构建 Web 镜像成功（551 页，4 标签 revision 标签已核对）。推 CCR 全部被拒：littlehorse/coachlink 个人版已达 100 个标签上限，覆盖已有 dev/main/latest 也被拒，main/dev 未切换、线上未变。只读核对：服务器仍引用 12 个 digest + xpay-notify-20261008-v1 标签，共 17 个标签须保留，83 个无引用标签清单在该目录 ccr-tags-safe-to-delete.txt；本机无 tccli，删除需用户在腾讯云控制台操作或另行授权。
+- 小程序开发版 2026.10.22.2338 已上传（日志 ✔ upload；总包 9,975,670 / 主包 1,966,987 字节，972 文件，只含 coachlink.fit/dev.coachlink.fit；DevTools 服务端口仍 43678），未提审。注意：停掉 docker build 客户端不会取消 BuildKit 里的构建，旧构建会在之后覆盖标签，需重建或核对 label。
+- 教练端「我的主页」显示的教练群二维码 cdn-assets.coachlink.fit/beta-groups/coach-wechat-group.png 为 2026-06-18 上传，早已过期。
+- 续（10-22 晚）：用户同意写入新群码（10-30 前有效）并表示旧镜像不需保留。群码改为随 Web 发布的 public/images/coach-wechat-group.png（`COACH_GROUP_QR_PATH` / `COACH_GROUP_QR_VALID_UNTIL`），手册页底部与小程序教练「我的主页」使用；换码＝覆盖文件+改日期+发布。仅推送 4c7e15d0 到 dev/main（叠在另一会话已推送的 boji 三个提交之上）；本检出 dev 上另一会话未推送的 c010845f（单杠地图 hero + pageTrace）未推送、未改动。
+- CCR 个人版 registry API 不允许 delete（401，action=delete），本机无 tccli，旧标签只能在控制台删；未删任何标签。
+- **已上线（10-23 凌晨）**：用户在控制台删旧标签后剩 19 个（xpay-notify-20261008-v1 也被删，复核服务器已无引用）。期间另一会话已上线 7aa8155e（revision 标签 `51309674+419a2a79`：超时关闭训练可补记），直接发 41aba9f 会回滚它，故在 worktree 再 cherry-pick 419a2a79 得 88f4c924（= 51309674 + 328a0435 + 群码 + 超时修复；不含 boji 与 c010845f）。worktree 内 typecheck 通过，vitest 869/870（既有 streetliftingLocationOverview 失败；另 5 个 apps/mobile 测试因 worktree 未链 expo 依赖无法加载）。镜像 `coachlink@sha256:f403d885…`（标签 88f4c92/dev/main/latest），核对两套仍为 7aa8155e 后先切 dev 再切 main，均 3/3；两域 buildTime 2026-10-22T19:32:58Z，healthy/login/discovery/handbook/群码图片 200，未登录 list-coach-applications 401，手册含 10% 与群码有效期。小程序开发版改为 2026.10.23.0343（同一提交，含超时修复，✔ upload，总包 9,975,041 / 主包 1,969,550），未提审。
+- 清理：本机发布镜像、拉取的 7aa8155e 已删，`docker builder prune` 清掉全局构建缓存 19.46GB（含其他会话可重建缓存）；worktree 已从 git 注销，目录仅剩 dist-release（DevTools 仍占用 debug.log，CLI close 后未释放）；另一会话的本地镜像 7086f9d 未动。worktree 的 node_modules 覆盖用 junction（@coachlink/core 指向 worktree 自身 packages/core，否则会解析到主检出旧 core），已逐个按链接删除，共享目录完好。
+- 发布内容刻意不含 boji（boji-service 未部署）和 c010845f：Web 镜像从 worktree 提交 41aba9fe（= 328a0435 + 群码 cherry-pick，仅存在于 D:/CodexWork/coachlink-release-2026-10-22/src）构建，551 页，标签 41aba9f/dev/main/latest 的 revision 已核对，待推送。小程序在同一 worktree（junction 链主检出 node_modules，已删除链接、共享目录完好）构建 972 文件、不含 boji/pageTrace，上传开发版 2026.10.23.0053（✔ upload，总包 9,971,930 / 主包 1,966,439），覆盖 2026.10.22.2338，未提审。
 
 ## 全量合并发布：1RM/自重、UI 改版第二批、教练聚合接口提速、任意动作分析（2026-10-21）
 
