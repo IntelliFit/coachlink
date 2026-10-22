@@ -10,6 +10,7 @@ import barLocationsCover from '@/assets/images/toolbox-practical/practical-bar-l
 import communityDataCover from '@/assets/images/toolbox-practical/practical-community-data-v2.webp'
 import oneArmPullUpCover from '@/assets/images/toolbox-practical/practical-one-arm-pull-up-v2.webp'
 import powerAnalysisCover from '@/assets/images/toolbox-practical/practical-power-analysis-v2.webp'
+import bojiDetectorCover from '@/assets/images/toolbox-practical/practical-boji-detector-v1.webp'
 import strengthCalculatorCover from '@/assets/images/toolbox-practical/practical-strength-calculator-v2.webp'
 import BottomNav from '@/components/BottomNav'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
@@ -71,6 +72,13 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
     key: 'community-data',
     label: '社区数据',
     url: '/streetlifting/index/data'
+  },
+  {
+    cover: bojiDetectorCover,
+    description: '一张正面照量出腹肌和倒三角',
+    key: 'boji',
+    label: '薄肌检测器',
+    url: '/toolbox/boji/index'
   }
 ]
 

@@ -1,0 +1,261 @@
+@use '../../styles/tokens' as *;
+
+// 薄肌检测器（2026-10-22）：沿用工具页 v1 设计变量；尺寸、间距均为 8rpx 的倍数。
+.boji-page {
+  min-height: 100vh;
+  background: var(--cl-paper);
+  color: var(--cl-ink);
+
+  .boji-content {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-3;
+    padding: $cl-space-3 $cl-page-gutter calc(#{$cl-space-8} + env(safe-area-inset-bottom));
+  }
+
+  .boji-intro {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-1;
+    padding-top: $cl-space-1;
+  }
+
+  .boji-kicker {
+    color: var(--cl-clay-text);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+  }
+
+  .boji-title {
+    color: var(--cl-ink);
+    font-size: 48rpx;
+    line-height: 64rpx;
+    font-weight: 700;
+  }
+
+  .boji-desc,
+  .boji-method {
+    color: var(--cl-ink-2);
+    font-size: 26rpx;
+    line-height: 40rpx;
+  }
+
+  .boji-card {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-2;
+    padding: $cl-card-padding;
+    border: 2rpx solid var(--cl-line);
+    border-radius: $cl-radius-card;
+    background: var(--cl-card);
+
+    &--flush {
+      padding: $cl-space-3 0 0;
+      overflow: hidden;
+    }
+
+    &__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 $cl-space-3;
+    }
+
+    &__title {
+      color: var(--cl-ink);
+      font-size: $cl-font-card;
+      line-height: $cl-line-card;
+      font-weight: 600;
+    }
+  }
+
+  .boji-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: $cl-space-2;
+
+    &__dot {
+      flex-shrink: 0;
+      width: 8rpx;
+      height: 8rpx;
+      margin-top: 16rpx;
+      border-radius: $cl-radius-pill;
+      background: var(--cl-clay);
+    }
+
+    &__text {
+      color: var(--cl-ink-2);
+      font-size: $cl-font-meta;
+      line-height: 40rpx;
+    }
+  }
+
+  .boji-actions {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-2;
+    margin-top: $cl-space-2;
+  }
+
+  .boji-error {
+    padding: $cl-space-2 $cl-space-3;
+    border-radius: $cl-radius-tag;
+    background: var(--cl-clay-soft);
+    color: var(--cl-clay-text);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+  }
+
+  .boji-privacy {
+    color: var(--cl-ink-3);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+  }
+
+  .boji-result {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-3;
+  }
+
+  .boji-total {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-1;
+    padding: $cl-card-padding;
+    border-radius: $cl-radius-card;
+    background: var(--cl-clay);
+
+    &__label {
+      color: var(--cl-on-accent);
+      font-size: $cl-font-meta;
+      line-height: $cl-line-meta;
+      opacity: 0.85;
+    }
+
+    &__value {
+      color: var(--cl-on-accent);
+      font-size: 96rpx;
+      line-height: 112rpx;
+      font-weight: 700;
+    }
+
+    &__note {
+      color: var(--cl-on-accent);
+      font-size: $cl-font-tag;
+      line-height: $cl-line-tag;
+      opacity: 0.9;
+    }
+  }
+
+  .boji-toggle {
+    padding: $cl-space-1 $cl-space-2;
+    border: 2rpx solid var(--cl-control-line);
+    border-radius: $cl-radius-pill;
+    color: var(--cl-ink-2);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+  }
+
+  .boji-canvas {
+    display: block;
+    width: 100%;
+  }
+
+  .boji-notes {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-1;
+    padding: $cl-space-3;
+    border: 2rpx solid var(--cl-warn-line);
+    border-radius: $cl-radius-card;
+    background: var(--cl-warn-bg);
+
+    &__item {
+      color: var(--cl-warn-text);
+      font-size: $cl-font-tag;
+      line-height: $cl-line-tag;
+    }
+  }
+
+  .boji-metric {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-1;
+    padding: $cl-card-padding;
+    border: 2rpx solid var(--cl-line);
+    border-radius: $cl-radius-card;
+    background: var(--cl-card);
+
+    &__head {
+      display: flex;
+      justify-content: space-between;
+      gap: $cl-space-2;
+    }
+
+    &__titles {
+      display: flex;
+      flex-direction: column;
+      gap: $cl-space-1;
+    }
+
+    &__title {
+      color: var(--cl-ink);
+      font-size: $cl-font-card;
+      line-height: $cl-line-card;
+      font-weight: 600;
+    }
+
+    &__explain,
+    &__detail {
+      color: var(--cl-ink-3);
+      font-size: $cl-font-tag;
+      line-height: $cl-line-tag;
+    }
+
+    &__score-box {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: $cl-space-1;
+    }
+
+    &__score {
+      color: var(--cl-clay);
+      font-size: 56rpx;
+      line-height: 64rpx;
+      font-weight: 700;
+    }
+
+    &__headline {
+      margin-top: $cl-space-1;
+      color: var(--cl-ink);
+      font-size: $cl-font-body;
+      line-height: $cl-line-body;
+      font-weight: 600;
+    }
+
+    &__reason {
+      color: var(--cl-warn-text);
+      font-size: $cl-font-tag;
+      line-height: $cl-line-tag;
+    }
+  }
+
+  .boji-badge {
+    padding: 0 $cl-space-2;
+    border-radius: $cl-radius-pill;
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+
+    &--low_confidence {
+      background: var(--cl-warn-bg);
+      color: var(--cl-warn-text);
+    }
+
+    &--unavailable {
+      background: var(--cl-sunk);
+      color: var(--cl-ink-3);
+    }
+  }
+}
