@@ -18,6 +18,15 @@ import {
 } from "@/lib/subscriptionCarryover";
 import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
 import { loadStudentPageData } from "./studentPageData";
+import {
+    applySubscriptionSort,
+    loadOrderedActiveSubscriptionRefs,
+    normalizeStudentSearch,
+    orderRowsByIds,
+    pageMatchedSubscriptionIds,
+    searchStudentIdsByProfile,
+    SortMode,
+} from "./studentSearch";
 
 async function getVideoStats(studentIds: string[]) {
     if (!studentIds?.length) return new Map();
@@ -95,6 +104,73 @@ function coachNotFound() {
     );
 }
 
+function activeSubscriptionsQuery(coachUserId: string, options?: { count?: "exact" }) {
+    // coaches!inner(user_id) 自带教练过滤（coaches.user_id 唯一），不必等 coach.id 回来再查
+    return supabase
+        .from("coach_subscriptions")
+        .select(`${SUBSCRIPTION_COLUMNS}, coaches!inner(user_id)`, options)
+        .eq("coaches.user_id", coachUserId)
+        .eq("status", "active");
+}
+
+type SubscriptionPageRow = NonNullable<
+    Awaited<ReturnType<typeof activeSubscriptionsQuery>>["data"]
+>[number];
+type SubscriptionPage = { rows: SubscriptionPageRow[]; total: number } | { error: string };
+
+// PostgREST：offset 超过总行数时返回 416 / PGRST103，且不带 count
+const RANGE_NOT_SATISFIABLE = "PGRST103";
+
+async function listSubscriptionPage(params: {
+    coachUserId: string;
+    sortMode: SortMode;
+    from: number;
+    limit: number;
+}): Promise<SubscriptionPage> {
+    const { coachUserId, sortMode, from, limit } = params;
+    const { data, count, error } = await applySubscriptionSort(
+        activeSubscriptionsQuery(coachUserId, { count: "exact" }),
+        sortMode,
+    ).range(from, from + limit - 1);
+
+    if (error?.code === RANGE_NOT_SATISFIABLE) {
+        // 翻页越界：返回空页，但保留真实总数，前端据此纠正页码
+        const { count: total, error: countError } = await supabase
+            .from("coach_subscriptions")
+            .select("id, coaches!inner(user_id)", { count: "exact", head: true })
+            .eq("coaches.user_id", coachUserId)
+            .eq("status", "active");
+        if (countError) return { error: countError.message };
+        return { rows: [], total: total || 0 };
+    }
+    if (error) return { error: error.message };
+    return { rows: data || [], total: count || 0 };
+}
+
+async function searchSubscriptionPage(params: {
+    coachUserId: string;
+    q: string;
+    sortMode: SortMode;
+    from: number;
+    limit: number;
+}): Promise<SubscriptionPage> {
+    const { coachUserId, q, sortMode, from, limit } = params;
+    try {
+        // 先取本教练排好序的订阅，只在这些学员里搜索，再在内存里分页：
+        // 每条请求的 id 列表都有上界，不会因关键词宽泛而 URL 超长
+        const refs = await loadOrderedActiveSubscriptionRefs(coachUserId, sortMode);
+        const matched = await searchStudentIdsByProfile(q, refs.map((ref) => ref.student_id));
+        const { total, pageIds } = pageMatchedSubscriptionIds(refs, matched, from, limit);
+        if (pageIds.length === 0) return { rows: [], total };
+
+        const { data, error } = await activeSubscriptionsQuery(coachUserId).in("id", pageIds);
+        if (error) return { error: error.message };
+        return { rows: orderRowsByIds(data || [], pageIds), total };
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+    }
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     const authResult = session?.user?.id
@@ -108,96 +184,43 @@ export async function POST(req: Request) {
 
     const { pagination, search, sort } = await req.json() as GetStudentsDto;
 
-    // 1. 获取教练身份。与订阅查询并行发出：订阅查询通过 coaches!inner(user_id)
-    // 自带教练过滤（coaches.user_id 唯一），不必等 coach.id 回来再查。
-    const coachIdPromise = findCoachId(authResult.userId);
-
-    // 2. 获取订阅列表
     const page = pagination?.page || 0;
     const limit = pagination?.limit || 20;
     const from = page * limit;
-    const to = from + limit - 1;
-
-    // 2.1 可选：按昵称/手机号搜索学员（先在 user_profiles 找 user_id，再 in 查询订阅）
-    let filteredStudentIds: string[] | null = null;
-    // PostgREST 的 `or()` 过滤对逗号等字符较敏感；这里做一次轻量清洗，避免语法错误/性能问题
-    const q = (search || "")
-        .trim()
-        .replace(/[,\n\r\t]/g, " ")
-        .slice(0, 64);
-    if (q) {
-        const { data: matchedProfiles, error: profileErr } = await supabase
-            .from("user_profiles")
-            .select("user_id")
-            .or(`nickname.ilike.%${q}%,phone.ilike.%${q}%`)
-            .limit(5000);
-
-        // 非教练仍优先返回 400，与先查教练再搜索时的响应一致
-        if (!(await coachIdPromise)) return coachNotFound();
-
-        if (profileErr) {
-            return NextResponse.json({ success: false, message: profileErr.message }, { status: 500 });
-        }
-
-        filteredStudentIds = Array.from(
-            new Set((matchedProfiles || []).map((p: any) => p.user_id).filter(Boolean)),
-        );
-
-        // 没有任何匹配：直接返回空列表（避免走订阅查询）
-        if (filteredStudentIds.length === 0) {
-            return NextResponse.json<ApiData<ListStudentsResponseDto>>({
-                success: true,
-                message: "ok",
-                data: {
-                    students: [],
-                    pagination: { page, limit, total: 0 },
-                },
-            });
-        }
-    }
-
-    // 2.2 固定且可控的排序：默认按订阅创建时间（created_at）排序，避免 updated_at 引起“顺序飘”
     const sortMode = sort?.mode || "subscription_created_desc";
-    let subsQuery = supabase
-        .from("coach_subscriptions")
-        .select(`${SUBSCRIPTION_COLUMNS}, coaches!inner(user_id)`, { count: "exact" })
-        .eq("coaches.user_id", authResult.userId)
-        .eq("status", "active");
+    // 可选：按昵称/手机号搜索学员
+    const q = normalizeStudentSearch(search);
 
-    if (filteredStudentIds) {
-        subsQuery = subsQuery.in("student_id", filteredStudentIds);
-    }
-
-    if (sortMode === "subscription_created_asc") {
-        subsQuery = subsQuery
-            .order("created_at", { ascending: true, nullsFirst: false })
-            .order("id", { ascending: true });
-    } else if (sortMode === "subscription_updated_desc") {
-        subsQuery = subsQuery
-            .order("updated_at", { ascending: false, nullsFirst: false })
-            .order("id", { ascending: false });
-    } else {
-        // default: subscription_created_desc
-        subsQuery = subsQuery
-            .order("created_at", { ascending: false, nullsFirst: false })
-            .order("id", { ascending: false });
-    }
-
-    const [coachId, { data: subRows, count, error: subsErr }] = await Promise.all([
-        coachIdPromise,
-        subsQuery.range(from, to),
+    // 1. 教练身份与订阅页并行获取；非教练仍优先返回 400
+    const [coachId, subscriptionPage] = await Promise.all([
+        findCoachId(authResult.userId),
+        q
+            ? searchSubscriptionPage({ coachUserId: authResult.userId, q, sortMode, from, limit })
+            : listSubscriptionPage({ coachUserId: authResult.userId, sortMode, from, limit }),
     ]);
 
     if (!coachId) return coachNotFound();
 
-    if (subsErr) {
-        return NextResponse.json({ success: false, message: subsErr.message }, {
+    if ("error" in subscriptionPage) {
+        return NextResponse.json({ success: false, message: subscriptionPage.error }, {
             status: 500,
         });
     }
 
+    // 空页（无匹配或翻页越界）：直接返回，不再查档案/计划
+    if (subscriptionPage.rows.length === 0) {
+        return NextResponse.json<ApiData<ListStudentsResponseDto>>({
+            success: true,
+            message: "ok",
+            data: {
+                students: [],
+                pagination: { page, limit, total: subscriptionPage.total },
+            },
+        });
+    }
+
     // 去掉仅用于过滤的 coaches 嵌入字段，保持返回结构不变
-    const subs = (subRows || []).map(({ coaches: _coach, ...sub }) => sub);
+    const subs = subscriptionPage.rows.map(({ coaches: _coach, ...sub }) => sub);
 
     const studentIds = Array.from(
         new Set(subs.map((s) => s.student_id)),
@@ -284,7 +307,7 @@ export async function POST(req: Request) {
         message: "ok",
         data: {
             students,
-            pagination: { page, limit, total: count || 0 },
+            pagination: { page, limit, total: subscriptionPage.total },
         },
     });
 }

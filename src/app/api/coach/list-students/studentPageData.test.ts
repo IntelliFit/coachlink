@@ -31,7 +31,7 @@ const days = (count: number) => Array.from({ length: count }, (_, i) => ({ dayIn
 const done = (id: string, instance_id: string, day_index: number) => ({
     id, instance_id, day_index, status: "completed", completed_at: "2026-09-20T00:00:00Z",
 });
-const inst = (overrides: Record<string, any>) => ({
+const inst = (overrides: Record<string, any>): Record<string, any> => ({
     coach_id: COACH,
     name: "计划",
     description: null,
@@ -154,7 +154,7 @@ describe("loadStudentPageData", () => {
         expect(planDetailByStudentId.get("s2")?.plan?.id).toBe("cur-2");
         expect(carryoverHistory.instancesBySubscription.get("sub-1")?.map((i) => i.id)).toEqual(["cur-1", "old-1"]);
         expect(carryoverHistory.instancesBySubscription.has("sub-2")).toBe(false);
-        expect(carryoverHistory.executionsBySubscription.get("sub-1")?.map((e) => e.id)).toEqual(["e-cur", "e-old-1", "e-old-2"]);
+        expect(carryoverHistory.executionsBySubscription.get("sub-1")?.map((e) => (e as any).id)).toEqual(["e-cur", "e-old-1", "e-old-2"]);
     });
 
     it("gives the same carryover summary as the standalone two-query batch", async () => {

@@ -188,24 +188,107 @@ describe("POST /api/coach/list-students", () => {
         expect(res.status).toBe(400);
     });
 
-    it("returns an empty page without querying subscriptions when search matches nobody", async () => {
+    it("returns an empty page without loading page rows when search matches nobody", async () => {
         mocks.handlers.user_profiles = () => ({ data: [], error: null });
 
         const res = await POST(request({ pagination: { page: 0, limit: 10 }, search: "无人" }));
         const body = await res.json();
 
         expect(body.data).toEqual({ students: [], pagination: { page: 0, limit: 10, total: 0 } });
-        expect(mocks.started).not.toContain("coach_subscriptions");
+        // 只读了订阅 id 列表，没有再取整页订阅、计划或视频
+        expect(mocks.started.filter((t) => t === "coach_subscriptions")).toHaveLength(1);
+        expect(mocks.started).not.toContain("coach_plan_instances");
+        expect(mocks.started).not.toContain("training_videos");
     });
 
-    it("restricts subscriptions to matched students when searching", async () => {
+    it("searches only within the coach's students and pages the matches in list order", async () => {
         mocks.handlers.user_profiles = (ctx) => ctx.filters.some((f) => f.kind === "or")
-            ? { data: [{ user_id: "s1" }], error: null }
+            ? { data: [{ user_id: "s2" }], error: null }
             : { data: [], error: null };
 
-        await POST(request({ pagination: { page: 0, limit: 10 }, search: "小一" }));
+        const body = await (await POST(request({ pagination: { page: 0, limit: 10 }, search: "小二" }))).json();
 
-        expect(filtersOf("coach_subscriptions")).toContainEqual({ kind: "in", args: ["student_id", ["s1"]] });
+        const searchCall = mocks.calls.find((c) => c.table === "user_profiles" && c.filters.some((f) => f.kind === "or"));
+        expect(searchCall?.filters).toContainEqual({ kind: "in", args: ["user_id", ["s1", "s2"]] });
+        expect(searchCall?.filters).toContainEqual({ kind: "or", args: ["nickname.ilike.%小二%,phone.ilike.%小二%"] });
+        const pageCall = mocks.calls.find((c) => c.table === "coach_subscriptions" &&
+            c.filters.some((f) => f.kind === "in" && f.args[0] === "id"));
+        expect(pageCall?.filters).toContainEqual({ kind: "in", args: ["id", ["sub-2"]] });
+        expect(pageCall?.filters).toContainEqual({ kind: "eq", args: ["coaches.user_id", "user-1"] });
+        expect(body.data.pagination.total).toBe(1);
+        expect(body.data.students.map((s: any) => s.id)).toEqual(["sub-2"]);
+    });
+
+    it("handles a broad search over many students without long id lists (regression: 500 Bad Request)", async () => {
+        const many = Array.from({ length: 250 }, (_, i) => subscription(`sub-${i}`, `s${i}`, 0));
+        mocks.handlers.coach_subscriptions = (ctx) => {
+            const idFilter = ctx.filters.find((f) => f.kind === "in" && f.args[0] === "id");
+            // in(id) 不保证顺序：故意倒序返回
+            const rows = idFilter ? many.filter((row) => idFilter.args[1].includes(row.id)).reverse() : many;
+            return { data: rows, count: rows.length, error: null };
+        };
+        // 宽泛关键词：每个学员都匹配
+        mocks.handlers.user_profiles = (ctx) => {
+            const ids: string[] = ctx.filters.find((f) => f.kind === "in")?.args[1] || [];
+            return { data: ids.map((user_id) => ({ user_id })), error: null };
+        };
+
+        const res = await POST(request({ pagination: { page: 2, limit: 10 }, search: "1" }));
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.data.pagination.total).toBe(250);
+        expect(body.data.students.map((s: any) => s.id)).toEqual(
+            Array.from({ length: 10 }, (_, i) => `sub-${20 + i}`),
+        );
+        const idListSizes = mocks.calls.flatMap((c) => c.filters)
+            .filter((f) => f.kind === "in")
+            .map((f) => (f.args[1] as string[]).length);
+        expect(Math.max(...idListSizes)).toBeLessThanOrEqual(100);
+        expect(mocks.calls.some((c) => c.table === "coach_subscriptions" &&
+            c.filters.some((f) => f.kind === "in" && f.args[0] === "student_id"))).toBe(false);
+    });
+
+    it("returns an empty page with the real total when searching past the last page", async () => {
+        mocks.handlers.user_profiles = (ctx) => ctx.filters.some((f) => f.kind === "or")
+            ? { data: [{ user_id: "s1" }, { user_id: "s2" }], error: null }
+            : { data: [], error: null };
+
+        const body = await (await POST(request({ pagination: { page: 3, limit: 10 }, search: "小" }))).json();
+
+        expect(body.data).toEqual({ students: [], pagination: { page: 3, limit: 10, total: 2 } });
+    });
+
+    it("surfaces profile search errors as 500", async () => {
+        mocks.handlers.user_profiles = () => ({ data: null, error: { message: "search failed" } });
+
+        const res = await POST(request({ pagination: { page: 0, limit: 10 }, search: "小" }));
+
+        expect(res.status).toBe(500);
+        expect(await res.json()).toEqual({ success: false, message: "search failed" });
+    });
+
+    it("returns an empty page with the real total past the last page (regression: 416 → 500)", async () => {
+        mocks.handlers.coach_subscriptions = (ctx) => {
+            const select = ctx.filters.find((f) => f.kind === "select");
+            if (select?.args[1]?.head) return { data: null, count: 46, error: null };
+            return {
+                data: null,
+                count: null,
+                error: { code: "PGRST103", message: "Requested range not satisfiable" },
+            };
+        };
+
+        const res = await POST(request({ pagination: { page: 9, limit: 10 } }));
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.data).toEqual({ students: [], pagination: { page: 9, limit: 10, total: 46 } });
+        const countCall = mocks.calls.find((c) => c.table === "coach_subscriptions" &&
+            c.filters.find((f) => f.kind === "select")?.args[1]?.head);
+        expect(countCall?.filters).toContainEqual({ kind: "eq", args: ["coaches.user_id", "user-1"] });
+        expect(countCall?.filters).toContainEqual({ kind: "eq", args: ["status", "active"] });
+        expect(mocks.started).not.toContain("coach_plan_instances");
     });
 
     it("surfaces subscription query errors as 500", async () => {
