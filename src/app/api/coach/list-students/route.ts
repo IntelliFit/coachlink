@@ -11,12 +11,13 @@ import {
 import { UserProfilesRow } from "@/types";
 import { ApiData } from "@/types/api";
 import {
-    getSubscriptionCarryoverSummariesBatch,
+    selectCarryoverSubscriptionIds,
+    SubscriptionCarryoverLookup,
     SubscriptionCarryoverSummary,
+    summarizeSubscriptionCarryoverBatch,
 } from "@/lib/subscriptionCarryover";
-import { readAllRowsByIdChunks } from "@/lib/supabaseKeysetPages";
 import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
-import { summarizePlanCompletion } from "@/lib/planInstanceCompletion";
+import { loadStudentPageData } from "./studentPageData";
 
 async function getVideoStats(studentIds: string[]) {
     if (!studentIds?.length) return new Map();
@@ -44,132 +45,6 @@ async function getVideoStats(studentIds: string[]) {
     }
 
     return statsMap;
-}
-
-async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
-    if (!studentIds?.length) return new Map<string, { plan: any; progress: any }>();
-
-    // 1) Batch fetch instances (all pages), then pick latest per student
-    const { data: instanceRows } = await readAllRowsByIdChunks<any>(studentIds, (chunk, afterId) => {
-        let query = supabase
-            .from("coach_plan_instances")
-            .select(
-                "id, name, description, status, rest_days_count, training_days_count, start_execution_day, student_id, created_at, training_days",
-            )
-            .eq("coach_id", coachId)
-            .in("student_id", chunk)
-            // 排除已归档实例，优先展示当前进行中计划；没有进行中时再回退到已完成
-            .in("status", ["active", "paused", "completed"]);
-        if (afterId) query = query.gt("id", afterId);
-        return query.order("id", { ascending: true });
-    });
-    const instances = [...(instanceRows || [])].sort((left, right) =>
-        String(right?.created_at || "").localeCompare(String(left?.created_at || ""))
-    );
-
-    // 选取优先级：active/paused > completed（按 created_at desc）
-    const latestActiveByStudent = new Map<string, any>();
-    const latestCompletedByStudent = new Map<string, any>();
-    for (const inst of instances || []) {
-        if (!inst?.student_id) continue;
-        if (inst.status === "active" || inst.status === "paused") {
-            if (!latestActiveByStudent.has(inst.student_id)) {
-                latestActiveByStudent.set(inst.student_id, inst);
-            }
-            continue;
-        }
-        if (inst.status === "completed") {
-            if (!latestCompletedByStudent.has(inst.student_id)) {
-                latestCompletedByStudent.set(inst.student_id, inst);
-            }
-        }
-    }
-
-    // 2) Batch fetch completed executions for these instances and count in memory
-    const instanceIds = Array.from(
-        new Map(
-            Array.from(latestActiveByStudent.values())
-                .concat(Array.from(latestCompletedByStudent.values()))
-                .map((i) => [i.id, i]),
-        ).values(),
-    )
-        .map((i) => i.id)
-        .filter(Boolean);
-    const completedByInstance = new Map<string, number>();
-    const executionsByInstance = new Map<string, Array<{ day_index: number; status: string | null }>>();
-    if (instanceIds.length > 0) {
-        const { data: execs } = await readAllRowsByIdChunks<any>(instanceIds, (chunk, afterId) => {
-            let query = supabase
-                .from("plan_instance_executions")
-                .select("id, instance_id, day_index, status")
-                .in("instance_id", chunk)
-                .eq("status", "completed");
-            if (afterId) query = query.gt("id", afterId);
-            return query.order("id", { ascending: true });
-        });
-
-        for (const e of execs || []) {
-            const iid = (e as any).instance_id as string;
-            completedByInstance.set(iid, (completedByInstance.get(iid) || 0) + 1);
-            const list = executionsByInstance.get(iid) || [];
-            list.push({
-                day_index: Number((e as any).day_index || 0),
-                status: String((e as any).status || ""),
-            });
-            executionsByInstance.set(iid, list);
-        }
-    }
-
-    // 3) Assemble result map
-    const result = new Map<string, { plan: any; progress: any; instanceMeta?: any }>();
-    for (const studentId of studentIds) {
-        const inst = latestActiveByStudent.get(studentId) || latestCompletedByStudent.get(studentId);
-        if (!inst) {
-            result.set(studentId, { plan: null, progress: { total: 0, completed: 0 } });
-            continue;
-        }
-        const startExecutionDay = Number(inst.start_execution_day || 1);
-        const completionSummary = Array.isArray(inst.training_days)
-            ? summarizePlanCompletion({
-                trainingDays: inst.training_days,
-                startExecutionDay,
-                executions: executionsByInstance.get(inst.id) || [],
-            })
-            : null;
-        const trainingDayTotal = completionSummary?.overallTotalTrainingDays ??
-            Number(inst.training_days_count || 0);
-        const completedCount = completionSummary?.overallCompletedTrainingDays ??
-            (completedByInstance.get(inst.id) || 0);
-        const isLogicallyCompleted = completionSummary?.isLogicallyCompleted ??
-            (trainingDayTotal > 0 && completedCount >= trainingDayTotal);
-        const derivedStatus = inst.status === "active" && isLogicallyCompleted
-            ? "completed"
-            : inst.status;
-
-        result.set(studentId, {
-            plan: {
-                name: inst.name,
-                description: inst.description || "",
-                status: derivedStatus,
-                raw_status: inst.status,
-                is_logically_completed: isLogicallyCompleted,
-                id: inst.id,
-            },
-            progress: {
-                total: trainingDayTotal,
-                completed: completedCount,
-            },
-            instanceMeta: {
-                instance_id: inst.id,
-                created_at: inst.created_at || null,
-                status: inst.status || null,
-                training_days: Array.isArray(inst.training_days) ? inst.training_days : [],
-                start_execution_day: startExecutionDay,
-                executions: executionsByInstance.get(inst.id) || [],
-            },
-        });
-    }
-    return result;
 }
 
 function deriveProjectedEndDate(params: {
@@ -201,6 +76,25 @@ function deriveProjectedEndDate(params: {
     return model.displayEndDate || subscription?.end_date || null;
 }
 
+const SUBSCRIPTION_COLUMNS =
+    "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks, created_at, order_id, last_payment_order_id, payment_method";
+
+async function findCoachId(userId: string): Promise<string | null> {
+    const { data: coachRow } = await supabase
+        .from("coaches")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+    return coachRow?.id || null;
+}
+
+function coachNotFound() {
+    return NextResponse.json(
+        { success: false, message: "未找到教练身份" },
+        { status: 400 },
+    );
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     const authResult = session?.user?.id
@@ -214,19 +108,9 @@ export async function POST(req: Request) {
 
     const { pagination, search, sort } = await req.json() as GetStudentsDto;
 
-    // 1. 获取教练身份
-    const { data: coachRow } = await supabase
-        .from("coaches")
-        .select("id")
-        .eq("user_id", authResult.userId)
-        .maybeSingle();
-
-    if (!coachRow?.id) {
-        return NextResponse.json(
-            { success: false, message: "未找到教练身份" },
-            { status: 400 },
-        );
-    }
+    // 1. 获取教练身份。与订阅查询并行发出：订阅查询通过 coaches!inner(user_id)
+    // 自带教练过滤（coaches.user_id 唯一），不必等 coach.id 回来再查。
+    const coachIdPromise = findCoachId(authResult.userId);
 
     // 2. 获取订阅列表
     const page = pagination?.page || 0;
@@ -247,6 +131,9 @@ export async function POST(req: Request) {
             .select("user_id")
             .or(`nickname.ilike.%${q}%,phone.ilike.%${q}%`)
             .limit(5000);
+
+        // 非教练仍优先返回 400，与先查教练再搜索时的响应一致
+        if (!(await coachIdPromise)) return coachNotFound();
 
         if (profileErr) {
             return NextResponse.json({ success: false, message: profileErr.message }, { status: 500 });
@@ -273,11 +160,8 @@ export async function POST(req: Request) {
     const sortMode = sort?.mode || "subscription_created_desc";
     let subsQuery = supabase
         .from("coach_subscriptions")
-        .select(
-            "id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks, created_at, order_id, last_payment_order_id, payment_method",
-            { count: "exact" },
-        )
-        .eq("coach_id", coachRow.id)
+        .select(`${SUBSCRIPTION_COLUMNS}, coaches!inner(user_id)`, { count: "exact" })
+        .eq("coaches.user_id", authResult.userId)
         .eq("status", "active");
 
     if (filteredStudentIds) {
@@ -299,7 +183,12 @@ export async function POST(req: Request) {
             .order("id", { ascending: false });
     }
 
-    const { data: subs, count, error: subsErr } = await subsQuery.range(from, to);
+    const [coachId, { data: subRows, count, error: subsErr }] = await Promise.all([
+        coachIdPromise,
+        subsQuery.range(from, to),
+    ]);
+
+    if (!coachId) return coachNotFound();
 
     if (subsErr) {
         return NextResponse.json({ success: false, message: subsErr.message }, {
@@ -307,44 +196,58 @@ export async function POST(req: Request) {
         });
     }
 
-    const studentIds = Array.from(
-        new Set((subs || []).map((s) => s.student_id)),
-    ).filter(Boolean);
+    // 去掉仅用于过滤的 coaches 嵌入字段，保持返回结构不变
+    const subs = (subRows || []).map(({ coaches: _coach, ...sub }) => sub);
 
-    // 3. 并行获取档案和视频统计
-    const [profilesRows, studentViews] = await Promise.all([
-        supabase.from("user_profiles").select("*").in(
-            "user_id",
-            studentIds as string[],
-        ),
-        getVideoStats(studentIds as string[]),
+    const studentIds = Array.from(
+        new Set(subs.map((s) => s.student_id)),
+    ).filter(Boolean) as string[];
+
+    // 3. 档案、视频统计、计划数据并行发出。计划数据把“当前计划”和“历史计划
+    // （carryover）”合并成一次实例查询 + 一次执行记录查询：两者的 training_days
+    // 高度重叠，分开查会把同一批大字段下载两遍。按当前实例排除/截止时间的
+    // carryover 过滤在内存里做（见 summarizeSubscriptionCarryoverBatch）。
+    const carryoverSubscriptionIds = new Set(selectCarryoverSubscriptionIds(
+        subs.map((sub) => ({
+            subscriptionId: String(sub.id || ""),
+            subscribedWeeks: Number(sub.subscribed_weeks || 0),
+        })),
+    ));
+    const [profilesRows, studentViews, { planDetailByStudentId, carryoverHistory }] = await Promise.all([
+        supabase.from("user_profiles").select("*").in("user_id", studentIds),
+        getVideoStats(studentIds),
+        loadStudentPageData({
+            coachId,
+            refs: subs.map((sub) => ({
+                subscriptionId: String(sub.id || ""),
+                studentId: String(sub.student_id || ""),
+                loadCarryover: carryoverSubscriptionIds.has(String(sub.id || "")),
+            })),
+        }),
     ]);
 
     const profileMap = new Map(
         (profilesRows.data || []).map((p) => [p.user_id, p]),
     );
 
-    // 4. 批量获取 Plan 和 Progress 数据（1-2 queries instead of 2N queries）
-    const planDetailByStudentId = await getStudentPlanDataBatch(coachRow.id, studentIds as string[]);
-
-    // 5. 整页批量读取历史计划与完成记录。此前每个订阅各发 1-2 次查询，
-    // 一页 10 人会额外产生约 20 次跨公网往返。
-    const carryoverBySubscriptionId = await getSubscriptionCarryoverSummariesBatch(
-        (subs || []).map((sub) => {
-            const detail = planDetailByStudentId.get(sub.student_id);
-            const instanceMeta = (detail as any)?.instanceMeta || null;
-            return {
-                subscriptionId: String(sub.id || ""),
-                subscribedWeeks: Number(sub.subscribed_weeks || 0),
-                excludeInstanceId: String(instanceMeta?.instance_id || ""),
-                createdBefore: instanceMeta?.created_at || null,
-                subscriptionStartDate: sub.start_date || null,
-            };
-        }),
+    const carryoverLookups: SubscriptionCarryoverLookup[] = subs.map((sub) => {
+        const detail = planDetailByStudentId.get(sub.student_id);
+        const instanceMeta = detail?.instanceMeta || null;
+        return {
+            subscriptionId: String(sub.id || ""),
+            subscribedWeeks: Number(sub.subscribed_weeks || 0),
+            excludeInstanceId: String(instanceMeta?.instance_id || ""),
+            createdBefore: instanceMeta?.created_at || null,
+            subscriptionStartDate: sub.start_date || null,
+        };
+    });
+    const carryoverBySubscriptionId = summarizeSubscriptionCarryoverBatch(
+        carryoverLookups,
+        carryoverHistory,
     );
 
-    // 6. 组装数据
-    const students: StudentSubscription[] = (subs || []).map((sub) => {
+    // 4. 组装数据
+    const students: StudentSubscription[] = subs.map((sub) => {
         const studentId = sub.student_id;
         const profile = profileMap.get(studentId) || null;
         const view = studentViews.get(studentId);

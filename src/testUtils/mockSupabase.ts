@@ -56,6 +56,7 @@ class MockQuery implements PromiseLike<ExecResult> {
   gt(...args: any[]) { this.filters.push({ kind: "gt", args }); return this; }
   lt(...args: any[]) { this.filters.push({ kind: "lt", args }); return this; }
   in(...args: any[]) { this.filters.push({ kind: "in", args }); return this; }
+  or(...args: any[]) { this.filters.push({ kind: "or", args }); return this; }
   order(...args: any[]) { this.filters.push({ kind: "order", args }); return this; }
   range(...args: any[]) { this.filters.push({ kind: "range", args }); return this; }
   limit(...args: any[]) { this.filters.push({ kind: "limit", args }); return this; }

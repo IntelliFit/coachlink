@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import { Check, Search } from '@nutui/icons-react-taro'
@@ -82,6 +82,9 @@ function CoachStudents() {
   const [clearPlanTarget, setClearPlanTarget] = useState<any | null>(null)
   const [clearPlanMode, setClearPlanMode] = useState<ClearPlanMode>('archive')
   const [clearingPlan, setClearingPlan] = useState(false)
+  // 首次进入由下方依赖 [debouncedSearch, sortMode, page] 的 effect 负责加载；
+  // useDidShow 只在之后回到本页时刷新，避免首屏重复请求列表
+  const hasShownOnceRef = useRef(false)
 
   const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE))
   const waitingTotal = manualWaitingCount + systemWaitingCount
@@ -210,6 +213,10 @@ function CoachStudents() {
 
     const targetPage = options?.targetPage ?? page
     const showPageLoading = options?.showPageLoading ?? true
+    // 待支付数量与列表并行加载，不拖住骨架屏（loadWaitingData 自行兜底错误，不会 reject）
+    const waitingPromise = options?.skipWaitingCounts
+      ? null
+      : loadWaitingData({ showLoading: false })
 
     try {
       if (showPageLoading) {
@@ -231,10 +238,6 @@ function CoachStudents() {
       if (!nextStudents.some((item) => item?.id === expandedStudentId)) {
         setExpandedStudentId(null)
       }
-
-      if (!options?.skipWaitingCounts) {
-        await loadWaitingData({ showLoading: false })
-      }
     } catch (error) {
       console.error('[coach/students] load failed:', error)
       setStudents([])
@@ -245,9 +248,16 @@ function CoachStudents() {
         setLoading(false)
       }
     }
+
+    // 下拉刷新等调用方仍等到待支付数量也刷新完
+    await waitingPromise
   }, [debouncedSearch, expandedStudentId, loadWaitingData, page, sortMode])
 
   useDidShow(() => {
+    if (!hasShownOnceRef.current) {
+      hasShownOnceRef.current = true
+      return
+    }
     void loadStudents({ targetPage: page, showPageLoading: true })
   })
 
