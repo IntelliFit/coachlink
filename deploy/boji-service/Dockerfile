@@ -21,7 +21,15 @@ RUN apt-get update && \
       libportaudio2 && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install "boji-detector[server] @ https://github.com/SmallHorseBrother/boji-detector/archive/${BOJI_DETECTOR_REF}.tar.gz"
+# 依赖分成几层安装（每层约 200 MB）：单层 700 MB 时推腾讯云 CCR 会超时。
+# 版本全部由 constraints.txt 锁定，后面的层不会改动前面层里的包。
+COPY constraints.txt /tmp/constraints.txt
+RUN pip install -c /tmp/constraints.txt numpy scipy pillow
+RUN pip install -c /tmp/constraints.txt opencv-contrib-python
+RUN pip install -c /tmp/constraints.txt mediapipe
+RUN pip install -c /tmp/constraints.txt fastapi uvicorn && \
+    pip install --no-deps "boji-detector @ https://github.com/SmallHorseBrother/boji-detector/archive/${BOJI_DETECTOR_REF}.tar.gz" && \
+    pip check
 
 # 模型在构建时下载并校验 SHA-256，运行时不再访问外网；
 # 再真正加载一次模型，缺系统库时构建就失败，而不是上线后 Pod 起不来。
