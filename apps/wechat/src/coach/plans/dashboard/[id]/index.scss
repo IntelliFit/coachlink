@@ -1,6 +1,6 @@
 .plan-dashboard-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--cl-paper);
   padding-bottom: 70px;
 
   .dashboard-scroll {
@@ -12,12 +12,12 @@
   .loading-wrap {
     padding: 24px;
     text-align: center;
-    color: #6b7280;
+    color: var(--cl-ink-2);
     font-size: 14px;
   }
 
   .skeleton-card {
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 10px;
@@ -26,7 +26,7 @@
     .skeleton-line {
       height: 14px;
       border-radius: 8px;
-      background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+      background: linear-gradient(90deg, var(--cl-sunk) 25%, var(--cl-line) 50%, var(--cl-sunk) 75%);
       background-size: 200% 100%;
       animation: dashboard-shimmer 1.4s infinite;
       margin-bottom: 10px;
@@ -43,7 +43,7 @@
   }
 
   .empty-card {
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 12px;
     padding: 24px;
     text-align: center;
@@ -53,14 +53,14 @@
       display: block;
       font-size: 18px;
       font-weight: 700;
-      color: #111827;
+      color: var(--cl-ink);
       margin-bottom: 8px;
     }
 
     .empty-desc {
       display: block;
       font-size: 13px;
-      color: #6b7280;
+      color: var(--cl-ink-2);
       margin-bottom: 14px;
     }
 
@@ -70,15 +70,15 @@
       justify-content: center;
       padding: 10px 18px;
       border-radius: 999px;
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       font-size: 13px;
       font-weight: 600;
     }
   }
 
   .plan-card {
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 10px;
@@ -88,14 +88,14 @@
       display: block;
       font-size: 18px;
       font-weight: 700;
-      color: #111827;
+      color: var(--cl-ink);
       margin-bottom: 6px;
     }
 
     .plan-desc {
       display: block;
       font-size: 13px;
-      color: #6b7280;
+      color: var(--cl-ink-2);
       line-height: 1.5;
       margin-bottom: 14px;
     }
@@ -106,7 +106,7 @@
     align-items: center;
     justify-content: space-between;
     padding-top: 10px;
-    border-top: 1px solid #f3f4f6;
+    border-top: 1px solid var(--cl-sunk);
 
     .stat-item {
       flex: 1;
@@ -116,19 +116,19 @@
         display: block;
         font-size: 18px;
         font-weight: 700;
-        color: #111827;
+        color: var(--cl-ink);
       }
 
       .stat-label {
         display: block;
         font-size: 11px;
-        color: #9ca3af;
+        color: var(--cl-ink-3);
       }
     }
   }
 
   .week-card {
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 10px;
@@ -144,15 +144,15 @@
     .week-title {
       font-size: 15px;
       font-weight: 700;
-      color: #111827;
+      color: var(--cl-ink);
     }
 
     .week-switch-btn {
       width: 28px;
       height: 28px;
       border-radius: 14px;
-      background: #fbf0ec;
-      color: #a6533a;
+      background: var(--cl-clay-soft);
+      color: var(--cl-clay-text);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -160,8 +160,8 @@
       font-weight: 700;
 
       &.disabled {
-        background: #f3f4f6;
-        color: #9ca3af;
+        background: var(--cl-sunk);
+        color: var(--cl-ink-3);
       }
     }
 
@@ -175,33 +175,33 @@
     .week-day-item {
       min-width: 84px;
       border-radius: 10px;
-      border: 1px solid #e5e7eb;
-      background: #fff;
+      border: 1px solid var(--cl-line);
+      background: var(--cl-card);
       padding: 10px 8px;
       box-sizing: border-box;
       text-align: center;
 
       &.selected {
-        border-color: #cf6d4e;
-        background: #fbf0ec;
+        border-color: var(--cl-selected-bg);
+        background: var(--cl-clay-soft);
       }
 
       &.rest {
-        background: #f9fafb;
+        background: var(--cl-sunk);
       }
 
       .week-day-title {
         display: block;
         font-size: 13px;
         font-weight: 600;
-        color: #111827;
+        color: var(--cl-ink);
         margin-bottom: 2px;
       }
 
       .week-day-date {
         display: block;
         font-size: 11px;
-        color: #6b7280;
+        color: var(--cl-ink-2);
         margin-bottom: 6px;
       }
 
@@ -213,18 +213,18 @@
         font-weight: 700;
 
         &.completed {
-          background: #dcfce7;
+          background: var(--cl-done-soft);
           color: #15803d;
         }
 
         &.progress {
           background: #fef3c7;
-          color: #b45309;
+          color: var(--cl-warn-text);
         }
 
         &.pending {
-          background: #e5e7eb;
-          color: #4b5563;
+          background: var(--cl-line);
+          color: var(--cl-ink-2);
         }
 
         &.readonly {
@@ -233,15 +233,15 @@
         }
 
         &.rest {
-          background: #e2e8f0;
-          color: #475569;
+          background: var(--cl-line);
+          color: var(--cl-ink-2);
         }
       }
     }
   }
 
   .today-card {
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 10px;
@@ -257,7 +257,7 @@
     .today-title {
       font-size: 16px;
       font-weight: 700;
-      color: #111827;
+      color: var(--cl-ink);
     }
 
     .today-status {
@@ -268,24 +268,24 @@
 
       &.status-progress {
         background: #fef3c7;
-        color: #b45309;
+        color: var(--cl-warn-text);
       }
 
       &.status-done {
-        background: #dcfce7;
+        background: var(--cl-done-soft);
         color: #15803d;
       }
 
       &.status-pending {
-        background: #e5e7eb;
-        color: #4b5563;
+        background: var(--cl-line);
+        color: var(--cl-ink-2);
       }
     }
 
     .today-desc {
       display: block;
       font-size: 13px;
-      color: #4b5563;
+      color: var(--cl-ink-2);
       margin-bottom: 10px;
     }
 
@@ -301,16 +301,16 @@
 
     .today-action {
       border-radius: 10px;
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       text-align: center;
       padding: 11px 12px;
       font-size: 14px;
       font-weight: 600;
 
       &.disabled {
-        background: #d1d5db;
-        color: #4b5563;
+        background: var(--cl-control-line);
+        color: var(--cl-ink-2);
       }
     }
   }

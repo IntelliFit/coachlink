@@ -1,6 +1,6 @@
 .plan-detail-entry-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--cl-paper);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -10,9 +10,9 @@
   .entry-card {
     width: 100%;
     max-width: 560px;
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 14px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--cl-line);
     padding: 20px;
     box-sizing: border-box;
     text-align: center;
@@ -22,14 +22,14 @@
     display: block;
     font-size: 18px;
     font-weight: 700;
-    color: #111827;
+    color: var(--cl-ink);
     margin-bottom: 8px;
   }
 
   .entry-desc {
     display: block;
     font-size: 13px;
-    color: #6b7280;
+    color: var(--cl-ink-2);
   }
 
   .entry-error {

@@ -1,6 +1,6 @@
 .coach-plan-lib-page {
   min-height: 100vh;
-  background: #f5f7fb;
+  background: var(--cl-paper);
 
   &__scroll {
     height: 100vh;
@@ -15,7 +15,7 @@
   &__search-card,
   &__card,
   &__empty {
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 24rpx;
     box-shadow: 0 10rpx 30rpx rgba(15, 23, 42, 0.05);
   }
@@ -32,22 +32,27 @@
     display: block;
     font-size: 40rpx;
     font-weight: 700;
-    color: #111827;
+    color: var(--cl-ink);
   }
 
   &__subtitle {
     display: block;
     margin-top: 8rpx;
     font-size: 24rpx;
-    color: #6b7280;
+    color: var(--cl-ink-2);
   }
 
   &__create,
   &__search-btn,
-  &__filter-chip.active,
   &__tag {
-    background: #cf6d4e;
-    color: #fff;
+    background: var(--cl-clay-strong);
+    color: var(--cl-on-accent);
+  }
+
+  /* Selected filter: ink, not clay (clay is for actions). */
+  &__filter-chip.active {
+    background: var(--cl-selected-bg);
+    color: var(--cl-selected-text);
   }
 
   &__create,
@@ -76,8 +81,8 @@
     flex: 1;
     min-height: 88rpx;
     padding: 0 16rpx;
-    background: #f8fafc;
-    border: 2rpx solid #e5e7eb;
+    background: var(--cl-sunk);
+    border: 2rpx solid var(--cl-line);
     border-radius: 16rpx;
     box-sizing: border-box;
   }
@@ -101,8 +106,8 @@
 
   &__filter-chip {
     padding: 16rpx 16rpx;
-    background: #eef2f7;
-    color: #4b5563;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
   }
 
   &__list {
@@ -119,20 +124,20 @@
     display: block;
     font-size: 30rpx;
     font-weight: 700;
-    color: #111827;
+    color: var(--cl-ink);
   }
 
   &__card-desc {
     display: block;
     margin-top: 8rpx;
     font-size: 24rpx;
-    color: #6b7280;
+    color: var(--cl-ink-2);
     line-height: 1.5;
   }
 
   &__meta-row {
     margin-top: 16rpx;
-    color: #9ca3af;
+    color: var(--cl-ink-3);
     font-size: 22rpx;
   }
 
@@ -151,8 +156,8 @@
 
   &__link {
     padding: 8rpx 16rpx;
-    background: #f3f4f6;
-    color: #374151;
+    background: var(--cl-sunk);
+    color: var(--cl-ink);
 
     &.danger {
       color: #ef4444;
@@ -162,7 +167,7 @@
   &__empty {
     padding: 80rpx 32rpx;
     text-align: center;
-    color: #6b7280;
+    color: var(--cl-ink-2);
     font-size: 26rpx;
   }
 }

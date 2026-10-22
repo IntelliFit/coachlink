@@ -1,6 +1,6 @@
 .merchant-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--cl-paper);
 
   .merchant-scroll {
     height: 100vh;
@@ -10,8 +10,8 @@
 
   .notice-card,
   .form-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
     border-radius: 16px;
     padding: 16px;
     margin-bottom: 16px;
@@ -23,7 +23,7 @@
     display: block;
     font-size: 18px;
     font-weight: 800;
-    color: #111827;
+    color: var(--cl-ink);
     margin-bottom: 8px;
   }
 
@@ -32,7 +32,7 @@
     display: block;
     font-size: 13px;
     line-height: 1.6;
-    color: #6b7280;
+    color: var(--cl-ink-2);
     margin-bottom: 16px;
   }
 
@@ -46,9 +46,9 @@
     flex: 1;
     min-height: 40px;
     border-radius: 8px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    color: #6b7280;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
+    color: var(--cl-ink-2);
     font-size: 13px;
     font-weight: 700;
     display: flex;
@@ -56,9 +56,9 @@
     justify-content: center;
 
     &.active {
-      background: #CF6D4E;
-      border-color: #CF6D4E;
-      color: #fff;
+      background: var(--cl-selected-bg);
+      border-color: var(--cl-selected-bg);
+      color: var(--cl-selected-text);
     }
   }
 
@@ -75,7 +75,7 @@
     display: block;
     font-size: 14px;
     font-weight: 700;
-    color: #374151;
+    color: var(--cl-ink);
     margin-bottom: 8px;
   }
 
@@ -83,10 +83,10 @@
     width: 100%;
     min-height: 48px;
     padding: 0 12px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--cl-control-line);
     border-radius: 8px;
-    background: #fff;
-    color: #111827;
+    background: var(--cl-card);
+    color: var(--cl-ink);
     font-size: 14px;
     box-sizing: border-box;
   }
@@ -95,16 +95,16 @@
     width: 100%;
     min-height: 48px;
     padding: 0 12px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--cl-control-line);
     border-radius: 8px;
-    background: #fff;
-    color: #111827;
+    background: var(--cl-card);
+    color: var(--cl-ink);
     font-size: 14px;
     line-height: 48px;
     box-sizing: border-box;
 
     &.placeholder {
-      color: #9ca3af;
+      color: var(--cl-ink-3);
     }
   }
 
@@ -112,23 +112,23 @@
     width: 100%;
     min-height: 48px;
     padding: 0 12px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--cl-line);
     border-radius: 8px;
-    background: #f9fafb;
-    color: #111827;
+    background: var(--cl-sunk);
+    color: var(--cl-ink);
     font-size: 14px;
     line-height: 48px;
     box-sizing: border-box;
 
     &.placeholder {
-      color: #9ca3af;
+      color: var(--cl-ink-3);
     }
   }
 
   .field-hint {
     display: block;
     margin-top: 8px;
-    color: #6b7280;
+    color: var(--cl-ink-2);
     font-size: 12px;
     line-height: 18px;
   }
@@ -138,7 +138,7 @@
     margin-bottom: 16px;
     border: 1px solid #fed7aa;
     border-radius: 8px;
-    background: #fff7ed;
+    background: var(--cl-clay-soft);
     box-sizing: border-box;
   }
 
@@ -170,9 +170,9 @@
     flex: 1;
     min-height: 40px;
     border-radius: 8px;
-    border: 1px solid #d1d5db;
-    background: #fff;
-    color: #374151;
+    border: 1px solid var(--cl-control-line);
+    background: var(--cl-card);
+    color: var(--cl-ink);
     font-size: 14px;
     font-weight: 700;
     display: flex;
@@ -180,9 +180,9 @@
     justify-content: center;
 
     &.active {
-      background: #CF6D4E;
-      border-color: #CF6D4E;
-      color: #fff;
+      background: var(--cl-selected-bg);
+      border-color: var(--cl-selected-bg);
+      color: var(--cl-selected-text);
     }
   }
 
@@ -196,8 +196,8 @@
   .photo-uploader {
     min-height: 120px;
     border-radius: 8px;
-    border: 1px dashed #d1d5db;
-    background: #f9fafb;
+    border: 1px dashed var(--cl-control-line);
+    background: var(--cl-sunk);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -211,7 +211,7 @@
 
   .photo-placeholder {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--cl-ink-2);
   }
 
   .two-cols,
@@ -233,8 +233,8 @@
 
   .submit-btn {
     width: 100%;
-    background: #CF6D4E;
-    color: #fff;
+    background: var(--cl-clay-strong);
+    color: var(--cl-on-accent);
 
     &.inline {
       flex: 1;
@@ -248,8 +248,8 @@
 
   .secondary-btn {
     flex: 1;
-    background: #fff;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    background: var(--cl-card);
+    color: var(--cl-ink);
+    border: 1px solid var(--cl-control-line);
   }
 }

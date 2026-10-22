@@ -1,12 +1,12 @@
 .student-detail-page {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--cl-sunk);
   padding: 24rpx;
   padding-bottom: 48rpx;
 
   // 通用卡片样式
   .info-card, .automation-card, .questionnaire-card, .plan-card, .plan-history-card, .manage-card, .feedbacks-card {
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 16rpx;
     padding: 24rpx;
     margin-bottom: 24rpx;
@@ -22,13 +22,13 @@
     .card-title {
       font-size: 32rpx;
       font-weight: 600;
-      color: #333;
+      color: var(--cl-ink);
     }
   }
 
   // 按钮样式
   .btn-primary {
-    background: #CF6D4E;
+    background: var(--cl-clay-strong);
     padding: 16rpx 32rpx;
     border-radius: 8rpx;
     text-align: center;
@@ -36,7 +36,7 @@
 
     .btn-text {
       font-size: 28rpx;
-      color: #fff;
+      color: var(--cl-on-accent);
     }
 
     &.disabled {
@@ -45,13 +45,13 @@
   }
 
   .btn-small-primary {
-    background: #CF6D4E;
+    background: var(--cl-clay-strong);
     padding: 8rpx 16rpx;
     border-radius: 8rpx;
 
     .btn-text {
       font-size: 24rpx;
-      color: #fff;
+      color: var(--cl-on-accent);
     }
 
     &.disabled {
@@ -60,14 +60,14 @@
   }
 
   .btn-small-default {
-    background: #f5f5f5;
+    background: var(--cl-sunk);
     padding: 8rpx 16rpx;
     border-radius: 8rpx;
-    border: 1rpx solid #d9d9d9;
+    border: 1rpx solid var(--cl-line);
 
     .btn-text {
       font-size: 24rpx;
-      color: #666;
+      color: var(--cl-ink-2);
     }
 
     &.disabled {
@@ -86,25 +86,25 @@
 
   // 标签样式
   .tag {
-    background: #f5f5f5;
+    background: var(--cl-sunk);
     padding: 0rpx 8rpx;
     border-radius: 8rpx;
 
     .tag-text {
       font-size: 22rpx;
-      color: #666;
+      color: var(--cl-ink-2);
     }
 
     &.tag-primary {
-      background: #fbf0ec;
-      .tag-text { color: #cf6d4e; }
+      background: var(--cl-clay-soft);
+      .tag-text { color: var(--cl-clay); }
     }
   }
 
   // 分隔线
   .divider {
     height: 1rpx;
-    background: #f0f0f0;
+    background: var(--cl-sunk);
     margin: 16rpx 0;
   }
 
@@ -112,7 +112,7 @@
   .error-text {
     text-align: center;
     padding: 48rpx;
-    color: #999;
+    color: var(--cl-ink-3);
     font-size: 28rpx;
     display: block;
   }
@@ -121,7 +121,7 @@
   .no-data {
     text-align: center;
     padding: 48rpx 0;
-    color: #999;
+    color: var(--cl-ink-3);
     font-size: 28rpx;
     display: block;
   }
@@ -147,14 +147,14 @@
         .avatar-placeholder {
           width: 100%;
           height: 100%;
-          background: #CF6D4E;
+          background: var(--cl-clay-strong);
           display: flex;
           align-items: center;
           justify-content: center;
 
           .avatar-text {
             font-size: 48rpx;
-            color: #fff;
+            color: var(--cl-on-accent);
             font-weight: 600;
           }
         }
@@ -166,7 +166,7 @@
         .name {
           font-size: 36rpx;
           font-weight: 600;
-          color: #333;
+          color: var(--cl-ink);
           margin-bottom: 8rpx;
           display: block;
         }
@@ -184,7 +184,7 @@
         display: flex;
         justify-content: space-between;
         padding: 16rpx 0;
-        border-bottom: 1rpx solid #f0f0f0;
+        border-bottom: 1rpx solid var(--cl-sunk);
 
         &:last-child {
           border-bottom: none;
@@ -192,12 +192,12 @@
 
         .label {
           font-size: 28rpx;
-          color: #666;
+          color: var(--cl-ink-2);
         }
 
         .value {
           font-size: 28rpx;
-          color: #333;
+          color: var(--cl-ink);
           font-weight: 500;
         }
       }
@@ -222,16 +222,16 @@
       gap: 16rpx;
       padding: 16rpx;
       border-radius: 16rpx;
-      border: 1rpx solid #e5e7eb;
-      background: #fff;
+      border: 1rpx solid var(--cl-line);
+      background: var(--cl-card);
     }
 
     .questionnaire-index {
       width: 48rpx;
       height: 48rpx;
       border-radius: 16rpx;
-      background: #f8fafc;
-      border: 1rpx solid #e5e7eb;
+      background: var(--cl-sunk);
+      border: 1rpx solid var(--cl-line);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -239,7 +239,7 @@
 
       Text {
         font-size: 20rpx;
-        color: #6b7280;
+        color: var(--cl-ink-2);
         font-weight: 700;
       }
     }
@@ -251,7 +251,7 @@
 
     .questionnaire-question {
       display: block;
-      color: #111827;
+      color: var(--cl-ink);
       font-size: 28rpx;
       font-weight: 600;
       line-height: 40rpx;
@@ -260,7 +260,7 @@
 
     .questionnaire-answer {
       display: block;
-      color: #6b7280;
+      color: var(--cl-ink-2);
       font-size: 26rpx;
       line-height: 40rpx;
       white-space: pre-wrap;
@@ -275,20 +275,20 @@
     .question-option-chip {
       padding: 8rpx 16rpx;
       border-radius: 9999rpx;
-      background: #f3f4f6;
-      border: 1rpx solid #e5e7eb;
+      background: var(--cl-sunk);
+      border: 1rpx solid var(--cl-line);
 
       Text {
         font-size: 24rpx;
-        color: #374151;
+        color: var(--cl-ink);
       }
 
       &.active {
-        background: #CF6D4E;
-        border-color: #CF6D4E;
+        background: var(--cl-selected-bg);
+        border-color: var(--cl-selected-bg);
 
         Text {
-          color: #fff;
+          color: var(--cl-selected-text);
         }
       }
     }
@@ -296,11 +296,11 @@
     .question-input,
     .question-textarea {
       width: 100%;
-      background: #f8fafc;
-      border: 2rpx solid #e5e7eb;
+      background: var(--cl-sunk);
+      border: 2rpx solid var(--cl-line);
       border-radius: 16rpx;
       box-sizing: border-box;
-      color: #111827;
+      color: var(--cl-ink);
       font-size: 26rpx;
     }
 
@@ -331,7 +331,7 @@
     .rm-action-name,
     .question-empty {
       font-size: 24rpx;
-      color: #6b7280;
+      color: var(--cl-ink-2);
     }
   }
 
@@ -347,7 +347,7 @@
       justify-content: space-between;
       gap: 16rpx;
       min-height: 80rpx;
-      border-bottom: 1rpx solid #f0f0f0;
+      border-bottom: 1rpx solid var(--cl-sunk);
 
       &:last-child {
         border-bottom: none;
@@ -356,7 +356,7 @@
 
     .automation-label {
       font-size: 28rpx;
-      color: #333333;
+      color: var(--cl-ink);
       font-weight: 600;
       flex-shrink: 0;
     }
@@ -369,13 +369,13 @@
       gap: 8rpx;
       font-size: 28rpx;
       font-weight: 700;
-      color: #CF6D4E;
+      color: var(--cl-clay);
       text-align: right;
     }
 
     .automation-chevron {
       font-size: 36rpx;
-      color: #c4c4c4;
+      color: var(--cl-line);
       line-height: 1;
     }
 
@@ -383,7 +383,7 @@
       display: block;
       margin-top: 16rpx;
       font-size: 24rpx;
-      color: #999999;
+      color: var(--cl-ink-3);
       line-height: 36rpx;
     }
   }
@@ -404,18 +404,18 @@
       display: block;
       margin-bottom: 8rpx;
       font-size: 24rpx;
-      color: #666;
+      color: var(--cl-ink-2);
       font-weight: 600;
     }
 
     .week-input,
     .review-textarea {
       width: 100%;
-      background: #f8fafc;
-      border: 2rpx solid #e5e7eb;
+      background: var(--cl-sunk);
+      border: 2rpx solid var(--cl-line);
       border-radius: 16rpx;
       box-sizing: border-box;
-      color: #111827;
+      color: var(--cl-ink);
     }
 
     .week-input {
@@ -427,7 +427,7 @@
     .review-editor {
       margin-top: 24rpx;
       padding-top: 24rpx;
-      border-top: 1rpx solid #f0f0f0;
+      border-top: 1rpx solid var(--cl-sunk);
     }
 
     .review-textarea {
@@ -454,21 +454,21 @@
     .coach-review-item {
       padding: 16rpx;
       border-radius: 16rpx;
-      border: 1rpx solid #e5e7eb;
-      background: #fff;
+      border: 1rpx solid var(--cl-line);
+      background: var(--cl-card);
     }
 
     .coach-review-time {
       display: block;
       font-size: 22rpx;
-      color: #999;
+      color: var(--cl-ink-3);
       margin-bottom: 8rpx;
     }
 
     .coach-review-content {
       display: block;
       font-size: 26rpx;
-      color: #333;
+      color: var(--cl-ink);
       line-height: 1.6;
       white-space: pre-wrap;
     }
@@ -493,7 +493,7 @@
         .plan-name {
           font-size: 32rpx;
           font-weight: 600;
-          color: #333;
+          color: var(--cl-ink);
         }
 
         .status-tag {
@@ -526,26 +526,26 @@
 
           .progress-text {
             font-size: 26rpx;
-            color: #666;
+            color: var(--cl-ink-2);
           }
 
           .progress-value {
             font-size: 26rpx;
-            color: #cf6d4e;
+            color: var(--cl-clay);
             font-weight: 600;
           }
         }
 
         .progress-bar {
           height: 16rpx;
-          background: #f0f0f0;
+          background: var(--cl-sunk);
           border-radius: 8rpx;
           overflow: hidden;
           margin-bottom: 8rpx;
 
           .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #cf6d4e, #36cfc9);
+            background: var(--cl-clay);
             border-radius: 8rpx;
             transition: width 0.3s ease;
           }
@@ -553,7 +553,7 @@
 
         .progress-detail {
           font-size: 24rpx;
-          color: #999;
+          color: var(--cl-ink-3);
         }
       }
     }
@@ -564,7 +564,7 @@
 
       .no-plan-text {
         font-size: 28rpx;
-        color: #999;
+        color: var(--cl-ink-3);
         margin-bottom: 24rpx;
         display: block;
       }
@@ -574,7 +574,7 @@
   .plan-history-card {
     .history-total {
       font-size: 24rpx;
-      color: #6b7280;
+      color: var(--cl-ink-2);
     }
 
     .history-filter-row {
@@ -587,20 +587,20 @@
     .history-filter-chip {
       padding: 8rpx 16rpx;
       border-radius: 9999rpx;
-      background: #f8fafc;
-      border: 1rpx solid #e5e7eb;
+      background: var(--cl-sunk);
+      border: 1rpx solid var(--cl-line);
 
       Text {
         font-size: 24rpx;
-        color: #6b7280;
+        color: var(--cl-ink-2);
       }
 
       &.active {
-        background: #CF6D4E;
-        border-color: #CF6D4E;
+        background: var(--cl-selected-bg);
+        border-color: var(--cl-selected-bg);
 
         Text {
-          color: #fff;
+          color: var(--cl-selected-text);
           font-weight: 600;
         }
       }
@@ -614,9 +614,9 @@
 
     .plan-history-item {
       padding: 16rpx;
-      border: 2rpx solid #edf0f5;
+      border: 2rpx solid var(--cl-line);
       border-radius: 16rpx;
-      background: #f8fafc;
+      background: var(--cl-sunk);
     }
 
     .plan-history-main {
@@ -627,7 +627,7 @@
       display: block;
       font-size: 28rpx;
       font-weight: 700;
-      color: #111827;
+      color: var(--cl-ink);
       line-height: 40rpx;
     }
 
@@ -635,7 +635,7 @@
       display: block;
       margin-top: 8rpx;
       font-size: 24rpx;
-      color: #6b7280;
+      color: var(--cl-ink-2);
       line-height: 36rpx;
     }
 
@@ -652,19 +652,19 @@
       border-radius: 9999rpx;
       font-size: 22rpx;
       line-height: 32rpx;
-      background: #fff;
-      color: #6b7280;
-      border: 1rpx solid #e5e7eb;
+      background: var(--cl-card);
+      color: var(--cl-ink-2);
+      border: 1rpx solid var(--cl-line);
     }
 
     .plan-history-status {
-      color: #CF6D4E;
-      border-color: rgba(207, 109, 78, 0.24);
+      color: var(--cl-clay);
+      border-color: var(--cl-line);
       background: rgba(207, 109, 78, 0.08);
 
       &.status-completed,
       &.status-archived {
-        color: #047857;
+        color: var(--cl-done);
         border-color: rgba(4, 120, 87, 0.2);
         background: rgba(4, 120, 87, 0.08);
       }
@@ -679,13 +679,13 @@
     .history-more-btn {
       padding: 16rpx;
       border-radius: 16rpx;
-      border: 1rpx solid #e5e7eb;
-      background: #fff;
+      border: 1rpx solid var(--cl-line);
+      background: var(--cl-card);
       text-align: center;
 
       Text {
         font-size: 24rpx;
-        color: #CF6D4E;
+        color: var(--cl-clay);
         font-weight: 600;
       }
     }
@@ -696,7 +696,7 @@
     .feedback-list {
       .feedback-item {
         padding: 24rpx 0;
-        border-bottom: 1rpx solid #f0f0f0;
+        border-bottom: 1rpx solid var(--cl-sunk);
 
         &:last-child {
           border-bottom: none;
@@ -710,13 +710,13 @@
 
           .feedback-day {
             font-size: 28rpx;
-            color: #333;
+            color: var(--cl-ink);
             font-weight: 500;
           }
 
           .feedback-date {
             font-size: 24rpx;
-            color: #999;
+            color: var(--cl-ink-3);
           }
 
           .difficulty-tag {
@@ -733,7 +733,7 @@
 
         .feedback-content {
           font-size: 28rpx;
-          color: #666;
+          color: var(--cl-ink-2);
           line-height: 1.6;
           margin-bottom: 16rpx;
           display: block;
@@ -755,7 +755,7 @@
 
           .reply-content {
             font-size: 26rpx;
-            color: #333;
+            color: var(--cl-ink);
             line-height: 1.5;
           }
         }
@@ -774,7 +774,7 @@
 
         .show-more-text {
           font-size: 26rpx;
-          color: #cf6d4e;
+          color: var(--cl-clay);
         }
       }
     }
@@ -782,7 +782,7 @@
     .no-data {
       text-align: center;
       padding: 48rpx 0;
-      color: #999;
+      color: var(--cl-ink-3);
       font-size: 28rpx;
       display: block;
     }
@@ -791,7 +791,7 @@
   // 骨架屏
   .skeleton-page {
     .skeleton-card {
-      background: #fff;
+      background: var(--cl-card);
       border-radius: 16rpx;
       padding: 24rpx;
       margin-bottom: 24rpx;
@@ -804,7 +804,7 @@
           width: 120rpx;
           height: 120rpx;
           border-radius: 50%;
-          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background: linear-gradient(90deg, var(--cl-sunk) 25%, var(--cl-line) 50%, var(--cl-sunk) 75%);
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
         }
@@ -818,7 +818,7 @@
 
           .skeleton-line {
             height: 24rpx;
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background: linear-gradient(90deg, var(--cl-sunk) 25%, var(--cl-line) 50%, var(--cl-sunk) 75%);
             background-size: 200% 100%;
             animation: shimmer 1.5s infinite;
             border-radius: 0rpx;
@@ -828,7 +828,7 @@
 
       .skeleton-line {
         height: 24rpx;
-        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background: linear-gradient(90deg, var(--cl-sunk) 25%, var(--cl-line) 50%, var(--cl-sunk) 75%);
         background-size: 200% 100%;
         animation: shimmer 1.5s infinite;
         border-radius: 0rpx;

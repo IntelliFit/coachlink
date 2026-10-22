@@ -1,6 +1,6 @@
 .security-settings-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--cl-paper);
   box-sizing: border-box;
 
   .settings-scroll {
@@ -9,8 +9,8 @@
   }
 
   .settings-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
     border-radius: 16px;
     padding: 24px;
     box-sizing: border-box;
@@ -20,14 +20,14 @@
     .card-title {
       font-size: 18px;
       font-weight: 800;
-      color: #111827;
+      color: var(--cl-ink);
       margin-bottom: 24px;
       display: block;
     }
 
     .card-desc {
       font-size: 14px;
-      color: #6b7280;
+      color: var(--cl-ink-2);
       line-height: 1.6;
       display: block;
     }
@@ -38,7 +38,7 @@
 
       .empty-text {
         font-size: 14px;
-        color: #6b7280;
+        color: var(--cl-ink-2);
         line-height: 1.6;
       }
     }
@@ -55,7 +55,7 @@
       .form-label {
         font-size: 14px;
         font-weight: 600;
-        color: #374151;
+        color: var(--cl-ink);
         margin-bottom: 10px;
         display: block;
         line-height: 1.5;
@@ -72,19 +72,19 @@
           flex: 1;
           min-width: 0;
           padding: 10px 16px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
+          background: var(--cl-sunk);
+          border: 1px solid var(--cl-line);
           border-radius: 8px;
           font-size: 14px;
           font-weight: 500;
-          color: #374151;
+          color: var(--cl-ink);
           box-sizing: border-box;
           max-width: 100%;
 
           &.active {
-            background: #cf6d4e;
-            border-color: #cf6d4e;
-            color: #fff;
+            background: var(--cl-selected-bg);
+            border-color: var(--cl-selected-bg);
+            color: var(--cl-selected-text);
           }
         }
       }
@@ -102,8 +102,8 @@
           padding: 12px 16px;
           min-height: 44px;
           line-height: 20px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
+          background: var(--cl-sunk);
+          border: 1px solid var(--cl-line);
           border-radius: 8px;
           font-size: 14px;
           box-sizing: border-box;
@@ -115,8 +115,8 @@
           padding: 12px 16px;
           min-height: 44px;
           line-height: 20px;
-          background: #cf6d4e;
-          color: #fff;
+          background: var(--cl-clay-strong);
+          color: var(--cl-on-accent);
           border: none;
           border-radius: 8px;
           font-size: 13px;
@@ -131,7 +131,7 @@
 
       .form-hint {
         font-size: 12px;
-        color: #9ca3af;
+        color: var(--cl-ink-3);
         margin-top: 8px;
         display: block;
         line-height: 1.5;
@@ -151,8 +151,8 @@
           padding: 12px 60px 12px 16px;
           min-height: 44px;
           line-height: 20px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
+          background: var(--cl-sunk);
+          border: 1px solid var(--cl-line);
           border-radius: 8px;
           font-size: 14px;
           box-sizing: border-box;
@@ -163,7 +163,7 @@
           position: absolute;
           right: 16px;
           font-size: 13px;
-          color: #cf6d4e;
+          color: var(--cl-clay);
           font-weight: 500;
           z-index: 1;
         }
@@ -173,8 +173,8 @@
     .submit-btn {
       width: 100%;
       padding: 14px;
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       border: none;
       border-radius: 12px;
       font-size: 15px;

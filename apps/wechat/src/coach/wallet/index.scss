@@ -1,11 +1,11 @@
 .coach-wallet-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--cl-paper);
 
   .loading-wrap {
     padding: 24px;
     text-align: center;
-    color: #9ca3af;
+    color: var(--cl-ink-3);
     font-size: 14px;
   }
 
@@ -15,11 +15,11 @@
   }
 
   .balance-card {
-    background: #059669;
+    background: var(--cl-done);
     border-radius: 16px;
     padding: 24px;
     margin: 0 12px 16px 12px;
-    color: #fff;
+    color: var(--cl-on-accent);
     box-sizing: border-box;
 
     .label {
@@ -69,7 +69,7 @@
       font-weight: 700;
 
       &.strong {
-        color: #fff;
+        color: var(--cl-on-accent);
       }
     }
 
@@ -89,25 +89,25 @@
       font-weight: 700;
 
       &.primary {
-        background: #fff;
-        color: #047857;
+        background: var(--cl-card);
+        color: var(--cl-done);
       }
     }
   }
 
 
   .transactions-section {
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 16px;
     padding: 16px;
     margin: 0 12px 16px 12px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--cl-line);
     box-sizing: border-box;
 
     .section-title {
       font-size: 16px;
       font-weight: 800;
-      color: #111827;
+      color: var(--cl-ink);
       margin-bottom: 16px;
       display: block;
     }
@@ -117,7 +117,7 @@
       justify-content: space-between;
       align-items: flex-start;
       padding: 12px 0;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid var(--cl-sunk);
       cursor: pointer;
 
       &:last-child {
@@ -137,8 +137,8 @@
           margin-bottom: 6px;
 
           &.income {
-            background: #ecfdf5;
-            color: #059669;
+            background: var(--cl-done-soft);
+            color: var(--cl-done);
           }
 
           &.withdrawal {
@@ -159,7 +159,7 @@
 
         .transaction-desc {
           font-size: 14px;
-          color: #111827;
+          color: var(--cl-ink);
           font-weight: 600;
           margin-bottom: 4px;
           display: block;
@@ -168,7 +168,7 @@
 
         .transaction-subject {
           font-size: 12px;
-          color: #6b7280;
+          color: var(--cl-ink-2);
           display: block;
           margin-bottom: 4px;
           word-break: break-all;
@@ -176,7 +176,7 @@
 
         .transaction-time {
           font-size: 12px;
-          color: #9ca3af;
+          color: var(--cl-ink-3);
           display: block;
         }
 
@@ -204,11 +204,11 @@
         font-family: monospace;
 
         &.income {
-          color: #10b981;
+          color: var(--cl-done);
         }
 
         &.outcome {
-          color: #111827;
+          color: var(--cl-ink);
         }
 
         &.pending {
@@ -219,23 +219,23 @@
   }
 
   .empty-transactions {
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 16px;
     padding: 40px 20px;
     text-align: center;
     margin: 0 12px 16px 12px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--cl-line);
     box-sizing: border-box;
 
     .empty-text {
       font-size: 14px;
-      color: #9ca3af;
+      color: var(--cl-ink-3);
     }
   }
 
   .huifu-status-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
     border-radius: 16px;
     padding: 16px;
     margin: 0 12px 16px 12px;
@@ -244,14 +244,14 @@
     .huifu-status-title {
       font-size: 14px;
       font-weight: 700;
-      color: #374151;
+      color: var(--cl-ink);
       margin-bottom: 8px;
       display: block;
     }
 
     .huifu-status {
       &.opened .huifu-status-text {
-        color: #059669;
+        color: var(--cl-done);
         font-size: 14px;
         font-weight: 600;
       }
@@ -270,7 +270,7 @@
 
       .huifu-status-desc {
         font-size: 12px;
-        color: #9ca3af;
+        color: var(--cl-ink-3);
         margin-top: 4px;
         display: block;
       }
@@ -290,8 +290,8 @@
       min-height: 40px;
       margin-top: 16px;
       border-radius: 8px;
-      background: #CF6D4E;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       font-size: 14px;
       font-weight: 700;
     }
@@ -302,15 +302,15 @@
 
     .transaction-platform-fee {
       font-size: 12px;
-      color: #9ca3af;
+      color: var(--cl-ink-3);
       display: block;
       margin-top: 2px;
     }
   }
 
   .hint-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
     border-radius: 16px;
     padding: 16px;
     margin: 0 12px 16px 12px;
@@ -318,7 +318,7 @@
 
     .hint-text {
       font-size: 14px;
-      color: #6b7280;
+      color: var(--cl-ink-2);
       text-align: center;
       line-height: 1.6;
     }

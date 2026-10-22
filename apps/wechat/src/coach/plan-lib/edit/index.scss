@@ -1,6 +1,6 @@
 .plan-edit-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: var(--cl-paper);
   display: flex;
   flex-direction: column;
   padding-bottom: 80px;
@@ -20,9 +20,9 @@
   .loading-wrap {
     padding: 40px 16px;
     text-align: center;
-    color: #64748b;
+    color: var(--cl-ink-2);
     font-size: 14px;
-    background: #fff;
+    background: var(--cl-card);
     border-radius: 12px;
     margin: 8px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
@@ -44,7 +44,7 @@
 
     // 基本信息section保留边框
     &:first-child {
-      background: #fff;
+      background: var(--cl-card);
       padding: 12px;
       border-radius: 12px;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
@@ -55,7 +55,7 @@
 
       .section-header {
         padding-bottom: 8px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--cl-sunk);
         box-sizing: border-box;
         width: 100%;
         max-width: 100%;
@@ -85,7 +85,7 @@
     .section-title {
       font-size: 16px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--cl-ink);
       margin-bottom: 0;
       display: flex;
       align-items: center;
@@ -95,7 +95,7 @@
         content: '';
         width: 3px;
         height: 16px;
-        background: #cf6d4e;
+        background: var(--cl-clay-strong);
         border-radius: 2px;
       }
     }
@@ -105,8 +105,8 @@
       align-items: center;
       gap: 3px;
       padding: 6px 10px;
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       font-size: 12px;
       font-weight: 700;
       border-radius: 6px;
@@ -144,7 +144,7 @@
       display: block;
       font-size: 13px;
       font-weight: 700;
-      color: #1e293b;
+      color: var(--cl-ink);
       margin-bottom: 6px;
       letter-spacing: 0.2px;
       width: 100%;
@@ -156,7 +156,7 @@
         display: inline-block;
         width: 3px;
         height: 3px;
-        background: #cf6d4e;
+        background: var(--cl-clay-strong);
         border-radius: 50%;
         margin-left: 4px;
         vertical-align: middle;
@@ -166,21 +166,21 @@
     .input {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--cl-line);
       border-radius: 8px;
       font-size: 15px;
       line-height: 1.5;
       min-height: 44px;
-      background: #f8fafc;
+      background: var(--cl-sunk);
       box-sizing: border-box;
       transition: all 0.2s;
-      color: #0f172a;
+      color: var(--cl-ink);
       vertical-align: middle;
       max-width: 100%;
 
       &:focus {
-        border-color: #cf6d4e;
-        background: #fff;
+        border-color: var(--cl-clay);
+        background: var(--cl-card);
         box-shadow: 0 0 0 2px rgba(207, 109, 78, 0.1);
       }
     }
@@ -189,19 +189,19 @@
       width: 100%;
       min-height: 80px;
       padding: 10px 12px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--cl-line);
       border-radius: 8px;
       font-size: 15px;
-      background: #f8fafc;
+      background: var(--cl-sunk);
       box-sizing: border-box;
       transition: all 0.2s;
-      color: #0f172a;
+      color: var(--cl-ink);
       line-height: 1.6;
       max-width: 100%;
 
       &:focus {
-        border-color: #cf6d4e;
-        background: #fff;
+        border-color: var(--cl-clay);
+        background: var(--cl-card);
         box-shadow: 0 0 0 2px rgba(207, 109, 78, 0.1);
       }
     }
@@ -211,11 +211,11 @@
       justify-content: space-between;
       align-items: center;
       padding: 10px 12px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--cl-line);
       border-radius: 8px;
-      background: #f8fafc;
+      background: var(--cl-sunk);
       font-size: 15px;
-      color: #0f172a;
+      color: var(--cl-ink);
       transition: all 0.2s;
       min-height: 44px;
       width: 100%;
@@ -223,13 +223,13 @@
       max-width: 100%;
 
       &:active {
-        border-color: #cf6d4e;
-        background: #fff;
+        border-color: var(--cl-clay);
+        background: var(--cl-card);
         box-shadow: 0 0 0 2px rgba(207, 109, 78, 0.1);
       }
 
       .picker-arrow {
-        color: #64748b;
+        color: var(--cl-ink-2);
         font-size: 18px;
         font-weight: 300;
         flex-shrink: 0;
@@ -240,7 +240,7 @@
   .type-buttons {
     display: flex;
     gap: 8px;
-    background: #f1f5f9;
+    background: var(--cl-sunk);
     padding: 3px;
     border-radius: 8px;
     width: 100%;
@@ -256,7 +256,7 @@
       background: transparent;
       font-size: 14px;
       font-weight: 600;
-      color: #64748b;
+      color: var(--cl-ink-2);
       cursor: pointer;
       transition: all 0.2s;
       position: relative;
@@ -264,20 +264,20 @@
       min-width: 0;
 
       &.active {
-        background: #cf6d4e;
-        color: #fff;
+        background: var(--cl-selected-bg);
+        color: var(--cl-selected-text);
         box-shadow: 0 2px 8px rgba(207, 109, 78, 0.3);
       }
 
       &:active:not(.active) {
-        background: #e2e8f0;
+        background: var(--cl-line);
       }
     }
   }
 
   .day-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
     border-radius: 10px;
     padding: 12px;
     margin-bottom: 10px;
@@ -303,7 +303,7 @@
       align-items: center;
       margin-bottom: 12px;
       padding-bottom: 8px;
-      border-bottom: 1px dashed #e2e8f0;
+      border-bottom: 1px dashed var(--cl-line);
       width: 100%;
       box-sizing: border-box;
       max-width: 100%;
@@ -312,7 +312,7 @@
       .day-title {
         font-size: 15px;
         font-weight: 800;
-        color: #0f172a;
+        color: var(--cl-ink);
         display: flex;
         align-items: center;
         gap: 6px;
@@ -359,7 +359,7 @@
   .action-sets {
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px dashed #e2e8f0;
+    border-top: 1px dashed var(--cl-line);
     width: 100%;
     box-sizing: border-box;
     max-width: 100%;
@@ -377,7 +377,7 @@
       .label {
         font-size: 14px;
         font-weight: 700;
-        color: #1e293b;
+        color: var(--cl-ink);
         margin: 0;
         display: flex;
         align-items: center;
@@ -394,8 +394,8 @@
     }
 
     .action-set-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
+      background: var(--cl-sunk);
+      border: 1px solid var(--cl-line);
       border-radius: 8px;
       padding: 10px;
       margin-bottom: 8px;
@@ -421,7 +421,7 @@
         align-items: center;
         margin-bottom: 10px;
         padding-bottom: 8px;
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid var(--cl-line);
         width: 100%;
         box-sizing: border-box;
         max-width: 100%;
@@ -430,7 +430,7 @@
         .action-set-title {
           font-size: 13px;
           font-weight: 700;
-          color: #475569;
+          color: var(--cl-ink-2);
           display: flex;
           align-items: center;
           gap: 4px;
@@ -477,10 +477,10 @@
     .empty-hint {
       text-align: center;
       padding: 20px 12px;
-      background: #f8fafc;
-      border: 1px dashed #cbd5e1;
+      background: var(--cl-sunk);
+      border: 1px dashed var(--cl-line);
       border-radius: 8px;
-      color: #94a3b8;
+      color: var(--cl-ink-3);
       font-size: 13px;
       line-height: 1.5;
       width: 100%;
@@ -501,10 +501,10 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, #ffffff 100%);
+    background: var(--cl-card);
     backdrop-filter: blur(10px);
     padding: 10px 12px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--cl-line);
     display: flex;
     gap: 8px;
     box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
@@ -532,19 +532,19 @@
     }
 
     .cancel-btn {
-      background: #f1f5f9;
-      color: #64748b;
+      background: var(--cl-sunk);
+      color: var(--cl-ink-2);
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 
       &:active {
-        background: #e2e8f0;
+        background: var(--cl-line);
         transform: scale(0.98);
       }
     }
 
     .save-btn {
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       box-shadow: 0 2px 8px rgba(207, 109, 78, 0.3);
 
       &:active {
@@ -553,8 +553,8 @@
       }
 
       &[disabled] {
-        background: #cbd5e1;
-        color: #94a3b8;
+        background: var(--cl-line);
+        color: var(--cl-ink-3);
         box-shadow: none;
       }
     }

@@ -1,12 +1,12 @@
 .coach-profile-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--cl-paper);
 
   .loading-wrap,
   .error-wrap {
     padding: 24px;
     text-align: center;
-    color: #9ca3af;
+    color: var(--cl-ink-3);
     font-size: 14px;
   }
 
@@ -19,8 +19,8 @@
   }
 
   .profile-header {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 16px;
@@ -39,12 +39,12 @@
       width: 80px;
       height: 80px;
       border-radius: 16px;
-      background: linear-gradient(135deg, #cf6d4e 0%, #9e4932 100%);
+      background: var(--cl-clay-strong);
       display: flex;
       align-items: center;
       justify-content: center;
       margin-bottom: 12px;
-      color: #fff;
+      color: var(--cl-on-accent);
       font-size: 32px;
       font-weight: 700;
     }
@@ -56,14 +56,14 @@
       .coach-name {
         font-size: 20px;
         font-weight: 800;
-        color: #111827;
+        color: var(--cl-ink);
         display: block;
         margin-bottom: 4px;
       }
 
       .coach-title {
         font-size: 14px;
-        color: #6b7280;
+        color: var(--cl-ink-2);
         display: block;
         margin-bottom: 16px;
       }
@@ -74,7 +74,7 @@
         gap: 24px;
         margin-top: 16px;
         padding-top: 16px;
-        border-top: 1px solid #e5e7eb;
+        border-top: 1px solid var(--cl-line);
 
         .stat-item {
           display: flex;
@@ -84,13 +84,13 @@
           .stat-value {
             font-size: 18px;
             font-weight: 800;
-            color: #111827;
+            color: var(--cl-ink);
             margin-bottom: 4px;
           }
 
           .stat-label {
             font-size: 12px;
-            color: #6b7280;
+            color: var(--cl-ink-2);
           }
         }
       }
@@ -99,8 +99,8 @@
     .edit-btn {
       margin-top: 16px;
       padding: 8px 20px;
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       border-radius: 8px;
       font-size: 14px;
       border: none;
@@ -108,8 +108,8 @@
   }
 
   .section {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
     border-radius: 16px;
     padding: 16px;
     margin-bottom: 16px;
@@ -117,14 +117,14 @@
     .section-title {
       font-size: 16px;
       font-weight: 800;
-      color: #111827;
+      color: var(--cl-ink);
       margin-bottom: 12px;
       display: block;
     }
 
     .section-content {
       font-size: 14px;
-      color: #374151;
+      color: var(--cl-ink);
       line-height: 1.6;
       display: block;
     }
@@ -133,20 +133,20 @@
       width: 100%;
       min-height: 100px;
       padding: 10px 12px;
-      border: 1px solid #d1d5db;
+      border: 1px solid var(--cl-control-line);
       border-radius: 8px;
       font-size: 14px;
-      background: #fff;
+      background: var(--cl-card);
       box-sizing: border-box;
     }
 
     .input {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #d1d5db;
+      border: 1px solid var(--cl-control-line);
       border-radius: 8px;
       font-size: 14px;
-      background: #fff;
+      background: var(--cl-card);
       box-sizing: border-box;
     }
 
@@ -161,10 +161,10 @@
         align-items: center;
         gap: 6px;
         padding: 6px 12px;
-        background: #f3f4f6;
+        background: var(--cl-sunk);
         border-radius: 16px;
         font-size: 13px;
-        color: #374151;
+        color: var(--cl-ink);
 
         .tag-remove {
           color: #ef4444;
@@ -183,15 +183,15 @@
       .tag-input {
         flex: 1;
         padding: 8px 12px;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--cl-control-line);
         border-radius: 8px;
         font-size: 14px;
       }
 
       .tag-add-btn {
         padding: 8px 16px;
-        background: #cf6d4e;
-        color: #fff;
+        background: var(--cl-clay-strong);
+        color: var(--cl-on-accent);
         border-radius: 8px;
         font-size: 14px;
         border: none;
@@ -203,7 +203,7 @@
       justify-content: space-between;
       align-items: center;
       padding: 10px 12px;
-      background: #f9fafb;
+      background: var(--cl-sunk);
       border-radius: 8px;
       margin-bottom: 8px;
 
@@ -223,15 +223,15 @@
       .list-input {
         flex: 1;
         padding: 8px 12px;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--cl-control-line);
         border-radius: 8px;
         font-size: 14px;
       }
 
       .list-add-btn {
         padding: 8px 16px;
-        background: #cf6d4e;
-        color: #fff;
+        background: var(--cl-clay-strong);
+        color: var(--cl-on-accent);
         border-radius: 8px;
         font-size: 14px;
         border: none;
@@ -240,21 +240,21 @@
 
     .credential-item {
       padding: 12px;
-      background: #f9fafb;
+      background: var(--cl-sunk);
       border-radius: 8px;
       margin-bottom: 8px;
 
       .credential-name {
         font-size: 14px;
         font-weight: 600;
-        color: #111827;
+        color: var(--cl-ink);
         display: block;
         margin-bottom: 4px;
       }
 
       .credential-url {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--cl-ink-2);
         display: block;
         margin-bottom: 8px;
         word-break: break-all;
@@ -283,34 +283,34 @@
         }
 
         .cancel-btn {
-          background: #f3f4f6;
-          color: #374151;
+          background: var(--cl-sunk);
+          color: var(--cl-ink);
         }
 
         .save-btn {
-          background: #cf6d4e;
-          color: #fff;
+          background: var(--cl-clay-strong);
+          color: var(--cl-on-accent);
         }
       }
     }
 
     .social-item {
       padding: 12px;
-      background: #f9fafb;
+      background: var(--cl-sunk);
       border-radius: 8px;
       margin-bottom: 8px;
 
       .social-name {
         font-size: 14px;
         font-weight: 600;
-        color: #111827;
+        color: var(--cl-ink);
         display: block;
         margin-bottom: 4px;
       }
 
       .social-url {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--cl-ink-2);
         display: block;
         margin-bottom: 8px;
         word-break: break-all;
@@ -330,7 +330,7 @@
         .picker-label {
           font-size: 14px;
           font-weight: 600;
-          color: #374151;
+          color: var(--cl-ink);
           margin-bottom: 8px;
           display: block;
         }
@@ -342,17 +342,17 @@
 
           .platform-option {
             padding: 6px 12px;
-            border: 1px solid #d1d5db;
+            border: 1px solid var(--cl-control-line);
             border-radius: 8px;
             font-size: 13px;
-            color: #374151;
-            background: #fff;
+            color: var(--cl-ink);
+            background: var(--cl-card);
             cursor: pointer;
 
             &.active {
-              background: #cf6d4e;
-              color: #fff;
-              border-color: #cf6d4e;
+              background: var(--cl-selected-bg);
+              color: var(--cl-selected-text);
+              border-color: var(--cl-selected-bg);
             }
           }
         }
@@ -373,13 +373,13 @@
         }
 
         .cancel-btn {
-          background: #f3f4f6;
-          color: #374151;
+          background: var(--cl-sunk);
+          color: var(--cl-ink);
         }
 
         .save-btn {
-          background: #cf6d4e;
-          color: #fff;
+          background: var(--cl-clay-strong);
+          color: var(--cl-on-accent);
         }
       }
     }
@@ -387,11 +387,11 @@
     .add-btn {
       width: 100%;
       padding: 10px;
-      background: #f3f4f6;
-      color: #374151;
+      background: var(--cl-sunk);
+      color: var(--cl-ink);
       border-radius: 8px;
       font-size: 14px;
-      border: 1px dashed #d1d5db;
+      border: 1px dashed var(--cl-control-line);
     }
   }
 
@@ -401,8 +401,8 @@
     .submit-btn {
       width: 100%;
       padding: 14px;
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       border-radius: 12px;
       font-size: 16px;
       font-weight: 700;
