@@ -58,6 +58,7 @@
         "motion-effects:cleanup": "node scripts/motion-effects-worker.mjs --cleanup",
         "push-docker-ccr": "node scripts/push-docker-ccr.mjs",
         "push-power-worker-ccr": "node scripts/push-power-worker-ccr.mjs",
+        "push-boji-service-ccr": "node scripts/push-boji-service-ccr.mjs",
         "push-motion-effects-worker-ccr": "node scripts/push-motion-effects-worker-ccr.mjs",
         "dev:mobile": "node scripts/start-mobile-dev.cjs",
         "typecheck:mobile": "npm --workspace apps/mobile run typecheck",

@@ -1,3 +1,13 @@
+## 薄肌检测器上线工具箱（2026-10-22，测试版）
+
+- 用户确认：开源引擎 [boji-detector](https://github.com/SmallHorseBrother/boji-detector) 接入教链工具箱，网页 `/toolbox/boji` 先上线，小程序工具页随后；GitHub 仓库面向开发者，用户入口在教链。
+- 架构：独立 Python 服务 `coachlink-boji-service-main`（`deploy/boji-service/Dockerfile`，引擎版本由 `BOJI_DETECTOR_REF` 固定到提交），集群内 ClusterIP，不配 Ingress。单张约 0.3–0.5 秒，**同步返回**，不建任务表、不走 Kafka、不做数据库迁移。
+- 隐私：照片只在内存中经过 Web 接口和服务，不进对象存储、不落盘、不写日志；浏览器先压缩到长边 1600 像素 JPEG 再上传；结果页的标注由前端按 `to_original` 在用户本地照片上绘制，服务端不回传图片。
+- 接口：`POST /api/toolbox/boji/analyze`，请求体就是照片（`image/*` 或 `application/octet-stream`），网页 Cookie 与小程序 Bearer 共用；必须登录；每人每小时 30 次（Redis 固定窗口，连不上时退回进程内计数），上限 8 MB。页面本身对游客开放（`PUBLIC_PATHS`）。
+- 网页与小程序共用 `packages/core/src/bojiDetector.ts`（类型、标注图形、指标文案），不在客户端另起一套算法。
+- 分数曲线是未校准占位（`uncalibrated-v0`），页面标"测试版"，引导看原始数值和自己前后变化；校准依赖教练对同一批照片的评分。
+- 上线前置：`npm run push-boji-service-ccr`（main）→ 首次 `kubectl apply -k deploy/k8s/boji-service/main` → 推 Web 镜像。Web 侧变量 `BOJI_SERVICE_URL` 等均有默认值，见 `deploy/k8s/boji-service/README.md`。
+
 ## 功率视频分析扩展为动作分析：第二步“其他动作”（2026-10-21，试验阶段）
 
 - 新增 `custom` 模式：用户必填动作名称（≤20 字，去掉引号、尖括号、控制字符，存任务 metadata `custom_action_name`，不加新列），负重选填。分析程序不套用任何专项规则，只用通用运动原语：在各关键点的主运动方向上分别切分往返周期，选“每次重复的幅度”最大的部位计次（躯干动得接近最大时优先躯干，避免四肢摆动放大）；静止端（每次从哪端出发）同时试两种读法，取次数多且每次用时不悬殊（最长 ≤ 最短 2.5 倍）的一种，以免把硬拉准备、上杠下杠算成一次。尺度用躯干长度第 90 百分位（前倾或躺下只会让躯干变短）。

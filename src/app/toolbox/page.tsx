@@ -9,6 +9,7 @@ import {
   Database,
   LogIn,
   MapPin,
+  ScanLine,
   Share2,
   Sparkles,
   Target,
@@ -18,6 +19,7 @@ import {
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
 
 const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  boji: ScanLine,
   'one-arm-pull-up': Target,
   'motion-effects': WandSparkles,
   'power-analysis': Zap,
@@ -27,6 +29,7 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
 };
 
 const TOOL_META: Record<string, { eyebrow: string; tone: string }> = {
+  boji: { eyebrow: '新上线 · 测试版', tone: '#CF6D4E' },
   'one-arm-pull-up': { eyebrow: '本周主推', tone: '#CF6D4E' },
   'motion-effects': { eyebrow: 'AI 视觉', tone: '#6D5D8C' },
   'power-analysis': { eyebrow: '视频分析', tone: '#3F7C6B' },

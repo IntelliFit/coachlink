@@ -28,6 +28,13 @@ export type ToolboxLink = {
  */
 export const STUDENT_TOOLBOX_LINKS: ToolboxLink[] = [
   {
+    key: 'boji',
+    label: '薄肌检测器',
+    description: '上传一张正面照，量出腹肌分块、倒三角、手臂围度和左右对称，并在照片上标出测量位置。照片不保存。',
+    url: '/toolbox/boji',
+    icon: 'pi pi-camera',
+  },
+  {
     key: 'one-arm-pull-up',
     label: '离单手引体还有多远',
     description: '用体重和严格负重引体 1RM 测算单引距离，并获得当前阶段的 8 周简易计划。',

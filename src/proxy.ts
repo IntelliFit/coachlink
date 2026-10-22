@@ -78,6 +78,7 @@ const PUBLIC_PATHS = new Set([
     "/toolbox",
     "/toolbox/motion-effects",
     "/toolbox/power-analysis",
+    "/toolbox/boji",
     "/admin/login",
     "/wechat-auth/bridge",
     "/payment/start",
