@@ -1,3 +1,11 @@
+## 薄肌检测器上线（2026-10-23，测试版）
+
+- **线上 Web 现为 main 419a2a79 = 88f4c924 + 薄肌检测器**（逐文件核对：只多 boji 的 25 个新增文件，无删改）。镜像 `coachlink@sha256:b270ad4b…`，用户授权后 `kubectl set image` 切 coachlink-main（近几次 Web 更新都是手动钉 digest，Keel 对该部署没有自动更新），3/3，buildTime 2026-10-22T21:06:33Z；change-cause 已写。`/toolbox/boji` 200、工具箱首卡显示、未登录 analyze 401、登录弹窗不跳页。coachlink-dev 未切换，仍为 f403d885（不含 boji）。
+- **以后发 Web 必须基于含 boji 的提交（≥ 773d71dd，例如 main）**；从 88f4c924 一类旧 worktree 构建或回滚到 f403d885，会让 `/toolbox/boji` 退回登录跳转、工具箱入口失效。
+- boji-service：`deploy/k8s/boji-service/main` 已 apply（default 命名空间 Deployment + ClusterIP `coachlink-boji-service-main:8000`），镜像 `coachlink-boji-service:latest`（4f0ff94 构建，引擎 boji-detector e624dc1），1/1；在 web pod 内 healthz 与一次完整 analyze 通过（180 ms）。
+- 推镜像经验：Docker Desktop 默认推 OCI 索引 + attestation；需要普通单 manifest 时用 `docker buildx imagetools create --prefer-index=false -t <tag> <repo>@<amd64 digest>`。本机推 CCR 大层多层并发易超时（timeout awaiting response headers），逐层推送可解；boji-service 仓库因此留有 build-stage-1..6 临时标签，可在控制台删除。
+- 小程序薄肌检测器页在分支 feat/boji-weapp（f167628c），未推送、未在 DevTools 验收、未提审。
+
 ## 教练入驻：审核积压处理、申请接口越权修复、抽成 10%、开店进度与《教练手册》（2026-10-22）
 
 - 线上数据（用户逐项指示后执行，已回读核对）：通过赵上、Epitaph、计划执行者8479（建 coaches、is_coach=true、发欢迎私信，私信暂不带手册链接）；街健探索者5130、动作打磨者8181 改待补充材料并私信补充项；测试号沈妈妈、MAX 申请改 rejected 不发私信，coaches 仍 suspended，未删任何行。审核人沿用此前 20 次通过的管理员账号。教练名单与手机号 CSV 在 D:/CodexWork/coachlink-coach-ops/coaches-2026-10-22.csv（含个人信息，不入库）。
