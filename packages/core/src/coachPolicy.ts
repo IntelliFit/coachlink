@@ -8,6 +8,13 @@ export const PLATFORM_COMMISSION_PERCENT = 10
 
 export const COACH_HANDBOOK_PATH = '/coach/handbook'
 
+/**
+ * 教练群二维码，放在 Web 的 public/images 下随版本发布。微信群码 7 天过期，
+ * 换码时覆盖同名文件并更新有效期后重新发布即可。
+ */
+export const COACH_GROUP_QR_PATH = '/images/coach-wechat-group.png'
+export const COACH_GROUP_QR_VALID_UNTIL = '2026-10-30'
+
 /** 申请页「入驻须知」要点，提交前需勾选同意。 */
 export const COACH_APPLICATION_POLICY_POINTS: readonly string[] = [
   `平台服务费：入驻初期按订单金额的 ${PLATFORM_COMMISSION_PERCENT}% 收取，其余归教练，可在教练端申请提现。`,
