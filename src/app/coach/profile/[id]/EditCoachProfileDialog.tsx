@@ -653,7 +653,7 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                                             onClick={() => toggleMultiValue(option.value, targetStudentLevels, setTargetStudentLevels)}
                                             className={`rounded-full border px-4 py-2 text-sm font-bold transition-all ${
                                                 selected
-                                                    ? 'border-surface-900 bg-surface-900 text-white'
+                                                    ? 'border-surface-900 bg-surface-900 text-surface-0'
                                                     : 'border-surface-200 bg-surface text-surface-600 hover:border-surface-400'
                                             }`}
                                         >

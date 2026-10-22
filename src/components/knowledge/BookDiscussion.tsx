@@ -218,7 +218,7 @@ export default function BookDiscussion({ bookId, prompts = [] }: BookDiscussionP
                 loading={submitting}
                 disabled={!draft.trim() || draft.trim().length > 2000}
                 onClick={() => void publishComment()}
-                className="!border-[#CF6D4E] !bg-[#CF6D4E]"
+                className="!border-[#B4553A] !bg-[#B4553A]"
               />
             </div>
           </>

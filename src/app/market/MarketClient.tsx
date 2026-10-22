@@ -156,7 +156,7 @@ export default function MarketClient({ initialItems }: { initialItems: MarketIte
                   className={[
                     'px-4 py-3 rounded-2xl text-sm font-black border transition-colors',
                     k === tier
-                      ? 'bg-surface-900 text-white border-surface-900'
+                      ? 'bg-surface-900 text-surface-0 border-surface-900'
                       : 'bg-surface-0 text-surface-700 border-surface-200 hover:bg-surface-50',
                   ].join(' ')}
                 >

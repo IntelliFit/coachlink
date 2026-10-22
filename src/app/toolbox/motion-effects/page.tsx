@@ -1393,7 +1393,7 @@ export default function MotionEffectsPage() {
                   推荐 MP4 / MOV，双手完整入镜、手掌朝向清楚。预览在本机完成；生成通用
                   MP4 时会临时上传，文件最多保留 24 小时。
                 </div>
-                <span className="mt-6 rounded-full bg-[#CF6D4E] px-6 py-3 text-sm font-black text-white">
+                <span className="mt-6 rounded-full bg-[#B4553A] px-6 py-3 text-sm font-black text-white">
                   选择视频
                 </span>
                 <input
@@ -1441,7 +1441,7 @@ export default function MotionEffectsPage() {
                       {currentFingerNames}
                     </span>
                     {(isExporting || serverExporting) && (
-                      <span className="rounded-full bg-[#CF6D4E] px-3 py-1 text-xs font-black text-white">
+                      <span className="rounded-full bg-[#B4553A] px-3 py-1 text-xs font-black text-white">
                         生成中 {Math.round(serverExporting ? exportProgress : exportProgress * 100)}%
                       </span>
                     )}
@@ -1477,7 +1477,7 @@ export default function MotionEffectsPage() {
                     type="button"
                     disabled={!canStart && !isPlaying}
                     onClick={isPlaying ? pausePlayback : startPlayback}
-                    className="inline-flex min-w-36 items-center justify-center gap-2 rounded-full bg-[#CF6D4E] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-w-36 items-center justify-center gap-2 rounded-full bg-[#B4553A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {status === "loading-model" ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1705,7 +1705,7 @@ export default function MotionEffectsPage() {
                   <button
                     type="button"
                     onClick={openCheckoutPayment}
-                    className="rounded-2xl bg-[#CF6D4E] px-4 py-3 text-sm font-black text-white"
+                    className="rounded-2xl bg-[#B4553A] px-4 py-3 text-sm font-black text-white"
                   >
                     前往支付宝付款
                   </button>

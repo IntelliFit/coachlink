@@ -110,7 +110,7 @@ export default function TrainingPlanLibraryPage() {
                         </div>
                         <button
                             type="submit"
-                            className="rounded-2xl bg-[#CF6D4E] px-5 py-3 text-sm font-black text-white transition hover:bg-[#b95f43] active:opacity-90"
+                            className="rounded-2xl bg-[#B4553A] px-5 py-3 text-sm font-black text-white transition hover:bg-[#9A4630] active:opacity-90"
                         >
                             搜索
                         </button>
@@ -126,7 +126,7 @@ export default function TrainingPlanLibraryPage() {
                                 }}
                                 className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${
                                     level === option.value
-                                        ? "border-[#CF6D4E] bg-[#CF6D4E] text-white"
+                                        ? "border-[#1D1A16] bg-[#1D1A16] text-white"
                                         : "border-surface-200 bg-white text-surface-500 hover:border-[#CF6D4E]/40 dark:border-surface-700 dark:bg-surface-900"
                                 }`}
                             >

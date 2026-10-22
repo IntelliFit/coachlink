@@ -406,7 +406,7 @@ export default function CoachAutomationPage() {
               type="button"
               onClick={savePolicy}
               disabled={saving}
-              className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#CF6D4E] px-4 text-sm font-black text-white transition hover:bg-[#B95D42] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#B4553A] px-4 text-sm font-black text-white transition hover:bg-[#9A4630] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               保存全局策略
@@ -456,7 +456,7 @@ export default function CoachAutomationPage() {
                           type="button"
                           onClick={() => applyDraft(draft.id)}
                           disabled={applyingId === draft.id}
-                          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#CF6D4E] px-4 text-sm font-black text-white transition hover:bg-[#B95D42] disabled:opacity-60"
+                          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#B4553A] px-4 text-sm font-black text-white transition hover:bg-[#9A4630] disabled:opacity-60"
                         >
                           {applyingId === draft.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                           应用

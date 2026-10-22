@@ -95,7 +95,7 @@ export default function AdminLoginPage() {
                     <Button
                         type="submit"
                         loading={loading}
-                        className="w-full border-none bg-[#CF6D4E] py-3 text-white hover:opacity-90"
+                        className="w-full border-none bg-[#B4553A] py-3 text-white hover:opacity-90"
                     >
                         登录管理端
                     </Button>

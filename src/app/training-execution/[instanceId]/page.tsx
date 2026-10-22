@@ -1402,7 +1402,7 @@ function TrainingExecutionContent() {
             message: '仅取消尚无已保存记录的本次训练，恢复为未开始。未保存的输入也会丢弃。已有记录的训练请保留并返回。',
             acceptLabel: '确认取消',
             rejectLabel: '继续训练',
-            acceptClassName: 'bg-[#CF6D4E] border-[#CF6D4E]',
+            acceptClassName: 'bg-[#B4553A] border-[#B4553A]',
             accept: async () => {
                 if (cancellationPendingRef.current) return;
                 cancellationPendingRef.current = true;

@@ -283,7 +283,7 @@ export default function AdminSettingsPage() {
                                 icon="pi pi-save"
                                 onClick={handleSaveAdminCredential}
                                 loading={credentialSaving}
-                                className="bg-[#CF6D4E] border-none hover:opacity-90"
+                                className="bg-[#B4553A] border-none hover:opacity-90"
                             />
                             <Button
                                 label={credentialState?.linkedPhone ? `解绑手机号 ${credentialState.linkedPhone}` : '暂无手机号可解绑'}

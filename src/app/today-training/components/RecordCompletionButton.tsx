@@ -50,7 +50,7 @@ export default function RecordCompletionButton({ instanceId, dayIndex, execution
         <p className="text-sm text-surface-600">确认表示当天确实练过。已有重量、次数和视频保持不变；没有记录的组不会自动补齐。更正日期不会重复扣训练权益。</p>
         {error && <p role="alert" className="text-red-700">{error}</p>}
         <button type="button" disabled={saving || !date} onClick={submit}
-          className="rounded-xl bg-[#CF6D4E] px-4 py-2 text-white disabled:opacity-50">
+          className="rounded-xl bg-[#B4553A] px-4 py-2 text-white disabled:opacity-50">
           {saving ? '正在保存…' : `确认在 ${date || '所选日期'} 练过`}
         </button>
       </div>

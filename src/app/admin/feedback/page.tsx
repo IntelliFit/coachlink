@@ -328,7 +328,7 @@ export default function AdminFeedbackPage() {
                     <Button
                         label="搜索"
                         icon="pi pi-search"
-                        className="border-none bg-[#CF6D4E]"
+                        className="border-none bg-[#B4553A]"
                         onClick={submitSearch}
                     />
                 </div>
@@ -508,7 +508,7 @@ export default function AdminFeedbackPage() {
                                             <Button
                                                 label="采纳"
                                                 icon={<CheckCircle2 className="mr-2 h-4 w-4" />}
-                                                className="border-none bg-[#CF6D4E]"
+                                                className="border-none bg-[#B4553A]"
                                                 loading={saving}
                                                 onClick={() => void updateStatus('resolved')}
                                             />

@@ -598,7 +598,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 // 替换为 ZhifubaoIcon
                 icon: (isActive: boolean) => <ZhifubaoIcon width="24" height="24" fill={isActive ? "#FFFFFF" : "#64748b"} />,
                 visible: getAvailablePaymentMethods(paymentInfo).includes('alipay_api'),
-                activeClass: 'bg-[#CF6D4E] border-[#CF6D4E] text-white',
+                activeClass: 'bg-[#1D1A16] border-[#1D1A16] text-white',
                 iconClass: 'bg-blue-500'
             },
             {
@@ -606,7 +606,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 label: '微信支付',
                 icon: (isActive: boolean) => <WeixinzhifuIcon width="24" height="24" fill={isActive ? '#FFFFFF' : '#07C160'} />,
                 visible: getAvailablePaymentMethods(paymentInfo).includes('wechat_api'),
-                activeClass: 'bg-[#CF6D4E] border-[#CF6D4E] text-white',
+                activeClass: 'bg-[#1D1A16] border-[#1D1A16] text-white',
                 iconClass: 'bg-green-600'
             },
             {

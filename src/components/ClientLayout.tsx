@@ -107,8 +107,9 @@ export default function ClientLayout({
 
     // 动态切换PrimeReact主题CSS
     useEffect(() => {
-        const lightTheme = '/themes/lara-light-amber/theme.css';
-        const darkTheme = '/themes/lara-dark-amber/theme.css';
+        // CoachLink themes: Lara with clay primary and warm greys (scripts/ui/build-coachlink-prime-themes.py).
+        const lightTheme = '/themes/coachlink-light/theme.css';
+        const darkTheme = '/themes/coachlink-dark/theme.css';
         const themeLinkId = 'prime-theme-link';
 
         let link = document.getElementById(themeLinkId) as HTMLLinkElement | null;

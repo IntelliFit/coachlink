@@ -643,7 +643,7 @@ function DiscoveryContentInner() {
                             onClick={() => setSelectedTrack('all')}
                             className={`rounded-full border px-4 py-2 text-sm font-bold transition-all ${
                                 selectedTrack === 'all'
-                                    ? 'border-surface-900 bg-surface-900 text-white'
+                                    ? 'border-surface-900 bg-surface-900 text-surface-0'
                                     : 'border-surface-200 bg-surface text-surface-600 hover:border-surface-400'
                             }`}
                         >

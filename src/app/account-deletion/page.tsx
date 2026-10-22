@@ -55,7 +55,7 @@ export default function AccountDeletionPage() {
             ))}
           </div>
           <div className="flex flex-col gap-4 sm:flex-row">
-            <Link href="/login" className="flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-[#CF6D4E] px-6 py-3 text-center text-sm font-black text-white hover:bg-[#B95E43] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#CF6D4E]">
+            <Link href="/login" className="flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-[#B4553A] px-6 py-3 text-center text-sm font-black text-white hover:bg-[#9A4630] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#CF6D4E]">
               登录后处理
             </Link>
             <a href={deletionMailHref} className="flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-surface-300 bg-white px-6 py-3 text-center text-sm font-black text-surface-900 hover:bg-surface-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#CF6D4E]">

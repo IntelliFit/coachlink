@@ -466,7 +466,7 @@ export default function PowerAnalysisToolPage() {
                         "rounded-xl border px-3 py-3 text-left transition-colors",
                         item.value === "custom" ? "col-span-2" : "",
                         mode === item.value
-                          ? "border-[#CF6D4E] bg-[#CF6D4E] text-white"
+                          ? "border-[#1D1A16] bg-[#1D1A16] text-white"
                           : "border-surface-200 bg-surface-0 text-surface-800 hover:border-[#CF6D4E]",
                       ].join(" ")}
                     >
@@ -618,7 +618,7 @@ export default function PowerAnalysisToolPage() {
                   }
                   disabled={!canSubmit}
                   onClick={handleStart}
-                  className="h-11 flex-1 rounded-xl border-[#CF6D4E] bg-[#CF6D4E] text-sm font-black text-white hover:border-[#b85f44] hover:bg-[#b85f44]"
+                  className="h-11 flex-1 rounded-xl border-[#B4553A] bg-[#B4553A] text-sm font-black text-white hover:border-[#9A4630] hover:bg-[#9A4630]"
                 />
                 <Button
                   label="重置"

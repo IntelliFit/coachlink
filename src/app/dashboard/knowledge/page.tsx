@@ -129,7 +129,7 @@ export default function KnowledgeBaseHomePage() {
                         type="button"
                         onClick={handleSearch}
                         disabled={!searchQuery.trim()}
-                        className="mr-1.5 rounded-xl bg-[#CF6D4E] px-4 py-2 text-sm font-black text-white transition hover:bg-[#b95f43] active:opacity-90 disabled:cursor-not-allowed disabled:bg-surface-200 disabled:text-surface-400"
+                        className="mr-1.5 rounded-xl bg-[#B4553A] px-4 py-2 text-sm font-black text-white transition hover:bg-[#9A4630] active:opacity-90 disabled:cursor-not-allowed disabled:bg-surface-200 disabled:text-surface-400"
                     >
                         搜索
                     </button>
