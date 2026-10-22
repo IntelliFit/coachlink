@@ -203,11 +203,22 @@ export async function registerNodeRuntime() {
     // opt-in (set SUBSCRIPTION_EXPIRY_CHECK_INTERVAL_MS, e.g. 3600000, in the
     // deployment only): local dev and local production builds use the live
     // database and must never cancel subscriptions on their own.
+    // The same run first closes workouts left unconfirmed for over 5 hours, so a
+    // student opening the app later sees the settled state instead of having
+    // the timeout land in the middle of their own action.
     startIntervalJob(
         "SubscriptionExpiry Check",
         readIntervalMs("SUBSCRIPTION_EXPIRY_CHECK_INTERVAL_MS", 0),
         () => {
-            import("@/lib/subscriptionExpiryCheck")
+            import("@/lib/planExecutionLifecycle")
+                .then(({ expireTimedOutPlanExecutions }) => expireTimedOutPlanExecutions())
+                .then((expired) => {
+                    if (expired.length > 0) console.log(`[ExecutionTimeout] closed ${expired.length} unconfirmed workouts`);
+                })
+                .catch((error) => {
+                    console.error("[ExecutionTimeout] background run error:", error);
+                })
+                .then(() => import("@/lib/subscriptionExpiryCheck"))
                 .then(({ runSubscriptionExpiryCheckOnce }) => runSubscriptionExpiryCheckOnce())
                 .then((result) => {
                     if (result.ok === false) {

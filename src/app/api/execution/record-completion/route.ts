@@ -11,6 +11,26 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fail = (message: string, status: number, code?: string) =>
   NextResponse.json({ success: false, message, code, data: null }, { status });
 
+const SYSTEM_TIMEOUT_WRITE_WINDOW_MS = 5000;
+
+/**
+ * The page may still hold the row as it was before the 5-hour timeout closed it.
+ * When that timeout is the only change since the student's copy, nothing they
+ * recorded differs, so the confirmation proceeds against the current row.
+ */
+function expectedVersionAfterSystemTimeout(existing: any, expectedUpdatedAt: string) {
+  if (!existing || String(existing.status) !== 'timed_out' || existing.close_reason !== 'hard_timeout_5h') return null;
+  const expected = Date.parse(expectedUpdatedAt);
+  const current = Date.parse(existing.updated_at || '');
+  const timedOutAt = Date.parse(existing.ended_at || '');
+  const lastSaved = Date.parse(existing.last_saved_at || '');
+  if (![expected, current, timedOutAt].every(Number.isFinite) || expected >= current) return null;
+  const timeoutWasLastWrite = Math.abs(current - timedOutAt) <= SYSTEM_TIMEOUT_WRITE_WINDOW_MS;
+  const studentCopyPredatesTimeout = expected <= timedOutAt;
+  const nothingSavedSinceCopy = !Number.isFinite(lastSaved) || lastSaved <= expected;
+  return timeoutWasLastWrite && studentCopyPredatesTimeout && nothingSavedSinceCopy ? existing.updated_at as string : null;
+}
+
 /** Explicitly confirm a past workout/date. Does not invent weights, reps or sets. */
 export async function POST(req: Request) {
   try {
@@ -63,10 +83,13 @@ export async function POST(req: Request) {
       executionsByDayIndex: resolvedByDay, planStartDate: instance.start_date, subscriptionStartDate,
     });
     if (!priorRequest && dayIndex < effectiveStart && existing?.status !== 'completed') return fail('不能重复补记线下已完成的训练日', 400);
+    const expectedVersion = executionId
+      ? expectedVersionAfterSystemTimeout(existing, expectedUpdatedAt) || expectedUpdatedAt
+      : null;
     const { data, error } = await db.rpc('record_plan_completion_date', {
       p_instance_id: instanceId, p_student_id: userId, p_day_index: dayIndex,
       p_performed_on: performedOn, p_execution_id: executionId || null,
-      p_expected_updated_at: expectedUpdatedAt || null, p_request_id: requestId,
+      p_expected_updated_at: expectedVersion, p_request_id: requestId,
       p_start_execution_day: effectiveStart,
     });
     if (error) {

@@ -1,5 +1,6 @@
 import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import { trainingEntry, type TrainingIntent } from '@coachlink/core/src/trainingAccess'
+import { describePendingTimedOutDay, findPendingTimedOutDay } from '@coachlink/core/src/pendingTimedOutDay'
 import { getExecutionCacheRevision } from '@/utils/todayTrainingPageCache'
 import { toBeijingDateKey } from '@coachlink/core/src/beijingTime'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -262,6 +263,7 @@ function TodayTrainingScreen() {
   const [lightweightConfigVisible, setLightweightConfigVisible] = useState(false)
   const [moreTrainingOpen, setMoreTrainingOpen] = useState(false)
   const [recordCompletionOpen, setRecordCompletionOpen] = useState(false)
+  const [confirmingTimedOut, setConfirmingTimedOut] = useState(false)
   const [coachPickSheetOpen, setCoachPickSheetOpen] = useState(false)
   const [calendarExpanded, setCalendarExpanded] = useState(false)
   const [newTaskSuggestedTime, setNewTaskSuggestedTime] = useState('')
@@ -911,6 +913,52 @@ function TodayTrainingScreen() {
     [instance?.id, loadData]
   )
 
+  // A workout left unconfirmed is closed by the 5-hour timeout and the plan then
+  // waits on that day; resolve it right here instead of leaving the plan "stuck".
+  const pendingTimedOut = useMemo(
+    () => findPendingTimedOutDay({ executionsByDayIndex, progressDayIndex }),
+    [executionsByDayIndex, progressDayIndex]
+  )
+  const pendingTimedOutCopy = pendingTimedOut ? describePendingTimedOutDay(pendingTimedOut) : null
+
+  const handleConfirmTimedOutDay = useCallback(() => {
+    if (!instance?.id || !pendingTimedOut?.canConfirmRecorded || confirmingTimedOut) return
+    const { dayIndex, executionId, completedSets, totalSets } = pendingTimedOut
+    Taro.showModal({
+      title: '补记完成',
+      content: `第${dayIndex}天将按已记录的 ${completedSets}/${totalSets} 组记为完成，未记录的组不会自动补齐。`,
+      success: async (res) => {
+        if (!res.confirm) return
+        setConfirmingTimedOut(true)
+        try {
+          // request() already shows the server's reason when this fails.
+          const saved = await executionService.finishTraining(executionId)
+          if (!saved) return
+          const nextExecution = { ...(executionsByDayIndex?.[dayIndex] || {}), ...saved, day_index: dayIndex }
+          if (currentUserId) {
+            syncTrainingExecutionToStorage({
+              userId: currentUserId,
+              scopeKey: trainingExecutionSnapshotKey({ isImpromptuMode: false, instanceId: instance.id, dayIndex }),
+              instanceId: instance.id,
+              dayIndex,
+              isImpromptuMode: false,
+              execution: nextExecution,
+              planInstance: instance,
+              actions
+            })
+          }
+          Taro.showToast({ title: '已补记完成', icon: 'success' })
+          await loadData()
+        } catch (error) {
+          console.error('[today-training] confirm timed-out day failed', error)
+          Taro.showToast({ title: '补记失败，请稍后重试', icon: 'none' })
+        } finally {
+          setConfirmingTimedOut(false)
+        }
+      }
+    })
+  }, [actions, confirmingTimedOut, currentUserId, executionsByDayIndex, instance, loadData, pendingTimedOut])
+
   const handleContactCoach = useCallback(() => {
     const coachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
     const coachName = activeSubscription?.coach?.name || ''
@@ -1491,6 +1539,22 @@ function TodayTrainingScreen() {
             />
           ) : (
             <>
+              {pendingTimedOut && pendingTimedOutCopy && (
+                <View className='tt-home__missed tt-home__missed--timed-out'>
+                  <View className='tt-home__missed-copy'>
+                    <Text className='tt-home__missed-text'>{pendingTimedOutCopy.title}</Text>
+                    <Text className='tt-home__missed-detail'>{pendingTimedOutCopy.detail}</Text>
+                  </View>
+                  {pendingTimedOut.canConfirmRecorded && (
+                    <Text className='tt-home__missed-action tt-home__missed-action--strong' onClick={handleConfirmTimedOutDay}>
+                      {confirmingTimedOut ? '补记中…' : '补记完成'}
+                    </Text>
+                  )}
+                  <Text className='tt-home__missed-action' onClick={() => handleGoToTrainingExecution(pendingTimedOut.dayIndex)}>
+                    {pendingTimedOutCopy.handleLabel}
+                  </Text>
+                </View>
+              )}
               {missingDays.length > 0 && (
                 <View className='tt-home__missed'>
                   <Text className='tt-home__missed-text'>

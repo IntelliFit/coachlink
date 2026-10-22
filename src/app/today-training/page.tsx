@@ -1,5 +1,6 @@
 'use client';
 import { trainingEntry } from '@coachlink/core/src/trainingAccess';
+import { describePendingTimedOutDay, findPendingTimedOutDay } from '@coachlink/core/src/pendingTimedOutDay';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
@@ -533,6 +534,39 @@ const TodayTrainingPage: React.FC = () => {
         } finally {
             setAddingLightweightTask(false);
         }
+    };
+
+    // A workout left unconfirmed is closed by the 5-hour timeout and the plan then
+    // waits on that day; resolve it right here instead of leaving the plan "stuck".
+    const pendingTimedOut = useMemo(
+        () => findPendingTimedOutDay({ executionsByDayIndex, progressDayIndex }),
+        [executionsByDayIndex, progressDayIndex],
+    );
+    const pendingTimedOutCopy = pendingTimedOut ? describePendingTimedOutDay(pendingTimedOut) : null;
+    const [confirmingTimedOut, setConfirmingTimedOut] = useState(false);
+
+    const confirmTimedOutDay = () => {
+        if (!pendingTimedOut?.canConfirmRecorded || confirmingTimedOut) return;
+        const { dayIndex, executionId, completedSets, totalSets } = pendingTimedOut;
+        confirmDialog({
+            header: '补记完成',
+            message: `第${dayIndex}天将按已记录的 ${completedSets}/${totalSets} 组记为完成，未记录的组不会自动补齐。`,
+            acceptLabel: '补记完成',
+            rejectLabel: '取消',
+            accept: async () => {
+                setConfirmingTimedOut(true);
+                try {
+                    const saved = await executionService.finishTraining({ executionId });
+                    if (!saved) throw new Error('finish failed');
+                    showToast({ severity: 'success', summary: '已补记完成', detail: `第${dayIndex}天已记为完成` });
+                    await loadData();
+                } catch {
+                    showToast({ severity: 'error', summary: '补记失败', detail: '请刷新页面后重试' });
+                } finally {
+                    setConfirmingTimedOut(false);
+                }
+            },
+        });
     };
 
     const handleSkipDay = async (dayIndex: number) => {
@@ -1704,6 +1738,33 @@ const TodayTrainingPage: React.FC = () => {
                         */}
                         <div className="transform transition-all sm:hover:translate-y-[-4px]">
                             <div id="guide-missing-days">
+                                {pendingTimedOut && pendingTimedOutCopy && (
+                                    <div className="mb-4 rounded-2xl border border-amber-100/50 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                            <div>
+                                                <b>{pendingTimedOutCopy.title}</b>
+                                                <div className="mt-1 text-xs text-amber-800/80">{pendingTimedOutCopy.detail}</div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {pendingTimedOut.canConfirmRecorded && (
+                                                    <button
+                                                        className="px-3 py-1.5 rounded-xl bg-surface-900 text-surface text-xs font-semibold hover:bg-surface-700 transition-all active:scale-[0.98] disabled:opacity-60"
+                                                        disabled={confirmingTimedOut}
+                                                        onClick={confirmTimedOutDay}
+                                                    >
+                                                        {confirmingTimedOut ? '补记中…' : pendingTimedOutCopy.confirmLabel}
+                                                    </button>
+                                                )}
+                                                <button
+                                                    className="px-3 py-1.5 rounded-xl bg-surface border border-amber-200 text-amber-900 text-xs font-semibold hover:bg-amber-50 transition-all active:scale-[0.98]"
+                                                    onClick={() => openTrainingExecution(pendingTimedOut.dayIndex)}
+                                                >
+                                                    {pendingTimedOutCopy.handleLabel}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 {missingDays.length > 0 && (
                                     <div className="mb-4 rounded-2xl border border-amber-100/50 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
                                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
