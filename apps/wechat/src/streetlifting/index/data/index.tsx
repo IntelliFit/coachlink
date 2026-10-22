@@ -2,6 +2,7 @@
  * 社区数据 - 小程序原生实现（列表、筛选/排序、提交、认领）
  */
 import { useEffect, useState, useMemo } from 'react'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import { View, Text, ScrollView, Picker, Button, Image } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
@@ -79,6 +80,8 @@ function formatSubmissionTime(iso: string | undefined | null): string {
 }
 
 export default function StreetliftingData() {
+  usePageEnterTrace()
+
   const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [submissions, setSubmissions] = useState<StreetliftingSubmission[]>([])

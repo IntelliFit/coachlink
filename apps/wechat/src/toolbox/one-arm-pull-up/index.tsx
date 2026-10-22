@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import { Text, View } from '@tarojs/components'
 import {
   useShareAppMessage,
@@ -97,6 +98,8 @@ function TrainingItem({ index, name, dose }: { index: number; name: string; dose
 }
 
 export default function OneArmPullUpPage() {
+  usePageEnterTrace()
+
   const { effectiveTheme } = useTheme()
   const [bodyWeightInput, setBodyWeightInput] = useState('70')
   const [additionalWeightInput, setAdditionalWeightInput] = useState('40')

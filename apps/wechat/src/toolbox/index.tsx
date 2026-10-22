@@ -13,8 +13,9 @@ import powerAnalysisCover from '@/assets/images/toolbox-practical/practical-powe
 import strengthCalculatorCover from '@/assets/images/toolbox-practical/practical-strength-calculator-v2.webp'
 import BottomNav from '@/components/BottomNav'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
-import { ClPageHeader, ClSectionHeader } from '@/components/ui'
+import { ClButton, ClPageHeader, ClSectionHeader } from '@/components/ui'
 import { useTheme } from '@/hooks/useTheme'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import {
   buildSharePath,
   createSharePayload,
@@ -22,6 +23,7 @@ import {
   getToolboxShareTitle,
   openCoachLinkShareMenu
 } from '@/utils/share'
+import { readCachedBarMapCount, refreshBarMapCountIfStale } from './barMapCount'
 import { readRecentToolKeys, rememberToolKey } from './toolboxRecent'
 import './index.scss'
 
@@ -35,12 +37,13 @@ type ToolboxEntry = {
   unavailableLabel?: string
 }
 
-const FEATURED_TOOL: ToolboxEntry = {
-  cover: powerAnalysisCover,
-  description: '上传训练视频，估算功率、速度和轨迹',
-  key: 'power-analysis',
-  label: '功率视频分析',
-  url: '/toolbox/power-analysis/index'
+// 单杠地图是使用人数最多的工具（2026-10 统计，见 docs/PRD/weapp/04-me/工具箱.md），固定为顶部主卡。
+const BAR_MAP_TOOL: ToolboxEntry = {
+  cover: barLocationsCover,
+  description: '找附近的单杠、双杠，看现场照片再出发',
+  key: 'bar-locations',
+  label: '单杠地图',
+  url: '/streetlifting/index/locations'
 }
 
 const PRACTICAL_TOOLS: ToolboxEntry[] = [
@@ -52,18 +55,18 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
     url: '/streetlifting/index/calculator'
   },
   {
+    cover: powerAnalysisCover,
+    description: '上传训练视频，估算功率、速度和轨迹',
+    key: 'power-analysis',
+    label: '功率视频分析',
+    url: '/toolbox/power-analysis/index'
+  },
+  {
     cover: oneArmPullUpCover,
     description: '离单手引体还有多远',
     key: 'one-arm-pull-up',
     label: '单手引体测算',
     url: '/toolbox/one-arm-pull-up/index'
-  },
-  {
-    cover: barLocationsCover,
-    description: '找附近的单杠双杠',
-    key: 'bar-locations',
-    label: '单杠位置',
-    url: '/streetlifting/index/locations'
   },
   {
     cover: communityDataCover,
@@ -106,13 +109,14 @@ const MINI_GAMES: ToolboxEntry[] = [
   }
 ]
 
-const ALL_ENTRIES = [FEATURED_TOOL, ...PRACTICAL_TOOLS, ...MINI_GAMES]
+const ALL_ENTRIES = [BAR_MAP_TOOL, ...PRACTICAL_TOOLS, ...MINI_GAMES]
 const ENTRY_BY_KEY = new Map(ALL_ENTRIES.map((entry) => [entry.key, entry]))
 const AVAILABLE_COUNT = ALL_ENTRIES.filter((entry) => !entry.unavailableLabel).length
 
 export default function ToolboxPage() {
   const { effectiveTheme } = useTheme()
   const [recentKeys, setRecentKeys] = useState<string[]>([])
+  const [barMapCount, setBarMapCount] = useState<number | null>(() => readCachedBarMapCount())
   const sharePayload = useMemo(
     () =>
       createSharePayload({
@@ -129,13 +133,18 @@ export default function ToolboxPage() {
     openCoachLinkShareMenu()
   }, [])
 
+  usePageEnterTrace()
+
   useDidShow(() => {
     setRecentKeys(readRecentToolKeys(ALL_ENTRIES.map((entry) => entry.key)))
+    void refreshBarMapCountIfStale().then((count) => {
+      if (count !== null) setBarMapCount(count)
+    })
   })
 
-  const openTool = (entry: ToolboxEntry) => {
+  const openTool = (entry: ToolboxEntry, query = '') => {
     setRecentKeys(rememberToolKey(entry.key))
-    Taro.navigateTo({ url: entry.url })
+    Taro.navigateTo({ url: `${entry.url}${query}` })
   }
 
   const recentEntries = recentKeys
@@ -162,14 +171,35 @@ export default function ToolboxPage() {
 
           <View className='toolbox-body'>
             <View className='toolbox-section'>
-              <ClSectionHeader title='实用工具' meta={String(PRACTICAL_TOOLS.length + 1)} />
-              <View className='toolbox-featured' onClick={() => openTool(FEATURED_TOOL)}>
-                <Image className='toolbox-featured__cover' src={FEATURED_TOOL.cover} mode='aspectFill' lazyLoad />
-                <View className='toolbox-label toolbox-label--featured'>
-                  <Text className='toolbox-label__name'>{FEATURED_TOOL.label}</Text>
-                  <Text className='toolbox-label__desc'>{FEATURED_TOOL.description}</Text>
+              <View className='toolbox-hero'>
+                <View className='toolbox-hero__cover-wrap' onClick={() => openTool(BAR_MAP_TOOL)}>
+                  <Image className='toolbox-hero__cover' src={BAR_MAP_TOOL.cover} mode='aspectFill' lazyLoad />
+                  {barMapCount ? (
+                    <Text className='toolbox-hero__badge cl-num'>全国 {barMapCount.toLocaleString()} 个点位</Text>
+                  ) : null}
+                </View>
+                <View className='toolbox-hero__body'>
+                  <Text className='toolbox-hero__title'>{BAR_MAP_TOOL.label}</Text>
+                  <Text className='toolbox-hero__desc'>{BAR_MAP_TOOL.description}</Text>
+                  <View className='toolbox-hero__actions'>
+                    <ClButton size='md' className='toolbox-hero__primary' onClick={() => openTool(BAR_MAP_TOOL)}>
+                      找附近单杠
+                    </ClButton>
+                    <ClButton
+                      variant='secondary'
+                      size='md'
+                      className='toolbox-hero__secondary'
+                      onClick={() => openTool(BAR_MAP_TOOL, '?create=1')}
+                    >
+                      上传点位
+                    </ClButton>
+                  </View>
                 </View>
               </View>
+            </View>
+
+            <View className='toolbox-section'>
+              <ClSectionHeader title='实用工具' meta={String(PRACTICAL_TOOLS.length)} />
               <View className='toolbox-grid'>
                 {PRACTICAL_TOOLS.map((entry) => (
                   <View key={entry.key} className='toolbox-tile' onClick={() => openTool(entry)}>

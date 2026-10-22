@@ -77,8 +77,77 @@
     font-size: $cl-font-meta;
   }
 
+  // 顶部主卡：单杠地图。封面 + 标题 + 主次两个按钮，全页唯一的陶土色主按钮在这里。
+  .toolbox-hero {
+    overflow: hidden;
+    border: 2rpx solid var(--cl-line);
+    border-radius: $cl-radius-card;
+    background: var(--cl-card);
+  }
+
+  .toolbox-hero__cover-wrap {
+    position: relative;
+    height: 240rpx;
+    background: var(--cl-sunk);
+
+    &:active {
+      opacity: 0.85;
+    }
+  }
+
+  .toolbox-hero__cover {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .toolbox-hero__badge {
+    position: absolute;
+    top: $cl-space-2;
+    left: $cl-space-2;
+    padding: 0 $cl-space-2;
+    border-radius: $cl-radius-tag;
+    background: rgba(29, 26, 22, 0.78);
+    color: #FFFFFF;
+    font-size: $cl-font-tag;
+    line-height: 48rpx;
+  }
+
+  .toolbox-hero__body {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-1;
+    padding: $cl-space-3 $cl-card-padding $cl-card-padding;
+  }
+
+  .toolbox-hero__title {
+    color: var(--cl-ink);
+    font-size: $cl-font-card;
+    line-height: $cl-line-card;
+    font-weight: 700;
+  }
+
+  .toolbox-hero__desc {
+    color: var(--cl-ink-3);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+  }
+
+  .toolbox-hero__actions {
+    display: flex;
+    gap: $cl-space-2;
+    margin-top: $cl-space-2;
+  }
+
+  .toolbox-hero__primary {
+    flex: 2;
+  }
+
+  .toolbox-hero__secondary {
+    flex: 1;
+  }
+
   // 封面卡：图片铺满，左下角深色标签（图片本身明暗不一，标签必须自带底色保证可读）
-  .toolbox-featured,
   .toolbox-tile {
     position: relative;
     overflow: hidden;
@@ -90,11 +159,6 @@
     }
   }
 
-  .toolbox-featured {
-    height: 272rpx;
-  }
-
-  .toolbox-featured__cover,
   .toolbox-tile__cover {
     display: block;
     width: 100%;
@@ -125,23 +189,11 @@
     background: rgba(29, 26, 22, 0.78);
   }
 
-  .toolbox-label--featured {
-    left: $cl-space-3;
-    bottom: $cl-space-3;
-    padding: 12rpx $cl-space-3;
-    border-radius: 24rpx;
-  }
-
   .toolbox-label__name {
     color: #FFFFFF;
     font-size: 28rpx;
     line-height: 40rpx;
     font-weight: 700;
-  }
-
-  .toolbox-label--featured .toolbox-label__name {
-    font-size: 30rpx;
-    line-height: 44rpx;
   }
 
   .toolbox-label__desc {

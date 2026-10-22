@@ -1,5 +1,6 @@
 /**
- * 单杠位置 - 小程序原生实现（列表、筛选、新增/编辑、图片上传）
+ * 单杠地图 - 小程序原生实现（列表、筛选、新增/编辑、图片上传）
+ * 支持 ?create=1：进入后直接打开"分享单杠位置"表单（工具箱主卡的"上传点位"按钮）。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView, Input, Textarea, Picker, Button, Image } from '@tarojs/components'
@@ -12,6 +13,7 @@ import {
   type StreetliftingLocationMapPin
 } from '@/services/streetliftingIndexService'
 import { authService } from '@/services/authService'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import {
   buildSharePath,
   buildStreetliftingLocationShareImageUrl,
@@ -288,6 +290,7 @@ export default function StreetliftingLocations() {
   const { effectiveTheme } = useTheme()
   const routerParams = (Taro.getCurrentInstance().router?.params || {}) as Record<string, unknown>
   const sharedLocationId = String(routerParams.locationId || '').trim()
+  const openCreateOnLoad = String(routerParams.create || '') === '1'
   const sharedLocationPreview = useMemo(() => buildSharedLocationPreviewFromParams(routerParams), [])
   const [loading, setLoading] = useState(true)
   const [locations, setLocations] = useState<StreetliftingLocation[]>([])
@@ -461,10 +464,13 @@ export default function StreetliftingLocations() {
     }
   }
 
+  usePageEnterTrace()
+
   useEffect(() => {
     void fetchLocations(1, false)
     void loadOverview()
     void loadContributorLeaderboard()
+    if (openCreateOnLoad) openCreate()
   }, [])
 
   useEffect(() => {

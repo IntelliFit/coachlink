@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import { Camera, ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
@@ -101,6 +102,8 @@ function buildWall(id: number): DashWall {
 }
 
 export default function PushupDashPage() {
+  usePageEnterTrace()
+
   const { effectiveTheme } = useTheme()
   const cameraContextRef = useRef<any>(null)
   const replayRecorderRef = useRef<MotionArcadeReplayRecorder | null>(null)

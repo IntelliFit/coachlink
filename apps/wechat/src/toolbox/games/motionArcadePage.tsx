@@ -3,6 +3,7 @@ import { Camera, ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
 import { useTheme } from '@/hooks/useTheme'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import {
   buildSharePath,
   createSharePayload,
@@ -136,6 +137,7 @@ function itemOutOfBounds(config: MotionArcadeGameConfig, item: MotionItem) {
 
 export function createMotionArcadePage(config: MotionArcadeGameConfig) {
   return function MotionArcadePage() {
+    usePageEnterTrace()
     const { effectiveTheme } = useTheme()
     const cameraContextRef = useRef<any>(null)
     const replayRecorderRef = useRef<MotionArcadeReplayRecorder | null>(null)

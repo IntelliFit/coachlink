@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import { View, Text, ScrollView, Image, Button } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import {
@@ -90,6 +91,8 @@ function buildMetaLine(loc?: Partial<StreetliftingLocation> | null) {
 }
 
 export default function StreetliftingLocationSharePage() {
+  usePageEnterTrace()
+
   const { effectiveTheme } = useTheme()
   const routerParams = (Taro.getCurrentInstance().router?.params || {}) as Record<string, unknown>
   const previewLocation = useMemo(() => buildPreviewLocation(routerParams), [])

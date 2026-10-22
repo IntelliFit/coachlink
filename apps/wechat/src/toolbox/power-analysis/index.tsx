@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import { WECHAT_FREE_RELEASE, WECHAT_FREE_LIMITS, wechatReleaseHeaders } from '@coachlink/core'
 import { Input, Text, View, Video } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
@@ -687,6 +688,8 @@ async function downloadAndSaveVideo(url: string, header?: Record<string, string>
 }
 
 export default function WechatPowerAnalysisPage() {
+  usePageEnterTrace()
+
   const { effectiveTheme } = useTheme()
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const llmRequestedRef = useRef<string | null>(null)

@@ -220,6 +220,13 @@ class StreetliftingIndexService extends BaseService {
     throw new Error((res as any)?.message || '加载失败')
   }
 
+  /** Total point count for decorative UI (toolbox hero); never toasts, null on failure. */
+  async countLocations(): Promise<number | null> {
+    const res = await this.post<{ pagination: { total: number } }>('locations/list', { page: 1, limit: 1 }, { showErrorToast: false })
+    const total = res.success ? Number(res.data?.pagination?.total) : NaN
+    return Number.isFinite(total) && total > 0 ? total : null
+  }
+
   async getLocation(id: string) {
     const res = await this.post<{ location: StreetliftingLocation | null }>('locations/get', { id })
     if (res.success && res.data?.location) return res.data.location

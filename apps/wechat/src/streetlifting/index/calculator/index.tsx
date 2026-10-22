@@ -2,6 +2,7 @@
  * 力量分计算器 - 小程序原生实现（逻辑与网页端一致）
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import { View, Text, ScrollView, Button } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useDidHide, useUnload } from '@tarojs/taro'
@@ -255,6 +256,8 @@ function isAuthErrorMessage(message?: string | null) {
 }
 
 export default function StreetliftingCalculator() {
+  usePageEnterTrace()
+
   const { effectiveTheme } = useTheme()
   const authSession = authService.getAuthSession({ normalize: true })
   const isAuthenticated = authSession.isAuthenticated

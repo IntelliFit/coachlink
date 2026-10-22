@@ -1,5 +1,5 @@
 export default {
-  navigationBarTitleText: '寻找单杠',
+  navigationBarTitleText: '单杠地图',
   animationType: 'none',
   enableShareAppMessage: true,
   enableShareTimeline: true

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePageEnterTrace } from '@/utils/pageTrace'
 import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import FreeReleaseInfo from '@/components/FreeReleaseInfo'
 import { Camera, Canvas, Text, View, Video } from '@tarojs/components'
@@ -1576,6 +1577,8 @@ function PaidFingerMotionEffectsPage() {
 }
 
 export default function FingerMotionEffectsPage() {
+  usePageEnterTrace()
+
   return WECHAT_FREE_RELEASE
     ? <FreeReleaseInfo title='特效视频暂未开放' description='你可以继续使用功率分析及其他训练工具。' />
     : <PaidFingerMotionEffectsPage />
