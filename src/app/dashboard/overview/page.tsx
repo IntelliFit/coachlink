@@ -77,7 +77,7 @@ const StatCard = ({
                                 </span>
                             )}
                             {isStatus && isComplete && !loading && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 font-bold">
                                     已就绪
                                 </span>
                             )}
@@ -118,7 +118,7 @@ const StatCard = ({
                             </span>
                         )}
                         {isStatus && isComplete && !loading && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-medium">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 font-medium">
                                 已就绪
                             </span>
                         )}
@@ -162,27 +162,27 @@ const Overview = () => {
             title: "总学员数",
             value: overviewData?.totalStudentCount || 0,
             icon: Users,
-            colorClass: "bg-blue-50 text-blue-600",
+            colorClass: "bg-primary-50 text-primary-400",
             href: "/dashboard/students"
         },
         {
             title: "待点评视频",
             value: overviewData?.pendingReviewCount || 0,
             icon: Video,
-            colorClass: "bg-amber-50 text-amber-600",
+            colorClass: "bg-primary-50 text-primary-400",
             href: "/dashboard/videos"
         },
         {
             title: "平均评分",
             value: overviewData?.averageRating?.toFixed(1) || "0.0",
             icon: Star,
-            colorClass: "bg-yellow-50 text-yellow-600",
+            colorClass: "bg-primary-50 text-primary-400",
         },
         {
             title: "本月收入",
             value: `¥${formatMoney(overviewData?.monthlyRevenue)}`,
             icon: TrendingUp,
-            colorClass: "bg-purple-50 text-purple-600",
+            colorClass: "bg-primary-50 text-primary-400",
             href: "/dashboard/revenue"
         }
     ];
@@ -194,7 +194,7 @@ const Overview = () => {
             description: "平台分账和银行卡提现",
             value: overviewData?.receivingAccountReady ? "已开通" : "待绑定",
             icon: overviewData?.receivingAccountReady ? CheckCircle2 : Wallet,
-            colorClass: overviewData?.receivingAccountReady ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600",
+            colorClass: overviewData?.receivingAccountReady ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15" : "bg-amber-50 text-amber-600 dark:bg-amber-500/15",
             isStatus: true,
             isComplete: overviewData?.receivingAccountReady,
             href: "/dashboard/wallet/merchant"
@@ -204,7 +204,7 @@ const Overview = () => {
             description: "设置您的会员方案",
             value: overviewData?.pricingReady ? "已激活" : "待配置",
             icon: overviewData?.pricingReady ? CheckCircle2 : CircleDashed,
-            colorClass: overviewData?.pricingReady ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600",
+            colorClass: overviewData?.pricingReady ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15" : "bg-amber-50 text-amber-600 dark:bg-amber-500/15",
             isStatus: true,
             isComplete: overviewData?.pricingReady,
             href: "/dashboard/pricing"
@@ -214,7 +214,7 @@ const Overview = () => {
             description: "收集学员基础信息",
             value: overviewData?.questionReady ? "已开启" : "待设置",
             icon: FileText,
-            colorClass: overviewData?.questionReady ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-600",
+            colorClass: overviewData?.questionReady ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15" : "bg-amber-50 text-amber-600 dark:bg-amber-500/15",
             isStatus: true,
             isComplete: overviewData?.questionReady,
             href: "/dashboard/questionnaire"
@@ -224,7 +224,7 @@ const Overview = () => {
             description: "已发布的文章与视频",
             value: overviewData?.contentCount || 0,
             icon: Library,
-            colorClass: "bg-primary-50 text-primary-600",
+            colorClass: "bg-primary-50 text-primary-400",
             href: "/dashboard/content"
         },
         {
@@ -232,7 +232,7 @@ const Overview = () => {
             description: "标准化训练方案",
             value: overviewData?.planTemplateCount || 0,
             icon: Layout,
-            colorClass: "bg-indigo-50 text-indigo-600",
+            colorClass: "bg-primary-50 text-primary-400",
             href: "/dashboard/plan-lib"
         },
         {
@@ -240,7 +240,7 @@ const Overview = () => {
             description: "演示资源总数",
             value: overviewData?.actionCount || 0,
             icon: Activity,
-            colorClass: "bg-slate-50 text-slate-600",
+            colorClass: "bg-primary-50 text-primary-400",
             href: "/dashboard/action-lib"
         }
     ];

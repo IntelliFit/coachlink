@@ -120,13 +120,13 @@ export default function RevenuePage() {
             {/* 收入汇总卡片 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* 总收入 */}
-                <div className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-2xl p-5 shadow-lg">
+                <div className="bg-[#1D1A16] dark:bg-[#2E2A26] text-white rounded-2xl p-5 shadow-lg">
                     <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-5 h-5 text-purple-200" />
-                        <span className="text-purple-100 text-sm font-medium">本月总收入</span>
+                        <TrendingUp className="w-5 h-5 text-white/70" />
+                        <span className="text-white/70 text-sm font-medium">本月总收入</span>
                     </div>
                     {loading ? (
-                        <Skeleton width="8rem" height="2rem" className="!bg-purple-400/30" />
+                        <Skeleton width="8rem" height="2rem" className="!bg-white/15" />
                     ) : (
                         <div className="text-3xl font-black font-mono">
                             {formatAmount(totalRevenue)}

@@ -341,7 +341,7 @@ const Content = () => {
                 />
                 
                 {/* Knowledge Node Selector */}
-                <div className="mb-6 p-5 bg-gradient-to-r from-purple-50 to-primary-50 dark:from-purple-900/20 dark:to-primary-900/20 rounded-[24px] border border-purple-100 dark:border-purple-800">
+                <div className="mb-6 p-5 bg-primary-50 dark:bg-primary-900/20 rounded-[24px] border border-primary-100 dark:border-primary-800">
                     <div className="flex items-start gap-3 mb-4">
                         <span className="text-2xl">📚</span>
                         <div>

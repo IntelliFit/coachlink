@@ -121,7 +121,7 @@ export default function MyProfilePage() {
         <div className="max-w-5xl mx-auto p-6 space-y-6">
             {/* 头部卡片 */}
             <Card className="shadow-lg border-0">
-                <div className="bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 -m-5 mb-6 p-8 rounded-t-xl">
+                <div className="bg-[#1D1A16] dark:bg-[#2E2A26] -m-5 mb-6 p-8 rounded-t-xl">
                     <div className="flex items-center gap-6">
                         <Avatar
                             image={profile?.avatar_url || undefined}
@@ -164,28 +164,28 @@ export default function MyProfilePage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
-                        <div className="text-xs font-medium text-blue-600 mb-2">姓名</div>
+                    <div className="bg-surface-50 rounded-xl p-5 border border-surface-200">
+                        <div className="text-xs font-medium text-surface-500 mb-2">姓名</div>
                         <div className="text-lg font-semibold text-gray-800">{profile?.full_name || '-'}</div>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
-                        <div className="text-xs font-medium text-purple-600 mb-2">年龄</div>
+                    <div className="bg-surface-50 rounded-xl p-5 border border-surface-200">
+                        <div className="text-xs font-medium text-surface-500 mb-2">年龄</div>
                         <div className="text-lg font-semibold text-gray-800">{profile?.age ? `${profile.age} 岁` : '-'}</div>
                     </div>
-                    <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-5 border border-pink-200">
-                        <div className="text-xs font-medium text-pink-600 mb-2">性别</div>
+                    <div className="bg-surface-50 rounded-xl p-5 border border-surface-200">
+                        <div className="text-xs font-medium text-surface-500 mb-2">性别</div>
                         <div className="text-lg font-semibold text-gray-800">{getGenderLabel(profile?.gender || null)}</div>
                     </div>
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 border border-green-200">
-                        <div className="text-xs font-medium text-green-600 mb-2">身高</div>
+                    <div className="bg-surface-50 rounded-xl p-5 border border-surface-200">
+                        <div className="text-xs font-medium text-surface-500 mb-2">身高</div>
                         <div className="text-lg font-semibold text-gray-800">{profile?.height ? `${profile.height} cm` : '-'}</div>
                     </div>
-                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 border border-yellow-200">
-                        <div className="text-xs font-medium text-yellow-600 mb-2">体重</div>
+                    <div className="bg-surface-50 rounded-xl p-5 border border-surface-200">
+                        <div className="text-xs font-medium text-surface-500 mb-2">体重</div>
                         <div className="text-lg font-semibold text-gray-800">{profile?.weight ? `${profile.weight} kg` : '-'}</div>
                     </div>
-                    <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-5 border border-indigo-200">
-                        <div className="text-xs font-medium text-indigo-600 mb-2">生活作息</div>
+                    <div className="bg-surface-50 rounded-xl p-5 border border-surface-200">
+                        <div className="text-xs font-medium text-surface-500 mb-2">生活作息</div>
                         <div className="text-sm font-medium text-gray-800">{profile?.lifestyle || '-'}</div>
                     </div>
                 </div>
@@ -208,7 +208,7 @@ export default function MyProfilePage() {
                     <TrendingUp className="w-6 h-6 text-blue-500" />
                     我的进步
                 </h2>
-                <div className="h-48 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-dashed border-gray-300">
+                <div className="h-48 flex items-center justify-center bg-surface-50 rounded-xl border-2 border-dashed border-surface-300">
                     <div className="text-center">
                         <TrendingUp className="w-16 h-16 mx-auto mb-3 text-gray-300" />
                         <p className="text-gray-500 font-medium">暂无进步数据</p>
@@ -223,7 +223,7 @@ export default function MyProfilePage() {
                     <Calendar className="w-6 h-6 text-yellow-500" />
                     进步时间线
                 </h2>
-                <div className="h-48 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-dashed border-gray-300">
+                <div className="h-48 flex items-center justify-center bg-surface-50 rounded-xl border-2 border-dashed border-surface-300">
                     <div className="text-center">
                         <Calendar className="w-16 h-16 mx-auto mb-3 text-gray-300" />
                         <p className="text-gray-500 font-medium">暂无里程碑记录</p>
@@ -238,7 +238,7 @@ export default function MyProfilePage() {
                     <Users className="w-6 h-6 text-indigo-500" />
                     我的教练
                 </h2>
-                <div className="h-40 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-dashed border-gray-300">
+                <div className="h-40 flex items-center justify-center bg-surface-50 rounded-xl border-2 border-dashed border-surface-300">
                     <div className="text-center">
                         <Users className="w-16 h-16 mx-auto mb-3 text-gray-300" />
                         <p className="text-gray-500 font-medium mb-3">暂未订阅教练</p>
@@ -246,7 +246,7 @@ export default function MyProfilePage() {
                             label="去发现"
                             icon="pi pi-search"
                             size="small"
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 border-0"
+                            className="bg-[#B4553A] border-0"
                             onClick={() => router.push('/coach/discovery')}
                         />
                     </div>
@@ -259,7 +259,7 @@ export default function MyProfilePage() {
                     <MessageSquare className="w-6 h-6 text-green-500" />
                     教练观察与建议
                 </h2>
-                <div className="h-40 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-dashed border-gray-300">
+                <div className="h-40 flex items-center justify-center bg-surface-50 rounded-xl border-2 border-dashed border-surface-300">
                     <div className="text-center">
                         <MessageSquare className="w-16 h-16 mx-auto mb-3 text-gray-300" />
                         <p className="text-gray-500 font-medium">暂无来自教练的反馈</p>
