@@ -12,6 +12,7 @@ import {
     normalizeIntensityConfig,
 } from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
+import { normalizeWeightUnit, toKg, type SetWeightUnit } from "@coachlink/core/src/weightUnit";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { getAuthUser } from "@/lib/auth";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
@@ -466,6 +467,14 @@ export async function POST(request: NextRequest) {
                     plannedIntensity = `${intensityConfig.relativeIntensity.value}RM`;
                 }
 
+                // A fixed plan load is typed in the coach's unit (params.loadUnit, e.g. lbs for resistance
+                // bands). planned_weight stays kg; the original unit and number ride along.
+                let plannedWeightUnit: SetWeightUnit = normalizeWeightUnit(
+                    params?.loadUnit ?? intensityConfig?.fixedWeight?.unit,
+                );
+                let plannedWeightInput: number | null =
+                    load !== null && load !== undefined && Number.isFinite(Number(load)) ? Number(load) : null;
+
                 // RM/% targets are recomputed per set. RPE and other text stay
                 // descriptive and are never coerced into a fake kg/RM value.
                 if (shouldRefreshExistingLoad || load === null || load === undefined) {
@@ -477,10 +486,15 @@ export async function POST(request: NextRequest) {
                         includesBodyWeight,
                     });
                     if (result.displayWeight !== null && result.displayWeight !== undefined) {
+                        plannedWeightUnit = normalizeWeightUnit(result.displayUnit);
+                        plannedWeightInput = Number(result.displayWeight);
                         load = normalizeToKg(Number(result.displayWeight), result.displayUnit || "kg");
                     }
                     if (result.displayText) plannedIntensity = result.displayText;
+                } else if (plannedWeightUnit === "lbs" && plannedWeightInput !== null) {
+                    load = toKg(plannedWeightInput, "lbs");
                 }
+                const keepLbs = plannedWeightUnit === "lbs" && plannedWeightInput !== null;
 
                 const restSeconds = normalizePlannedRestSeconds(
                     prescription?.restSeconds ?? prescription?.rest_seconds ??
@@ -495,8 +509,9 @@ export async function POST(request: NextRequest) {
                         ? String(reps)
                         : null,
                     planned_weight: load !== null && load !== undefined && Number.isFinite(Number(load))
-                        ? fixedLoadOverride ? `${Number(load)}kg` : formatKgForGym(Number(load))
+                        ? fixedLoadOverride || keepLbs ? `${Number(load)}kg` : formatKgForGym(Number(load))
                         : null,
+                    ...(keepLbs ? { planned_weight_unit: "lbs", planned_weight_input: plannedWeightInput } : {}),
                     planned_intensity: plannedIntensity,
                     planned_target_type: prescription?.targetType ?? prescription?.target_type ?? (timedDefault ? 'time' : null),
                     planned_target_unit: prescription?.targetUnit ?? prescription?.target_unit ?? (timedDefault ? 's' : null),

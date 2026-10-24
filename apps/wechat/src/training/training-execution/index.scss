@@ -2932,3 +2932,34 @@
     color: #F5F2ED !important;
   }
 }
+
+// kg / 磅 switch beside the weight label (resistance bands are sold in lbs)
+.training-execution-page {
+  .record-input-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8rpx;
+  }
+
+  .record-unit-toggle {
+    display: flex;
+    flex-shrink: 0;
+    border: 2rpx solid var(--cl-line);
+    border-radius: 9999rpx;
+    overflow: hidden;
+  }
+
+  .record-unit-option {
+    padding: 0 16rpx;
+    font-size: 20rpx;
+    line-height: 32rpx;
+    color: #7c8490;
+    font-weight: 800;
+
+    &.active {
+      background: #CF6D4E;
+      color: #fff;
+    }
+  }
+}

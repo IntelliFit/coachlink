@@ -90,6 +90,8 @@ class ImpromptuService {
       actualWeight?: number | null
       actualReps?: number | null
       actualDuration?: number | null
+      weightUnit?: 'kg' | 'lbs'
+      weightInput?: number | null
       notes?: string
       rpe?: number | null
       isPR?: boolean
@@ -104,6 +106,9 @@ class ImpromptuService {
         setIndex,
         actualWeight: data.actualWeight,
         actualReps: data.actualReps,
+        actualDuration: data.actualDuration,
+        weightUnit: data.weightUnit,
+        weightInput: data.weightInput,
         notes: data.notes,
         rpe: data.rpe,
         isPR: data.isPR
@@ -131,7 +136,7 @@ class ImpromptuService {
   async addExtraSet(
     executionId: string,
     actionIndex: number,
-    params?: { weight?: number | string | null; reps?: number | string | null; restSeconds?: number | null }
+    params?: { weight?: number | string | null; weightUnit?: 'kg' | 'lbs'; weightInput?: number | null; reps?: number | string | null; restSeconds?: number | null }
   ): Promise<{ newSetIndex: number; totalSets: number } | null> {
     const res = await request({
       url: `${this.baseUrl}/extra-content/add-extra-set`,

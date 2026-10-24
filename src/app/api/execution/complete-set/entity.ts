@@ -7,6 +7,8 @@ export interface CompleteSetDto {
     actualWeight?: number | null;
     actualReps?: number | null;
     actualDuration?: number | null; // seconds for timed strength sets
+    weightUnit?: "kg" | "lbs" | null; // unit the student typed; actualWeight stays in kg
+    weightInput?: number | null; // number typed in weightUnit (server recomputes kg from it for lbs)
     rpe?: number;
     notes?: string;
     is_pr?: boolean; // PR flag

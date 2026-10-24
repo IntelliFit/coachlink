@@ -1,3 +1,5 @@
+import { fromKg, getSetDisplayWeight, isWeightUnit, toKg, weightUnitLabel, type SetWeightUnit } from './weightUnit'
+
 /** Strength sets can measure repetitions or elapsed time; kilograms are external load. */
 export function isTimedTrainingSet(set: any, action?: any): boolean {
   const type = String(set?.planned_target_type ?? set?.plannedTargetType ?? '').toLowerCase()
@@ -47,13 +49,23 @@ export function formatRecordedTrainingSet(set: any, action?: any): string {
   }
   const weight = finiteNumber(set?.actual_weight ?? set?.actualWeight)
   const reps = finiteNumber(set?.actual_reps ?? set?.actualReps)
-  const load = weight === null ? '重量未记录' : weight === 0 ? '自重 / 无外加负重' : weight < 0 ? `辅助 ${Math.abs(weight)}kg` : `${weight}kg`
+  const shown = getSetDisplayWeight(set)
+  const label = shown ? weightUnitLabel(shown.unit) : 'kg'
+  const load = weight === null || !shown
+    ? '重量未记录'
+    : weight === 0
+      ? '自重 / 无外加负重'
+      : weight < 0
+        ? `辅助 ${Math.abs(shown.value)}${label}`
+        : `${shown.value}${label}`
   return `${load} × ${reps ?? '-'}次`
 }
 
 /** Never reinterpret historical actual_reps as seconds or use a prescription as an actual result. */
 export function trainingSetMeasurementPatch(set: any, input: {
   actualWeight?: number | null; actualReps?: number | null; actualDuration?: number | null
+  /** Unit the student typed the weight in. Omitted by older clients, which always send kg. */
+  weightUnit?: SetWeightUnit | null; weightInput?: number | null
 }, action?: any): { patch: Record<string, any>; error?: string } {
   if (isTimedTrainingSet(set, action)) {
     const duration = input.actualDuration === undefined ? getActualDurationSeconds(set)
@@ -70,7 +82,35 @@ export function trainingSetMeasurementPatch(set: any, input: {
     }
     patch[key] = value
   }
-  return { patch }
+  const unitError = applyWeightUnit(patch, set, input)
+  return unitError ? { patch: {}, error: unitError } : { patch }
+}
+
+/** Keeps `actual_weight` in kg and records the unit/number the student actually used. */
+function applyWeightUnit(patch: Record<string, any>, set: any, input: {
+  actualWeight?: number | null; weightUnit?: SetWeightUnit | null; weightInput?: number | null
+}): string | null {
+  if (input.weightUnit === undefined || input.weightUnit === null) {
+    // An older client rewriting a set that was recorded in lbs must not leave a stale unit behind.
+    if (input.actualWeight !== undefined && set?.weight_unit && set.weight_unit !== 'kg') {
+      patch.weight_unit = 'kg'
+      patch.weight_input = input.actualWeight
+    }
+    return null
+  }
+  if (!isWeightUnit(input.weightUnit)) return '重量单位无效'
+  if (input.weightUnit === 'kg') {
+    if (input.actualWeight !== undefined) { patch.weight_unit = 'kg'; patch.weight_input = input.actualWeight }
+    return null
+  }
+  if (input.weightInput === null || (input.weightInput === undefined && input.actualWeight === null)) {
+    Object.assign(patch, { actual_weight: null, weight_unit: 'lbs', weight_input: null })
+    return null
+  }
+  const typed = input.weightInput !== undefined ? input.weightInput : fromKg(Number(input.actualWeight), 'lbs')
+  if (typed === undefined || typeof typed !== 'number' || !Number.isFinite(typed)) return '重量必须是有效数字'
+  Object.assign(patch, { actual_weight: toKg(typed, 'lbs'), weight_unit: 'lbs', weight_input: typed })
+  return null
 }
 
 export function inheritedTimedSetDefaults(set: any, action?: any): Record<string, any> {

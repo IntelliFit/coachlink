@@ -9,7 +9,7 @@ interface WeightedSet {
  * action. Used to prefill sets whose plan has no concrete kg (e.g. "9RM"), so the field is
  * not left empty behind a placeholder that looks like a value.
  */
-export function previousCompletedWeight(sets: WeightedSet[] | null | undefined, target: WeightedSet | null | undefined): number | null {
+export function previousCompletedSetWithWeight<T extends WeightedSet>(sets: T[] | null | undefined, target: T | null | undefined): T | null {
   if (!Array.isArray(sets) || !target) return null
   const targetNumber = Number(target.set_number)
   const targetIndex = sets.indexOf(target)
@@ -23,8 +23,12 @@ export function previousCompletedWeight(sets: WeightedSet[] | null | undefined, 
     const set = before[i]
     if (set.status !== 'completed') continue
     if (set.actual_weight === null || set.actual_weight === undefined || String(set.actual_weight).trim() === '') continue
-    const weight = Number(set.actual_weight)
-    if (Number.isFinite(weight)) return weight
+    if (Number.isFinite(Number(set.actual_weight))) return set
   }
   return null
+}
+
+export function previousCompletedWeight(sets: WeightedSet[] | null | undefined, target: WeightedSet | null | undefined): number | null {
+  const set = previousCompletedSetWithWeight(sets, target)
+  return set ? Number(set.actual_weight) : null
 }

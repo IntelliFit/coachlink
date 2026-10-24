@@ -1,4 +1,5 @@
 import { getActualDurationSeconds, isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics'
+import { getSetDisplayWeight, weightUnitLabel } from '@coachlink/core/src/weightUnit'
 
 /** Font sizes tried, largest first, before a poster set chip falls back to an ellipsis. */
 export const POSTER_SET_FONT_SIZES = [18, 17, 16, 15, 14]
@@ -25,13 +26,15 @@ export function formatPosterSetText(set: any, action?: any): string {
   }
   const weight = finiteNumber(set?.actual_weight ?? set?.actualWeight)
   const reps = finiteNumber(set?.actual_reps ?? set?.actualReps)
-  const load = weight === null
+  const shown = getSetDisplayWeight(set)
+  const label = shown ? weightUnitLabel(shown.unit) : 'kg'
+  const load = weight === null || !shown
     ? '—'
     : weight === 0
       ? '自重'
       : weight < 0
-        ? `辅助${formatKg(weight)}kg`
-        : `${formatKg(weight)}kg`
+        ? `辅助${formatKg(shown.value)}${label}`
+        : `${formatKg(shown.value)}${label}`
   return `${load}×${reps ?? '-'}`
 }
 

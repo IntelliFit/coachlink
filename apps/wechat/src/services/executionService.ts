@@ -250,6 +250,8 @@ class ExecutionService {
       actualWeight?: number | null
       actualReps?: number | null
       actualDuration?: number | null
+      weightUnit?: 'kg' | 'lbs'
+      weightInput?: number | null
       rpe?: number | null
       notes?: string
       videoUrl?: string
@@ -268,6 +270,8 @@ class ExecutionService {
         actualWeight: data.actualWeight,
         actualReps: data.actualReps,
         actualDuration: data.actualDuration,
+        weightUnit: data.weightUnit,
+        weightInput: data.weightInput,
         rpe: data.rpe,
         notes: data.notes,
         videoUrl: data.videoUrl || undefined,
@@ -310,7 +314,7 @@ class ExecutionService {
   async addExtraSet(
     executionId: string,
     actionIndex: number,
-    params?: { weight?: number | string | null; reps?: number | string | null; restSeconds?: number | null }
+    params?: { weight?: number | string | null; weightUnit?: 'kg' | 'lbs'; weightInput?: number | null; reps?: number | string | null; restSeconds?: number | null }
   ): Promise<{ newSetIndex: number; totalSets: number } | null> {
     const res = await request({
       url: `${this.baseUrl}/extra-content/add-extra-set`,

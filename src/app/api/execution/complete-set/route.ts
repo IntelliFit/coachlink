@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
             actualWeight,
             actualReps,
             actualDuration,
+            weightUnit,
+            weightInput,
             rpe,
             notes,
             is_pr,
@@ -149,12 +151,16 @@ export async function POST(request: NextRequest) {
         const nowIso = new Date().toISOString();
         const originalSet = actionExecutions[actionIndex].sets[setIndex];
         const timed = isTimedTrainingSet(originalSet, actionExecutions[actionIndex]);
-        const measurements = trainingSetMeasurementPatch(originalSet, { actualWeight, actualReps, actualDuration }, actionExecutions[actionIndex]);
+        const measurements = trainingSetMeasurementPatch(originalSet, { actualWeight, actualReps, actualDuration, weightUnit, weightInput }, actionExecutions[actionIndex]);
         if (measurements.error) {
             return NextResponse.json({ success: false, message: measurements.error, data: null }, { status: 400 });
         }
+        // lbs input is converted server-side, so everything below works from the canonical kg value.
+        const canonicalWeight: number | null | undefined = "actual_weight" in measurements.patch
+            ? measurements.patch.actual_weight
+            : actualWeight;
         const measurementsChanged =
-            (actualWeight !== undefined && actualWeight !== originalSet.actual_weight) ||
+            (canonicalWeight !== undefined && canonicalWeight !== originalSet.actual_weight) ||
             (actualReps !== undefined && actualReps !== originalSet.actual_reps) ||
             (actualDuration !== undefined && actualDuration !== originalSet.actual_duration);
         actionExecutions[actionIndex].sets[setIndex] = {
@@ -220,7 +226,7 @@ export async function POST(request: NextRequest) {
 
         // PR side effects must follow a successful save, never a rejected stale write.
         let autoE1RMResult: { isPR: boolean; e1rm: number; previousPR?: number } | null = null;
-        if (!timed && actualWeight !== undefined && actualWeight !== null && actualReps && actionId) {
+        if (!timed && canonicalWeight !== undefined && canonicalWeight !== null && actualReps && actionId) {
             try {
                 const { data: instanceRow } = await supabase
                     .from("coach_plan_instances")
@@ -228,7 +234,7 @@ export async function POST(request: NextRequest) {
                     .eq("id", execution.instance_id)
                     .maybeSingle();
                 autoE1RMResult = await handleAutoE1RMCheck({
-                    userId, actionId, actionName, weight: actualWeight, reps: actualReps,
+                    userId, actionId, actionName, weight: canonicalWeight, reps: actualReps,
                     executionId, setNumber: setIndex + 1,
                     isCoachSubscriptionPlan: !!instanceRow?.coach_subscription_id,
                 });

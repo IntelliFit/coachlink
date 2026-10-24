@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json() as CompleteImpromptuSetDto;
-        const { executionId, actionIndex, setIndex, actualWeight, actualReps, actualDuration, notes, rpe, isPR } =
+        const { executionId, actionIndex, setIndex, actualWeight, actualReps, actualDuration, weightUnit, weightInput, notes, rpe, isPR } =
             body;
 
         if ((rpe != null && (!Number.isFinite(rpe) || rpe < 1 || rpe > 10)) ||
@@ -95,23 +95,27 @@ export async function POST(req: Request) {
         ).trim() || `动作${actionIndex + 1}`;
         const actionId = String(currentAction?.action_id || "").trim() || null;
         const timed = isTimedTrainingSet(currentSet, currentAction);
-        const measurements = trainingSetMeasurementPatch(currentSet, { actualWeight, actualReps, actualDuration }, currentAction);
+        const measurements = trainingSetMeasurementPatch(currentSet, { actualWeight, actualReps, actualDuration, weightUnit, weightInput }, currentAction);
         if (measurements.error) {
             return NextResponse.json({ success: false, message: measurements.error, data: null }, { status: 400 });
         }
+        // lbs input is converted server-side, so PR/e1RM work from the canonical kg value.
+        const canonicalWeight: number | null | undefined = "actual_weight" in measurements.patch
+            ? measurements.patch.actual_weight
+            : actualWeight;
 
         let autoE1RMResult:
             | { isPR: boolean; e1rm: number; previousPR?: number }
             | null = null;
         if (
-            !timed && actualWeight !== null && actualWeight !== undefined &&
+            !timed && canonicalWeight !== null && canonicalWeight !== undefined &&
             actualReps !== null && actualReps !== undefined
         ) {
             autoE1RMResult = await handleAutoE1RMCheck({
                 userId,
                 actionId,
                 actionName,
-                weight: Number(actualWeight),
+                weight: Number(canonicalWeight),
                 reps: Number(actualReps),
                 executionId,
                 setNumber: setIndex + 1,

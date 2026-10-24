@@ -5,6 +5,8 @@ export interface AddExtraSetDto {
     executionId: string;
     actionIndex: number;
     weight?: number | string | null;
+    weightUnit?: "kg" | "lbs" | null; // unit `weight` was typed in; weight itself stays kg
+    weightInput?: number | null;
     reps?: number | string | null;
     restSeconds?: number | null;
 }

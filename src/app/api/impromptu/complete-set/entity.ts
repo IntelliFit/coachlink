@@ -4,6 +4,8 @@ export interface CompleteImpromptuSetDto {
     setIndex: number;
     actualWeight?: number | null;
     actualDuration?: number | null;
+    weightUnit?: "kg" | "lbs" | null;
+    weightInput?: number | null;
     actualReps?: number | null;
     notes?: string;
     rpe?: number | null;

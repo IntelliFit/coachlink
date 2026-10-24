@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { inheritedTimedSetDefaults, isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
+import { inheritedPlannedWeightUnit } from '@coachlink/core/src/weightUnit';
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -42,12 +43,13 @@ function findInheritedSetDefaults(sets: any[]) {
         if (plannedWeight !== null || plannedReps !== null) {
             return {
                 plannedWeight,
+                weightUnitFields: plannedWeight !== null ? inheritedPlannedWeightUnit(set) : {},
                 plannedReps,
                 restSeconds: Number.isFinite(restSeconds) && restSeconds > 0 ? Math.round(restSeconds) : fallbackRestSeconds,
             };
         }
     }
-    return { plannedWeight: null, plannedReps: null, restSeconds: fallbackRestSeconds };
+    return { plannedWeight: null, weightUnitFields: {}, plannedReps: null, restSeconds: fallbackRestSeconds };
 }
 
 export async function POST(request: NextRequest) {
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
             }, { status: 401 });
         }
         const body: AddImpromptuExtraSetDto = await request.json();
-        const { executionId, actionIndex, weight, reps, restSeconds } = body;
+        const { executionId, actionIndex, weight, weightUnit, weightInput, reps, restSeconds } = body;
         if (!executionId || actionIndex === undefined) {
             return NextResponse.json<ApiData<AddImpromptuExtraSetResponseDto>>({
                 success: false,
@@ -114,10 +116,15 @@ export async function POST(request: NextRequest) {
         const plannedWeight = formatPlanWeight(weight) ?? inherited.plannedWeight;
         const plannedReps = formatPlanReps(reps) ?? inherited.plannedReps;
         const inheritedRestSeconds = restSeconds ?? inherited.restSeconds ?? 60;
+        const clientLbs = weightUnit === "lbs" && weightInput !== null && weightInput !== undefined && Number.isFinite(Number(weightInput));
+        const plannedWeightUnitFields = clientLbs
+            ? { planned_weight_unit: "lbs", planned_weight_input: Number(weightInput) }
+            : formatPlanWeight(weight) === null ? inherited.weightUnitFields : {};
         sets.push({
             set_number: newSetIndex + 1,
             set_index: newSetIndex,
             planned_weight: plannedWeight,
+            ...plannedWeightUnitFields,
             planned_reps: plannedReps,
             ...inheritedTimedSetDefaults([...sets].reverse().find((s: any) => isTimedTrainingSet(s, action)), action),
             planned_rest_seconds: inheritedRestSeconds,

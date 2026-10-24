@@ -9,7 +9,8 @@ import { resolveActionLoadMode, type ActionLoadMode } from '@coachlink/core/src/
 import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, getTrainingSetVolume, formatRecordedTrainingSet, inheritedTimedSetDefaults } from '@coachlink/core/src/trainingSetMetrics'
 import RecordCompletionButton from '@/components/RecordCompletionButton'
 import { formatPosterSetText } from './posterSetText'
-import { previousCompletedWeight } from './setDefaults'
+import { previousCompletedSetWithWeight } from './setDefaults'
+import { fromKg, getSetDisplayWeight, inheritedPlannedWeightUnit, toKg, weightUnitLabel, type SetWeightUnit } from '@coachlink/core/src/weightUnit'
 import { resolveWeappImageThumbnailUrl } from '@/utils/mediaUrl'
 import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
 import { ClButton, ClTag } from '@/components/ui'
@@ -70,6 +71,7 @@ const REST_TIMER_STORAGE_PREFIX = 'training_execution_rest_timer_v1'
 const TRAINING_TIMER_STORAGE_PREFIX = 'training_execution_total_timer_v1'
 const ROUTE_PARAM_STORAGE_KEY = 'training_execution_last_route_params_v1'
 const WEIGHT_STEP_KG = 2.5
+const WEIGHT_STEP_LBS = 5
 const REPS_STEP = 1
 const WORKOUT_POSTER_CANVAS_ID = 'workout-share-poster-canvas'
 
@@ -113,11 +115,15 @@ interface SetData {
   status: 'pending' | 'completed' | 'skipped'
   planned_reps?: string
   planned_weight?: string
+  planned_weight_unit?: SetWeightUnit
+  planned_weight_input?: number
   planned_intensity?: string
   planned_target_type?: string | null
   planned_target_unit?: string | null
   planned_rest_seconds?: number
   actual_weight?: number
+  weight_unit?: SetWeightUnit
+  weight_input?: number | null
   actual_reps?: number
   rpe?: number
   notes?: string
@@ -134,6 +140,7 @@ interface SetData {
 interface SetRecordDraft {
   weight: number | null
   weightInput: string
+  weightUnit?: SetWeightUnit
   reps: number | null
   rpe: number | null
   notes: string
@@ -288,6 +295,23 @@ function getSetWeightDefault(set?: SetData | null): number | null {
   return parseFirstNumber(set.planned_weight)
 }
 
+/** Weight prefill in the unit the set was planned/recorded in (lbs for resistance bands). */
+function getSetWeightDefaultDisplay(set?: SetData | null): { value: number; unit: SetWeightUnit } | null {
+  if (getSetWeightDefault(set) === null) return null
+  const hasActual = set?.actual_weight !== null && set?.actual_weight !== undefined && Number.isFinite(Number(set?.actual_weight))
+  return getSetDisplayWeight(set, hasActual ? 'actual' : 'planned')
+}
+
+/** "20磅" for lbs sets, null for kg sets so callers keep their existing kg formatting. */
+function lbsWeightText(set?: SetData | null, field: 'actual' | 'planned' = 'actual'): string | null {
+  const shown = set ? getSetDisplayWeight(set, field) : null
+  return shown && shown.unit === 'lbs' ? `${shown.value}${weightUnitLabel('lbs')}` : null
+}
+
+function roundTyped(value: number): number {
+  return Math.round(value * 10) / 10
+}
+
 function getSetRepsDefault(set?: SetData | null): number | null {
   if (!set) return null
   if (isTimedTrainingSet(set)) return getActualDurationSeconds(set) ?? (set.status === 'completed' ? null : getPlannedDurationSeconds(set))
@@ -318,11 +342,16 @@ function buildInheritedExtraSet(sourceSet?: SetData | null, action?: any): SetDa
   const inheritedWeight = getSetWeightDefault(sourceSet)
   const inheritedReps = getSetRepsDefault(sourceSet)
   const inheritedRest = getSetRestDefault(sourceSet)
+  const inheritedUnitFields = sourceSet ? inheritedPlannedWeightUnit(sourceSet) : {}
+  const inheritedLbs = inheritedUnitFields.planned_weight_unit === 'lbs'
 
   return {
     set_number: 1,
     status: 'pending',
-    planned_weight: inheritedWeight !== null ? `${formatKgValueForGym(inheritedWeight)}kg` : (sourceSet?.planned_weight || ''),
+    planned_weight: inheritedWeight !== null
+      ? `${inheritedLbs ? inheritedWeight : formatKgValueForGym(inheritedWeight)}kg`
+      : (sourceSet?.planned_weight || ''),
+    ...(inheritedWeight !== null ? inheritedUnitFields : {}),
     planned_reps: inheritedReps !== null ? String(inheritedReps) : (sourceSet?.planned_reps || ''),
     ...inheritedTimedSetDefaults(sourceSet, action),
     planned_rest_seconds: inheritedRest ?? sourceSet?.planned_rest_seconds,
@@ -431,6 +460,7 @@ function TrainingExecution() {
   // 当前组的输入状态
   const [weight, setWeight] = React.useState<number | null>(null)
   const [weightInput, setWeightInput] = React.useState('')
+  const [weightUnit, setWeightUnit] = React.useState<SetWeightUnit>('kg')
   const [reps, setReps] = React.useState<number | null>(null)
   const [rpe, setRpe] = React.useState<number | null>(null)
   const [setNotes, setSetNotes] = React.useState('')
@@ -677,6 +707,7 @@ function TrainingExecution() {
       const current = prev[setKey] || {
         weight,
         weightInput,
+        weightUnit,
         reps,
         rpe,
         notes: setNotes,
@@ -691,7 +722,7 @@ function TrainingExecution() {
         }
       }
     })
-  }, [markAsPR, reps, rpe, setNotes, videoUrl, weight, weightInput])
+  }, [markAsPR, reps, rpe, setNotes, videoUrl, weight, weightInput, weightUnit])
 
   const clearSetDraft = React.useCallback((setKey: string) => {
     if (!setKey) return
@@ -735,6 +766,7 @@ function TrainingExecution() {
     if (!set || (set.status === 'completed' && !allowCompleted)) {
       setWeight(null)
       setWeightInput('')
+      setWeightUnit('kg')
       setReps(null)
       setRpe(null)
       setSetNotes('')
@@ -745,14 +777,18 @@ function TrainingExecution() {
     }
 
     const timed = isTimedTrainingSet(set, options?.action)
-    const plannedWeight = timed ? null : getSetWeightDefault(set)
+    const plannedDisplay = timed ? null : getSetWeightDefaultDisplay(set)
     // No concrete kg in the plan (e.g. "9RM"): start from the weight used on the previous set.
-    const defaultWeight = timed || plannedWeight !== null || set.status === 'completed'
-      ? plannedWeight
-      : previousCompletedWeight(options?.action?.sets, set)
+    const previousSet = timed || plannedDisplay !== null || set.status === 'completed'
+      ? null
+      : previousCompletedSetWithWeight<SetData>(options?.action?.sets, set)
+    const previousDisplay = previousSet ? getSetDisplayWeight(previousSet, 'actual') : null
+    const defaultDisplay = plannedDisplay ?? previousDisplay
+    const defaultWeight = defaultDisplay ? defaultDisplay.value : null
     const defaultReps = timed ? getActualDurationSeconds(set) ?? (set.status === 'completed' ? null : getPlannedDurationSeconds(set, options?.action)) : getSetRepsDefault(set)
     setWeight(defaultWeight)
     setWeightInput(formatInputValue(defaultWeight))
+    setWeightUnit(defaultDisplay?.unit ?? 'kg')
     setReps(defaultReps)
     setRpe(set.rpe ?? null)
     setSetNotes(set.notes || '')
@@ -1070,6 +1106,7 @@ function TrainingExecution() {
     if (current && draft && !(current.status === 'completed' && editingSetKey !== currentKey)) {
       setWeight(draft.weight)
       setWeightInput(draft.weightInput)
+      setWeightUnit(draft.weightUnit ?? 'kg')
       setReps(draft.reps)
       setRpe(draft.rpe)
       setSetNotes(draft.notes)
@@ -1384,6 +1421,19 @@ function TrainingExecution() {
     }
   }
 
+  const switchWeightUnit = (setKey: string, next: SetWeightUnit) => {
+    if (next === weightUnit) return
+    const typed = parseInputNumber(weightInput, 'float') ?? weight
+    const converted = typed === null || typed === undefined
+      ? null
+      : roundTyped(next === 'lbs' ? fromKg(typed, 'lbs') : toKg(typed, 'lbs'))
+    const nextInput = formatInputValue(converted)
+    setWeightUnit(next)
+    setWeight(converted)
+    setWeightInput(nextInput)
+    updateSetDraft(setKey, { weight: converted, weightInput: nextInput, weightUnit: next })
+  }
+
   const handleCompleteSet = async () => {
     if (cancelling || uploadingVideo) return
     if (!execution) return
@@ -1414,6 +1464,12 @@ function TrainingExecution() {
     const bodyweightSet = !timed && getActionLoadMode(currentAction, expandedAction).mode === 'bodyweight'
     // 自重明确存 0（空值不是 0），见 DECISIONS「自重与时间训练记录口径」
     const recordedWeight = timed ? null : bodyweightSet ? 0 : weight
+    // actual_weight is always kg; lbs sets also carry the unit and the number the student typed.
+    const recordedLbs = !timed && !bodyweightSet && weightUnit === 'lbs'
+    const recordedWeightKg = recordedLbs && recordedWeight !== null && recordedWeight !== undefined
+      ? toKg(recordedWeight, 'lbs')
+      : recordedWeight
+    const unitPayload = timed || bodyweightSet ? {} : { weightUnit, weightInput: recordedWeight }
     if (!timed && !bodyweightSet && isWeightRequiredForSet(currentSet) && (weight === null || weight === undefined)) {
       Taro.showToast({ title: '请输入重量', icon: 'none' })
       return
@@ -1428,14 +1484,15 @@ function TrainingExecution() {
             execution.id,
             expandedAction,
             currentSetIndex,
-            { actualWeight: recordedWeight, actualReps: timed ? null : reps, actualDuration: timed ? reps : undefined, notes: setNotes, rpe, isPR: markAsPR }
+            { actualWeight: recordedWeightKg, ...unitPayload, actualReps: timed ? null : reps, actualDuration: timed ? reps : undefined, notes: setNotes, rpe, isPR: markAsPR }
           )
         : await executionService.completeSet(
             execution.id,
             expandedAction,
             currentSetIndex,
             {
-              actualWeight: recordedWeight,
+              actualWeight: recordedWeightKg,
+              ...unitPayload,
               actualReps: timed ? null : reps,
               actualDuration: timed ? reps : undefined,
               rpe: rpe,
@@ -1456,7 +1513,9 @@ function TrainingExecution() {
         updatedSets[currentSetIndex] = {
           ...updatedSets[currentSetIndex],
           status: 'completed',
-          actual_weight: recordedWeight,
+          actual_weight: recordedWeightKg,
+          weight_unit: recordedLbs ? 'lbs' : 'kg',
+          weight_input: recordedLbs ? recordedWeight : recordedWeightKg,
           actual_reps: timed ? null : reps,
           ...(timed ? { actual_duration: reps } : {}),
           rpe: rpe,
@@ -1866,11 +1925,15 @@ function TrainingExecution() {
       const res = isImpromptuMode
         ? await impromptuService.addExtraSet(execution.id, actionIndex, {
             weight: inheritedPlanWeight,
+            weightUnit: inheritedSet.planned_weight_unit,
+            weightInput: inheritedSet.planned_weight_input,
             reps: inheritedPlanReps,
             restSeconds: inheritedRest
           })
         : await executionService.addExtraSet(execution.id, actionIndex, {
             weight: inheritedPlanWeight,
+            weightUnit: inheritedSet.planned_weight_unit,
+            weightInput: inheritedSet.planned_weight_input,
             reps: inheritedPlanReps,
             restSeconds: inheritedRest
           })
@@ -2160,10 +2223,13 @@ function TrainingExecution() {
 
   const adjustWeightValue = (set: SetData | null | undefined, delta: number) => {
     const currentValue = parseInputNumber(weightInput, 'float')
-    const plannedValue = parseFirstNumber(set?.planned_weight)
+    const plannedKg = parseFirstNumber(set?.planned_weight)
+    const plannedValue = plannedKg === null ? null : weightUnit === 'lbs' ? fromKg(plannedKg, 'lbs') : plannedKg
     const base = currentValue ?? weight ?? plannedValue ?? 0
-    const next = Math.max(0, Math.round((base + delta) * 10) / 10)
-    const nextInput = formatKgValueForGym(next)
+    const step = weightUnit === 'lbs' ? WEIGHT_STEP_LBS : WEIGHT_STEP_KG
+    const next = Math.max(0, Math.round((base + delta * step) * 10) / 10)
+    // Gym quantisation (2.5kg plates) only makes sense for kg; lbs bands keep the typed value.
+    const nextInput = weightUnit === 'lbs' ? String(next) : formatKgValueForGym(next)
     setWeight(next)
     setWeightInput(nextInput)
     updateSetDraft(activeSetKey, { weight: next, weightInput: nextInput })
@@ -2369,7 +2435,7 @@ function TrainingExecution() {
       : '训练总时长'
   const currentActualSummary = currentSet && isTimedTrainingSet(currentSet, currentAction) ? formatRecordedTrainingSet(currentSet, currentAction) : currentSet
     ? [
-        currentSet.actual_weight !== null && currentSet.actual_weight !== undefined ? `${currentSet.actual_weight}kg` : null,
+        currentSet.actual_weight !== null && currentSet.actual_weight !== undefined ? (lbsWeightText(currentSet) ?? `${currentSet.actual_weight}kg`) : null,
         currentSet.actual_reps !== null && currentSet.actual_reps !== undefined ? `${currentSet.actual_reps}次` : null,
         currentSet.rpe ? `RPE ${currentSet.rpe}` : null
       ].filter(Boolean).join(' · ')
@@ -2428,7 +2494,7 @@ function TrainingExecution() {
             : null
           const weightText = actualWeight !== null
             ? actualWeight > 0
-              ? `${formatKgValueForGym(actualWeight)}kg`
+              ? (lbsWeightText(set) ?? `${formatKgValueForGym(actualWeight)}kg`)
               : '自重'
             : plannedWeightNumber !== null
               ? `${formatKgValueForGym(plannedWeightNumber)}kg`
@@ -2905,7 +2971,7 @@ function TrainingExecution() {
                             const setDraft = setDrafts[setKey]
                             const timedSet = isTimedTrainingSet(set, action)
                             const bodyweightSet = !timedSet && loadMode.mode === 'bodyweight'
-                            const plannedWeightText = String(set.planned_weight || '').trim()
+                            const plannedWeightText = lbsWeightText(set, 'planned') ?? String(set.planned_weight || '').trim()
                             const plannedRepsText = formatPlannedRepsText(set)
                             const plannedSummary = [
                               !timedSet ? plannedWeightText || null : null,
@@ -2913,13 +2979,13 @@ function TrainingExecution() {
                               set.planned_intensity || null
                             ].filter(Boolean).join(' · ')
                             const actualSummary = timedSet ? formatRecordedTrainingSet(set, action) : [
-                              set.actual_weight !== null && set.actual_weight !== undefined ? (Number(set.actual_weight) === 0 ? '自重' : `${set.actual_weight}kg`) : null,
+                              set.actual_weight !== null && set.actual_weight !== undefined ? (Number(set.actual_weight) === 0 ? '自重' : (lbsWeightText(set) ?? `${set.actual_weight}kg`)) : null,
                               set.actual_reps !== null && set.actual_reps !== undefined ? `${set.actual_reps}次` : null,
                               set.rpe ? `RPE ${set.rpe}` : null
                             ].filter(Boolean).join(' · ')
                             const draftSummary = timedSet && setDraft ? (setDraft.reps ? `保持 ${setDraft.reps} 秒` : '') : setDraft
                               ? [
-                                  bodyweightSet ? '自重' : setDraft.weight !== null && setDraft.weight !== undefined ? `${formatKgValueForGym(setDraft.weight)}kg` : null,
+                                  bodyweightSet ? '自重' : setDraft.weight !== null && setDraft.weight !== undefined ? (setDraft.weightUnit === 'lbs' ? `${setDraft.weight}${weightUnitLabel('lbs')}` : `${formatKgValueForGym(setDraft.weight)}kg`) : null,
                                   setDraft.reps !== null && setDraft.reps !== undefined ? `${setDraft.reps}次` : null,
                                   setDraft.rpe ? `RPE ${setDraft.rpe}` : null
                                 ].filter(Boolean).join(' · ')
@@ -2983,14 +3049,30 @@ function TrainingExecution() {
                                   <View className="set-record-form">
                                     <View className={`record-inline-row ${timedSet ? 'timed' : ''} ${bodyweightSet ? 'bodyweight' : ''}`}>
                                       {!timedSet && !bodyweightSet && <View className="record-input-cell weight">
-                                        <Text className="record-input-label">{loadMode.weightLabel}（kg）</Text>
+                                        <View className="record-input-label-row">
+                                          <Text className="record-input-label">{loadMode.weightLabel}（{weightUnitLabel(weightUnit)}）</Text>
+                                          <View className="record-unit-toggle">
+                                            {(['kg', 'lbs'] as SetWeightUnit[]).map((unit) => (
+                                              <Text
+                                                key={unit}
+                                                className={`record-unit-option ${weightUnit === unit ? 'active' : ''}`}
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  switchWeightUnit(setKey, unit)
+                                                }}
+                                              >
+                                                {weightUnitLabel(unit)}
+                                              </Text>
+                                            ))}
+                                          </View>
+                                        </View>
                                         <View className="record-adjust-input">
                                           <View className="record-value-wrap">
                                             <Input
                                               type="digit"
                                               className="record-inline-input"
                                               value={weightInput}
-                                              placeholder={isConcreteWeightValue(set.planned_weight) ? String(parseFirstNumber(set.planned_weight)) : '—'}
+                                              placeholder={isConcreteWeightValue(set.planned_weight) ? String(getSetDisplayWeight(set, 'planned')?.value ?? parseFirstNumber(set.planned_weight)) : '—'}
                                               placeholderClass="record-input-placeholder"
                                               onInput={(e) => {
                                                 const rawValue = e.detail.value
@@ -3004,12 +3086,12 @@ function TrainingExecution() {
                                           <View className="record-stepper">
                                             <Text className="record-stepper-hit" onClick={(e) => {
                                               e.stopPropagation()
-                                              adjustWeightValue(set, WEIGHT_STEP_KG)
+                                              adjustWeightValue(set, 1)
                                             }}>+</Text>
                                             <Text className="record-stepper-divider" />
                                             <Text className="record-stepper-hit" onClick={(e) => {
                                               e.stopPropagation()
-                                              adjustWeightValue(set, -WEIGHT_STEP_KG)
+                                              adjustWeightValue(set, -1)
                                             }}>-</Text>
                                           </View>
                                         </View>
