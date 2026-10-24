@@ -2,7 +2,8 @@
 
 - dev/main 推到 299f9cfb：主检出 c010845f（单杠地图做工具箱首卡 + 小程序页面进入追踪）、AGENTS/CLAUDE 镜像推送规则、feat/boji-weapp（薄肌检测器小程序页）、feat/ui-refresh 3 个提交 + 该 worktree 未提交的功率分析页 v1 改版（8c6384bb）、perf/bearer-auth-parallel、perf/list-students-speed、perf/coach-overview-student-payment-parallel。唯一冲突 src/testUtils/mockSupabase.ts 保留 perf 分支新增的 is()。
 - 门禁：typecheck 通过；vitest 132 文件 992/993，唯一失败仍是既有 streetliftingLocationOverview recentMonths；e2e 写正式库未跑。
-- **镜像未推送**（用户未要求）：线上 Web 仍 419a2a79，Bearer 鉴权/学员列表/教练概览提速等后端改动未上线。已核对小程序新代码用到的接口（boji analyze、/api/trace、locations/list）都在 419a2a79 中，学员页改动纯前端，体验包可直接对接线上后端。
+- 2026-10-25 用户要求推镜像后已上线：Web `coachlink@sha256:f7cffc5b…`（标签只推 9684fc5 一个，控制 CCR 标签数），main b270ad4b → f7cffc5b、dev f403d885 → f7cffc5b，均 3/3；两域 healthy/login/toolbox/boji 200，buildTime 2026-10-24T17:27:28Z，dev 3 分钟内无错误日志。本机构建可用但 CCR 推大层连续 4 次超时、scp 48MB 源码包也因约 40KB/s 断在半途；最终做法：本机 `git -c core.autocrlf=false diff --binary b5caf5a4 9684fc5f`（排除 docs/design/apps 等，gzip 后 0.4MB）传到服务器，在 ~/coachlink-release-20261020c-src（b5caf5a4 浅克隆）导出后 git apply，2101 个文件哈希与本地 9684fc5f 逐一一致，再用 coachlink-deps:lock-c5e86f3b6d1b 构建并由服务器推送。Worker/薄肌服务无改动未动。
+- 原记录：线上 Web 当时仍 419a2a79。已核对小程序新代码用到的接口（boji analyze、/api/trace、locations/list）都在 419a2a79 中，学员页改动纯前端，体验包可直接对接线上后端。
 - 小程序开发版 2026.10.24.1953 上传成功（DevTools 端口 43678，2939 模块，总包 10,034,838 / 主包 1,975,355 字节，描述 release-299f9cf-boji-ui-refresh-perf）；需用户在 mp 后台选为体验版。未提审。
 
 ## 薄肌检测器上线（2026-10-23，测试版）
