@@ -64,6 +64,7 @@ This workspace is dedicated to the `coachlink` project.
 - Never answer project ownership, current task, or decision history from stale transcript memory without rereading the state files.
 - Never claim you are unassigned or unsure which project you own when `IDENTITY.md` and the state files are present.
 - Never switch to another project by default.
+- **禁止主动构建/推送镜像（2026-10-22 用户要求）。** `push-docker-ccr`、`push-boji-service-ccr`、Worker 镜像等任何 CCR 推送及随后的 K8s 滚动，只有用户在当前对话里明确说“推镜像/发布”时才执行；改完代码、提交或 `git push` 都不等于授权推镜像。多次改动先累积，由用户决定何时一起推（CCR 个人版有 100 标签上限）。
 - **禁止把临时 Git worktree 的 `node_modules` 通过 Junction / symlink 指向主工作区或任何其他 worktree。** npm workspace 依赖会再次链接到 `apps/*`、`packages/*`，`git worktree remove` 或递归删除可能沿链接越界清空主工作区。
 - 删除 worktree 或任何递归目录前，必须检查目标内的 reparse point；只有当所有链接目标都解析并确认位于待删除临时目录内部时才允许继续。含跨目录链接时必须先用“不遍历目标”的方式解除链接，禁止直接 `Remove-Item -Recurse` 或 `git worktree remove --force`。
 - worktree 清理后必须立即检查主工作区 `git status --short`。一旦出现任何非预期 `D`，立刻停止所有后续清理/创建 worktree 操作，先恢复并完成事故审计，禁止带着异常继续执行。

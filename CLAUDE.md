@@ -29,6 +29,8 @@ Both products talk to the same Supabase backend. The mini-program calls Web API 
 | `npm run pre-deploy-check` | Pre-deploy validation. |
 | `npm run push-docker-ccr` | Build & push the Docker image to Tencent Cloud CCR (`ccr.ccs.tencentyun.com/coachlink/coachlink:production`). |
 
+**Image pushes are user-triggered only:** never run `push-docker-ccr`, `push-boji-service-ccr`, or any other CCR image push / K8s rollout unless the user explicitly asks in the current conversation. Finishing a change, committing, or `git push` does not imply it — changes are batched and the user decides when to push one image (CCR personal tier caps tags at 100).
+
 **Push gate (required before `git push`):** `npm run typecheck && npm test && npm run test:e2e` — `npm run lint` is a no-op so the typecheck step replaces it.
 
 ### Runtime configuration
