@@ -327,6 +327,8 @@ export default function OneArmPullUpPage() {
               </View>
             </>
           )}
+          {/* 工具箱封面截自 Wikimedia Commons 视频，CC BY-SA 4.0 要求署名 */}
+          <Text className='cover-credit'>工具箱封面图：Solodkyi Serhii，CC BY-SA 4.0，来自 Wikimedia Commons</Text>
         </View>
       </View>
     </PageThemeRoot>
