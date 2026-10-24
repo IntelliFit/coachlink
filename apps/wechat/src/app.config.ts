@@ -104,6 +104,7 @@ export default {
         'pushup-dash/index',
         'power-analysis/index',
         'one-arm-pull-up/index',
+        'boji/index',
         'scenario/index',
       ],
     },
