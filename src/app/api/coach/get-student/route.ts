@@ -7,6 +7,8 @@ import type { ApiData } from '@/types/api';
 import type { GetStudentDto, GetStudentResponseDto } from './entity';
 import { getCurrent1RMRecords } from '../../student/get-current-1rm/route';
 
+const SUBSCRIPTION_COLUMNS = 'id, coach_id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks, order_id, last_payment_order_id, payment_method';
+
 async function getVideoStats(studentId: string) {
     const { data: videos } = await supabase
         .from('training_videos')
@@ -49,11 +51,28 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    const { data: coachRow, error: coachErr } = await supabase
-        .from('coaches')
-        .select('id')
-        .eq('user_id', authResult.userId)
-        .maybeSingle();
+    // 订阅查询用 coaches!inner(user_id) 直接按当前登录用户过滤，
+    // 与教练身份查询同时发起；越权边界在这一段内完成，不再依赖 coachRow.id 串行。
+    let query = supabase
+        .from('coach_subscriptions')
+        .select(`${SUBSCRIPTION_COLUMNS}, coaches!inner(user_id)`)
+        .eq('coaches.user_id', authResult.userId)
+        .eq('status', 'active');
+
+    if (subscriptionId) {
+        query = query.eq('id', subscriptionId);
+    } else if (studentId) {
+        query = query.eq('student_id', studentId);
+    }
+
+    const [{ data: coachRow, error: coachErr }, { data: subRow, error: subsErr }] = await Promise.all([
+        supabase
+            .from('coaches')
+            .select('id')
+            .eq('user_id', authResult.userId)
+            .maybeSingle(),
+        query.maybeSingle(),
+    ]);
 
     if (coachErr || !coachRow?.id) {
         return NextResponse.json<ApiData<GetStudentResponseDto>>({
@@ -63,21 +82,6 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    let query = supabase
-        .from('coach_subscriptions')
-        .select('id, coach_id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks, order_id, last_payment_order_id, payment_method')
-        .eq('status', 'active');
-
-    if (subscriptionId) {
-        query = query.eq('id', subscriptionId).eq('coach_id', coachRow.id);
-    } else if (studentId) {
-        query = query
-            .eq('coach_id', coachRow.id)
-            .eq('student_id', studentId);
-    }
-
-    const { data: sub, error: subsErr } = await query.maybeSingle();
-
     if (subsErr) {
         return NextResponse.json<ApiData<GetStudentResponseDto>>({
             success: false,
@@ -86,7 +90,8 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    if (!sub) {
+    // 二次确认订阅归属当前教练，防止联表过滤失效时越权
+    if (!subRow || subRow.coach_id !== coachRow.id) {
         return NextResponse.json<ApiData<GetStudentResponseDto>>({
             success: false,
             message: '未找到该学生或订阅已失效',
@@ -94,7 +99,11 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    const [{ data: profile }, { data: userRow }] = await Promise.all([
+    const { coaches: _coachJoin, ...sub } = subRow as typeof subRow & { coaches?: unknown };
+
+    // 此处已确认当前教练持有该学员的有效订阅，1RM 查询跳过内部的重复权限复查，
+    // 并与学员资料、视频统计同时发起。
+    const [{ data: profile }, { data: userRow }, videoStats, oneRMRecords] = await Promise.all([
         supabase
             .from('user_profiles')
             .select('*')
@@ -105,6 +114,13 @@ export async function POST(req: Request) {
             .select('id, phone, email, wechat_openid')
             .eq('id', sub.student_id)
             .maybeSingle(),
+        getVideoStats(sub.student_id),
+        need1RM
+            ? getCurrent1RMRecords(authResult.userId, {
+                targetUserId: sub.student_id,
+                preferPR: true,
+            }, { authorizationVerified: true })
+            : Promise.resolve(null),
     ]);
 
     const isDeactivatedUser = !userRow?.phone && !userRow?.email && !userRow?.wechat_openid;
@@ -117,8 +133,6 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    const videoStats = await getVideoStats(sub.student_id);
-
     const student = {
         ...sub,
         monthly_price: fenToYuan(sub.monthly_price ?? 0),
@@ -127,13 +141,9 @@ export async function POST(req: Request) {
         reviewed: videoStats.reviewed
     } as GetStudentResponseDto['student'];
 
-    if (need1RM) {
-        const records = await getCurrent1RMRecords(authResult.userId, {
-            targetUserId: student.student_id,
-            preferPR: true,
-        });
+    if (oneRMRecords) {
         const rmMap: Record<string, number> = {};
-        for (const record of records) {
+        for (const record of oneRMRecords) {
             if (record.actionId) {
                 rmMap[record.actionId] = Math.max(rmMap[record.actionId] || 0, record.current1RM);
             }
