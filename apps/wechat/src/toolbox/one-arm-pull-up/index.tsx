@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { buildProfileBodyMetricsPatch } from '@coachlink/core/src/bodyMetrics'
+import { useMyBodyMetrics } from '@/hooks/useMyBodyMetrics'
+import { SaveBodyToProfileLink } from '@/components/SaveBodyToProfileLink'
 import { usePageEnterTrace } from '@/utils/pageTrace'
 import { Text, View } from '@tarojs/components'
 import {
@@ -101,8 +104,22 @@ export default function OneArmPullUpPage() {
   usePageEnterTrace()
 
   const { effectiveTheme } = useTheme()
+  const bodyMetrics = useMyBodyMetrics()
+  // 70 kg stays only as the example for visitors we know nothing about; signed-in users get their own weight.
+  const bodyWeightTouchedRef = useRef(false)
   const [bodyWeightInput, setBodyWeightInput] = useState('70')
   const [additionalWeightInput, setAdditionalWeightInput] = useState('40')
+
+  useEffect(() => {
+    if (!bodyMetrics.loaded || bodyWeightTouchedRef.current || !bodyMetrics.defaults.weightKg) return
+    setBodyWeightInput(bodyMetrics.defaults.weightKg)
+  }, [bodyMetrics.loaded, bodyMetrics.defaults.weightKg])
+
+  const weightPatch = bodyMetrics.signedIn
+    ? buildProfileBodyMetricsPatch({ weightKg: bodyWeightInput }, bodyMetrics.profile)
+    : null
+  const bodyWeightFromProfile =
+    bodyMetrics.profile.weightKg !== null && Number(bodyWeightInput) === bodyMetrics.profile.weightKg
 
   const sharePayload = useMemo(
     () =>
@@ -175,12 +192,20 @@ export default function OneArmPullUpPage() {
                     className='number-input'
                     type='digit'
                     value={bodyWeightInput}
-                    onInput={(event) => setBodyWeightInput(event.detail.value)}
+                    onInput={(event) => {
+                      bodyWeightTouchedRef.current = true
+                      setBodyWeightInput(event.detail.value)
+                    }}
                     placeholder='例如 70'
                   />
                   <Text className='input-unit'>kg</Text>
                 </View>
-                <Text className='field-hint'>使用最近一次稳定体重。</Text>
+                <Text className='field-hint'>{bodyWeightFromProfile ? '来自你的个人资料。' : '使用最近一次稳定体重。'}</Text>
+                <SaveBodyToProfileLink
+                  patch={weightPatch}
+                  profileEmpty={bodyMetrics.profile.weightKg === null}
+                  onSave={bodyMetrics.saveToProfile}
+                />
               </View>
 
               <View className='field-block'>

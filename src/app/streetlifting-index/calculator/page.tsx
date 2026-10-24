@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildProfileBodyMetricsPatch } from "@coachlink/core/src/bodyMetrics";
+import { useMyBodyMetrics } from "@/hooks/useMyBodyMetrics";
+import SaveBodyToProfileLink from "@/components/toolbox/SaveBodyToProfileLink";
 import {
     getDefaultStreetliftingCalcForm,
     parseStreetliftingCalculatorDraft,
@@ -228,6 +231,17 @@ export default function StreetliftingCalculatorPage() {
     /** 首次从 localStorage 恢复完成后再写入，避免用空表单覆盖已存草稿 */
     const [draftHydrated, setDraftHydrated] = useState(false);
 
+    // 默认测自己：个人资料里的体重和性别优先于本机草稿（与小程序计算器一致）。
+    const bodyMetrics = useMyBodyMetrics();
+    const profilePrefillAppliedRef = useRef(false);
+    const profilePrefill = useMemo((): Partial<FormState> => {
+        const prefill: Partial<FormState> = {};
+        if (bodyMetrics.profile.weightKg !== null) prefill.bodyweight = bodyMetrics.profile.weightKg;
+        if (bodyMetrics.gender === "male") prefill.gender = "Male";
+        if (bodyMetrics.gender === "female") prefill.gender = "Female";
+        return prefill;
+    }, [bodyMetrics.profile.weightKg, bodyMetrics.gender]);
+
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState<CalcResult | null>(null);
     const [savingResult, setSavingResult] = useState(false);
@@ -257,10 +271,21 @@ export default function StreetliftingCalculatorPage() {
         }
         setExerciseType("weighted_pullup");
         setMode("forward");
-        setForm(getDefaultStreetliftingCalcForm());
+        setForm({ ...getDefaultStreetliftingCalcForm(), ...profilePrefill });
         setResult(null);
         showToast({ severity: "success", summary: "已清空", detail: "已清除本机保存的上次填写内容" });
-    }, [showToast]);
+    }, [showToast, profilePrefill]);
+
+    useEffect(() => {
+        if (!draftHydrated || !bodyMetrics.loaded || profilePrefillAppliedRef.current) return;
+        profilePrefillAppliedRef.current = true;
+        if (Object.keys(profilePrefill).length === 0) return;
+        setForm((p) => ({ ...p, ...profilePrefill }));
+    }, [draftHydrated, bodyMetrics.loaded, profilePrefill]);
+
+    const bodyweightPatch = bodyMetrics.signedIn
+        ? buildProfileBodyMetricsPatch({ weightKg: form.bodyweight }, bodyMetrics.profile)
+        : null;
 
     useEffect(() => {
         const run = async () => {
@@ -902,6 +927,12 @@ export default function StreetliftingCalculatorPage() {
                                     min={1}
                                     maxFractionDigits={1}
                                     placeholder="例如 70.5"
+                                />
+                                <SaveBodyToProfileLink
+                                    patch={bodyweightPatch}
+                                    profileEmpty={bodyMetrics.profile.weightKg === null}
+                                    onSave={bodyMetrics.saveToProfile}
+                                    className="mt-1.5 block"
                                 />
                             </div>
                         </div>

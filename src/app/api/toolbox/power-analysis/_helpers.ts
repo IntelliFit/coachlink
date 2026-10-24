@@ -12,6 +12,7 @@ import {
   isCustomPowerAnalysisMode,
   isRankedPowerAnalysisMode,
   normalizePowerAnalysisMode,
+  normalizePowerAnalysisSubject,
   POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
 } from "@coachlink/core/src/powerAnalysisModes";
 import type {
@@ -144,6 +145,7 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
         }
       : {}),
     ...(isCustomPowerAnalysisMode(mode) && customActionName ? { customActionName } : {}),
+    subject: normalizePowerAnalysisSubject(metadata.subject),
     status,
     progress: Number(row?.progress || 0),
     metrics,
@@ -233,7 +235,14 @@ export async function mapPowerAnalysisJobWithQueueInfo(row: any): Promise<PowerA
   const dto = mapPowerAnalysisJob(row);
   dto.queueInfo = await getPowerAnalysisQueueInfo(row);
   // Barbell lifting power and custom movements are different measurements; they stay out of the challenge boards.
-  if (dto.status === "done" && dto.metrics && row?.user_id && isRankedPowerAnalysisMode(dto.mode)) {
+  // So does a video of someone else: it would put their result under the uploader's name.
+  if (
+    dto.status === "done" &&
+    dto.metrics &&
+    row?.user_id &&
+    isRankedPowerAnalysisMode(dto.mode) &&
+    dto.subject === "self"
+  ) {
     dto.ranking = await syncPowerAnalysisRanking(row.id, row.user_id);
   }
   return dto;

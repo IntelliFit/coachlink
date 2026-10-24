@@ -130,6 +130,13 @@ export function parsePowerAnalysisLoadInput(
   return { ok: true, externalLoadKg: barMass, plateDiameterCm: diameter }
 }
 
+/** Who is in the video. Videos of someone else never enter the uploader's challenge boards. */
+export type PowerAnalysisSubject = 'self' | 'other'
+
+export function normalizePowerAnalysisSubject(value: unknown): PowerAnalysisSubject {
+  return value === 'other' ? 'other' : 'self'
+}
+
 export function isValidPlateDiameterCm(value: unknown): boolean {
   const n = Number(value)
   return (

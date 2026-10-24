@@ -1,7 +1,10 @@
 /**
  * 力量分计算器 - 小程序原生实现（逻辑与网页端一致）
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { buildProfileBodyMetricsPatch } from '@coachlink/core/src/bodyMetrics'
+import { useMyBodyMetrics } from '@/hooks/useMyBodyMetrics'
+import { SaveBodyToProfileLink } from '@/components/SaveBodyToProfileLink'
 import { usePageEnterTrace } from '@/utils/pageTrace'
 import { View, Text, ScrollView, Button } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
@@ -259,6 +262,7 @@ export default function StreetliftingCalculator() {
   usePageEnterTrace()
 
   const { effectiveTheme } = useTheme()
+  const bodyMetrics = useMyBodyMetrics()
   const authSession = authService.getAuthSession({ normalize: true })
   const isAuthenticated = authSession.isAuthenticated
   const [draft, setDraft] = useState<CalcDraft>(DEFAULT_DRAFT)
@@ -910,7 +914,7 @@ export default function StreetliftingCalculator() {
     compareKey: keyof CalcDraft,
     value: string,
     onInput: (value: string) => void,
-    options: { placeholder: string; unit?: string; type?: 'digit' | 'number' }
+    options: { placeholder: string; unit?: string; type?: 'digit' | 'number'; footer?: ReactNode }
   ) => (
     <View className='calc-field'>
       {renderLabel(title, getNumericCompareText(compareKey))}
@@ -925,11 +929,16 @@ export default function StreetliftingCalculator() {
         />
         {options.unit ? <Text className='calc-input-unit'>{options.unit}</Text> : null}
       </View>
+      {options.footer}
     </View>
   )
 
   const isUpper = isUpperBodyExercise(exerciseType)
   const isBarbell = isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)
+  // The draft already starts from the profile weight; this only offers to write a changed weight back.
+  const bodyweightPatch = bodyMetrics.signedIn
+    ? buildProfileBodyMetricsPatch({ weightKg: bodyweight }, bodyMetrics.profile)
+    : null
   const formulaProblem = isAuthenticated && isUpper && !loadingFormula && !currentFormula
   const formulaProblemText = formulaState === 'auth_required'
     ? '登录后会自动加载对应公式并开放计算'
@@ -973,7 +982,17 @@ export default function StreetliftingCalculator() {
           <View className='calc-card'>
             <Text className='calc-card__title'>{mode === 'forward' ? '这次的成绩' : mode === 'day_max' ? '做组情况' : '目标与条件'}</Text>
             <View className='calc-grid'>
-              {renderNumberField('体重', 'bodyweight', bodyweight, (value) => patchDraft({ bodyweight: value }), { placeholder: '70.5', unit: 'kg' })}
+              {renderNumberField('体重', 'bodyweight', bodyweight, (value) => patchDraft({ bodyweight: value }), {
+                placeholder: '70.5',
+                unit: 'kg',
+                footer: (
+                  <SaveBodyToProfileLink
+                    patch={bodyweightPatch}
+                    profileEmpty={bodyMetrics.profile.weightKg === null}
+                    onSave={bodyMetrics.saveToProfile}
+                  />
+                )
+              })}
 
               {isUpper && mode === 'forward' && renderNumberField('附加负重', 'addedWeight', addedWeight, (value) => patchDraft({ addedWeight: value }), { placeholder: '20', unit: 'kg' })}
 

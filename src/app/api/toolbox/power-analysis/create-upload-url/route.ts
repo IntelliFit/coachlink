@@ -11,6 +11,7 @@ import {
 import type { ApiData } from "@/types/api";
 import {
   isCustomPowerAnalysisMode,
+  normalizePowerAnalysisSubject,
   parsePowerAnalysisCustomActionName,
   parsePowerAnalysisLoadInput,
 } from "@coachlink/core/src/powerAnalysisModes";
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
   const durationSeconds = Number(body?.durationSeconds || 0);
   const quality = normalizePowerAnalysisQuality(body?.quality) || "compressed";
   const overlayLanguage = normalizePowerAnalysisOverlayLanguage(body?.overlayLanguage);
+  const subject = normalizePowerAnalysisSubject(body?.subject);
 
   if (!mode || heightCm === null || weightKg === null) {
     return NextResponse.json<ApiData<null>>(
@@ -224,6 +226,7 @@ export async function POST(req: Request) {
         effective_weight_kg: plateDiameterCm === null ? weightKg + externalLoadKg : externalLoadKg,
         ...(plateDiameterCm === null ? {} : { plate_diameter_cm: plateDiameterCm }),
         ...(customActionName === null ? {} : { custom_action_name: customActionName }),
+        subject,
         upload_strategy: "signed_upload_transient",
         quality,
         overlay_language: overlayLanguage,

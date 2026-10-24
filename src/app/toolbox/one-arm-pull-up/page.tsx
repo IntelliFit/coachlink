@@ -1,7 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { buildProfileBodyMetricsPatch } from '@coachlink/core/src/bodyMetrics';
+import { useMyBodyMetrics } from '@/hooks/useMyBodyMetrics';
+import SaveBodyToProfileLink from '@/components/toolbox/SaveBodyToProfileLink';
 import {
   ArrowLeft,
   ArrowRight,
@@ -90,7 +93,7 @@ function NumericField({
 }: {
   id: string;
   label: string;
-  hint: string;
+  hint: React.ReactNode;
   value: string;
   onChange: (value: string) => void;
 }) {
@@ -119,9 +122,28 @@ function NumericField({
 
 export default function OneArmPullUpReadinessPage() {
   const router = useRouter();
+  const bodyMetrics = useMyBodyMetrics();
+  // 70 kg stays only as the example for visitors we know nothing about; signed-in users get their own weight.
+  const exampleBodyWeight = bodyMetrics.defaults.weightKg || '70';
+  const bodyWeightTouchedRef = useRef(false);
   const [bodyWeightInput, setBodyWeightInput] = useState('70');
   const [additionalWeightInput, setAdditionalWeightInput] = useState('40');
   const [showMethod, setShowMethod] = useState(false);
+
+  useEffect(() => {
+    if (!bodyMetrics.loaded || bodyWeightTouchedRef.current || !bodyMetrics.defaults.weightKg) return;
+    setBodyWeightInput(bodyMetrics.defaults.weightKg);
+  }, [bodyMetrics.loaded, bodyMetrics.defaults.weightKg]);
+
+  const changeBodyWeight = (value: string) => {
+    bodyWeightTouchedRef.current = true;
+    setBodyWeightInput(value);
+  };
+  const weightPatch = bodyMetrics.signedIn
+    ? buildProfileBodyMetricsPatch({ weightKg: bodyWeightInput }, bodyMetrics.profile)
+    : null;
+  const bodyWeightFromProfile =
+    bodyMetrics.profile.weightKg !== null && Number(bodyWeightInput) === bodyMetrics.profile.weightKg;
 
   const result = useMemo(() => {
     const bodyWeight = Number(bodyWeightInput);
@@ -207,7 +229,8 @@ export default function OneArmPullUpReadinessPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setBodyWeightInput('70');
+                    bodyWeightTouchedRef.current = false;
+                    setBodyWeightInput(exampleBodyWeight);
                     setAdditionalWeightInput('40');
                   }}
                   className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
@@ -221,9 +244,19 @@ export default function OneArmPullUpReadinessPage() {
                 <NumericField
                   id="body-weight"
                   label="当前体重"
-                  hint="穿轻便训练服，使用最近一次稳定体重。"
+                  hint={
+                    <>
+                      {bodyWeightFromProfile ? '来自你的个人资料。' : '穿轻便训练服，使用最近一次稳定体重。'}
+                      <SaveBodyToProfileLink
+                        patch={weightPatch}
+                        profileEmpty={bodyMetrics.profile.weightKg === null}
+                        onSave={bodyMetrics.saveToProfile}
+                        className="ml-2"
+                      />
+                    </>
+                  }
                   value={bodyWeightInput}
-                  onChange={setBodyWeightInput}
+                  onChange={changeBodyWeight}
                 />
                 <NumericField
                   id="additional-weight"

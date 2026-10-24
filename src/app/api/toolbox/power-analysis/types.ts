@@ -142,6 +142,8 @@ export interface PowerAnalysisJobDto {
   plateDiameterCm?: number;
   /** Movement name the user typed for the custom mode. */
   customActionName?: string;
+  /** Who is in the video; "other" never enters the uploader's challenge boards. */
+  subject: "self" | "other";
   status: PowerAnalysisJobStatus;
   progress: number;
   metrics: PowerAnalysisMetrics | null;
@@ -187,6 +189,8 @@ export interface CreatePowerAnalysisUploadUrlDto {
   plateDiameterCm?: number;
   /** Required for the custom mode. */
   customActionName?: string;
+  /** Defaults to "self". */
+  subject?: "self" | "other";
   originalFilename: string;
   contentType: string;
   fileSizeBytes: number;

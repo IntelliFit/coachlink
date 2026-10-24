@@ -1,0 +1,25 @@
+// 预填身高体重的工具里，“把这次填的写回个人资料”的行内链接。
+.save-body-link {
+  display: inline;
+  font-size: 22rpx;
+  line-height: 32rpx;
+
+  &__action {
+    color: var(--cl-clay-text);
+    font-weight: 700;
+  }
+
+  &__action--busy {
+    opacity: 0.5;
+  }
+
+  &__done {
+    color: var(--cl-done);
+    font-weight: 600;
+  }
+
+  &__error {
+    margin-left: 8rpx;
+    color: var(--cl-danger);
+  }
+}

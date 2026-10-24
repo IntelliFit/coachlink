@@ -23,8 +23,12 @@ import {
   POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG,
   POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
   POWER_ANALYSIS_MODE_OPTIONS as MODE_OPTIONS,
+  type PowerAnalysisSubject,
 } from "@coachlink/core/src/powerAnalysisModes";
+import { buildProfileBodyMetricsPatch } from "@coachlink/core/src/bodyMetrics";
+import { useMyBodyMetrics } from "@/hooks/useMyBodyMetrics";
 import AssessmentCard from "./AssessmentCard";
+import BodyMetricsField from "./BodyMetricsField";
 import CustomResult from "./CustomResult";
 import PowerCurves from "./PowerCurves";
 
@@ -106,8 +110,14 @@ export default function PowerAnalysisToolPage() {
   const pollWarningShownRef = useRef(false);
 
   const [mode, setMode] = useState<PowerAnalysisMode>("pullup");
-  const [heightCm, setHeightCm] = useState("175");
-  const [weightKg, setWeightKg] = useState("70");
+  const bodyMetrics = useMyBodyMetrics();
+  const [subject, setSubject] = useState<PowerAnalysisSubject>("self");
+  // No made-up 175 cm / 70 kg: empty until the profile or this device's last values fill it in.
+  const [heightCm, setHeightCm] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [editingBody, setEditingBody] = useState(false);
+  const bodyTouchedRef = useRef(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [externalLoadKg, setExternalLoadKg] = useState("0");
   const [barbellKg, setBarbellKg] = useState(String(POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG));
   const [plateDiameterCm, setPlateDiameterCm] = useState(String(POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM));
@@ -157,6 +167,54 @@ export default function PowerAnalysisToolPage() {
       if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!bodyMetrics.loaded || subject !== "self" || bodyTouchedRef.current) return;
+    setHeightCm(bodyMetrics.defaults.heightCm);
+    setWeightKg(bodyMetrics.defaults.weightKg);
+  }, [bodyMetrics.loaded, bodyMetrics.defaults, subject]);
+
+  const bodyCollapsed = subject === "self" && bodyMetrics.defaults.fromProfile && !editingBody;
+  const profilePatch = useMemo(
+    () => (subject === "self" ? buildProfileBodyMetricsPatch({ heightCm, weightKg }, bodyMetrics.profile) : null),
+    [subject, heightCm, weightKg, bodyMetrics.profile],
+  );
+
+  const changeHeight = (value: string) => {
+    bodyTouchedRef.current = true;
+    setHeightCm(value);
+  };
+  const changeWeight = (value: string) => {
+    bodyTouchedRef.current = true;
+    setWeightKg(value);
+  };
+
+  const changeSubject = (next: PowerAnalysisSubject) => {
+    setSubject(next);
+    setEditingBody(false);
+    if (next === "other") {
+      bodyTouchedRef.current = true;
+      setHeightCm("");
+      setWeightKg("");
+      return;
+    }
+    bodyTouchedRef.current = false;
+    setHeightCm(bodyMetrics.defaults.heightCm);
+    setWeightKg(bodyMetrics.defaults.weightKg);
+  };
+
+  const saveBodyToProfile = async () => {
+    if (!profilePatch) return;
+    setSavingProfile(true);
+    try {
+      await bodyMetrics.saveToProfile(profilePatch);
+      showToast({ severity: "success", summary: "已更新个人资料", detail: "下次会自动填好身高体重。" });
+    } catch (error: any) {
+      showToast({ severity: "error", summary: "保存失败", detail: error?.message || "请稍后重试" });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   useEffect(() => {
     if (!file) {
@@ -305,6 +363,7 @@ export default function PowerAnalysisToolPage() {
             mode,
             heightCm: Number(heightCm),
             weightKg: Number(weightKg),
+            subject,
             externalLoadKg: Number(loadValue),
             ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
             ...(isCustom ? { customActionName: customActionName.trim() } : {}),
@@ -315,6 +374,7 @@ export default function PowerAnalysisToolPage() {
         }),
       );
       setJob(created.job);
+      if (subject === "self") bodyMetrics.remember({ heightCm, weightKg });
 
       setPhase("uploading");
       await putFile(created.upload.uploadUrl, nextFile, setUploadProgress);
@@ -498,27 +558,24 @@ export default function PowerAnalysisToolPage() {
                 </label>
               )}
 
-              <div className={isBarbell ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3 sm:grid-cols-3"}>
-                <label className="block">
-                  <span className="mb-1.5 block text-sm font-bold text-surface-800">身高 cm</span>
-                  <input
-                    value={heightCm}
-                    onChange={(e) => setHeightCm(e.target.value)}
-                    disabled={settingsLocked}
-                    inputMode="decimal"
-                    className={INPUT_CLASS}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-sm font-bold text-surface-800">体重 kg</span>
-                  <input
-                    value={weightKg}
-                    onChange={(e) => setWeightKg(e.target.value)}
-                    disabled={settingsLocked}
-                    inputMode="decimal"
-                    className={INPUT_CLASS}
-                  />
-                </label>
+              <BodyMetricsField
+                subject={subject}
+                onSubjectChange={changeSubject}
+                heightCm={heightCm}
+                weightKg={weightKg}
+                onHeightChange={changeHeight}
+                onWeightChange={changeWeight}
+                collapsed={bodyCollapsed}
+                onEdit={() => setEditingBody(true)}
+                profile={bodyMetrics.profile}
+                signedIn={bodyMetrics.signedIn}
+                profilePatch={profilePatch}
+                savingProfile={savingProfile}
+                onSaveToProfile={() => void saveBodyToProfile()}
+                locked={settingsLocked}
+              />
+
+              <div className={isBarbell ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
                 {isBarbell ? (
                   <>
                     <label className="block">
