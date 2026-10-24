@@ -12,8 +12,17 @@ import {
   bojiTotalScore,
   type BojiAnalysisDto,
 } from '@coachlink/core/src/bojiDetector';
-import { analyzeBojiPhoto, BojiRequestError, preparePhoto, type PreparedPhoto } from '@/app/service/bojiDetectorService';
+import { bojiPercentileText, type BojiChallengeView } from '@coachlink/core/src/bojiInsights';
+import {
+  analyzeBojiPhoto,
+  BojiRequestError,
+  fetchBojiChallenge,
+  preparePhoto,
+  type PreparedPhoto,
+} from '@/app/service/bojiDetectorService';
+import BojiInsightsPanel from './BojiInsightsPanel';
 import BojiOverlay from './BojiOverlay';
+import ChallengeBanner from './ChallengeBanner';
 import { OVERLAY_LEGEND } from './overlayLegend';
 import MetricCard from './MetricCard';
 
@@ -29,6 +38,18 @@ export default function BojiDetectorPage() {
   const [analysis, setAnalysis] = useState<BojiAnalysisDto | null>(null);
   const [error, setError] = useState<{ message: string; needsLogin: boolean } | null>(null);
   const [showMarks, setShowMarks] = useState(true);
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<BojiChallengeView | null>(null);
+
+  // PK 链接 ?challenge=<成绩 id>：不用 useSearchParams，免得整页失去静态渲染
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('challenge');
+    if (!id) return;
+    setChallengeId(id);
+    fetchBojiChallenge(id)
+      .then(setChallenge)
+      .catch(() => setChallenge(null));
+  }, [sessionStatus]);
 
   useEffect(() => () => {
     if (photo) URL.revokeObjectURL(photo.url);
@@ -55,7 +76,8 @@ export default function BojiDetectorPage() {
     try {
       const prepared = await preparePhoto(file);
       setPhoto(prepared);
-      setAnalysis(await analyzeBojiPhoto(prepared.blob));
+      // 自己打开自己的 PK 链接时不算应战
+      setAnalysis(await analyzeBojiPhoto(prepared.blob, challenge?.isOwner ? null : challengeId));
       setPhase('done');
     } catch (err) {
       const status = err instanceof BojiRequestError ? err.status : 0;
@@ -80,6 +102,8 @@ export default function BojiDetectorPage() {
           <ArrowLeft className="h-4 w-4" />
           返回工具箱
         </button>
+
+        {challenge && <ChallengeBanner view={challenge} />}
 
         <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-[#18231F] text-white shadow-[0_24px_80px_rgba(24,35,31,0.14)]">
           <div className="grid gap-8 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-12">
@@ -166,7 +190,7 @@ export default function BojiDetectorPage() {
 
               <div className="flex gap-2 rounded-2xl bg-[#F7F4EF] p-4 text-xs leading-5 text-slate-600">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#3F7C6B]" />
-                照片只用于这一次检测，服务器不保存。结果只是自测参考，不是医疗诊断。
+                照片只用于这一次检测，不保存；只记录分数，用于排名和 PK。结果只是自测参考，不是医疗诊断。
               </div>
             </div>
           </div>
@@ -207,12 +231,16 @@ export default function BojiDetectorPage() {
               <div className="rounded-[32px] bg-[#CF6D4E] p-6 text-white md:p-8">
                 <div className="text-sm font-bold text-[#FFE5DC]">综合分</div>
                 <div className="mt-2 text-5xl font-black tracking-tight">{total ?? '—'}</div>
+                {analysis.insights?.percentile && (
+                  <div className="mt-2 text-lg font-black">{bojiPercentileText(analysis.insights.percentile)}</div>
+                )}
                 <p className="mt-3 text-xs leading-5 text-[#FFF0EA]">
                   {total === null
                     ? '这张照片能测的项目太少，不给综合分。按拍摄建议换一张再试。'
-                    : '测试版：分数还没有用真人评分校准。请主要看下面的原始数值和自己前后的变化，不要和别人比分数。'}
+                    : '测试版：分数还没有用真人评分校准，PK 图个乐；认真对比请看下面的原始数值和自己前后的变化。'}
                 </p>
               </div>
+              <BojiInsightsPanel insights={analysis.insights} total={total} />
               {notes.length > 0 && (
                 <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
                   {notes.map((note) => (

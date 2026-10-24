@@ -4,6 +4,8 @@
  * github.com/SmallHorseBrother/boji-detector。
  */
 
+import type { BojiInsights } from './bojiInsights';
+
 export type BojiMetricKey = 'v_taper' | 'symmetry' | 'arms' | 'abs';
 export type BojiMetricStatus = 'ok' | 'low_confidence' | 'unavailable';
 export type BojiPoint = [number, number];
@@ -34,6 +36,8 @@ export interface BojiAnalysisDto {
   report: BojiReport;
   /** 原因码 → 中英文说明 */
   messages: Record<string, { zh: string; en: string }>;
+  /** 教链 API 附加：排名、最像谁、PK 结果（Python 服务不返回） */
+  insights?: BojiInsights;
 }
 
 export const BOJI_METRIC_ORDER: BojiMetricKey[] = ['abs', 'v_taper', 'arms', 'symmetry'];

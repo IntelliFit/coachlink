@@ -235,6 +235,8 @@ export async function proxy(request: NextRequest) {
         pathname.startsWith("/api/public-action-lib/") ||
         pathname === "/api/toolbox/pose-model" ||
         pathname.startsWith("/api/toolbox/motion-effects/") ||
+        // 薄肌 PK 卡：好友点开分享链接时还没登录，只返回昵称和分数
+        pathname.startsWith("/api/toolbox/boji/challenge/") ||
         pathname.startsWith("/articles/") ||
         pathname.startsWith("/coach/discovery") ||
         pathname.startsWith("/coach/profile") ||
