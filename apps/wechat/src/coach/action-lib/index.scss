@@ -1,6 +1,6 @@
 .coach-action-lib-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--cl-paper);
   padding: 12px 12px 80px;
   box-sizing: border-box;
 
@@ -9,19 +9,19 @@
     align-items: center;
     justify-content: space-between;
     padding: 20px 12px;
-    background: #fff;
+    background: var(--cl-card);
     margin: -12px -12px 12px -12px;
 
     .title {
       font-size: 36px;
       font-weight: bold;
-      color: #111827;
+      color: var(--cl-ink);
     }
 
     .add-btn {
       padding: 12px 24px;
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
       border-radius: 12px;
       font-size: 28px;
       border: none;
@@ -35,8 +35,8 @@
   }
 
   .action-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
     border-radius: 16px;
     padding: 14px 16px;
     box-sizing: border-box;
@@ -51,12 +51,12 @@
       .name {
         font-size: 16px;
         font-weight: 700;
-        color: #111827;
+        color: var(--cl-ink);
         margin-bottom: 4px;
       }
       .meta {
         font-size: 12px;
-        color: #6b7280;
+        color: var(--cl-ink-2);
       }
     }
 
@@ -74,8 +74,8 @@
       }
 
       .edit-btn {
-        background: #fbf0ec;
-        color: #a6533a;
+        background: var(--cl-clay-soft);
+        color: var(--cl-clay-text);
       }
 
       .delete-btn {
@@ -88,7 +88,7 @@
   .empty-wrap, .loading-wrap {
     text-align: center;
     padding: 40px 20px;
-    color: #9ca3af;
+    color: var(--cl-ink-3);
     font-size: 14px;
   }
 }

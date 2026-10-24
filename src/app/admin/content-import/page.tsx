@@ -198,7 +198,7 @@ export default function AdminContentImportPage() {
                         <Button
                             label="导入高价值包"
                             icon="pi pi-cloud-upload"
-                            className="border-none bg-[#CF6D4E]"
+                            className="border-none bg-[#B4553A]"
                             loading={loading === "seed"}
                             onClick={() => importHighValuePack(false)}
                         />
@@ -251,7 +251,7 @@ export default function AdminContentImportPage() {
                                     <Button
                                         label="导入当前 JSON"
                                         icon="pi pi-cloud-upload"
-                                        className="border-none bg-[#CF6D4E]"
+                                        className="border-none bg-[#B4553A]"
                                         loading={loading === "import"}
                                         onClick={() => submitImport(false)}
                                     />

@@ -194,7 +194,7 @@ export function AutomationOverridePanel({ subscriptionId }: { subscriptionId: st
           type="button"
           onClick={save}
           disabled={saving}
-          className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#CF6D4E] px-3 text-xs font-black text-white transition hover:bg-[#B95D42] disabled:opacity-60"
+          className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#B4553A] px-3 text-xs font-black text-white transition hover:bg-[#9A4630] disabled:opacity-60"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           保存

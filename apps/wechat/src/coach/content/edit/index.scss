@@ -1,6 +1,6 @@
 .coach-content-edit-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--cl-paper);
   padding-bottom: 100px;
 
   .header {
@@ -8,28 +8,28 @@
     align-items: center;
     justify-content: space-between;
     padding: 20px;
-    background: #fff;
-    border-bottom: 1px solid #eee;
+    background: var(--cl-card);
+    border-bottom: 1px solid var(--cl-line);
 
     .back-btn {
       padding: 0;
       background: transparent;
       border: none;
-      color: #333;
+      color: var(--cl-ink);
       font-size: 28px;
     }
 
     .title {
       font-size: 36px;
       font-weight: bold;
-      color: #333;
+      color: var(--cl-ink);
     }
   }
 
   .loading-wrap {
     padding: 100px 0;
     text-align: center;
-    color: #999;
+    color: var(--cl-ink-3);
   }
 
   .form-content {
@@ -39,7 +39,7 @@
 
   .form-item {
     margin-bottom: 30px;
-    background: #fff;
+    background: var(--cl-card);
     padding: 20px;
     border-radius: 16px;
 
@@ -47,14 +47,14 @@
       display: block;
       font-size: 28px;
       font-weight: bold;
-      color: #333;
+      color: var(--cl-ink);
       margin-bottom: 16px;
     }
 
     .input {
       width: 100%;
       padding: 20px;
-      background: #f5f5f5;
+      background: var(--cl-sunk);
       border-radius: 12px;
       font-size: 28px;
       border: none;
@@ -64,7 +64,7 @@
       width: 100%;
       min-height: 300px;
       padding: 20px;
-      background: #f5f5f5;
+      background: var(--cl-sunk);
       border-radius: 12px;
       font-size: 28px;
       border: none;
@@ -73,7 +73,7 @@
     .picker-card {
       width: 100%;
       padding: 20px;
-      background: #f5f5f5;
+      background: var(--cl-sunk);
       border-radius: 12px;
       box-sizing: border-box;
     }
@@ -82,7 +82,7 @@
       display: block;
       font-size: 28px;
       font-weight: 700;
-      color: #333;
+      color: var(--cl-ink);
     }
 
     .picker-hint {
@@ -90,14 +90,14 @@
       margin-top: 10px;
       font-size: 22px;
       line-height: 1.5;
-      color: #6b7280;
+      color: var(--cl-ink-2);
     }
 
     .hint {
       display: block;
       margin-top: 12px;
       font-size: 24px;
-      color: #999;
+      color: var(--cl-ink-3);
     }
 
     .tag-input-group {
@@ -108,7 +108,7 @@
       .tag-input {
         flex: 1;
         padding: 20px;
-        background: #f5f5f5;
+        background: var(--cl-sunk);
         border-radius: 12px;
         font-size: 28px;
         border: none;
@@ -116,8 +116,8 @@
 
       .add-tag-btn {
         padding: 0 30px;
-        background: #cf6d4e;
-        color: #fff;
+        background: var(--cl-clay-strong);
+        color: var(--cl-on-accent);
         border-radius: 12px;
         font-size: 28px;
         border: none;
@@ -139,12 +139,12 @@
 
         .tag-text {
           font-size: 24px;
-          color: #a6533a;
+          color: var(--cl-clay-text);
         }
 
         .tag-remove {
           font-size: 32px;
-          color: #a6533a;
+          color: var(--cl-clay-text);
           line-height: 1;
           cursor: pointer;
         }
@@ -160,18 +160,18 @@
         .checkbox {
           width: 40px;
           height: 40px;
-          border: 2px solid #ddd;
+          border: 2px solid var(--cl-line);
           border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
 
           &.checked {
-            background: #cf6d4e;
-            border-color: #cf6d4e;
+            background: var(--cl-clay-strong);
+            border-color: var(--cl-clay);
 
             .checkbox-icon {
-              color: #fff;
+              color: var(--cl-on-accent);
               font-size: 28px;
             }
           }
@@ -179,7 +179,7 @@
 
         .checkbox-label {
           font-size: 28px;
-          color: #333;
+          color: var(--cl-ink);
         }
       }
     }
@@ -193,8 +193,8 @@
     display: flex;
     gap: 20px;
     padding: 20px;
-    background: #fff;
-    border-top: 1px solid #eee;
+    background: var(--cl-card);
+    border-top: 1px solid var(--cl-line);
 
     .draft-btn,
     .publish-btn {
@@ -206,13 +206,13 @@
     }
 
     .draft-btn {
-      background: #f5f5f5;
-      color: #333;
+      background: var(--cl-sunk);
+      color: var(--cl-ink);
     }
 
     .publish-btn {
-      background: #cf6d4e;
-      color: #fff;
+      background: var(--cl-clay-strong);
+      color: var(--cl-on-accent);
     }
   }
 }

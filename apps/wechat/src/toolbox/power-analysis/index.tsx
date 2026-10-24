@@ -191,6 +191,12 @@ interface SelectedVideo {
 }
 
 const TERMINAL_STATUSES: PowerAnalysisJobStatus[] = ['done', 'failed', 'expired']
+// 动作分组展示：自重 / 杠铃三大项 / 其他。列表本身仍以 @coachlink/core 为准。
+const MODE_GROUPS = [
+  { title: '自重动作', options: MODE_OPTIONS.filter((item) => !item.barbell && item.value !== 'custom') },
+  { title: '杠铃三大项', options: MODE_OPTIONS.filter((item) => item.barbell) },
+  { title: '其他', options: MODE_OPTIONS.filter((item) => item.value === 'custom') }
+].filter((group) => group.options.length > 0)
 const SELECTED_VIDEO_ID = 'power-analysis-selected-video'
 const LAST_DOWNLOADABLE_JOB_STORAGE_KEY = 'power-analysis-last-downloadable-job-v1'
 const VIDEO_TRANSFER_TIMEOUT_MS = 15 * 60 * 1000
@@ -706,6 +712,7 @@ export default function WechatPowerAnalysisPage() {
   const [customActionName, setCustomActionName] = useState('')
   const [quality, setQuality] = useState<PowerAnalysisQuality>('compressed')
   const [languagePreference, setLanguagePreference] = useState<OverlayLanguagePreference>('auto')
+  const [moreSettingsOpen, setMoreSettingsOpen] = useState(false)
   const [entitlements, setEntitlements] = useState<PowerAnalysisEntitlements>(DEFAULT_ENTITLEMENTS)
   const [video, setVideo] = useState<SelectedVideo | null>(null)
   const [phase, setPhase] = useState<UploadPhase>('idle')
@@ -748,6 +755,7 @@ export default function WechatPowerAnalysisPage() {
   const heightValue = Number(heightCm)
   const weightValue = Number(weightKg)
   const isBarbell = isBarbellPowerAnalysisMode(mode)
+  const selectedFormMode = MODE_OPTIONS.find((item) => item.value === mode) || MODE_OPTIONS[0]
   const isCustom = isCustomPowerAnalysisMode(mode)
   const resultIsBarbell = isBarbellPowerAnalysisMode(metrics?.mode)
   const resultIsCustom = isCustomPowerAnalysisMode(metrics?.mode)
@@ -1342,58 +1350,74 @@ export default function WechatPowerAnalysisPage() {
   })()
 
   return (
-    <View className={`power-analysis-page theme-${effectiveTheme}`}>
+    <View className={`power-analysis-page pa-v1 theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
       <View className='page-content'>
-          <View className='intro-card'>
-            <Text className='intro-kicker'>功率与动作分析</Text>
-            <Text className='intro-title'>上传视频，测速度功率，看动作问题</Text>
-            <Text className='intro-desc'>支持自重动作和深蹲、卧推、硬拉。视频仅作为临时分析任务处理，完成后可保存带标注的视频结果。</Text>
+          <View className='pa-intro'>
+            <Text className='pa-intro__title'>功率视频分析</Text>
+            <Text className='pa-intro__desc'>上传一段训练视频，测速度、功率，看动作问题。视频只做临时分析，完成后可保存带标注的结果。</Text>
           </View>
 
-          <View className='form-card'>
-            <Text className='section-title'>测试设置</Text>
-            {comparisonBaselineJob?.metrics && (
-              <View className='comparison-baseline-banner'>
-                <View>
-                  <Text className='comparison-baseline-kicker'>前测已保存</Text>
-                  <Text className='comparison-baseline-text'>完成下一段同动作视频后自动生成对比</Text>
-                </View>
-                <View className='comparison-clear-btn' onClick={handleClearComparison}>
-                  <Text>清除</Text>
+          {comparisonBaselineJob?.metrics && (
+            <View className='comparison-baseline-banner'>
+              <View>
+                <Text className='comparison-baseline-kicker'>前测已保存</Text>
+                <Text className='comparison-baseline-text'>完成下一段同动作视频后自动生成对比</Text>
+              </View>
+              <View className='comparison-clear-btn' onClick={handleClearComparison}>
+                <Text>清除</Text>
+              </View>
+            </View>
+          )}
+
+          <View className='pa-step'>
+            <View className='pa-step__head'>
+              <Text className='pa-step__index'>1</Text>
+              <Text className='pa-step__title'>选择动作</Text>
+            </View>
+            {MODE_GROUPS.map((group) => (
+              <View key={group.title} className='pa-mode-group'>
+                <Text className='pa-mode-group__title'>{group.title}</Text>
+                <View className='pa-mode-chips'>
+                  {group.options.map((item) => (
+                    <View
+                      key={item.value}
+                      className={`pa-mode-chip ${mode === item.value ? 'pa-mode-chip--active' : ''} ${settingsLocked ? 'pa-mode-chip--locked' : ''}`}
+                      onClick={() => !settingsLocked && setMode(item.value)}
+                    >
+                      <Text>{item.label}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
-            )}
-            <View className='mode-grid'>
-              {MODE_OPTIONS.map((item) => (
-                <View
-                  key={item.value}
-                  className={`mode-card mode-card-${item.value} ${mode === item.value ? 'active' : ''}`}
-                  onClick={() => !settingsLocked && setMode(item.value)}
-                >
-                  <Text className='mode-label'>{item.label}</Text>
-                  <Text className='mode-hint'>{item.hint}</Text>
-                </View>
-              ))}
+            ))}
+            <View className='pa-shoot-tip'>
+              <Text className='pa-shoot-tip__label'>拍摄要点</Text>
+              <Text className='pa-shoot-tip__text'>
+                {isBarbell ? POWER_ANALYSIS_BARBELL_SHOOTING_TIP : isCustom ? POWER_ANALYSIS_CUSTOM_SHOOTING_TIP : selectedFormMode.hint}
+              </Text>
             </View>
-            {isBarbell && <Text className='barbell-tip'>{POWER_ANALYSIS_BARBELL_SHOOTING_TIP}</Text>}
             {isCustom && (
-              <>
-                <Text className='barbell-tip'>{POWER_ANALYSIS_CUSTOM_SHOOTING_TIP}</Text>
-                <View className='custom-name-cell'>
-                  <Text className='input-label'>动作名称</Text>
-                  <Input
-                    className='metric-input custom-name-input'
-                    type='text'
-                    value={customActionName}
-                    maxlength={POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH}
-                    placeholder='例如：哑铃弯举、保加利亚分腿蹲'
-                    disabled={settingsLocked}
-                    onInput={(event) => setCustomActionName(String(event.detail.value || ''))}
-                  />
-                </View>
-              </>
+              <View className='custom-name-cell'>
+                <Text className='input-label'>动作名称</Text>
+                <Input
+                  className='metric-input custom-name-input'
+                  type='text'
+                  value={customActionName}
+                  maxlength={POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH}
+                  placeholder='例如：哑铃弯举、保加利亚分腿蹲'
+                  disabled={settingsLocked}
+                  onInput={(event) => setCustomActionName(String(event.detail.value || ''))}
+                />
+              </View>
             )}
+          </View>
 
+          <View className='pa-step'>
+            <View className='pa-step__head'>
+              <Text className='pa-step__index'>2</Text>
+              <Text className='pa-step__title'>身体数据</Text>
+              <Text className='pa-step__hint'>用来换算功率</Text>
+            </View>
             <View className={`input-grid ${isBarbell ? 'input-grid-barbell' : ''}`}>
               <View className='input-cell'>
                 <Text className='input-label'>身高 cm</Text>
@@ -1454,50 +1478,13 @@ export default function WechatPowerAnalysisPage() {
             {isBarbell && (
               <Text className='barbell-input-hint'>杠铃总重含杠铃杆和杠铃片；标准片直径 45 cm，请填写杠上最大那片的直径。</Text>
             )}
+          </View>
 
-            <View className='analysis-option-section'>
-              <View className='option-heading-row'>
-                <Text className='option-heading'>视频画质</Text>
-                <Text className='option-entitlement'>
-                  {WECHAT_FREE_RELEASE ? '' : `${membershipLabel(entitlements.tier)} · `}最大 {entitlements.maxVideoSizeMb}MB
-                </Text>
-              </View>
-              <View className='quality-options'>
-                <View
-                  className={`analysis-option ${quality === 'compressed' ? 'active' : ''}`}
-                  onClick={() => handleQualityChange('compressed')}
-                >
-                  <Text className='analysis-option-title'>压缩画质</Text>
-                  <Text className='analysis-option-desc'>上传更快，适合日常测试</Text>
-                </View>
-                <View
-                  className={`analysis-option ${quality === 'original' ? 'active' : ''} ${entitlements.canUseOriginalQuality ? '' : 'locked'}`}
-                  onClick={() => handleQualityChange('original')}
-                >
-                  <Text className='analysis-option-title'>原画质</Text>
-                  <Text className='analysis-option-desc'>{WECHAT_FREE_RELEASE ? '保留分辨率与帧率' : '会员权益 · 保留分辨率与帧率'}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View className='analysis-option-section'>
-              <Text className='option-heading'>结果视频字幕</Text>
-              <View className='language-options'>
-                {([
-                  { value: 'auto', label: '自动' },
-                  { value: 'zh', label: '中文' },
-                  { value: 'en', label: 'English' }
-                ] as Array<{ value: OverlayLanguagePreference; label: string }>).map((item) => (
-                  <View
-                    key={item.value}
-                    className={`language-option ${languagePreference === item.value ? 'active' : ''}`}
-                    onClick={() => !settingsLocked && setLanguagePreference(item.value)}
-                  >
-                    <Text>{item.label}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text className='language-hint'>自动模式当前将使用{overlayLanguage === 'zh' ? '中文' : '英文'}字幕</Text>
+          <View className='pa-step'>
+            <View className='pa-step__head'>
+              <Text className='pa-step__index'>3</Text>
+              <Text className='pa-step__title'>上传视频</Text>
+              <Text className='pa-step__hint'>选好后自动上传</Text>
             </View>
 
             <View className='video-picker'>
@@ -1523,44 +1510,95 @@ export default function WechatPowerAnalysisPage() {
                       <View className='preview-video-btn' onClick={handlePreviewVideo}>
                         <Text>全屏预览</Text>
                       </View>
+                      <View className={`preview-video-btn ${isBusy ? 'disabled' : ''}`} onClick={handleChooseVideo}>
+                        <Text>重新选择</Text>
+                      </View>
                     </View>
                   </View>
                 </View>
               ) : (
-                <View className='empty-video'>
-                  <Text className='empty-video-title'>还没有选择视频</Text>
-                  <Text className='empty-video-desc'>
-                    建议使用 {entitlements.maxDurationSeconds} 秒内、人物无遮挡、全身动作清晰的视频。
+                <View className={`pa-empty-video ${isBusy ? 'disabled' : ''}`} onClick={handleChooseVideo}>
+                  <Text className='pa-empty-video__plus'>+</Text>
+                  <Text className='pa-empty-video__title'>选择训练视频</Text>
+                  <Text className='pa-empty-video__desc'>
+                    {entitlements.maxDurationSeconds} 秒内、最大 {entitlements.maxVideoSizeMb}MB；人物无遮挡、动作清晰
                   </Text>
                 </View>
               )}
-              <View className={`secondary-action select-video-btn ${isBusy ? 'disabled' : ''}`} onClick={handleChooseVideo}>
-                <Text>{video ? '重新选择视频' : '选择视频'}</Text>
-              </View>
             </View>
 
-            <View className='status-card'>
-              <View className='status-row'>
-                <Text className='status-label'>{statusText}</Text>
-                <Text className='status-value'>{progressValue}%</Text>
+            {(phase !== 'idle' || job) && (
+              <View className='status-card'>
+                <View className='status-row'>
+                  <Text className='status-label'>{statusText}</Text>
+                  <Text className='status-value'>{progressValue}%</Text>
+                </View>
+                <View className='progress-track'>
+                  <View className='progress-fill' style={{ width: `${progressValue}%` }} />
+                </View>
+                {queueStatusText && <Text className='queue-status-text'>{queueStatusText}</Text>}
+                {job?.errorMessage && <Text className='error-text'>{job.errorMessage}</Text>}
               </View>
-              <View className='progress-track'>
-                <View className='progress-fill' style={{ width: `${progressValue}%` }} />
-              </View>
-              {queueStatusText && <Text className='queue-status-text'>{queueStatusText}</Text>}
-              {job?.errorMessage && <Text className='error-text'>{job.errorMessage}</Text>}
-            </View>
+            )}
 
-            <View className='action-row'>
-              <View className={`primary-action start-analysis-btn ${canSubmit ? '' : 'disabled'}`} onClick={handleStart}>
-                <Text>{['creating', 'uploading'].includes(phase) ? '上传中' : isBusy ? '处理中' : '开始分析'}</Text>
-              </View>
-              <View className={`secondary-action reset-btn ${isBusy ? 'disabled' : ''}`} onClick={() => !isBusy && handleReset()}>
-                <Text>重置</Text>
-              </View>
+            <View className='pa-more' onClick={() => setMoreSettingsOpen((open) => !open)}>
+              <Text className='pa-more__label'>更多设置</Text>
+              <Text className='pa-more__value'>
+                {`${quality === 'original' ? '原画质' : '压缩画质'} · ${languagePreference === 'auto' ? '自动字幕' : languagePreference === 'zh' ? '中文字幕' : '英文字幕'}`}
+              </Text>
+              <Text className={`pa-more__caret ${moreSettingsOpen ? 'pa-more__caret--open' : ''}`}>›</Text>
             </View>
+            {moreSettingsOpen && (
+              <View className='pa-more-panel'>
+                <View className='analysis-option-section'>
+                  <View className='option-heading-row'>
+                    <Text className='option-heading'>视频画质</Text>
+                    <Text className='option-entitlement'>
+                      {WECHAT_FREE_RELEASE ? '' : `${membershipLabel(entitlements.tier)} · `}最大 {entitlements.maxVideoSizeMb}MB
+                    </Text>
+                  </View>
+                  <View className='quality-options'>
+                    <View
+                      className={`analysis-option ${quality === 'compressed' ? 'active' : ''}`}
+                      onClick={() => handleQualityChange('compressed')}
+                    >
+                      <Text className='analysis-option-title'>压缩画质</Text>
+                      <Text className='analysis-option-desc'>上传更快，适合日常测试</Text>
+                    </View>
+                    <View
+                      className={`analysis-option ${quality === 'original' ? 'active' : ''} ${entitlements.canUseOriginalQuality ? '' : 'locked'}`}
+                      onClick={() => handleQualityChange('original')}
+                    >
+                      <Text className='analysis-option-title'>原画质</Text>
+                      <Text className='analysis-option-desc'>{WECHAT_FREE_RELEASE ? '保留分辨率与帧率' : '会员权益 · 保留分辨率与帧率'}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View className='analysis-option-section'>
+                  <Text className='option-heading'>结果视频字幕</Text>
+                  <View className='language-options'>
+                    {([
+                      { value: 'auto', label: '自动' },
+                      { value: 'zh', label: '中文' },
+                      { value: 'en', label: 'English' }
+                    ] as Array<{ value: OverlayLanguagePreference; label: string }>).map((item) => (
+                      <View
+                        key={item.value}
+                        className={`language-option ${languagePreference === item.value ? 'active' : ''}`}
+                        onClick={() => !settingsLocked && setLanguagePreference(item.value)}
+                      >
+                        <Text>{item.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text className='language-hint'>自动模式当前将使用{overlayLanguage === 'zh' ? '中文' : '英文'}字幕</Text>
+                </View>
+              </View>
+            )}
           </View>
 
+          {job && (
           <View className='result-card'>
             <View className='result-header'>
               <View>
@@ -1757,6 +1795,7 @@ export default function WechatPowerAnalysisPage() {
               </View>
             )}
           </View>
+          )}
 
           <AssessmentSection
             assessment={metrics?.assessment}
@@ -1805,6 +1844,7 @@ export default function WechatPowerAnalysisPage() {
             </View>
           )}
 
+          {(job?.status === 'done' || summaryLoading || job?.llmSummary) && (
           <View className='summary-card'>
             <View className='summary-header'>
               <Text className='section-title'>AI 解读</Text>
@@ -1821,6 +1861,16 @@ export default function WechatPowerAnalysisPage() {
                   : '分析完成后，这里会给出训练建议。')}
             </Text>
           </View>
+          )}
+      </View>
+
+      <View className='pa-footer'>
+        <View className={`secondary-action reset-btn pa-footer__reset ${isBusy ? 'disabled' : ''}`} onClick={() => !isBusy && handleReset()}>
+          <Text>重置</Text>
+        </View>
+        <View className={`primary-action start-analysis-btn pa-footer__start ${canSubmit ? '' : 'disabled'}`} onClick={handleStart}>
+          <Text>{['creating', 'uploading'].includes(phase) ? '上传中' : isBusy ? '处理中' : video ? '开始分析' : '先选择视频'}</Text>
+        </View>
       </View>
     </View>
   )

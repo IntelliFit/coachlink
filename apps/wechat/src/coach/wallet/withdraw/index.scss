@@ -1,14 +1,14 @@
 .withdraw-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: var(--cl-paper);
   padding: 16px;
   box-sizing: border-box;
 
   .balance-card,
   .form-card,
   .hint-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-line);
     border-radius: 16px;
     padding: 16px;
     margin-bottom: 16px;
@@ -16,8 +16,8 @@
   }
 
   .balance-card {
-    background: #059669;
-    color: #fff;
+    background: var(--cl-done);
+    color: var(--cl-on-accent);
 
     .label {
       display: block;
@@ -47,7 +47,7 @@
     display: block;
     font-size: 16px;
     font-weight: 800;
-    color: #111827;
+    color: var(--cl-ink);
     margin-bottom: 12px;
   }
 
@@ -55,12 +55,12 @@
     width: 100%;
     min-height: 56px;
     padding: 0 12px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--cl-control-line);
     border-radius: 8px;
-    background: #fff;
+    background: var(--cl-card);
     font-size: 20px;
     font-weight: 800;
-    color: #111827;
+    color: var(--cl-ink);
     box-sizing: border-box;
   }
 
@@ -74,8 +74,8 @@
     min-height: 36px;
     padding: 0 16px;
     border-radius: 8px;
-    background: #f3f4f6;
-    color: #374151;
+    background: var(--cl-sunk);
+    color: var(--cl-ink);
     font-size: 14px;
     font-weight: 700;
     display: flex;
@@ -88,8 +88,8 @@
     min-height: 48px;
     border-radius: 8px;
     border: none;
-    background: #CF6D4E;
-    color: #fff;
+    background: var(--cl-clay-strong);
+    color: var(--cl-on-accent);
     font-size: 16px;
     font-weight: 800;
 
@@ -101,7 +101,7 @@
   .hint-text {
     display: block;
     font-size: 13px;
-    color: #6b7280;
+    color: var(--cl-ink-2);
     line-height: 1.6;
   }
 
@@ -111,7 +111,7 @@
       align-items: flex-start;
       gap: 16rpx;
       padding: 16rpx 0;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid var(--cl-line);
     }
 
     .rule-row-last {
@@ -121,7 +121,7 @@
 
     .rule-label {
       flex: 0 0 128rpx;
-      color: #374151;
+      color: var(--cl-ink);
       font-size: 13px;
       font-weight: 700;
       line-height: 1.6;
@@ -130,7 +130,7 @@
     .rule-value {
       flex: 1;
       min-width: 0;
-      color: #6b7280;
+      color: var(--cl-ink-2);
       font-size: 13px;
       line-height: 1.6;
     }

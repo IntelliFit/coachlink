@@ -61,7 +61,7 @@ export default function NodeDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen">
-        <div className="bg-gradient-to-br from-primary-600 via-primary-500 to-amber-500 h-32 animate-pulse" />
+        <div className="bg-primary-100 h-32 animate-pulse" />
         <div className="px-4 py-6 max-w-3xl mx-auto space-y-4">
           <div className="h-48 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
           <div className="h-32 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />

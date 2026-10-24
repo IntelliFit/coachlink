@@ -1,6 +1,6 @@
 .coach-content-page {
   min-height: 100vh;
-  background: #f5f7fb;
+  background: var(--cl-paper);
   padding: 16px 16px 96px;
   box-sizing: border-box;
 
@@ -13,8 +13,8 @@
   .search-card,
   .content-card,
   .empty-wrap {
-    background: #fff;
-    border: 1px solid #e6ebf2;
+    background: var(--cl-card);
+    border: 1px solid var(--cl-sunk);
     border-radius: 24px;
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
   }
@@ -38,7 +38,7 @@
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: #cf6d4e;
+    color: var(--cl-clay);
   }
 
   .hero-card__title {
@@ -47,7 +47,7 @@
     font-size: 24px;
     font-weight: 800;
     line-height: 1.2;
-    color: #0f172a;
+    color: var(--cl-ink);
   }
 
   .hero-card__desc {
@@ -55,7 +55,7 @@
     margin-top: 8px;
     font-size: 12px;
     line-height: 1.6;
-    color: #64748b;
+    color: var(--cl-ink-2);
   }
 
   .hero-card__action,
@@ -72,12 +72,12 @@
     min-height: 42px;
     padding: 0 18px;
     border-radius: 999px;
-    background: #cf6d4e;
+    background: var(--cl-clay-strong);
     box-shadow: 0 12px 20px rgba(207, 109, 78, 0.18);
   }
 
   .hero-card__action-text {
-    color: #fff;
+    color: var(--cl-on-accent);
     font-size: 13px;
     font-weight: 800;
   }
@@ -96,7 +96,7 @@
   .stat-card__label {
     display: block;
     font-size: 11px;
-    color: #64748b;
+    color: var(--cl-ink-2);
   }
 
   .stat-card__value {
@@ -104,7 +104,7 @@
     margin-top: 6px;
     font-size: 20px;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--cl-ink);
   }
 
   .search-card {
@@ -117,10 +117,10 @@
     min-height: 44px;
     padding: 0 14px;
     border-radius: 14px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--cl-sunk);
+    border: 1px solid var(--cl-line);
     box-sizing: border-box;
-    color: #0f172a;
+    color: var(--cl-ink);
     font-size: 14px;
   }
 
@@ -133,7 +133,7 @@
     margin-bottom: 8px;
     font-size: 12px;
     font-weight: 700;
-    color: #475569;
+    color: var(--cl-ink-2);
   }
 
   .filter-row {
@@ -145,24 +145,24 @@
   .filter-chip {
     padding: 8px 14px;
     border-radius: 999px;
-    background: #eef2f7;
+    background: var(--cl-sunk);
     border: 1px solid #dbe4f0;
 
     &.active {
-      background: #fbf0ec;
-      border-color: #ebc5b8;
+      background: var(--cl-clay-soft);
+      border-color: var(--cl-line);
     }
   }
 
   .filter-chip__text {
-    color: #475569;
+    color: var(--cl-ink-2);
     font-size: 12px;
     font-weight: 700;
     line-height: 1;
   }
 
   .filter-chip.active .filter-chip__text {
-    color: #cf6d4e;
+    color: var(--cl-clay);
   }
 
   .empty-wrap {
@@ -175,7 +175,7 @@
     display: block;
     font-size: 17px;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--cl-ink);
   }
 
   .empty-desc {
@@ -183,7 +183,7 @@
     margin-top: 8px;
     font-size: 12px;
     line-height: 1.6;
-    color: #64748b;
+    color: var(--cl-ink-2);
   }
 
   .empty-action {
@@ -193,12 +193,12 @@
     margin: 16px auto 0;
     padding: 0 16px;
     border-radius: 999px;
-    background: #fbf0ec;
-    border: 1px solid #ebc5b8;
+    background: var(--cl-clay-soft);
+    border: 1px solid var(--cl-line);
   }
 
   .empty-action__text {
-    color: #cf6d4e;
+    color: var(--cl-clay);
     font-size: 12px;
     font-weight: 800;
   }
@@ -231,7 +231,7 @@
     font-size: 16px;
     font-weight: 800;
     line-height: 1.35;
-    color: #0f172a;
+    color: var(--cl-ink);
   }
 
   .content-card__meta {
@@ -239,7 +239,7 @@
     margin-top: 6px;
     font-size: 12px;
     line-height: 1.5;
-    color: #64748b;
+    color: var(--cl-ink-2);
   }
 
   .content-card__badge-row,
@@ -266,22 +266,22 @@
   .content-badge {
     &.featured {
       background: #fef3c7;
-      color: #b45309;
+      color: var(--cl-warn-text);
     }
 
     &.type {
-      background: #fbf0ec;
-      color: #cf6d4e;
+      background: var(--cl-clay-soft);
+      color: var(--cl-clay);
     }
 
     &.tier {
-      background: #f8fafc;
-      color: #475569;
+      background: var(--cl-sunk);
+      color: var(--cl-ink-2);
     }
 
     &.price.free {
-      background: #dcfce7;
-      color: #166534;
+      background: var(--cl-done-soft);
+      color: var(--cl-done);
     }
 
     &.price.paid {
@@ -295,7 +295,7 @@
     margin-top: 12px;
     font-size: 13px;
     line-height: 1.7;
-    color: #475569;
+    color: var(--cl-ink-2);
   }
 
   .content-card__tags {
@@ -303,9 +303,9 @@
   }
 
   .content-tag {
-    background: #f8fafc;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+    border: 1px solid var(--cl-line);
   }
 
   .content-card__stats {
@@ -314,13 +314,13 @@
     gap: 14px;
     margin-top: 14px;
     padding-top: 12px;
-    border-top: 1px solid #eef2f7;
+    border-top: 1px solid var(--cl-sunk);
   }
 
   .content-stat {
     font-size: 12px;
     font-weight: 700;
-    color: #64748b;
+    color: var(--cl-ink-2);
   }
 
   .content-card__actions {
@@ -335,9 +335,9 @@
     border: 1px solid transparent;
 
     &.edit {
-      background: #fbf0ec;
-      border-color: #ebc5b8;
-      color: #cf6d4e;
+      background: var(--cl-clay-soft);
+      border-color: var(--cl-line);
+      color: var(--cl-clay);
     }
 
     &.danger {

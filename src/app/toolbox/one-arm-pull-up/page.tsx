@@ -168,7 +168,7 @@ export default function OneArmPullUpReadinessPage() {
           返回工具箱
         </button>
 
-        <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-[#18231F] text-white shadow-[0_24px_80px_rgba(24,35,31,0.14)]">
+        <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-[#1D1A16] text-white shadow-[0_24px_80px_rgba(29,26,22,0.14)]">
           <div className="grid gap-8 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-12">
             <div className="flex flex-col justify-between gap-8">
               <div>
@@ -315,7 +315,7 @@ export default function OneArmPullUpReadinessPage() {
                 </div>
               </div>
 
-              <aside className="rounded-[32px] bg-[#CF6D4E] p-6 text-white md:p-8">
+              <aside className="rounded-[32px] bg-[#B4553A] p-6 text-white md:p-8">
                 <BadgeCheck className="h-8 w-8" />
                 <div className="mt-8 text-sm font-bold text-[#FFE5DC]">本阶段最重要的事</div>
                 <div className="mt-2 text-2xl font-black leading-tight">{result.level.focus}</div>
@@ -353,7 +353,7 @@ export default function OneArmPullUpReadinessPage() {
               <div className="mt-8 grid gap-4 lg:grid-cols-2">
                 <article className="rounded-3xl border border-slate-200 bg-[#F7F4EF] p-5 md:p-6">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#18231F] text-white">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1D1A16] text-white">
                       <Dumbbell className="h-6 w-6" />
                     </div>
                     <div>
@@ -477,7 +477,7 @@ export default function OneArmPullUpReadinessPage() {
               <button
                 type="button"
                 onClick={() => router.push('/toolbox')}
-                className="inline-flex h-12 items-center gap-2 rounded-full bg-[#CF6D4E] px-6 text-sm font-bold text-white transition hover:bg-[#B95F43] active:opacity-80"
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-[#B4553A] px-6 text-sm font-bold text-white transition hover:bg-[#9A4630] active:opacity-80"
               >
                 继续逛工具箱
                 <ArrowRight className="h-4 w-4" />

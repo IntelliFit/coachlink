@@ -204,7 +204,7 @@ export default function StudentToolboxPage() {
           </button>
         </div>
 
-        <section className="relative overflow-hidden rounded-[32px] bg-[#18231F] p-6 text-white shadow-[0_24px_80px_rgba(24,35,31,0.14)] md:p-12">
+        <section className="relative overflow-hidden rounded-[32px] bg-[#1D1A16] p-6 text-white shadow-[0_24px_80px_rgba(29,26,22,0.14)] md:p-12">
           <div className="relative z-10 max-w-3xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold tracking-wide text-[#F0C5B7]">
               <Activity className="h-4 w-4" />
@@ -255,7 +255,7 @@ export default function StudentToolboxPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col justify-between bg-[#CF6D4E] p-6 text-white md:p-10">
+              <div className="flex flex-col justify-between bg-[#B4553A] p-6 text-white md:p-10">
                 <div>
                   <div className="text-xs font-bold text-[#FFE5DC]">经验门槛</div>
                   <div className="mt-2 text-5xl font-black tracking-tight">0.8×</div>
@@ -376,7 +376,7 @@ export default function StudentToolboxPage() {
               <button
                 type="button"
                 onClick={() => window.open(shareTarget.url, '_blank', 'noopener,noreferrer')}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#CF6D4E] text-sm font-bold text-white transition hover:bg-[#B95F43]"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#B4553A] text-sm font-bold text-white transition hover:bg-[#9A4630]"
               >
                 <ExternalLink className="h-4 w-4" />
                 打开链接

@@ -141,22 +141,22 @@ export default function CoachWalletPage() {
             <h1 className="text-2xl font-bold mb-4 text-surface-900">我的钱包</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-gradient-to-br from-green-500 to-emerald-700 text-white border-none shadow-lg col-span-1 md:col-span-2 rounded-xl p-6">
+                <div className="bg-[#1D1A16] dark:bg-[#2E2A26] text-white border-none shadow-lg col-span-1 md:col-span-2 rounded-xl p-6">
                     <div className="pb-2">
-                        <p className="text-green-100 flex items-center gap-2 mb-2">
+                        <p className="text-white/70 flex items-center gap-2 mb-2">
                             <Wallet className="w-4 h-4" /> 可提现余额
                         </p>
                         <h2 className="text-4xl font-mono font-bold">¥ {(data?.balance ?? 0).toFixed(2)}</h2>
                     </div>
                     <div className="mt-6 flex justify-between items-end">
                         <div className="space-y-1">
-                            <p className="text-xs text-green-100">冻结金额: ¥ {frozenAmount.toFixed(2)}</p>
+                            <p className="text-xs text-white/70">冻结金额: ¥ {frozenAmount.toFixed(2)}</p>
                             {pendingSettlementAmount > 0 ? (
-                                <p className="text-xs text-green-100">待结算收入: ¥ {pendingSettlementAmount.toFixed(2)}</p>
+                                <p className="text-xs text-white/70">待结算收入: ¥ {pendingSettlementAmount.toFixed(2)}</p>
                             ) : null}
-                            <p className="text-xs text-green-100">账户总余额: ¥ {(data?.gross_balance ?? data?.balance ?? 0).toFixed(2)}</p>
-                            <p className="text-sm font-semibold text-green-50">历史累计收入: ¥ {(data?.total_income ?? 0).toFixed(2)}</p>
-                            <p className="max-w-md pt-1 text-xs leading-5 text-green-100">
+                            <p className="text-xs text-white/70">账户总余额: ¥ {(data?.gross_balance ?? data?.balance ?? 0).toFixed(2)}</p>
+                            <p className="text-sm font-semibold text-white">历史累计收入: ¥ {(data?.total_income ?? 0).toFixed(2)}</p>
+                            <p className="max-w-md pt-1 text-xs leading-5 text-white/70">
                                 账户总余额 = 可提现余额 + 冻结金额；待结算收入尚未入账。历史累计收入统计历次入账，不因提现或退款减少。
                             </p>
                         </div>
@@ -169,7 +169,7 @@ export default function CoachWalletPage() {
                             ) : (
                                 <Link href="/dashboard/wallet/bind" className="text-xs text-white underline">绑定支付宝</Link>
                             )}
-                            <Button onClick={() => setShowWithdraw(true)} label="申请提现" className="bg-white text-green-700 hover:bg-green-50 border-none" />
+                            <Button onClick={() => setShowWithdraw(true)} label="申请提现" className="bg-white text-[#1D1A16] hover:bg-white/90 border-none" />
                         </div>
                     </div>
                 </div>

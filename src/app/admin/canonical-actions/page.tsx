@@ -355,7 +355,7 @@ export default function AdminCanonicalActionsPage() {
                     <Button
                         label="搜索"
                         icon="pi pi-search"
-                        className="border-none bg-[#CF6D4E]"
+                        className="border-none bg-[#B4553A]"
                         onClick={() => {
                             setPage(1);
                             setSearch(searchInput.trim());
@@ -493,7 +493,7 @@ export default function AdminCanonicalActionsPage() {
                                         <Button
                                             label="保存"
                                             icon={<Save className="mr-2 h-4 w-4" />}
-                                            className="border-none bg-[#CF6D4E]"
+                                            className="border-none bg-[#B4553A]"
                                             disabled={!changed || Boolean(savingId)}
                                             loading={savingId === action.id}
                                             onClick={() => void saveAction(action)}

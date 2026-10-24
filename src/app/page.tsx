@@ -27,7 +27,7 @@ export default function Home() {
         <div className="text-sm font-black text-surface-900">正在进入…</div>
         <div className="mt-2 text-xs text-surface-500">如果未自动跳转，请点击下方按钮。</div>
         <button
-          className="mt-5 inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-surface-900 text-white text-sm font-black active:scale-[0.99]"
+          className="mt-5 inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-surface-900 text-surface-0 text-sm font-black active:scale-[0.99]"
           onClick={() => router.push('/coach/discovery')}
         >
           去发现

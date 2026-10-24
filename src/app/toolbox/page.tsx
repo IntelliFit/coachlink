@@ -92,7 +92,7 @@ export default function PublicToolboxPage() {
   return (
     <main className="min-h-screen bg-[#F7F4EF] text-slate-950">
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-16">
-        <section className="relative overflow-hidden rounded-[32px] bg-[#18231F] p-6 text-white shadow-[0_24px_80px_rgba(24,35,31,0.14)] md:p-12">
+        <section className="relative overflow-hidden rounded-[32px] bg-[#1D1A16] p-6 text-white shadow-[0_24px_80px_rgba(29,26,22,0.14)] md:p-12">
           <div className="relative z-10 grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
             <div className="max-w-3xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold tracking-wide text-[#F0C5B7]">
@@ -108,7 +108,7 @@ export default function PublicToolboxPage() {
               <button
                 type="button"
                 onClick={() => router.push('/login')}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#CF6D4E] px-5 text-sm font-black text-white transition hover:bg-[#B95F43] active:opacity-80"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#B4553A] px-5 text-sm font-black text-white transition hover:bg-[#9A4630] active:opacity-80"
               >
                 <LogIn className="h-4 w-4" />
                 登录 / 注册
@@ -174,7 +174,7 @@ export default function PublicToolboxPage() {
                     className={[
                       'mt-6 flex h-12 w-full items-center justify-between rounded-2xl px-4 text-sm font-black transition',
                       tool.key === 'one-arm-pull-up'
-                        ? 'bg-[#CF6D4E] text-white hover:bg-[#B95F43]'
+                        ? 'bg-[#B4553A] text-white hover:bg-[#9A4630]'
                         : 'border border-slate-200 bg-white text-slate-800 hover:border-[#CF6D4E] hover:text-[#CF6D4E]',
                     ].join(' ')}
                   >
@@ -197,7 +197,7 @@ export default function PublicToolboxPage() {
             <button
               type="button"
               onClick={() => router.push('/login')}
-              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#CF6D4E] px-6 text-sm font-black text-white transition hover:bg-[#B95F43]"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#B4553A] px-6 text-sm font-black text-white transition hover:bg-[#9A4630]"
             >
               进入 CoachLink
               <ArrowRight className="h-4 w-4" />

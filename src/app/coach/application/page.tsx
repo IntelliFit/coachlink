@@ -828,7 +828,7 @@ const CoachApplicationPage = () => {
                                         onClick={() => toggleTargetStudentLevel(option.value)}
                                         className={`rounded-full border px-4 py-2 text-sm transition ${
                                             active
-                                                ? 'border-surface-900 bg-surface-900 text-white'
+                                                ? 'border-surface-900 bg-surface-900 text-surface-0'
                                                 : 'border-surface-300 bg-surface text-surface-700 hover:border-surface-500'
                                         }`}
                                     >
