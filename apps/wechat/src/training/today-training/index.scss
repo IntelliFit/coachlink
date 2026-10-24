@@ -3950,6 +3950,30 @@
   }
 }
 
+.tt-home__missed--timed-out {
+  padding-top: 16rpx;
+  padding-bottom: 16rpx;
+}
+
+.tt-home__missed-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8rpx;
+  min-width: 0;
+
+  .tt-home__missed-text {
+    flex: none;
+    font-weight: 700;
+  }
+}
+
+.tt-home__missed-detail {
+  color: var(--cl-warn-text);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
 .tt-home__day-card {
   padding: 32rpx 32rpx 8rpx;
   border: 2rpx solid var(--cl-line);
