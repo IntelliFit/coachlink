@@ -41,7 +41,8 @@ const MAX_RENDERED_POINTS = 120
 function getChartWidth() {
   try {
     const windowWidth = Number(Taro.getWindowInfo?.().windowWidth || Taro.getSystemInfoSync().windowWidth || 375)
-    return Math.max(272, Math.floor(windowWidth - 64))
+    // 页面左右 16px + 结果卡内边距 16px + 卡片边框 1px（index.scss 的 pa-v1 布局），两侧共 66px，再留 2px 余量。
+    return Math.max(272, Math.floor(windowWidth - 68))
   } catch {
     return 311
   }
