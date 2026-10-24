@@ -20,8 +20,12 @@ export interface AuthResult {
 export async function getAuthUser(req: NextRequest | Request): Promise<AuthResult> {
     // 方式1：优先尝试从Cookie中获取NextAuth session（网页端）
     // 这是原有的鉴权方式，保持向后兼容
+    // 由回调赋值；用断言避免 TS 把它收窄成 null
+    let rejectedBearerToken = null as string | null;
     try {
-        const session = await getServerSession();
+        const session = await getServerSession({
+            onRejectedBearerToken: (token) => { rejectedBearerToken = token; },
+        });
         if (session?.user?.id) {
             return {
                 userId: session.user.id,
@@ -40,6 +44,10 @@ export async function getAuthUser(req: NextRequest | Request): Promise<AuthResul
         : null;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
+        // 上面已经确认这个 token 无效或用户不存在，不再重复查询 users
+        if (token === rejectedBearerToken) {
+            return unauthenticated();
+        }
         const decoded = verifyToken(token) as { userId?: string; phone?: string; email?: string } | null;
         
         if (decoded && decoded.userId) {
@@ -62,6 +70,10 @@ export async function getAuthUser(req: NextRequest | Request): Promise<AuthResul
     }
 
     // 两种方式都失败，返回未认证
+    return unauthenticated();
+}
+
+function unauthenticated(): AuthResult {
     return {
         userId: null,
         user: null,
