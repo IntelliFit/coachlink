@@ -42,13 +42,14 @@ export type SubscriptionCarryoverLookup = {
   subscriptionStartDate?: string | null;
 };
 
-const CARRYOVER_INSTANCE_STATUSES = new Set([
+export const CARRYOVER_INSTANCE_STATUS_LIST: readonly string[] = [
   "active",
   "paused",
   "completed",
   "scheduled",
   "archived",
-]);
+];
+const CARRYOVER_INSTANCE_STATUSES = new Set(CARRYOVER_INSTANCE_STATUS_LIST);
 
 function parseFiniteTime(value?: string | null) {
   if (!value) return null;
@@ -128,14 +129,12 @@ function createEmptyCarryoverSummary(
   };
 }
 
-/**
- * Resolve carryover for a page of subscriptions with two database round trips.
- * The entitlement calculation remains single-source in
- * deriveSubscriptionCarryoverSummaryFromHistory; only data loading is batched.
- */
-export async function getSubscriptionCarryoverSummariesBatch(
-  lookups: SubscriptionCarryoverLookup[],
-): Promise<Map<string, SubscriptionCarryoverSummary>> {
+export type SubscriptionCarryoverHistory = {
+  instancesBySubscription: Map<string, CarryoverInstanceLike[]>;
+  executionsBySubscription: Map<string, CarryoverExecutionLike[]>;
+};
+
+function normalizeCarryoverLookups(lookups: SubscriptionCarryoverLookup[]) {
   const summaries = new Map<string, SubscriptionCarryoverSummary>();
   const validLookups: SubscriptionCarryoverLookup[] = [];
 
@@ -150,15 +149,66 @@ export async function getSubscriptionCarryoverSummariesBatch(
     }
   }
 
-  const subscriptionIds = Array.from(
-    new Set(validLookups.map((lookup) => lookup.subscriptionId)),
+  return { summaries, validLookups };
+}
+
+/** Subscriptions whose history is worth loading: the ones with purchased weeks. */
+export function selectCarryoverSubscriptionIds(lookups: SubscriptionCarryoverLookup[]): string[] {
+  const { validLookups } = normalizeCarryoverLookups(lookups);
+  return Array.from(new Set(validLookups.map((lookup) => lookup.subscriptionId)));
+}
+
+export function groupSubscriptionCarryoverHistory(
+  instances: Array<CarryoverInstanceLike & { coach_subscription_id?: string | null }>,
+  executions: CarryoverExecutionLike[],
+): SubscriptionCarryoverHistory {
+  const instancesBySubscription = new Map<string, CarryoverInstanceLike[]>();
+  const subscriptionByInstance = new Map<string, string>();
+  for (const instance of instances || []) {
+    const subscriptionId = String(instance.coach_subscription_id || "").trim();
+    const instanceId = String(instance.id || "").trim();
+    if (!subscriptionId || !instanceId) continue;
+
+    const bucket = instancesBySubscription.get(subscriptionId) || [];
+    bucket.push(instance);
+    instancesBySubscription.set(subscriptionId, bucket);
+    subscriptionByInstance.set(instanceId, subscriptionId);
+  }
+
+  const executionsBySubscription = new Map<string, CarryoverExecutionLike[]>();
+  for (const execution of executions || []) {
+    const subscriptionId = subscriptionByInstance.get(
+      String(execution.instance_id || "").trim(),
+    );
+    if (!subscriptionId) continue;
+
+    const bucket = executionsBySubscription.get(subscriptionId) || [];
+    bucket.push(execution);
+    executionsBySubscription.set(subscriptionId, bucket);
+  }
+
+  return { instancesBySubscription, executionsBySubscription };
+}
+
+/**
+ * Load every historical plan instance and completed execution for the given
+ * subscriptions in two database round trips. The result depends only on the
+ * subscription ids, so callers can start it before they know the per-lookup
+ * filters (excludeInstanceId / createdBefore / subscriptionStartDate), which
+ * are applied in memory by summarizeSubscriptionCarryoverBatch.
+ */
+export async function loadSubscriptionCarryoverHistory(
+  subscriptionIds: readonly string[],
+): Promise<SubscriptionCarryoverHistory> {
+  const ids = Array.from(
+    new Set((subscriptionIds || []).map((id) => String(id || "").trim()).filter(Boolean)),
   );
-  if (subscriptionIds.length === 0) return summaries;
+  if (ids.length === 0) return groupSubscriptionCarryoverHistory([], []);
 
   // Paginated: a coach's student page easily exceeds Supabase's 1000-row cap,
   // and a truncated history would silently overstate remaining entitlement.
   const { data: instances, error: instancesError } = await readAllRowsByIdChunks<any>(
-    subscriptionIds,
+    ids,
     (chunk, afterId) => {
       let query = supabase
         .from("coach_plan_instances")
@@ -176,7 +226,7 @@ export async function getSubscriptionCarryoverSummariesBatch(
     throw new Error(`读取订阅历史计划失败: ${(instancesError as any)?.message || instancesError}`);
   }
   if (!instances || instances.length === 0) {
-    return summaries;
+    return groupSubscriptionCarryoverHistory([], []);
   }
 
   const instanceIds = instances
@@ -198,40 +248,23 @@ export async function getSubscriptionCarryoverSummariesBatch(
     throw new Error(`读取订阅历史训练失败: ${(executionsError as any)?.message || executionsError}`);
   }
 
-  const instancesBySubscription = new Map<string, CarryoverInstanceLike[]>();
-  const subscriptionByInstance = new Map<string, string>();
-  for (const instance of instances as Array<CarryoverInstanceLike & {
-    coach_subscription_id?: string | null;
-  }>) {
-    const subscriptionId = String(instance.coach_subscription_id || "").trim();
-    const instanceId = String(instance.id || "").trim();
-    if (!subscriptionId || !instanceId) continue;
+  return groupSubscriptionCarryoverHistory(instances, executions || []);
+}
 
-    const bucket = instancesBySubscription.get(subscriptionId) || [];
-    bucket.push(instance);
-    instancesBySubscription.set(subscriptionId, bucket);
-    subscriptionByInstance.set(instanceId, subscriptionId);
-  }
-
-  const executionsBySubscription = new Map<string, CarryoverExecutionLike[]>();
-  for (const execution of (executions || []) as CarryoverExecutionLike[]) {
-    const subscriptionId = subscriptionByInstance.get(
-      String(execution.instance_id || "").trim(),
-    );
-    if (!subscriptionId) continue;
-
-    const bucket = executionsBySubscription.get(subscriptionId) || [];
-    bucket.push(execution);
-    executionsBySubscription.set(subscriptionId, bucket);
-  }
+/** Pure: resolve each lookup against already-loaded history. */
+export function summarizeSubscriptionCarryoverBatch(
+  lookups: SubscriptionCarryoverLookup[],
+  history: SubscriptionCarryoverHistory,
+): Map<string, SubscriptionCarryoverSummary> {
+  const { summaries, validLookups } = normalizeCarryoverLookups(lookups);
 
   for (const lookup of validLookups) {
     summaries.set(
       lookup.subscriptionId,
       deriveSubscriptionCarryoverSummaryFromHistory({
         subscribedWeeks: lookup.subscribedWeeks,
-        instances: instancesBySubscription.get(lookup.subscriptionId) || [],
-        executions: executionsBySubscription.get(lookup.subscriptionId) || [],
+        instances: history.instancesBySubscription.get(lookup.subscriptionId) || [],
+        executions: history.executionsBySubscription.get(lookup.subscriptionId) || [],
         excludeInstanceId: lookup.excludeInstanceId,
         createdBefore: lookup.createdBefore,
         subscriptionStartDate: lookup.subscriptionStartDate,
@@ -240,4 +273,16 @@ export async function getSubscriptionCarryoverSummariesBatch(
   }
 
   return summaries;
+}
+
+/**
+ * Resolve carryover for a page of subscriptions with two database round trips.
+ * The entitlement calculation remains single-source in
+ * deriveSubscriptionCarryoverSummaryFromHistory; only data loading is batched.
+ */
+export async function getSubscriptionCarryoverSummariesBatch(
+  lookups: SubscriptionCarryoverLookup[],
+): Promise<Map<string, SubscriptionCarryoverSummary>> {
+  const history = await loadSubscriptionCarryoverHistory(selectCarryoverSubscriptionIds(lookups));
+  return summarizeSubscriptionCarryoverBatch(lookups, history);
 }
