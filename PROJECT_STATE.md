@@ -1,3 +1,10 @@
+## 全量合并 + 小程序体验包（2026-10-24，未推镜像）
+
+- dev/main 推到 299f9cfb：主检出 c010845f（单杠地图做工具箱首卡 + 小程序页面进入追踪）、AGENTS/CLAUDE 镜像推送规则、feat/boji-weapp（薄肌检测器小程序页）、feat/ui-refresh 3 个提交 + 该 worktree 未提交的功率分析页 v1 改版（8c6384bb）、perf/bearer-auth-parallel、perf/list-students-speed、perf/coach-overview-student-payment-parallel。唯一冲突 src/testUtils/mockSupabase.ts 保留 perf 分支新增的 is()。
+- 门禁：typecheck 通过；vitest 132 文件 992/993，唯一失败仍是既有 streetliftingLocationOverview recentMonths；e2e 写正式库未跑。
+- **镜像未推送**（用户未要求）：线上 Web 仍 419a2a79，Bearer 鉴权/学员列表/教练概览提速等后端改动未上线。已核对小程序新代码用到的接口（boji analyze、/api/trace、locations/list）都在 419a2a79 中，学员页改动纯前端，体验包可直接对接线上后端。
+- 小程序开发版 2026.10.24.1953 上传成功（DevTools 端口 43678，2939 模块，总包 10,034,838 / 主包 1,975,355 字节，描述 release-299f9cf-boji-ui-refresh-perf）；需用户在 mp 后台选为体验版。未提审。
+
 ## 薄肌检测器上线（2026-10-23，测试版）
 
 - **线上 Web 现为 main 419a2a79 = 88f4c924 + 薄肌检测器**（逐文件核对：只多 boji 的 25 个新增文件，无删改）。镜像 `coachlink@sha256:b270ad4b…`，用户授权后 `kubectl set image` 切 coachlink-main（近几次 Web 更新都是手动钉 digest，Keel 对该部署没有自动更新），3/3，buildTime 2026-10-22T21:06:33Z；change-cause 已写。`/toolbox/boji` 200、工具箱首卡显示、未登录 analyze 401、登录弹窗不跳页。coachlink-dev 未切换，仍为 f403d885（不含 boji）。
