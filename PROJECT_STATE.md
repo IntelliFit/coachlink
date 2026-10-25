@@ -4,7 +4,7 @@
 - **未纳入**：feat/boji-pk（排名/最像谁/PK，需先执行线上迁移 20261025090000_boji_scores.sql 并上线后端，所在会话正等用户回答）；"pushup健身挑战工具"会话正在主检出写的哑铃弹跳游戏（dumbbell-bounce、arcadeReplayRecorder、cameraCompositeRecorder 未提交）。
 - 小程序在干净 worktree（D:/CodexWork/coachlink-release-2026-10-25，node_modules 用联接）构建，避免带入主检出未提交改动：2944 模块/976 文件，只含正式域名，无 dumbbell-bounce。DevTools 端口 43678 上传开发版 **2026.10.25.1004**（总包 10,069,349 / 主包 1,981,156，描述 release-f833dc1-audit）。
 - 门禁：typecheck 通过；worktree 内 vitest 7 文件失败，其中 5 个是 worktree 环境问题（apps/mobile 无 expo、联接导致模块身份不同），在主检出重跑只剩既有 streetliftingLocationOverview。
-- **镜像未推送**：线上 Web 仍 f7cffc5b（9684fc5f）。新小程序对旧后端兼容（kg/lbs 客户端已换算成 kg 发送），但在后端更新前 lbs 单位不保存、"测别人"视频仍会进挑战榜、越权修复未生效。建议正式发布前推 Web 镜像。
+- 用户要求后已更新后端（2026-10-25 11:00–11:15 北京时间）：服务器以 b5caf5a4 浅克隆 + 本机 binary diff 还原 dcea600f，2122 个文件 git blob 哈希逐一一致。Web `coachlink@sha256:c9a851ae…`（标签 dcea600）：dev、main 均 f7cffc5b → c9a851ae，3/3，两域 healthy/login/功率分析/薄肌 200，buildTime 2026-10-25T02:59:18Z，未登录 get-profile 401。Worker `coachlink-power-worker@sha256:d41b45f6…`（标签 power-20261025-dcea600，以 155e1c02 为基础叠加代码，镜像内 62 项测试通过）：worker-dev、worker-main 均 a67a5384 → d41b45f6，Kafka 两个消费组各只剩新 pod 且持有 16 个分区（main 组刚切换时短暂显示 0 分区，约 1 分钟后完成重平衡）。无迁移、依赖未变。
 
 ## 全量合并 + 小程序体验包（2026-10-24，未推镜像）
 
