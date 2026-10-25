@@ -65,7 +65,7 @@ export default function PowerCurves({ points }: { points?: PowerAnalysisTimeSeri
               onClick={() => setMetric(item.key)}
               className={[
                 "rounded-md px-3 py-1 text-xs font-bold transition-colors",
-                metric === item.key ? "bg-surface-0 text-surface-900 shadow-sm" : "text-surface-500 hover:text-surface-800",
+                metric === item.key ? "bg-surface-0 dark:bg-[#211E1B] text-surface-900 shadow-sm" : "text-surface-500 hover:text-surface-800",
               ].join(" ")}
             >
               {item.label}
@@ -83,7 +83,7 @@ export default function PowerCurves({ points }: { points?: PowerAnalysisTimeSeri
           >
             {chart.grid.map((line) => (
               <g key={line.y}>
-                <line x1={PAD.left} x2={WIDTH - PAD.right} y1={line.y} y2={line.y} stroke="#E5E7EB" strokeWidth={1} />
+                <line x1={PAD.left} x2={WIDTH - PAD.right} y1={line.y} y2={line.y} strokeWidth={1} className="stroke-[#E5E7EB] dark:stroke-[#37312B]" />
                 <text x={PAD.left - 6} y={line.y + 4} textAnchor="end" fontSize={11} fill="#9CA3AF">
                   {line.label}
                 </text>

@@ -91,7 +91,7 @@ function StandardToolCard({
   const meta = TOOL_META[tool.key] || { eyebrow: '训练工具', tone: '#64748B' };
 
   return (
-    <article className="group flex min-h-64 flex-col rounded-3xl border border-slate-200 bg-white p-6 transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_48px_rgba(15,23,42,0.08)]">
+    <article className="group flex min-h-64 flex-col rounded-3xl border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-6 transition hover:-translate-y-1 hover:border-slate-300 dark:hover:border-[#4A423A] hover:shadow-[0_20px_48px_rgba(15,23,42,0.08)]">
       <div className="flex items-start justify-between gap-4">
         <div
           className="flex h-12 w-12 items-center justify-center rounded-2xl text-white"
@@ -102,7 +102,7 @@ function StandardToolCard({
         <button
           type="button"
           onClick={onShare}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-[#CF6D4E] hover:text-[#CF6D4E]"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] text-slate-500 dark:text-[#A0978B] transition hover:border-[#CF6D4E] dark:hover:border-[#E08A6C] hover:text-[#CF6D4E] dark:hover:text-[#E08A6C]"
           aria-label={`分享 ${tool.label}`}
         >
           <Share2 className="h-4 w-4" />
@@ -110,15 +110,15 @@ function StandardToolCard({
       </div>
 
       <div className="mt-6 flex-1">
-        <div className="text-xs font-black tracking-[0.14em] text-slate-400">{meta.eyebrow}</div>
-        <h3 className="mt-2 text-xl font-black leading-7 tracking-tight text-slate-950">{tool.label}</h3>
-        {tool.description && <p className="mt-3 text-sm leading-6 text-slate-600">{tool.description}</p>}
+        <div className="text-xs font-black tracking-[0.14em] text-slate-400 dark:text-[#A0978B]">{meta.eyebrow}</div>
+        <h3 className="mt-2 text-xl font-black leading-7 tracking-tight text-slate-950 dark:text-[#F2EEE8]">{tool.label}</h3>
+        {tool.description && <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-[#CBC3B8]">{tool.description}</p>}
       </div>
 
       <button
         type="button"
         onClick={onOpen}
-        className="mt-6 flex h-12 w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 transition hover:border-[#CF6D4E] hover:text-[#CF6D4E]"
+        className="mt-6 flex h-12 w-full items-center justify-between rounded-2xl border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] px-4 text-sm font-bold text-slate-800 dark:text-[#F2EEE8] transition hover:border-[#CF6D4E] dark:hover:border-[#E08A6C] hover:text-[#CF6D4E] dark:hover:text-[#E08A6C]"
       >
         打开工具
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -182,13 +182,13 @@ export default function StudentToolboxPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F7F4EF] text-slate-950">
+    <main className="min-h-screen bg-[#F7F4EF] dark:bg-[#161412] text-slate-950 dark:text-[#F2EEE8]">
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-16">
         <div className="mb-8 flex items-center justify-between gap-4">
           <button
             type="button"
             onClick={() => router.back()}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] px-4 text-sm font-semibold text-slate-700 dark:text-[#CBC3B8] transition hover:border-slate-300 dark:hover:border-[#4A423A] hover:text-slate-950 dark:hover:text-[#F2EEE8]"
           >
             <ArrowLeft className="h-4 w-4" />
             返回
@@ -197,14 +197,14 @@ export default function StudentToolboxPage() {
             type="button"
             onClick={() => tryNativeShare('CoachLink 工具箱')}
             disabled={!toolboxShareUrl}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-[#CF6D4E] hover:text-[#CF6D4E] disabled:opacity-40"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] px-4 text-sm font-semibold text-slate-700 dark:text-[#CBC3B8] transition hover:border-[#CF6D4E] dark:hover:border-[#E08A6C] hover:text-[#CF6D4E] dark:hover:text-[#E08A6C] disabled:opacity-40"
           >
             <Share2 className="h-4 w-4" />
             分享工具箱
           </button>
         </div>
 
-        <section className="relative overflow-hidden rounded-[32px] bg-[#1D1A16] p-6 text-white shadow-[0_24px_80px_rgba(29,26,22,0.14)] md:p-12">
+        <section className="relative overflow-hidden rounded-[32px] bg-[#1D1A16] dark:bg-[#2E2A26] p-6 text-white shadow-[0_24px_80px_rgba(29,26,22,0.14)] md:p-12">
           <div className="relative z-10 max-w-3xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold tracking-wide text-[#F0C5B7]">
               <Activity className="h-4 w-4" />
@@ -233,22 +233,22 @@ export default function StudentToolboxPage() {
           <section className="mt-12">
             <div className="mb-4 flex items-end justify-between gap-4">
               <div>
-                <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E]">本周主推</div>
+                <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E] dark:text-[#E08A6C]">本周主推</div>
                 <h2 className="mt-2 text-2xl font-black tracking-tight md:text-3xl">先知道自己在哪，再决定怎么练</h2>
               </div>
-              <span className="hidden text-sm text-slate-500 md:block">1 分钟完成</span>
+              <span className="hidden text-sm text-slate-500 dark:text-[#A0978B] md:block">1 分钟完成</span>
             </div>
 
-            <article className="grid overflow-hidden rounded-[32px] border border-[#CF6D4E]/20 bg-[#FFF7F3] md:grid-cols-[1.1fr_0.9fr]">
+            <article className="grid overflow-hidden rounded-[32px] border border-[#CF6D4E]/20 bg-[#FFF7F3] dark:bg-[#3A2820] md:grid-cols-[1.1fr_0.9fr]">
               <div className="p-6 md:p-10">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#CF6D4E] text-white">
                   <Target className="h-6 w-6" />
                 </div>
                 <h3 className="mt-6 text-3xl font-black leading-tight tracking-tight md:text-4xl">{featuredTool.label}</h3>
-                <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600 md:text-base">{featuredTool.description}</p>
+                <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600 dark:text-[#CBC3B8] md:text-base">{featuredTool.description}</p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   {['测算差距', '分级结果', '8 周计划'].map((label) => (
-                    <span key={label} className="rounded-full border border-[#CF6D4E]/20 bg-white px-3 py-2 text-xs font-bold text-[#9D4F3B]">
+                    <span key={label} className="rounded-full border border-[#CF6D4E]/20 bg-white dark:bg-[#211E1B] px-3 py-2 text-xs font-bold text-[#9D4F3B] dark:text-[#F0A88E]">
                       {label}
                     </span>
                   ))}
@@ -267,7 +267,7 @@ export default function StudentToolboxPage() {
                   <button
                     type="button"
                     onClick={() => router.push(featuredTool.url)}
-                    className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-black text-[#9D4F3B] transition hover:bg-[#FFF7F3] active:opacity-80"
+                    className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-white dark:bg-[#211E1B] px-5 text-sm font-black text-[#9D4F3B] dark:text-[#F0A88E] transition hover:bg-[#FFF7F3] dark:hover:bg-[#3A2820] active:opacity-80"
                   >
                     开始测算
                     <ArrowRight className="h-4 w-4" />
@@ -288,7 +288,7 @@ export default function StudentToolboxPage() {
 
         <section className="mt-12">
           <div className="mb-4">
-            <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E]">训练与探索</div>
+            <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E] dark:text-[#E08A6C]">训练与探索</div>
             <h2 className="mt-2 text-2xl font-black tracking-tight md:text-3xl">再挑一个趁手工具</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -303,13 +303,13 @@ export default function StudentToolboxPage() {
           </div>
         </section>
 
-        <section className="mt-16 border-t border-slate-200 pt-12">
+        <section className="mt-16 border-t border-slate-200 dark:border-[#37312B] pt-12">
           <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E]">身体恢复</div>
+              <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E] dark:text-[#E08A6C]">身体恢复</div>
               <h2 className="mt-2 text-2xl font-black tracking-tight md:text-3xl">不训练的时候，也可以照顾身体</h2>
             </div>
-            <span className="text-sm text-slate-500">不需要器械 · 跟着步骤完成</span>
+            <span className="text-sm text-slate-500 dark:text-[#A0978B]">不需要器械 · 跟着步骤完成</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -318,9 +318,9 @@ export default function StudentToolboxPage() {
                 key={item.key}
                 type="button"
                 onClick={() => router.push(`/dashboard/knowledge/scenarios/${item.slug}`)}
-                className="group overflow-hidden rounded-3xl border border-slate-200 bg-white text-left transition hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_48px_rgba(15,23,42,0.08)]"
+                className="group overflow-hidden rounded-3xl border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] text-left transition hover:-translate-y-1 hover:border-slate-300 dark:hover:border-[#4A423A] hover:shadow-[0_20px_48px_rgba(15,23,42,0.08)]"
               >
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-[#2A2622]">
                   <Image
                     src={item.imageUrl}
                     alt={item.title}
@@ -328,13 +328,13 @@ export default function StudentToolboxPage() {
                     className="object-cover transition duration-300 group-hover:scale-105"
                     sizes="(max-width: 768px) 50vw, 25vw"
                   />
-                  <span className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl shadow-sm">
+                  <span className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white dark:bg-[#211E1B] text-xl shadow-sm">
                     {item.icon}
                   </span>
                 </div>
                 <div className="p-4">
-                  <div className="text-sm font-black leading-5 text-slate-950 md:text-base">{item.title}</div>
-                  <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">{item.description}</div>
+                  <div className="text-sm font-black leading-5 text-slate-950 dark:text-[#F2EEE8] md:text-base">{item.title}</div>
+                  <div className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-[#A0978B]">{item.description}</div>
                 </div>
               </button>
             ))}
@@ -356,19 +356,19 @@ export default function StudentToolboxPage() {
         {shareTarget && (
           <div className="space-y-4">
             <div className="flex items-center justify-center">
-              <div className="rounded-3xl border border-slate-200 bg-white p-4">
+              <div className="rounded-3xl border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-4">
                 <QRCodeSVG value={shareTarget.url} size={160} level="M" />
               </div>
             </div>
-            <div className="text-center text-sm text-slate-600">微信扫码打开，或者复制链接发给朋友。</div>
-            <div className="rounded-2xl bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-500 break-all">
+            <div className="text-center text-sm text-slate-600 dark:text-[#CBC3B8]">微信扫码打开，或者复制链接发给朋友。</div>
+            <div className="rounded-2xl bg-slate-50 dark:bg-[#2A2622] p-3 font-mono text-xs leading-5 text-slate-500 dark:text-[#A0978B] break-all">
               {shareTarget.url}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => copyToClipboard(shareTarget.url)}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:border-[#CF6D4E] hover:text-[#CF6D4E]"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] text-sm font-bold text-slate-700 dark:text-[#CBC3B8] transition hover:border-[#CF6D4E] dark:hover:border-[#E08A6C] hover:text-[#CF6D4E] dark:hover:text-[#E08A6C]"
               >
                 <Copy className="h-4 w-4" />
                 复制链接

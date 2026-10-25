@@ -8,11 +8,11 @@ import type {
 import { describeMeasurementZh } from "@/lib/powerAnalysisAssessment";
 
 const STATUS_STYLE: Record<PowerAnalysisCheckStatus, { label: string; chip: string }> = {
-  issue: { label: "问题", chip: "border-red-200 bg-red-50 text-red-700" },
-  warn: { label: "注意", chip: "border-amber-200 bg-amber-50 text-amber-700" },
-  info: { label: "信息", chip: "border-sky-200 bg-sky-50 text-sky-700" },
-  good: { label: "良好", chip: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  unavailable: { label: "无法评估", chip: "border-surface-200 bg-surface-50 text-surface-500" },
+  issue: { label: "问题", chip: "border-red-200 dark:border-[#5A2E28] bg-red-50 dark:bg-[#3A2220] text-red-700 dark:text-[#E07A6A]" },
+  warn: { label: "注意", chip: "border-amber-200 dark:border-[#5A4626] bg-amber-50 dark:bg-[#3A2E1A] text-amber-700 dark:text-[#E8B866]" },
+  info: { label: "信息", chip: "border-sky-200 dark:border-[#2E4250] bg-sky-50 dark:bg-[#1E2A33] text-sky-700 dark:text-[#7DB8E0]" },
+  good: { label: "良好", chip: "border-emerald-200 dark:border-[#2E4A3B] bg-emerald-50 dark:bg-[#1F3329] text-emerald-700 dark:text-[#5DBB8E]" },
+  unavailable: { label: "无法评估", chip: "border-surface-200 bg-surface-50 dark:bg-[#2A2622] text-surface-500" },
 };
 
 interface AssessmentCardProps {
@@ -31,7 +31,7 @@ export default function AssessmentCard({ assessment, measurement, onSeek }: Asse
   const measurementText = describeMeasurementZh(measurement);
 
   return (
-    <div className="rounded-2xl border border-surface-200 bg-surface-0 p-5 shadow-sm">
+    <div className="rounded-2xl border border-surface-200 bg-surface-0 dark:bg-[#211E1B] p-5 shadow-sm">
       <div className="mb-3 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <h2 className="text-lg font-black text-surface-900">动作评估</h2>
         <div className="text-xs text-surface-500">
@@ -49,12 +49,12 @@ export default function AssessmentCard({ assessment, measurement, onSeek }: Asse
       </div>
       {measurementText && <div className="mb-2 text-xs text-surface-500">{measurementText}</div>}
       {measurement?.warningsZh?.map((warning) => (
-        <div key={warning} className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <div key={warning} className="mb-2 rounded-lg border border-amber-200 dark:border-[#5A4626] bg-amber-50 dark:bg-[#3A2E1A] px-3 py-2 text-xs text-amber-800 dark:text-[#E8B866]">
           {warning}
         </div>
       ))}
       {assessment.checks.length === 0 ? (
-        <div className="rounded-xl border border-surface-200 bg-surface-50 p-4 text-sm text-surface-600">
+        <div className="rounded-xl border border-surface-200 bg-surface-50 dark:bg-[#2A2622] p-4 text-sm text-surface-600">
           没有识别到完整动作，暂时无法评估姿态。
         </div>
       ) : (
@@ -77,7 +77,7 @@ export default function AssessmentCard({ assessment, measurement, onSeek }: Asse
                         type="button"
                         disabled={!onSeek}
                         onClick={() => onSeek?.(time)}
-                        className="rounded-md border border-surface-200 bg-surface-50 px-2 py-0.5 text-xs text-surface-700 enabled:hover:border-[#CF6D4E] enabled:hover:text-[#CF6D4E] disabled:cursor-default"
+                        className="rounded-md border border-surface-200 bg-surface-50 dark:bg-[#2A2622] px-2 py-0.5 text-xs text-surface-700 enabled:hover:border-[#CF6D4E] dark:enabled:hover:border-[#E08A6C] enabled:hover:text-[#CF6D4E] dark:enabled:hover:text-[#E08A6C] disabled:cursor-default"
                       >
                         第 {check.repIndexes[index] ?? index + 1} 次 · {formatTime(time)}
                       </button>

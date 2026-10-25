@@ -21,7 +21,7 @@ export default function BojiOverlay({ photoUrl, width, height, report, showMarks
   const shapes = useMemo(() => bojiOverlayShapes(report), [report]);
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-slate-900">
+    <div className="relative overflow-hidden rounded-3xl bg-slate-900 dark:bg-[#2E2A26]">
       {/* eslint-disable-next-line @next/next/no-img-element -- local object URL, not a remote asset */}
       <img src={photoUrl} alt="你上传的照片" className="block h-auto w-full" />
       {showMarks && (

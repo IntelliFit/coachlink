@@ -70,18 +70,18 @@ export default function BojiDetectorPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F7F4EF] text-slate-950">
+    <main className="min-h-screen bg-[#F7F4EF] dark:bg-[#161412] text-slate-950 dark:text-[#F2EEE8]">
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-16">
         <button
           type="button"
           onClick={() => router.push('/toolbox')}
-          className="mb-8 inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
+          className="mb-8 inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] px-4 text-sm font-semibold text-slate-700 dark:text-[#CBC3B8] transition hover:border-slate-300 dark:hover:border-[#4A423A] hover:text-slate-950 dark:hover:text-[#F2EEE8]"
         >
           <ArrowLeft className="h-4 w-4" />
           返回工具箱
         </button>
 
-        <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-[#18231F] text-white shadow-[0_24px_80px_rgba(24,35,31,0.14)]">
+        <section className="overflow-hidden rounded-[32px] border border-slate-200 dark:border-[#37312B] bg-[#18231F] text-white shadow-[0_24px_80px_rgba(24,35,31,0.14)]">
           <div className="grid gap-8 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-12">
             <div className="flex flex-col justify-between gap-8">
               <div>
@@ -107,10 +107,10 @@ export default function BojiDetectorPage() {
               </div>
             </div>
 
-            <div className="flex flex-col justify-between rounded-3xl bg-white p-5 text-slate-950 md:p-8">
+            <div className="flex flex-col justify-between rounded-3xl bg-white dark:bg-[#211E1B] p-5 text-slate-950 dark:text-[#F2EEE8] md:p-8">
               <div>
                 <div className="text-lg font-black">上传正面照</div>
-                <div className="mt-1 text-xs leading-5 text-slate-500">
+                <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-[#A0978B]">
                   JPG / PNG 均可，会先在你的浏览器里压缩再上传。
                 </div>
               </div>
@@ -126,8 +126,8 @@ export default function BojiDetectorPage() {
               <div className="my-8 flex flex-col items-center gap-4 text-center">
                 {phase === 'working' ? (
                   <>
-                    <Loader2 className="h-10 w-10 animate-spin text-[#CF6D4E]" />
-                    <div className="text-sm font-semibold text-slate-600">正在检测，通常几秒钟…</div>
+                    <Loader2 className="h-10 w-10 animate-spin text-[#CF6D4E] dark:text-[#E08A6C]" />
+                    <div className="text-sm font-semibold text-slate-600 dark:text-[#CBC3B8]">正在检测，通常几秒钟…</div>
                   </>
                 ) : loggedOut ? (
                   <button
@@ -149,13 +149,13 @@ export default function BojiDetectorPage() {
                   </button>
                 )}
                 {error && (
-                  <div className="w-full rounded-2xl border border-[#CF6D4E]/20 bg-[#FFF7F3] p-4 text-sm text-slate-700">
+                  <div className="w-full rounded-2xl border border-[#CF6D4E]/20 bg-[#FFF7F3] dark:bg-[#3A2820] p-4 text-sm text-slate-700 dark:text-[#CBC3B8]">
                     {error.message}
                     {error.needsLogin && (
                       <button
                         type="button"
                         onClick={openLoginModal}
-                        className="ml-2 font-bold text-[#CF6D4E] underline-offset-2 hover:underline"
+                        className="ml-2 font-bold text-[#CF6D4E] dark:text-[#E08A6C] underline-offset-2 hover:underline"
                       >
                         去登录
                       </button>
@@ -164,8 +164,8 @@ export default function BojiDetectorPage() {
                 )}
               </div>
 
-              <div className="flex gap-2 rounded-2xl bg-[#F7F4EF] p-4 text-xs leading-5 text-slate-600">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#3F7C6B]" />
+              <div className="flex gap-2 rounded-2xl bg-[#F7F4EF] dark:bg-[#2A2622] p-4 text-xs leading-5 text-slate-600 dark:text-[#CBC3B8]">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#3F7C6B] dark:text-[#5DBB8E]" />
                 照片只用于这一次检测，服务器不保存。结果只是自测参考，不是医疗诊断。
               </div>
             </div>
@@ -174,13 +174,13 @@ export default function BojiDetectorPage() {
 
         {analysis && photo && (
           <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr]">
-            <div className="rounded-[32px] border border-slate-200 bg-white p-4 md:p-6">
+            <div className="rounded-[32px] border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-4 md:p-6">
               <div className="mb-4 flex items-center justify-between">
                 <div className="text-lg font-black">测量位置</div>
                 <button
                   type="button"
                   onClick={() => setShowMarks((v) => !v)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3 text-xs font-semibold text-slate-600 hover:text-slate-950"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 dark:border-[#37312B] px-3 text-xs font-semibold text-slate-600 dark:text-[#CBC3B8] hover:text-slate-950 dark:hover:text-[#F2EEE8]"
                 >
                   {showMarks ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   {showMarks ? '隐藏标注' : '显示标注'}
@@ -193,7 +193,7 @@ export default function BojiDetectorPage() {
                 report={analysis.report}
                 showMarks={showMarks}
               />
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600 dark:text-[#CBC3B8]">
                 {OVERLAY_LEGEND.map((item) => (
                   <span key={item.label} className="inline-flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
@@ -214,7 +214,7 @@ export default function BojiDetectorPage() {
                 </p>
               </div>
               {notes.length > 0 && (
-                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
+                <div className="rounded-3xl border border-amber-200 dark:border-[#5A4626] bg-amber-50 dark:bg-[#3A2E1A] p-4 text-xs leading-5 text-amber-800 dark:text-[#E8B866]">
                   {notes.map((note) => (
                     <div key={note}>· {note}</div>
                   ))}
@@ -228,7 +228,7 @@ export default function BojiDetectorPage() {
               <button
                 type="button"
                 onClick={reset}
-                className="inline-flex h-11 w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:text-slate-950"
+                className="inline-flex h-11 w-fit items-center gap-2 rounded-full border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] px-5 text-sm font-semibold text-slate-700 dark:text-[#CBC3B8] hover:border-slate-300 dark:hover:border-[#4A423A] hover:text-slate-950 dark:hover:text-[#F2EEE8]"
               >
                 <RotateCcw className="h-4 w-4" />
                 重新开始
@@ -237,8 +237,8 @@ export default function BojiDetectorPage() {
           </section>
         )}
 
-        <section className="mt-8 rounded-[32px] border border-slate-200 bg-white p-6 text-sm leading-7 text-slate-600 md:p-8">
-          <div className="text-base font-black text-slate-950">它是怎么测的</div>
+        <section className="mt-8 rounded-[32px] border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-6 text-sm leading-7 text-slate-600 dark:text-[#CBC3B8] md:p-8">
+          <div className="text-base font-black text-slate-950 dark:text-[#F2EEE8]">它是怎么测的</div>
           <p className="mt-2">
             先用 MediaPipe 找到关节和人体轮廓，再量轮廓宽度（倒三角、手臂、对称），最后在腹部找腹白线和每条横沟，逐块计算被沟围住的比例。
             腹肌数值依赖阴影：同一个人，光越柔和数值越低，所以前后对比请用同一地点和光线。
@@ -249,7 +249,7 @@ export default function BojiDetectorPage() {
               href="https://github.com/SmallHorseBrother/boji-detector"
               target="_blank"
               rel="noreferrer"
-              className="font-semibold text-[#CF6D4E] hover:underline"
+              className="font-semibold text-[#CF6D4E] dark:text-[#E08A6C] hover:underline"
             >
               boji-detector
             </a>

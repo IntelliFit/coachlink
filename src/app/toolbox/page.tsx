@@ -90,9 +90,9 @@ export default function PublicToolboxPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F7F4EF] text-slate-950">
+    <main className="min-h-screen bg-[#F7F4EF] dark:bg-[#161412] text-slate-950 dark:text-[#F2EEE8]">
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-16">
-        <section className="relative overflow-hidden rounded-[32px] bg-[#1D1A16] p-6 text-white shadow-[0_24px_80px_rgba(29,26,22,0.14)] md:p-12">
+        <section className="relative overflow-hidden rounded-[32px] bg-[#1D1A16] dark:bg-[#2E2A26] p-6 text-white shadow-[0_24px_80px_rgba(29,26,22,0.14)] md:p-12">
           <div className="relative z-10 grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
             <div className="max-w-3xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold tracking-wide text-[#F0C5B7]">
@@ -130,10 +130,10 @@ export default function PublicToolboxPage() {
         <section className="mt-12">
           <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E]">训练与探索</div>
+              <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E] dark:text-[#E08A6C]">训练与探索</div>
               <h2 className="mt-2 text-2xl font-black tracking-tight md:text-3xl">选一个问题，马上开始</h2>
             </div>
-            <span className="text-sm text-slate-500">{STUDENT_TOOLBOX_LINKS.length} 个工具 · 随开随用</span>
+            <span className="text-sm text-slate-500 dark:text-[#A0978B]">{STUDENT_TOOLBOX_LINKS.length} 个工具 · 随开随用</span>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -149,10 +149,10 @@ export default function PublicToolboxPage() {
                     toolRefs.current[tool.key] = element;
                   }}
                   className={[
-                    'group flex min-h-72 flex-col rounded-3xl border bg-white p-6 transition',
+                    'group flex min-h-72 flex-col rounded-3xl border bg-white dark:bg-[#211E1B] p-6 transition',
                     isHighlighted
-                      ? 'border-[#CF6D4E] shadow-[0_20px_48px_rgba(207,109,78,0.14)] ring-4 ring-[#CF6D4E]/10'
-                      : 'border-slate-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_48px_rgba(15,23,42,0.08)]',
+                      ? 'border-[#CF6D4E] dark:border-[#E08A6C] shadow-[0_20px_48px_rgba(207,109,78,0.14)] ring-4 ring-[#CF6D4E]/10'
+                      : 'border-slate-200 dark:border-[#37312B] hover:-translate-y-1 hover:border-slate-300 dark:hover:border-[#4A423A] hover:shadow-[0_20px_48px_rgba(15,23,42,0.08)]',
                   ].join(' ')}
                 >
                   <div
@@ -166,7 +166,7 @@ export default function PublicToolboxPage() {
                       {meta.eyebrow}
                     </div>
                     <h3 className="mt-2 text-xl font-black leading-7 tracking-tight">{tool.label}</h3>
-                    {tool.description && <p className="mt-3 text-sm leading-6 text-slate-600">{tool.description}</p>}
+                    {tool.description && <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-[#CBC3B8]">{tool.description}</p>}
                   </div>
                   <button
                     type="button"
@@ -175,7 +175,7 @@ export default function PublicToolboxPage() {
                       'mt-6 flex h-12 w-full items-center justify-between rounded-2xl px-4 text-sm font-black transition',
                       tool.key === 'one-arm-pull-up'
                         ? 'bg-[#B4553A] text-white hover:bg-[#9A4630]'
-                        : 'border border-slate-200 bg-white text-slate-800 hover:border-[#CF6D4E] hover:text-[#CF6D4E]',
+                        : 'border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] text-slate-800 dark:text-[#F2EEE8] hover:border-[#CF6D4E] dark:hover:border-[#E08A6C] hover:text-[#CF6D4E] dark:hover:text-[#E08A6C]',
                     ].join(' ')}
                   >
                     打开工具
@@ -187,12 +187,12 @@ export default function PublicToolboxPage() {
           </div>
         </section>
 
-        <section className="mt-12 rounded-[32px] border border-slate-200 bg-white p-6 md:p-8">
+        <section className="mt-12 rounded-[32px] border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-6 md:p-8">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E]">继续使用 COACHLINK</div>
+              <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E] dark:text-[#E08A6C]">继续使用 COACHLINK</div>
               <h2 className="mt-2 text-xl font-black md:text-2xl">保存训练记录，让每次测算都有上下文</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">登录后可以进入今日训练、查看计划，并把工具分享给同伴。</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-[#CBC3B8]">登录后可以进入今日训练、查看计划，并把工具分享给同伴。</p>
             </div>
             <button
               type="button"
