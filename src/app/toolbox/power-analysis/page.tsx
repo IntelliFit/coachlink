@@ -156,7 +156,17 @@ export default function PowerAnalysisToolPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const isUploading = ["creating", "uploading"].includes(phase);
   const isAnalyzing = ["enqueueing", "queued"].includes(phase) || job?.status === "queued" || job?.status === "processing";
-  const settingsLocked = isUploading || isAnalyzing || phase === "uploaded";
+  // Settings are sent again when analysis starts, so they stay editable after upload.
+  const settingsLocked = isAnalyzing;
+  const analysisSettingsPayload = {
+    mode,
+    heightCm: Number(heightCm),
+    weightKg: Number(weightKg),
+    subject,
+    externalLoadKg: Number(loadValue),
+    ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
+    ...(isCustom ? { customActionName: customActionName.trim() } : {}),
+  };
   const canSubmit =
     formReady &&
     phase === "uploaded" &&
@@ -360,13 +370,7 @@ export default function PowerAnalysisToolPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            mode,
-            heightCm: Number(heightCm),
-            weightKg: Number(weightKg),
-            subject,
-            externalLoadKg: Number(loadValue),
-            ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
-            ...(isCustom ? { customActionName: customActionName.trim() } : {}),
+            ...analysisSettingsPayload,
             originalFilename: nextFile.name,
             contentType: nextFile.type || "video/mp4",
             fileSizeBytes: nextFile.size,
@@ -409,9 +413,13 @@ export default function PowerAnalysisToolPage() {
       const queued = await readApi<PowerAnalysisJobDto>(
         await fetch(`/api/toolbox/power-analysis/jobs/${job.id}/enqueue`, {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // The latest settings win; the server re-validates them.
+          body: JSON.stringify(analysisSettingsPayload),
         }),
       );
       setJob(queued);
+      if (subject === "self") bodyMetrics.remember({ heightCm, weightKg });
       setPhase("queued");
       pollJob(queued.id);
       showToast({ severity: "success", summary: "已开始分析", detail: "视频会作为临时任务处理，完成后可下载。" });
