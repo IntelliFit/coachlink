@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { Image, ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import dumbbellBounceCover from '@/assets/images/toolbox-games/dumbbell-bounce-game-v1.webp'
 import motionBeanCover from '@/assets/images/toolbox-games/motion-bean-game-v2.webp'
 import motionEffectsCover from '@/assets/images/toolbox-games/motion-effects-game-v2.webp'
 import pullupRushCover from '@/assets/images/toolbox-games/pullup-rush-game-v2.webp'
@@ -86,6 +87,13 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
 ]
 
 const MINI_GAMES: ToolboxEntry[] = [
+  {
+    cover: dumbbellBounceCover,
+    description: '哑铃弹几下就做几个',
+    key: 'dumbbell-bounce',
+    label: '哑铃弹弹',
+    url: '/toolbox/dumbbell-bounce/index'
+  },
   {
     cover: pullupRushCover,
     description: '上拉带小鸟穿过障碍',
@@ -223,7 +231,7 @@ export default function ToolboxPage() {
             <View className='toolbox-section'>
               <View className='toolbox-section__head'>
                 <ClSectionHeader title='体感小游戏' meta={String(MINI_GAMES.length)} />
-                <Text className='toolbox-section__hint'>摄像头识别动作</Text>
+                <Text className='toolbox-section__hint'>开前置摄像头就能玩</Text>
               </View>
               <ScrollView className='toolbox-games' scrollX enhanced showScrollbar={false}>
                 <View className='toolbox-games__track'>

@@ -102,6 +102,7 @@ export default {
         'motion-effects/index',
         'pullup-rush/index',
         'pushup-dash/index',
+        'dumbbell-bounce/index',
         'power-analysis/index',
         'one-arm-pull-up/index',
         'boji/index',

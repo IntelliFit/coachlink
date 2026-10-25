@@ -1,0 +1,235 @@
+$bounce-brand: #cf6d4e;
+$bounce-panel: #111111;
+$bounce-chip: rgba(255, 255, 255, 0.1);
+
+.bounce-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #000000;
+  overflow: hidden;
+}
+
+.bounce-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #000000;
+}
+
+.bounce-camera,
+.bounce-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bounce-canvas {
+  z-index: 2;
+}
+
+.bounce-rec {
+  position: absolute;
+  z-index: 3;
+  right: 24rpx;
+  bottom: 24rpx;
+  height: 48rpx;
+  padding: 0 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  border-radius: 9999rpx;
+  background: rgba(0, 0, 0, 0.56);
+}
+
+.bounce-rec__dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 9999rpx;
+  background: #ff4d4f;
+  animation: bounce-rec-blink 1s ease-in-out infinite;
+}
+
+.bounce-rec__text {
+  font-size: 22rpx;
+  color: #ffffff;
+}
+
+@keyframes bounce-rec-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.32;
+  }
+}
+
+.bounce-note {
+  position: absolute;
+  z-index: 3;
+  left: 48rpx;
+  right: 48rpx;
+  top: 40%;
+  padding: 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  border-radius: 24rpx;
+  background: rgba(0, 0, 0, 0.64);
+}
+
+.bounce-note__text {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.bounce-note__sub {
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+  text-align: center;
+}
+
+.bounce-panel {
+  flex-shrink: 0;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  background: $bounce-panel;
+}
+
+.bounce-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.bounce-row--locked {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.bounce-row__label {
+  flex-shrink: 0;
+  width: 56rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.bounce-exercises {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.bounce-chips {
+  display: flex;
+  gap: 16rpx;
+}
+
+.bounce-chips--scroll {
+  display: inline-flex;
+}
+
+.bounce-chip {
+  flex-shrink: 0;
+  height: 56rpx;
+  min-width: 96rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999rpx;
+  background: $bounce-chip;
+  border: 2rpx solid transparent;
+}
+
+.bounce-chip--active {
+  background: rgba(207, 109, 78, 0.24);
+  border-color: $bounce-brand;
+}
+
+.bounce-chip__text {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.bounce-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}
+
+.bounce-main,
+.bounce-save {
+  height: 96rpx;
+  border-radius: 9999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bounce-main {
+  flex: 1;
+  background: $bounce-brand;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.bounce-main--stop {
+  background: #ffffff;
+
+  .bounce-main__text {
+    color: #111111;
+  }
+}
+
+.bounce-main--disabled {
+  opacity: 0.48;
+}
+
+.bounce-main__text {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.bounce-save {
+  flex: 1;
+  background: #ffffff;
+  border: 2rpx solid #ffffff;
+  box-sizing: border-box;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.bounce-save--disabled {
+  opacity: 0.56;
+}
+
+.bounce-save__text {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #111111;
+}
+
+.bounce-hint {
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.56);
+  text-align: center;
+}
