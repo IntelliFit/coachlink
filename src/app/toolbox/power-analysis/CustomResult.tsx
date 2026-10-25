@@ -25,15 +25,15 @@ export default function CustomResult({ metrics }: { metrics: PowerAnalysisMetric
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-surface-200 bg-surface-50 px-3 py-2 text-xs leading-5 text-surface-600">
+      <div className="rounded-xl border border-surface-200 bg-surface-50 dark:bg-[#2A2622] px-3 py-2 text-xs leading-5 text-surface-600">
         「{custom?.actionNameZh || "其他动作"}」按{custom?.primaryPartZh || "运动最大的部位"}计次
         {custom?.mainJointZh ? `，主要活动关节：${custom.mainJointZh}` : ""}。试验功能，不套用专项标准，不计算功率和评级。
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {tiles.map((tile) => (
-          <div key={tile.label} className="rounded-xl border border-surface-200 bg-surface-50 p-4">
+          <div key={tile.label} className="rounded-xl border border-surface-200 bg-surface-50 dark:bg-[#2A2622] p-4">
             <div className="text-xs text-surface-500">{tile.label}</div>
-            <div className={`mt-1 text-2xl font-black ${tile.accent ? "text-[#CF6D4E]" : "text-surface-900"}`}>
+            <div className={`mt-1 text-2xl font-black ${tile.accent ? "text-[#CF6D4E] dark:text-[#E08A6C]" : "text-surface-900"}`}>
               {tile.value}
             </div>
           </div>
@@ -41,7 +41,7 @@ export default function CustomResult({ metrics }: { metrics: PowerAnalysisMetric
       </div>
       <div className="overflow-x-auto rounded-xl border border-surface-200">
         <table className="min-w-full text-sm">
-          <thead className="bg-surface-50 text-left text-xs text-surface-500">
+          <thead className="bg-surface-50 dark:bg-[#2A2622] text-left text-xs text-surface-500">
             <tr>
               <th className="px-3 py-3">次数</th>
               <th className="px-3 py-3">幅度</th>

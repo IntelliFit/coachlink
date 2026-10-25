@@ -99,7 +99,7 @@ function NumericField({
 }) {
   return (
     <label htmlFor={id} className="block">
-      <span className="mb-2 block text-sm font-semibold text-slate-800">{label}</span>
+      <span className="mb-2 block text-sm font-semibold text-slate-800 dark:text-[#F2EEE8]">{label}</span>
       <span className="relative block">
         <input
           id={id}
@@ -109,13 +109,13 @@ function NumericField({
           type="number"
           min="0"
           step="0.5"
-          className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 pr-14 text-lg font-bold text-slate-950 outline-none transition focus:border-[#CF6D4E] focus:ring-4 focus:ring-[#CF6D4E]/10"
+          className="h-14 w-full rounded-2xl border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] px-4 pr-14 text-lg font-bold text-slate-950 dark:text-[#F2EEE8] outline-none transition focus:border-[#CF6D4E] dark:focus:border-[#E08A6C] focus:ring-4 focus:ring-[#CF6D4E]/10"
         />
-        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400 dark:text-[#A0978B]">
           kg
         </span>
       </span>
-      <span className="mt-2 block text-xs leading-5 text-slate-500">{hint}</span>
+      <span className="mt-2 block text-xs leading-5 text-slate-500 dark:text-[#A0978B]">{hint}</span>
     </label>
   );
 }
@@ -179,18 +179,18 @@ export default function OneArmPullUpReadinessPage() {
   const progressWidth = Math.min(100, Math.max(0, result?.progress ?? 0));
 
   return (
-    <main className="min-h-screen bg-[#F7F4EF] text-slate-950">
+    <main className="min-h-screen bg-[#F7F4EF] dark:bg-[#161412] text-slate-950 dark:text-[#F2EEE8]">
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-16">
         <button
           type="button"
           onClick={() => router.push('/toolbox')}
-          className="mb-8 inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
+          className="mb-8 inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] px-4 text-sm font-semibold text-slate-700 dark:text-[#CBC3B8] transition hover:border-slate-300 dark:hover:border-[#4A423A] hover:text-slate-950 dark:hover:text-[#F2EEE8]"
         >
           <ArrowLeft className="h-4 w-4" />
           返回工具箱
         </button>
 
-        <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-[#1D1A16] text-white shadow-[0_24px_80px_rgba(29,26,22,0.14)]">
+        <section className="overflow-hidden rounded-[32px] border border-slate-200 dark:border-[#37312B] bg-[#1D1A16] dark:bg-[#2E2A26] text-white shadow-[0_24px_80px_rgba(29,26,22,0.14)]">
           <div className="grid gap-8 p-6 md:grid-cols-[1.1fr_0.9fr] md:p-12">
             <div className="flex flex-col justify-between gap-8">
               <div>
@@ -214,17 +214,17 @@ export default function OneArmPullUpReadinessPage() {
                 ].map(([value, label]) => (
                   <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-3 md:p-4">
                     <div className="text-base font-black text-white md:text-xl">{value}</div>
-                    <div className="mt-1 text-[11px] text-slate-400 md:text-xs">{label}</div>
+                    <div className="mt-1 text-[11px] text-slate-400 dark:text-[#A0978B] md:text-xs">{label}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-3xl bg-white p-5 text-slate-950 md:p-8">
+            <div className="rounded-3xl bg-white dark:bg-[#211E1B] p-5 text-slate-950 dark:text-[#F2EEE8] md:p-8">
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <div className="text-lg font-black">输入你的成绩</div>
-                  <div className="mt-1 text-xs text-slate-500">两次测试之间建议休息 3–5 分钟</div>
+                  <div className="mt-1 text-xs text-slate-500 dark:text-[#A0978B]">两次测试之间建议休息 3–5 分钟</div>
                 </div>
                 <button
                   type="button"
@@ -233,7 +233,7 @@ export default function OneArmPullUpReadinessPage() {
                     setBodyWeightInput(exampleBodyWeight);
                     setAdditionalWeightInput('40');
                   }}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 dark:border-[#37312B] text-slate-500 dark:text-[#A0978B] transition hover:border-slate-300 dark:hover:border-[#4A423A] hover:text-slate-900 dark:hover:text-[#F2EEE8]"
                   aria-label="重置示例数据"
                 >
                   <RotateCcw className="h-4 w-4" />
@@ -268,7 +268,7 @@ export default function OneArmPullUpReadinessPage() {
               </div>
 
               {!result && (
-                <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                <div className="mt-6 rounded-2xl border border-rose-200 dark:border-[#5A2E28] bg-rose-50 dark:bg-[#3A2220] p-4 text-sm text-rose-700 dark:text-[#E07A6A]">
                   请输入大于 0 的体重，以及不小于 0 的外加重量。
                 </div>
               )}
@@ -279,12 +279,12 @@ export default function OneArmPullUpReadinessPage() {
         {result && (
           <>
             <section className="mt-8 grid gap-4 md:grid-cols-[1.25fr_0.75fr]">
-              <div className="rounded-[32px] border border-slate-200 bg-white p-6 md:p-8">
+              <div className="rounded-[32px] border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-6 md:p-8">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-slate-500">当前阶段</div>
+                    <div className="text-sm font-semibold text-slate-500 dark:text-[#A0978B]">当前阶段</div>
                     <h2 className="mt-2 text-2xl font-black tracking-tight md:text-3xl">{result.level.name}</h2>
-                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">{result.level.summary}</p>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-[#CBC3B8]">{result.level.summary}</p>
                   </div>
                   <div
                     className="inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-xs font-bold text-white"
@@ -299,48 +299,48 @@ export default function OneArmPullUpReadinessPage() {
                   <div className="mb-3 flex items-end justify-between gap-4">
                     <div>
                       <span className="text-4xl font-black tracking-tight md:text-5xl">{Math.round(result.progress)}</span>
-                      <span className="ml-1 text-lg font-bold text-slate-400">%</span>
+                      <span className="ml-1 text-lg font-bold text-slate-400 dark:text-[#A0978B]">%</span>
                     </div>
-                    <div className="text-right text-xs leading-5 text-slate-500">
+                    <div className="text-right text-xs leading-5 text-slate-500 dark:text-[#A0978B]">
                       目标外加重量
                       <br />
-                      <strong className="text-sm text-slate-900">{formatKg(result.targetAdditionalWeight)}</strong>
+                      <strong className="text-sm text-slate-900 dark:text-[#F2EEE8]">{formatKg(result.targetAdditionalWeight)}</strong>
                     </div>
                   </div>
-                  <div className="h-4 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-4 overflow-hidden rounded-full bg-slate-100 dark:bg-[#2A2622]">
                     <div
                       className="h-full rounded-full bg-[#CF6D4E] transition-[width] duration-500"
                       style={{ width: `${progressWidth}%` }}
                     />
                   </div>
-                  <div className="mt-3 flex justify-between text-xs font-semibold text-slate-400">
+                  <div className="mt-3 flex justify-between text-xs font-semibold text-slate-400 dark:text-[#A0978B]">
                     <span>自重基础</span>
                     <span>0.8 × 体重经验门槛</span>
                   </div>
                 </div>
 
                 <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                  <div className="rounded-2xl bg-[#F7F4EF] p-4">
-                    <div className="text-xs font-semibold text-slate-500">还差外加重量</div>
+                  <div className="rounded-2xl bg-[#F7F4EF] dark:bg-[#2A2622] p-4">
+                    <div className="text-xs font-semibold text-slate-500 dark:text-[#A0978B]">还差外加重量</div>
                     <div className="mt-2 text-xl font-black">{result.gap > 0 ? formatKg(result.gap) : '0 kg'}</div>
                   </div>
-                  <div className="rounded-2xl bg-[#F7F4EF] p-4">
-                    <div className="text-xs font-semibold text-slate-500">外加 / 体重</div>
+                  <div className="rounded-2xl bg-[#F7F4EF] dark:bg-[#2A2622] p-4">
+                    <div className="text-xs font-semibold text-slate-500 dark:text-[#A0978B]">外加 / 体重</div>
                     <div className="mt-2 text-xl font-black">{result.additionalRatio.toFixed(2)}×</div>
                   </div>
-                  <div className="rounded-2xl bg-[#F7F4EF] p-4">
-                    <div className="text-xs font-semibold text-slate-500">系统重量指数</div>
+                  <div className="rounded-2xl bg-[#F7F4EF] dark:bg-[#2A2622] p-4">
+                    <div className="text-xs font-semibold text-slate-500 dark:text-[#A0978B]">系统重量指数</div>
                     <div className="mt-2 text-xl font-black">{result.systemRatio.toFixed(2)}×</div>
                   </div>
-                  <div className="rounded-2xl bg-[#F7F4EF] p-4">
-                    <div className="text-xs font-semibold text-slate-500">单引等效体重</div>
+                  <div className="rounded-2xl bg-[#F7F4EF] dark:bg-[#2A2622] p-4">
+                    <div className="text-xs font-semibold text-slate-500 dark:text-[#A0978B]">单引等效体重</div>
                     <div className="mt-2 text-xl font-black">{formatKg(result.equivalentBodyWeight)}</div>
                   </div>
                 </div>
 
-                <div className="mt-6 flex gap-3 rounded-2xl border border-[#CF6D4E]/20 bg-[#FFF7F3] p-4">
-                  <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#CF6D4E]" />
-                  <p className="text-sm leading-6 text-slate-700">
+                <div className="mt-6 flex gap-3 rounded-2xl border border-[#CF6D4E]/20 bg-[#FFF7F3] dark:bg-[#3A2820] p-4">
+                  <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#CF6D4E] dark:text-[#E08A6C]" />
+                  <p className="text-sm leading-6 text-slate-700 dark:text-[#CBC3B8]">
                     {result.progress >= 100
                       ? '力量门槛不等于动作必然成功。你已经适合把训练重点转向握杠、肩胛起拉、抗旋转和单侧顶端控制。'
                       : `按这个经验模型，你还需要把严格负重 1RM 提高约 ${formatKg(result.gap)}。先完成下方 8 周训练，再复测一次。`}
@@ -366,31 +366,31 @@ export default function OneArmPullUpReadinessPage() {
               </aside>
             </section>
 
-            <section className="mt-8 rounded-[32px] border border-slate-200 bg-white p-6 md:p-8">
+            <section className="mt-8 rounded-[32px] border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-6 md:p-8">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <div className="inline-flex items-center gap-2 text-sm font-bold text-[#CF6D4E]">
+                  <div className="inline-flex items-center gap-2 text-sm font-bold text-[#CF6D4E] dark:text-[#E08A6C]">
                     <CalendarDays className="h-4 w-4" />
                     8 周简易计划
                   </div>
                   <h2 className="mt-2 text-2xl font-black tracking-tight md:text-3xl">每周练 2 次，至少间隔 48 小时</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-[#CBC3B8]">
                     每组保留 1–2 次余力。动作变形、肘肩不适或左右差距扩大时，不要继续加重。
                   </p>
                 </div>
-                <div className="w-fit rounded-full bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600">
+                <div className="w-fit rounded-full bg-slate-100 dark:bg-[#2A2622] px-4 py-2 text-xs font-bold text-slate-600 dark:text-[#CBC3B8]">
                   第 4 周减量 30% · 第 8 周末复测
                 </div>
               </div>
 
               <div className="mt-8 grid gap-4 lg:grid-cols-2">
-                <article className="rounded-3xl border border-slate-200 bg-[#F7F4EF] p-5 md:p-6">
+                <article className="rounded-3xl border border-slate-200 dark:border-[#37312B] bg-[#F7F4EF] dark:bg-[#2A2622] p-5 md:p-6">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1D1A16] text-white">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1D1A16] dark:bg-[#2E2A26] text-white">
                       <Dumbbell className="h-6 w-6" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-slate-500">训练 A</div>
+                      <div className="text-xs font-bold text-slate-500 dark:text-[#A0978B]">训练 A</div>
                       <h3 className="text-lg font-black">最大力量日</h3>
                     </div>
                   </div>
@@ -401,25 +401,25 @@ export default function OneArmPullUpReadinessPage() {
                       ['单臂悬垂', '3 × 15–30 秒/侧，可用另一手轻扶'],
                     ].map(([name, dose], index) => (
                       <li key={name} className="flex gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-[#CF6D4E]">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white dark:bg-[#211E1B] text-xs font-black text-[#CF6D4E] dark:text-[#E08A6C]">
                           {index + 1}
                         </span>
                         <div>
-                          <div className="text-sm font-bold text-slate-900">{name}</div>
-                          <div className="mt-1 text-xs leading-5 text-slate-500">{dose}</div>
+                          <div className="text-sm font-bold text-slate-900 dark:text-[#F2EEE8]">{name}</div>
+                          <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-[#A0978B]">{dose}</div>
                         </div>
                       </li>
                     ))}
                   </ol>
                 </article>
 
-                <article className="rounded-3xl border border-slate-200 bg-[#F7F4EF] p-5 md:p-6">
+                <article className="rounded-3xl border border-slate-200 dark:border-[#37312B] bg-[#F7F4EF] dark:bg-[#2A2622] p-5 md:p-6">
                   <div className="flex items-center gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#CF6D4E] text-white">
                       <Target className="h-6 w-6" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-slate-500">训练 B</div>
+                      <div className="text-xs font-bold text-slate-500 dark:text-[#A0978B]">训练 B</div>
                       <h3 className="text-lg font-black">单侧转化日</h3>
                     </div>
                   </div>
@@ -430,12 +430,12 @@ export default function OneArmPullUpReadinessPage() {
                       ['单臂肩胛下沉', '3 × 6/侧，保持肘伸直，可用另一手或弹力带辅助'],
                     ].map(([name, dose], index) => (
                       <li key={name} className="flex gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-[#CF6D4E]">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white dark:bg-[#211E1B] text-xs font-black text-[#CF6D4E] dark:text-[#E08A6C]">
                           {index + 1}
                         </span>
                         <div>
-                          <div className="text-sm font-bold text-slate-900">{name}</div>
-                          <div className="mt-1 text-xs leading-5 text-slate-500">{dose}</div>
+                          <div className="text-sm font-bold text-slate-900 dark:text-[#F2EEE8]">{name}</div>
+                          <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-[#A0978B]">{dose}</div>
                         </div>
                       </li>
                     ))}
@@ -461,45 +461,45 @@ export default function OneArmPullUpReadinessPage() {
                     text: '达到 0.8× 只是经验门槛；两侧都能稳定完成标准单引才算真正解锁。',
                   },
                 ].map(({ icon: Icon, title, text }) => (
-                  <div key={title} className="rounded-2xl border border-slate-200 p-4">
-                    <Icon className="h-5 w-5 text-[#CF6D4E]" />
+                  <div key={title} className="rounded-2xl border border-slate-200 dark:border-[#37312B] p-4">
+                    <Icon className="h-5 w-5 text-[#CF6D4E] dark:text-[#E08A6C]" />
                     <div className="mt-3 text-sm font-black">{title}</div>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">{text}</p>
+                    <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-[#A0978B]">{text}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="mt-8 overflow-hidden rounded-[32px] border border-slate-200 bg-white">
+            <section className="mt-8 overflow-hidden rounded-[32px] border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B]">
               <button
                 type="button"
                 onClick={() => setShowMethod((current) => !current)}
                 className="flex w-full items-center justify-between gap-4 p-6 text-left md:p-8"
               >
                 <span>
-                  <span className="block text-sm font-bold text-[#CF6D4E]">怎么算的？</span>
+                  <span className="block text-sm font-bold text-[#CF6D4E] dark:text-[#E08A6C]">怎么算的？</span>
                   <span className="mt-1 block text-lg font-black">查看公式、输入口径与模型限制</span>
                 </span>
                 <ChevronDown className={`h-5 w-5 shrink-0 transition-transform ${showMethod ? 'rotate-180' : ''}`} />
               </button>
 
               {showMethod && (
-                <div className="border-t border-slate-100 px-6 pb-6 pt-6 md:px-8 md:pb-8">
+                <div className="border-t border-slate-100 dark:border-[#2E2925] px-6 pb-6 pt-6 md:px-8 md:pb-8">
                   <div className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-xs font-bold text-slate-500">经验门槛</div>
+                    <div className="rounded-2xl bg-slate-50 dark:bg-[#2A2622] p-4">
+                      <div className="text-xs font-bold text-slate-500 dark:text-[#A0978B]">经验门槛</div>
                       <div className="mt-2 font-mono text-sm font-bold">目标 AW = 0.8 × BW</div>
                     </div>
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-xs font-bold text-slate-500">单引等效体重</div>
+                    <div className="rounded-2xl bg-slate-50 dark:bg-[#2A2622] p-4">
+                      <div className="text-xs font-bold text-slate-500 dark:text-[#A0978B]">单引等效体重</div>
                       <div className="mt-2 font-mono text-sm font-bold">(BW + AW) ÷ 1.8</div>
                     </div>
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <div className="text-xs font-bold text-slate-500">等效差值</div>
+                    <div className="rounded-2xl bg-slate-50 dark:bg-[#2A2622] p-4">
+                      <div className="text-xs font-bold text-slate-500 dark:text-[#A0978B]">等效差值</div>
                       <div className="mt-2 font-mono text-sm font-bold">(AW − 0.8BW) ÷ 1.8</div>
                     </div>
                   </div>
-                  <p className="mt-4 text-xs leading-6 text-slate-500">
+                  <p className="mt-4 text-xs leading-6 text-slate-500 dark:text-[#A0978B]">
                     BW 是体重，AW 是严格负重引体 1RM 的外加重量。0.8 是经验假设，不是医学或生物力学定律；臂长、握力、体脂、肩胛稳定、旋转控制和动作标准都会影响真实单手引体表现。本工具适合跟踪训练方向，不用于保证成功或替代教练评估。
                   </p>
                 </div>

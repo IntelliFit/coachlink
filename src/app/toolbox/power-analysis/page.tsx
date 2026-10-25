@@ -36,7 +36,7 @@ type UploadPhase = "idle" | "creating" | "uploading" | "uploaded" | "enqueueing"
 
 const ACTIVE_JOB_STORAGE_KEY = "coachlink:power-analysis:active-job";
 const INPUT_CLASS =
-  "h-11 w-full rounded-xl border border-surface-200 bg-surface-0 px-3 text-sm outline-none focus:border-[#CF6D4E]";
+  "h-11 w-full rounded-xl border border-surface-200 bg-surface-0 dark:bg-[#211E1B] px-3 text-sm outline-none focus:border-[#CF6D4E] dark:focus:border-[#E08A6C]";
 
 function formatMetric(value: number | undefined, digits = 1) {
   const n = Number(value || 0);
@@ -487,7 +487,7 @@ export default function PowerAnalysisToolPage() {
   })();
 
   return (
-    <main className="min-h-screen bg-surface-50 px-4 py-6 md:px-8 md:py-10">
+    <main className="min-h-screen bg-surface-50 dark:bg-[#161412] px-4 py-6 md:px-8 md:py-10">
       <div className="mx-auto max-w-6xl">
         <div className="mb-5 flex items-center justify-between gap-3">
           <Button
@@ -498,13 +498,13 @@ export default function PowerAnalysisToolPage() {
             onClick={() => router.back()}
             className="text-surface-700"
           />
-          <div className="rounded-full border border-surface-200 bg-surface-0 px-3 py-1 text-xs font-semibold text-surface-600">
+          <div className="rounded-full border border-surface-200 bg-surface-0 dark:bg-[#211E1B] px-3 py-1 text-xs font-semibold text-surface-600">
             临时视频最多保留 24 小时
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,420px)_1fr]">
-          <section className="rounded-2xl border border-surface-200 bg-surface-0 p-5 shadow-sm">
+          <section className="rounded-2xl border border-surface-200 bg-surface-0 dark:bg-[#211E1B] p-5 shadow-sm">
             <div className="mb-5">
               <h1 className="text-2xl font-black tracking-tight text-surface-900">功率与动作分析</h1>
               <p className="mt-2 text-sm leading-6 text-surface-600">
@@ -526,8 +526,8 @@ export default function PowerAnalysisToolPage() {
                         "rounded-xl border px-3 py-3 text-left transition-colors",
                         item.value === "custom" ? "col-span-2" : "",
                         mode === item.value
-                          ? "border-[#1D1A16] bg-[#1D1A16] text-white"
-                          : "border-surface-200 bg-surface-0 text-surface-800 hover:border-[#CF6D4E]",
+                          ? "border-[#1D1A16] dark:border-[#2E2A26] bg-[#1D1A16] dark:bg-[#2E2A26] text-white"
+                          : "border-surface-200 bg-surface-0 dark:bg-[#211E1B] text-surface-800 hover:border-[#CF6D4E] dark:hover:border-[#E08A6C]",
                       ].join(" ")}
                     >
                       <div className="text-sm font-black">{item.label}</div>
@@ -538,7 +538,7 @@ export default function PowerAnalysisToolPage() {
                   ))}
                 </div>
                 {(isBarbell || isCustom) && (
-                  <div className="mt-2 rounded-xl border border-[#F0C6B9] bg-[#FDF2EC] px-3 py-2 text-xs leading-5 text-[#8F432D]">
+                  <div className="mt-2 rounded-xl border border-[#F0C6B9] dark:border-[#5A3A2E] bg-[#FDF2EC] dark:bg-[#3A2820] px-3 py-2 text-xs leading-5 text-[#8F432D] dark:text-[#F0A88E]">
                     {isCustom ? POWER_ANALYSIS_CUSTOM_SHOOTING_TIP : POWER_ANALYSIS_BARBELL_SHOOTING_TIP}
                   </div>
                 )}
@@ -620,7 +620,7 @@ export default function PowerAnalysisToolPage() {
                 </div>
               )}
 
-              <label className="block rounded-2xl border border-dashed border-surface-300 bg-surface-50 p-4">
+              <label className="block rounded-2xl border border-dashed border-surface-300 bg-surface-50 dark:bg-[#2A2622] p-4">
                 <span className="mb-2 flex items-center gap-2 text-sm font-bold text-surface-800">
                   <Upload className="h-4 w-4" />
                   上传视频
@@ -629,17 +629,17 @@ export default function PowerAnalysisToolPage() {
                   type="file"
                   accept="video/*"
                   disabled={isUploading || isAnalyzing}
-                  className="block w-full text-sm text-surface-700 file:mr-3 file:rounded-lg file:border-0 file:bg-surface-900 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white"
+                  className="block w-full text-sm text-surface-700 file:mr-3 file:rounded-lg file:border-0 file:bg-surface-900 dark:file:text-surface-0 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white"
                   onChange={(event) => handleFileChange(event.target.files?.[0] || null)}
                 />
                 {file && (
-                  <div className="mt-3 rounded-xl border border-surface-200 bg-surface-0 px-3 py-2 text-xs text-surface-600">
+                  <div className="mt-3 rounded-xl border border-surface-200 bg-surface-0 dark:bg-[#211E1B] px-3 py-2 text-xs text-surface-600">
                     {file.name} · {formatFileSize(file.size)}
                   </div>
                 )}
               </label>
 
-              <div className="rounded-xl border border-surface-200 bg-surface-50 p-3">
+              <div className="rounded-xl border border-surface-200 bg-surface-50 dark:bg-[#2A2622] p-3">
                 <div className="mb-2 flex items-center justify-between text-sm">
                   <span className="font-bold text-surface-800">{statusText}</span>
                   <span className="text-surface-500">{progressValue}%</span>
@@ -651,14 +651,14 @@ export default function PowerAnalysisToolPage() {
                   />
                 </div>
                 {queueStatusText && (
-                  <div className="mt-3 rounded-lg border border-[#F0C6B9] bg-[#FDF2EC] px-3 py-2 text-xs font-semibold text-[#8F432D]">
+                  <div className="mt-3 rounded-lg border border-[#F0C6B9] dark:border-[#5A3A2E] bg-[#FDF2EC] dark:bg-[#3A2820] px-3 py-2 text-xs font-semibold text-[#8F432D] dark:text-[#F0A88E]">
                     {queueStatusText}
                   </div>
                 )}
               </div>
 
               {job?.errorMessage && (
-                <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                <div className="rounded-xl border border-red-100 dark:border-[#5A2E28] bg-red-50 dark:bg-[#3A2220] p-3 text-sm text-red-700 dark:text-[#E07A6A]">
                   {job.errorMessage}
                 </div>
               )}
@@ -689,10 +689,10 @@ export default function PowerAnalysisToolPage() {
           </section>
 
           <section className="space-y-5">
-            <div className="rounded-2xl border border-surface-200 bg-surface-0 p-5 shadow-sm">
+            <div className="rounded-2xl border border-surface-200 bg-surface-0 dark:bg-[#211E1B] p-5 shadow-sm">
               <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-[#CF6D4E]">{resultLabel}</div>
+                  <div className="text-sm font-semibold text-[#CF6D4E] dark:text-[#E08A6C]">{resultLabel}</div>
                   <h2 className="mt-1 text-xl font-black text-surface-900">分析结果</h2>
                 </div>
                 <Button
@@ -700,12 +700,12 @@ export default function PowerAnalysisToolPage() {
                   icon={downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                   disabled={!job?.canDownload || downloading}
                   onClick={handleDownload}
-                  className="h-10 rounded-xl border-surface-900 bg-surface-900 text-sm font-black text-white hover:border-surface-800 hover:bg-surface-800"
+                  className="h-10 rounded-xl border-surface-900 bg-surface-900 text-sm font-black text-white dark:text-surface-0 hover:border-surface-800 hover:bg-surface-800"
                 />
               </div>
 
               {!metrics ? (
-                <div className="rounded-xl border border-surface-200 bg-surface-50 p-5 text-sm text-surface-600">
+                <div className="rounded-xl border border-surface-200 bg-surface-50 dark:bg-[#2A2622] p-5 text-sm text-surface-600">
                   提交视频后，速度、功率、逐次数据和动作评估会显示在这里。
                 </div>
               ) : (
@@ -714,9 +714,9 @@ export default function PowerAnalysisToolPage() {
                   {!resultIsCustom && (
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                     {summaryTiles(metrics, resultIsBarbell).map((tile) => (
-                      <div key={tile.label} className="rounded-xl border border-surface-200 bg-surface-50 p-4">
+                      <div key={tile.label} className="rounded-xl border border-surface-200 bg-surface-50 dark:bg-[#2A2622] p-4">
                         <div className="text-xs text-surface-500">{tile.label}</div>
-                        <div className={`mt-1 text-2xl font-black ${tile.accent ? "text-[#CF6D4E]" : "text-surface-900"}`}>
+                        <div className={`mt-1 text-2xl font-black ${tile.accent ? "text-[#CF6D4E] dark:text-[#E08A6C]" : "text-surface-900"}`}>
                           {tile.value}
                         </div>
                       </div>
@@ -731,7 +731,7 @@ export default function PowerAnalysisToolPage() {
                       controls
                       muted
                       playsInline
-                      className="max-h-80 w-full rounded-xl border border-surface-200 bg-surface-900"
+                      className="max-h-80 w-full rounded-xl border border-surface-200 bg-surface-900 dark:bg-black"
                     />
                   )}
 
@@ -740,7 +740,7 @@ export default function PowerAnalysisToolPage() {
                   {!resultIsCustom && (
                   <div className="overflow-hidden rounded-xl border border-surface-200">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-surface-50 text-left text-xs text-surface-500">
+                      <thead className="bg-surface-50 dark:bg-[#2A2622] text-left text-xs text-surface-500">
                         <tr>
                           <th className="px-3 py-3">次数</th>
                           <th className="px-3 py-3">位移</th>
@@ -786,10 +786,10 @@ export default function PowerAnalysisToolPage() {
               onSeek={previewUrl ? seekPreview : undefined}
             />
 
-            <div className="rounded-2xl border border-surface-200 bg-surface-0 p-5 shadow-sm">
+            <div className="rounded-2xl border border-surface-200 bg-surface-0 dark:bg-[#211E1B] p-5 shadow-sm">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="text-lg font-black text-surface-900">AI 解读</h2>
-                {llmLoading && <Loader2 className="h-4 w-4 animate-spin text-[#CF6D4E]" />}
+                {llmLoading && <Loader2 className="h-4 w-4 animate-spin text-[#CF6D4E] dark:text-[#E08A6C]" />}
                 {!llmLoading && job?.status === "done" && (
                   <Button
                     label="重新生成"
@@ -802,7 +802,7 @@ export default function PowerAnalysisToolPage() {
                   />
                 )}
               </div>
-              <div className="whitespace-pre-line rounded-xl border border-surface-200 bg-surface-50 p-4 text-sm leading-7 text-surface-700">
+              <div className="whitespace-pre-line rounded-xl border border-surface-200 bg-surface-50 dark:bg-[#2A2622] p-4 text-sm leading-7 text-surface-700">
                 {job?.llmSummary ||
                   (llmLoading
                     ? "正在根据结构化指标生成解读..."

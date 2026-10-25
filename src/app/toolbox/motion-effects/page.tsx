@@ -1339,34 +1339,34 @@ export default function MotionEffectsPage() {
   }, [duration, stopAnimation, stopRecorder]);
 
   return (
-    <main className="min-h-screen bg-[#F7F3EE] text-slate-950">
+    <main className="min-h-screen bg-[#F7F3EE] dark:bg-[#161412] text-slate-950 dark:text-[#F2EEE8]">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <header className="mb-6 flex items-center justify-between gap-4">
           <button
             type="button"
             onClick={() => router.push("/toolbox")}
-            className="inline-flex items-center gap-2 rounded-full border border-[#DCCFC5] bg-white px-4 py-2 text-sm font-bold text-slate-700"
+            className="inline-flex items-center gap-2 rounded-full border border-[#DCCFC5] dark:border-[#4A423A] bg-white dark:bg-[#211E1B] px-4 py-2 text-sm font-bold text-slate-700 dark:text-[#CBC3B8]"
           >
             <ArrowLeft className="h-4 w-4" />
             返回工具箱
           </button>
-          <span className="rounded-full bg-[#E8F4EF] px-3 py-1 text-xs font-black text-[#236654]">
+          <span className="rounded-full bg-[#E8F4EF] dark:bg-[#1F3329] px-3 py-1 text-xs font-black text-[#236654] dark:text-[#5DBB8E]">
             教链手指光膜
           </span>
         </header>
 
-        <section className="mb-6 overflow-hidden rounded-[32px] border border-[#E3D9D0] bg-white p-6 shadow-sm sm:p-8">
+        <section className="mb-6 overflow-hidden rounded-[32px] border border-[#E3D9D0] dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-6 shadow-sm sm:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr] lg:items-end">
             <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#FFF0E9] px-3 py-1 text-xs font-black text-[#A84A2E]">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#FFF0E9] dark:bg-[#3A2820] px-3 py-1 text-xs font-black text-[#A84A2E] dark:text-[#F0A88E]">
                 <Sparkles className="h-3.5 w-3.5" />
                 手指运动识别 + 即时视觉反馈
               </div>
               <h1 className="max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">
                 伸出几根手指，
-                <span className="text-[#CF6D4E]">光膜就由几根手指生长</span>
+                <span className="text-[#CF6D4E] dark:text-[#E08A6C]">光膜就由几根手指生长</span>
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-[#CBC3B8] sm:text-base">
                 上传一段双手视频。系统只配对左右手真正伸展的同名手指：拇指对拇指、食指对食指。
                 双手靠近时不显示，随着距离拉开，彩色膜面与流光会逐渐生长；弯曲或被遮挡的手指不会硬塞进图形。
               </p>
@@ -1382,14 +1382,14 @@ export default function MotionEffectsPage() {
         </section>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_380px]">
-          <section className="rounded-[30px] border border-[#E3D9D0] bg-white p-4 shadow-sm sm:p-6">
+          <section className="rounded-[30px] border border-[#E3D9D0] dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-4 shadow-sm sm:p-6">
             {!videoUrl ? (
-              <label className="flex min-h-[520px] cursor-pointer flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-[#DCCFC5] bg-[#FCFAF7] px-6 text-center transition hover:border-[#CF6D4E]">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#FFF0E9] text-[#CF6D4E]">
+              <label className="flex min-h-[520px] cursor-pointer flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-[#DCCFC5] dark:border-[#4A423A] bg-[#FCFAF7] dark:bg-[#2A2622] px-6 text-center transition hover:border-[#CF6D4E] dark:hover:border-[#E08A6C]">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#FFF0E9] dark:bg-[#3A2820] text-[#CF6D4E] dark:text-[#E08A6C]">
                   <Upload className="h-8 w-8" />
                 </div>
                 <div className="mt-5 text-xl font-black">上传双手动作视频</div>
-                <div className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                <div className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-[#A0978B]">
                   推荐 MP4 / MOV，双手完整入镜、手掌朝向清楚。预览在本机完成；生成通用
                   MP4 时会临时上传，文件最多保留 24 小时。
                 </div>
@@ -1466,7 +1466,7 @@ export default function MotionEffectsPage() {
                     }}
                     className="w-full accent-[#CF6D4E]"
                   />
-                  <div className="mt-1 flex justify-between text-xs font-bold text-slate-500">
+                  <div className="mt-1 flex justify-between text-xs font-bold text-slate-500 dark:text-[#A0978B]">
                     <span>{formatTime(currentTime)}</span>
                     <span>{formatTime(duration)}</span>
                   </div>
@@ -1492,12 +1492,12 @@ export default function MotionEffectsPage() {
                     type="button"
                     disabled={isExporting}
                     onClick={resetVideo}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] px-5 py-3 text-sm font-black text-slate-700 dark:text-[#CBC3B8] disabled:opacity-50"
                   >
                     <RotateCcw className="h-4 w-4" />
                     重新播放
                   </button>
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B] px-5 py-3 text-sm font-black text-slate-700 dark:text-[#CBC3B8]">
                     <Upload className="h-4 w-4" />
                     更换视频
                     <input
@@ -1539,7 +1539,7 @@ export default function MotionEffectsPage() {
                     type="button"
                     disabled={!stats.analyzedFrames || isExporting}
                     onClick={exportSnapshot}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#DCCFC5] bg-[#FCFAF7] px-5 py-4 text-sm font-black text-slate-800 disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#DCCFC5] dark:border-[#4A423A] bg-[#FCFAF7] dark:bg-[#2A2622] px-5 py-4 text-sm font-black text-slate-800 dark:text-[#F2EEE8] disabled:opacity-50"
                   >
                     <Download className="h-4 w-4" />
                     保存当前帧
@@ -1550,10 +1550,10 @@ export default function MotionEffectsPage() {
           </section>
 
           <aside className="space-y-5">
-            <section className="rounded-[28px] border border-[#E5DDD7] bg-white p-5 shadow-sm">
+            <section className="rounded-[28px] border border-[#E5DDD7] dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-lg font-black">选择视觉风格</h2>
-                <span className="text-xs font-bold text-slate-500">
+                <span className="text-xs font-bold text-slate-500 dark:text-[#A0978B]">
                   {MOTION_STYLES.length} 种
                 </span>
               </div>
@@ -1566,8 +1566,8 @@ export default function MotionEffectsPage() {
                     onClick={() => setSelectedStyleKey(style.key)}
                     className={`rounded-2xl border p-3 text-left transition ${
                       selectedStyleKey === style.key
-                        ? "border-[#CF6D4E] bg-[#FFF0E9]"
-                        : "border-slate-200 bg-white"
+                        ? "border-[#CF6D4E] dark:border-[#E08A6C] bg-[#FFF0E9] dark:bg-[#3A2820]"
+                        : "border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B]"
                     }`}
                   >
                     <div className="flex gap-1">
@@ -1582,7 +1582,7 @@ export default function MotionEffectsPage() {
                       ))}
                     </div>
                     <div className="mt-2 text-sm font-black">{style.name}</div>
-                    <div className="mt-1 text-[11px] leading-4 text-slate-500">
+                    <div className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-[#A0978B]">
                       {style.description}
                     </div>
                   </button>
@@ -1590,9 +1590,9 @@ export default function MotionEffectsPage() {
               </div>
             </section>
 
-            <section className="rounded-[28px] border border-[#E5DDD7] bg-white p-5 shadow-sm">
+            <section className="rounded-[28px] border border-[#E5DDD7] dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-5 shadow-sm">
               <h2 className="text-lg font-black">下载规格</h2>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
+              <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-[#A0978B]">
                 预览免费。视频导出会持续占用服务器计算、临时存储和下载带宽，免费资源无法长期支撑，因此下载按规格收费。
               </p>
               <div className="mt-4 space-y-2">
@@ -1601,17 +1601,17 @@ export default function MotionEffectsPage() {
                   onClick={() => setExportQuality("standard")}
                   className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left ${
                     exportQuality === "standard"
-                      ? "border-[#CF6D4E] bg-[#FFF0E9]"
-                      : "border-slate-200 bg-white"
+                      ? "border-[#CF6D4E] dark:border-[#E08A6C] bg-[#FFF0E9] dark:bg-[#3A2820]"
+                      : "border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B]"
                   }`}
                 >
                   <span>
                     <span className="block text-sm font-black">标准版 720p</span>
-                    <span className="mt-1 block text-xs text-slate-500">
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-[#A0978B]">
                       标准码率 · 带“教链”
                     </span>
                   </span>
-                  <span className="text-sm font-black text-[#A84A2E]">
+                  <span className="text-sm font-black text-[#A84A2E] dark:text-[#F0A88E]">
                     {freeStandardSelected
                       ? "注册赠送"
                       : `¥${(prices.standardCents / 100).toFixed(1)}`}
@@ -1622,17 +1622,17 @@ export default function MotionEffectsPage() {
                   onClick={() => setExportQuality("hd")}
                   className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left ${
                     exportQuality === "hd"
-                      ? "border-[#CF6D4E] bg-[#FFF0E9]"
-                      : "border-slate-200 bg-white"
+                      ? "border-[#CF6D4E] dark:border-[#E08A6C] bg-[#FFF0E9] dark:bg-[#3A2820]"
+                      : "border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B]"
                   }`}
                 >
                   <span>
                     <span className="block text-sm font-black">高清版 1080p</span>
-                    <span className="mt-1 block text-xs text-slate-500">
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-[#A0978B]">
                       高码率 · 风格细节更完整
                     </span>
                   </span>
-                  <span className="text-sm font-black text-[#A84A2E]">
+                  <span className="text-sm font-black text-[#A84A2E] dark:text-[#F0A88E]">
                     ¥{(prices.hdCents / 100).toFixed(1)}
                   </span>
                 </button>
@@ -1646,17 +1646,17 @@ export default function MotionEffectsPage() {
                   }
                   className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left ${
                     queueTier === "priority"
-                      ? "border-[#236654] bg-[#EDF7F2]"
-                      : "border-slate-200 bg-white"
+                      ? "border-[#236654] bg-[#EDF7F2] dark:bg-[#1F3329]"
+                      : "border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B]"
                   }`}
                 >
                   <span>
                     <span className="block text-sm font-black">极速处理</span>
-                    <span className="mt-1 block text-xs text-slate-500">
+                    <span className="mt-1 block text-xs text-slate-500 dark:text-[#A0978B]">
                       进入独立优先队列，不影响真实队列统计
                     </span>
                   </span>
-                  <span className="text-sm font-black text-[#236654]">
+                  <span className="text-sm font-black text-[#236654] dark:text-[#5DBB8E]">
                     +¥{(prices.priorityAddonCents / 100).toFixed(1)}
                   </span>
                 </button>
@@ -1669,22 +1669,22 @@ export default function MotionEffectsPage() {
                       `/login?returnTo=${encodeURIComponent("/toolbox/motion-effects")}`,
                     )
                   }
-                  className="mt-4 w-full rounded-2xl border border-[#DCCFC5] bg-white px-4 py-3 text-sm font-black text-slate-800"
+                  className="mt-4 w-full rounded-2xl border border-[#DCCFC5] dark:border-[#4A423A] bg-white dark:bg-[#211E1B] px-4 py-3 text-sm font-black text-slate-800 dark:text-[#F2EEE8]"
                 >
                   注册并领取一次 720p 免费下载
                 </button>
               ) : signupFreeAvailable ? (
-                <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-bold leading-5 text-emerald-800">
+                <div className="mt-4 rounded-2xl bg-emerald-50 dark:bg-[#1F3329] px-4 py-3 text-xs font-bold leading-5 text-emerald-800 dark:text-[#5DBB8E]">
                   你的注册赠送次数尚未使用：标准队列 720p 本次免费；高清和极速处理仍需付费。
                 </div>
               ) : (
-                <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
+                <div className="mt-4 rounded-2xl bg-slate-50 dark:bg-[#2A2622] px-4 py-3 text-xs leading-5 text-slate-600 dark:text-[#CBC3B8]">
                   注册赠送的免费下载已经使用，后续按所选规格付费。
                 </div>
               )}
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                <span className="text-sm font-bold text-slate-600">本次预计</span>
-                <span className="text-2xl font-black text-[#CF6D4E]">
+              <div className="mt-4 flex items-center justify-between border-t border-slate-100 dark:border-[#2E2925] pt-4">
+                <span className="text-sm font-bold text-slate-600 dark:text-[#CBC3B8]">本次预计</span>
+                <span className="text-2xl font-black text-[#CF6D4E] dark:text-[#E08A6C]">
                   {selectedPriceCents === 0
                     ? "免费"
                     : `¥${(selectedPriceCents / 100).toFixed(1)}`}
@@ -1693,12 +1693,12 @@ export default function MotionEffectsPage() {
             </section>
 
             {checkout ? (
-              <section className="rounded-[28px] border border-[#F1C7B8] bg-[#FFF7F2] p-5 shadow-sm">
-                <div className="text-xs font-black text-[#A84A2E]">等待付款</div>
+              <section className="rounded-[28px] border border-[#F1C7B8] dark:border-[#5A3A2E] bg-[#FFF7F2] dark:bg-[#3A2820] p-5 shadow-sm">
+                <div className="text-xs font-black text-[#A84A2E] dark:text-[#F0A88E]">等待付款</div>
                 <div className="mt-2 text-xl font-black">
                   ¥{checkout.order.totalAmountYuan.toFixed(2)}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-[#CBC3B8]">
                   支付成功后才会占用服务器算力开始生成；渲染失败不会吞掉注册赠送次数。
                 </p>
                 <div className="mt-4 grid gap-2">
@@ -1713,7 +1713,7 @@ export default function MotionEffectsPage() {
                     type="button"
                     onClick={continueAfterPayment}
                     disabled={serverExporting}
-                    className="rounded-2xl border border-[#DCCFC5] bg-white px-4 py-3 text-sm font-black text-slate-800 disabled:opacity-50"
+                    className="rounded-2xl border border-[#DCCFC5] dark:border-[#4A423A] bg-white dark:bg-[#211E1B] px-4 py-3 text-sm font-black text-slate-800 dark:text-[#F2EEE8] disabled:opacity-50"
                   >
                     我已支付，开始生成
                   </button>
@@ -1721,18 +1721,18 @@ export default function MotionEffectsPage() {
               </section>
             ) : null}
 
-            <section className="rounded-[28px] border border-[#E5DDD7] bg-white p-5 shadow-sm">
+            <section className="rounded-[28px] border border-[#E5DDD7] dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-5 shadow-sm">
               <div className="flex items-start gap-3">
-                <div className="rounded-2xl bg-[#E8F4EF] p-3 text-[#236654]">
+                <div className="rounded-2xl bg-[#E8F4EF] dark:bg-[#1F3329] p-3 text-[#236654] dark:text-[#5DBB8E]">
                   <Hand className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="text-sm font-black">识别状态</div>
-                  <div className="mt-1 text-sm leading-6 text-slate-500">{statusDetail}</div>
+                  <div className="mt-1 text-sm leading-6 text-slate-500 dark:text-[#A0978B]">{statusDetail}</div>
                 </div>
               </div>
               {(isExporting || serverExporting) && (
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-[#2A2622]">
                   <div
                     className="h-full rounded-full bg-[#CF6D4E] transition-[width]"
                     style={{
@@ -1743,36 +1743,36 @@ export default function MotionEffectsPage() {
               )}
             </section>
 
-            <section className="rounded-[28px] border border-[#E5DDD7] bg-white p-5 shadow-sm">
+            <section className="rounded-[28px] border border-[#E5DDD7] dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-lg font-black">实时分析</h2>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                <span className="rounded-full bg-slate-100 dark:bg-[#2A2622] px-3 py-1 text-xs font-bold text-slate-600 dark:text-[#CBC3B8]">
                   {stats.analyzedFrames} 帧
                 </span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-emerald-50 p-4">
-                  <div className="text-xs font-bold text-emerald-700">当前双手</div>
-                  <div className="mt-1 text-3xl font-black text-emerald-950">
+                <div className="rounded-2xl bg-emerald-50 dark:bg-[#1F3329] p-4">
+                  <div className="text-xs font-bold text-emerald-700 dark:text-[#5DBB8E]">当前双手</div>
+                  <div className="mt-1 text-3xl font-black text-emerald-950 dark:text-[#A8DEC3]">
                     {stats.currentHands}
                   </div>
-                  <div className="mt-1 text-xs text-emerald-700">
+                  <div className="mt-1 text-xs text-emerald-700 dark:text-[#5DBB8E]">
                     {stats.currentHands >= 2 ? "已完成同名配对" : "需要双手入镜"}
                   </div>
                 </div>
-                <div className="rounded-2xl bg-orange-50 p-4">
-                  <div className="text-xs font-bold text-orange-700">有效指尖对</div>
-                  <div className="mt-1 text-3xl font-black text-orange-950">
+                <div className="rounded-2xl bg-orange-50 dark:bg-[#3A2E1A] p-4">
+                  <div className="text-xs font-bold text-orange-700 dark:text-[#E8B866]">有效指尖对</div>
+                  <div className="mt-1 text-3xl font-black text-orange-950 dark:text-[#F2D29A]">
                     {stats.currentPairs}
                   </div>
-                  <div className="mt-1 text-xs text-orange-700">峰值 {stats.peakPairs} 对</div>
+                  <div className="mt-1 text-xs text-orange-700 dark:text-[#E8B866]">峰值 {stats.peakPairs} 对</div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <div className="text-xs font-bold text-slate-500">手部覆盖率</div>
+                <div className="rounded-2xl border border-slate-200 dark:border-[#37312B] p-4">
+                  <div className="text-xs font-bold text-slate-500 dark:text-[#A0978B]">手部覆盖率</div>
                   <div className="mt-1 text-2xl font-black">{handCoverage}%</div>
                 </div>
-                <div className="rounded-2xl border border-slate-200 p-4">
-                  <div className="text-xs font-bold text-slate-500">当前结构</div>
+                <div className="rounded-2xl border border-slate-200 dark:border-[#37312B] p-4">
+                  <div className="text-xs font-bold text-slate-500 dark:text-[#A0978B]">当前结构</div>
                   <div className="mt-1 text-lg font-black">
                     {stats.currentPairs === 0
                       ? "待激活"
@@ -1786,9 +1786,9 @@ export default function MotionEffectsPage() {
               </div>
             </section>
 
-            <section className="rounded-[28px] border border-[#D8E7E0] bg-[#EDF7F2] p-5">
+            <section className="rounded-[28px] border border-[#D8E7E0] dark:border-[#2E4A3B] bg-[#EDF7F2] dark:bg-[#1F3329] p-5">
               <h2 className="text-base font-black text-[#17352B]">它为什么算“手指运动”</h2>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-[#43635A]">
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-[#43635A] dark:text-[#9FC7B5]">
                 <li>· 判断的是手指主动伸展、弯曲与持续状态，不是静态贴纸。</li>
                 <li>· 左右手同名手指严格配对，大拇指只连接大拇指。</li>
                 <li>· 手掌距离控制显隐，靠近消失，拉开后平滑渐显。</li>
