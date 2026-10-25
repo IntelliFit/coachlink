@@ -1,3 +1,11 @@
+## 身体数据默认“测自己”：工具从个人资料预填身高体重（2026-10-24）
+
+- 用户确认：需要身高、体重的工具默认测的是自己。顺序是个人资料 `user_profiles.height / weight` → 本机上次填的值（`coachlink:my-body-metrics:v1`，只存自己的数）→ 留空；不再用 175 cm / 70 kg 之类的写死默认值（没人改时会算出错的结果）。
+- 规则集中在 `packages/core/src/bodyMetrics.ts`，网页 `src/hooks/useMyBodyMetrics.ts`、小程序 `apps/wechat/src/hooks/useMyBodyMetrics.ts` 两端各一个 hook；新工具要用身高体重时接这个 hook，不要各写一套。
+- 页面里的改动默认只用于这一次；只有用户点“同时更新个人资料 / 保存到个人资料”才写回（走 `update-profile`，资料只存整数，写回时四舍五入，本次计算仍用原值）。
+- 功率分析有“测自己 / 测别人”切换：测别人时不写资料、不记本机；任务 metadata 存 `subject`（老任务没有该字段按 `self`），`subject = other` 的结果不同步功率/速度挑战榜，避免别人的成绩记在上传者名下。今后若重跑榜单回填，也要排除 `metadata.subject = 'other'`。
+- 已接入：网页功率分析、单手引体（网页 + 小程序）、街健计算器（网页新增资料预填；两端都可把改过的体重写回）。街健数据录入页本来就从资料读取并锁定体重性别（提交排行榜用），保持不变。小程序功率分析页待 UI 改版合入 dev 后再接。
+
 ## 薄肌检测器上线工具箱（2026-10-22，测试版）
 
 - 用户确认：开源引擎 [boji-detector](https://github.com/SmallHorseBrother/boji-detector) 接入教链工具箱，网页 `/toolbox/boji` 先上线，小程序工具页随后；GitHub 仓库面向开发者，用户入口在教链。
