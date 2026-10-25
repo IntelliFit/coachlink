@@ -1,13 +1,17 @@
 import {
   COUNTDOWN_MS,
-  dumbbellPose,
+  DUMBBELL_HEIGHT,
+  DUMBBELL_LENGTH,
+  PLATES,
   repsFromScene,
+  WORLD_HEIGHT,
+  WORLD_WIDTH,
   type BounceScene
 } from './bounceModel'
 
 /**
- * 实时画布和合成录制共用的绘制：所有尺寸都按画布宽高的比例算，
- * 所以 375 宽的手机画布和 450 × 800 的录制画布画出来是同一套构图。
+ * 实时画布和合成录制共用的绘制：物理世界（宽 1、高 16/9）按“完整放进画布”
+ * 缩放后居中，所以手机画布和 448 × 800 的录制画布画出来是同一套构图、同一条轨迹。
  * 片子上印 COACHLINK 作为画面内的品牌露出，不额外压角标水印。
  */
 
@@ -20,25 +24,25 @@ const STAMP_FILL = '#cf6d4e'
 const BRAND_TEXT = 'COACHLINK'
 const RESULT_POP_MS = 420
 
-type Layout = {
-  dumbbellLength: number
-  dumbbellHeight: number
-  leftCenterX: number
-  plateCenterY: number
-  plateRadius: number
-  rightCenterX: number
+const IMPACT_SECONDS = 0.18
+
+type Viewport = {
+  offsetX: number
+  offsetY: number
+  scale: number
 }
 
-function getLayout(width: number, height: number): Layout {
-  const plateRadius = width * 0.42
+function getViewport(width: number, height: number): Viewport {
+  const scale = Math.min(width / WORLD_WIDTH, height / WORLD_HEIGHT)
   return {
-    dumbbellHeight: width * 0.15,
-    dumbbellLength: width * 0.26,
-    leftCenterX: -width * 0.2,
-    plateCenterY: height * 0.6,
-    plateRadius,
-    rightCenterX: width * 1.2
+    offsetX: (width - WORLD_WIDTH * scale) / 2,
+    offsetY: (height - WORLD_HEIGHT * scale) / 2,
+    scale
   }
+}
+
+function impactOf(secondsSinceHit: number) {
+  return secondsSinceHit >= 0 && secondsSinceHit < IMPACT_SECONDS ? 1 - secondsSinceHit / IMPACT_SECONDS : 0
 }
 
 function easeOutBack(t: number) {
@@ -235,37 +239,44 @@ function drawResultStamp(ctx: any, width: number, height: number, scene: BounceS
 /** 在已铺好相机画面（或透明）的画布上画整套叠层。 */
 export function drawBounceScene(ctx: any, width: number, height: number, scene: BounceScene) {
   if (!width || !height) return
-  const layout = getLayout(width, height)
-  const pose = dumbbellPose(scene.phase)
+  const { offsetX, offsetY, scale } = getViewport(width, height)
+  const leftImpact = scene.status === 'idle' ? 0 : impactOf(scene.sinceHit.left)
+  const rightImpact = scene.status === 'idle' ? 0 : impactOf(scene.sinceHit.right)
 
   // 顶部压一层暗色，保证白字在亮背景上也看得清。
-  const scrim = ctx.createLinearGradient(0, 0, 0, height * 0.26)
+  const scrimHeight = offsetY + WORLD_HEIGHT * scale * 0.26
+  const scrim = ctx.createLinearGradient(0, 0, 0, scrimHeight)
   scrim.addColorStop(0, 'rgba(0, 0, 0, 0.38)')
   scrim.addColorStop(1, 'rgba(0, 0, 0, 0)')
   ctx.fillStyle = scrim
-  ctx.fillRect(0, 0, width, height * 0.26)
+  ctx.fillRect(0, 0, width, scrimHeight)
 
-  const knock = width * 0.022
-  const leftImpact = pose.impactSide === 'left' ? pose.impact : 0
-  const rightImpact = pose.impactSide === 'right' ? pose.impact : 0
-  drawPlate(ctx, layout.leftCenterX - leftImpact * knock, layout.plateCenterY, layout.plateRadius, 'left', leftImpact)
-  drawPlate(ctx, layout.rightCenterX + rightImpact * knock, layout.plateCenterY, layout.plateRadius, 'right', rightImpact)
+  ctx.save()
+  ctx.translate(offsetX, offsetY)
+  const knock = scale * 0.022
+  PLATES.forEach((plate) => {
+    const impact = plate.side === 'left' ? leftImpact : rightImpact
+    const shift = plate.side === 'left' ? -impact * knock : impact * knock
+    drawPlate(ctx, plate.x * scale + shift, plate.y * scale, plate.radius * scale, plate.side, impact)
+  })
 
-  const dumbbellY = layout.plateCenterY + pose.drift * layout.plateRadius * 0.45
-  const dy = dumbbellY - layout.plateCenterY
-  const chord = Math.sqrt(Math.max(0, layout.plateRadius * layout.plateRadius - dy * dy))
-  const halfLength = layout.dumbbellLength / 2
-  const leftContact = layout.leftCenterX + chord + halfLength
-  const rightContact = layout.rightCenterX - chord - halfLength
-  const dumbbellX = leftContact + (rightContact - leftContact) * pose.progress
-  drawDumbbell(ctx, dumbbellX, dumbbellY, layout.dumbbellLength, layout.dumbbellHeight, pose.angle)
+  drawDumbbell(
+    ctx,
+    scene.body.x * scale,
+    scene.body.y * scale,
+    DUMBBELL_LENGTH * scale,
+    DUMBBELL_HEIGHT * scale,
+    scene.body.angle
+  )
 
-  drawHeadline(ctx, width, height, scene, pose.impact)
-
+  const frameWidth = WORLD_WIDTH * scale
+  const frameHeight = WORLD_HEIGHT * scale
+  drawHeadline(ctx, frameWidth, frameHeight, scene, Math.max(leftImpact, rightImpact))
   if (scene.status === 'countdown') {
-    drawCountdown(ctx, width, height, scene.countdownMs)
+    drawCountdown(ctx, frameWidth, frameHeight, scene.countdownMs)
   }
   if (scene.status === 'result') {
-    drawResultStamp(ctx, width, height, scene)
+    drawResultStamp(ctx, frameWidth, frameHeight, scene)
   }
+  ctx.restore()
 }

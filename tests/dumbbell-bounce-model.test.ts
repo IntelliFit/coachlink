@@ -1,53 +1,83 @@
 import { describe, expect, it } from 'vitest';
 import {
-  advancePhase,
-  BASE_HITS_PER_SECOND,
-  dumbbellPose,
-  hitCount,
+  advanceSim,
+  createRelease,
+  createSim,
+  PLATES,
   repsFromScene,
-  START_PHASE
+  seededRandom,
+  simulateRound,
+  WORLD_HEIGHT,
+  type DumbbellBody
 } from '../apps/wechat/src/toolbox/dumbbell-bounce/bounceModel';
 
-describe('dumbbell bounce model', () => {
-  it('starts between the plates with zero hits', () => {
-    expect(hitCount(START_PHASE)).toBe(0);
-    expect(dumbbellPose(START_PHASE).progress).toBeCloseTo(0.5);
-    expect(dumbbellPose(START_PHASE).impactSide).toBeNull();
+const still = (overrides: Partial<DumbbellBody>): DumbbellBody => ({
+  angle: 0,
+  spin: 0,
+  vx: 0,
+  vy: 0,
+  x: 0.5,
+  y: WORLD_HEIGHT * 0.25,
+  ...overrides
+});
+
+describe('dumbbell bounce physics', () => {
+  it('drops straight through the gap when released upright in the middle', () => {
+    const result = simulateRound(still({ angle: Math.PI / 2 }));
+    expect(result.ended).toBe('fell');
+    expect(result.hits).toBe(0);
   });
 
-  it('bounces at a constant rate that only the chosen speed changes', () => {
-    const oneSecondAt1x = advancePhase(0, 1000, 1);
-    expect(oneSecondAt1x).toBeCloseTo(BASE_HITS_PER_SECOND);
-    // 同样一秒，前半秒和后半秒走的距离一样（不会自己加速）。
-    expect(advancePhase(0, 500, 1)).toBeCloseTo(oneSecondAt1x - advancePhase(0, 500, 1));
-    expect(advancePhase(0, 1000, 2)).toBeCloseTo(oneSecondAt1x * 2);
-    expect(advancePhase(0, 1000, 3)).toBeCloseTo(oneSecondAt1x * 3);
+  it('bounces off a plate when released above its inner slope', () => {
+    const leftPlate = PLATES.find((plate) => plate.side === 'left')!;
+    const innerEdge = leftPlate.x + leftPlate.radius;
+    const result = simulateRound(still({ x: innerEdge - 0.04 }));
+    expect(result.ended).toBe('fell');
+    expect(result.hits).toBeGreaterThan(0);
   });
 
-  it('ignores negative frame deltas', () => {
-    expect(advancePhase(3.2, -40, 1)).toBe(3.2);
+  it('always ends on its own: every random release falls out within the time cap', () => {
+    for (let seed = 1; seed <= 200; seed += 1) {
+      const result = simulateRound(createRelease(seededRandom(seed)));
+      expect(result.ended).toBe('fell');
+      expect(result.hits).toBeGreaterThanOrEqual(0);
+      expect(result.seconds).toBeLessThan(10);
+    }
   });
 
-  it('counts one rep per plate hit and alternates sides', () => {
-    expect(hitCount(0.99)).toBe(0);
-    expect(hitCount(1)).toBe(1);
-    expect(hitCount(7.4)).toBe(7);
-
-    // 第 1 次撞右片后往左飞，第 2 次撞左片后往右飞。
-    const afterFirst = dumbbellPose(1.02);
-    expect(afterFirst.impactSide).toBe('right');
-    expect(afterFirst.progress).toBeGreaterThan(0.9);
-    const afterSecond = dumbbellPose(2.02);
-    expect(afterSecond.impactSide).toBe('left');
-    expect(afterSecond.progress).toBeLessThan(0.1);
-    expect(dumbbellPose(2.5).impact).toBe(0);
+  it('gives different counts for different releases', () => {
+    const counts = new Set<number>();
+    for (let seed = 1; seed <= 100; seed += 1) {
+      counts.add(simulateRound(createRelease(seededRandom(seed))).hits);
+    }
+    expect(counts.size).toBeGreaterThan(4);
   });
 
-  it('only reports reps once the round is bouncing or finished', () => {
-    expect(repsFromScene({ phase: START_PHASE, status: 'idle' })).toBeNull();
-    expect(repsFromScene({ phase: START_PHASE, status: 'countdown' })).toBeNull();
-    expect(repsFromScene({ phase: 4.7, status: 'bouncing' })).toBe(4);
-    expect(repsFromScene({ phase: 12.1, status: 'result' })).toBe(12);
-    expect(repsFromScene({ phase: START_PHASE, status: 'result' })).toBe(0);
+  it('is deterministic for the same release', () => {
+    const release = createRelease(seededRandom(42));
+    expect(simulateRound(release)).toEqual(simulateRound(release));
+  });
+
+  it('speed only fast-forwards time and does not change the physics', () => {
+    const release = createRelease(seededRandom(7));
+    const normal = advanceSim(createSim(release), 1200, 1);
+    const doubled = advanceSim(createSim(release), 600, 2);
+    expect(doubled.hits).toBe(normal.hits);
+    expect(doubled.body.x).toBeCloseTo(normal.body.x, 9);
+    expect(doubled.body.y).toBeCloseTo(normal.body.y, 9);
+  });
+
+  it('stops changing once the round has ended', () => {
+    const release = createRelease(seededRandom(3));
+    let sim = createSim(release);
+    while (!sim.ended) sim = advanceSim(sim, 1000);
+    expect(advanceSim(sim, 5000)).toBe(sim);
+  });
+
+  it('only reports reps once the dumbbell has been released', () => {
+    expect(repsFromScene({ hits: 0, status: 'idle' })).toBeNull();
+    expect(repsFromScene({ hits: 0, status: 'countdown' })).toBeNull();
+    expect(repsFromScene({ hits: 3, status: 'bouncing' })).toBe(3);
+    expect(repsFromScene({ hits: 0, status: 'result' })).toBe(0);
   });
 });

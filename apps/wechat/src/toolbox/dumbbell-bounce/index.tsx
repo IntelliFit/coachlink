@@ -11,14 +11,17 @@ import {
 } from '@/utils/share'
 import { USER_FACING_CAMERA } from '../cameraTracking'
 import {
-  advancePhase,
+  advanceSim,
   BOUNCE_EXERCISES,
   BOUNCE_SPEEDS,
   COUNTDOWN_MS,
-  hitCount,
-  MAX_BOUNCE_MS,
-  START_PHASE,
+  createRelease,
+  createSim,
+  MAX_SIM_MS,
+  sceneFromSim,
+  WORLD_HEIGHT,
   type BounceScene,
+  type BounceSim,
   type BounceSpeed,
   type BounceStatus
 } from './bounceModel'
@@ -33,12 +36,14 @@ import './index.scss'
 
 const CANVAS_ID = 'dumbbellBounceCanvas'
 const PREFS_KEY = 'dumbbell_bounce_prefs_v1'
-/** 喊停后再录一小段结果画面，视频结尾能看清最终数字。 */
+/** 哑铃掉出去后再录一小段结果画面，视频结尾能看清最终数字。 */
 const RESULT_HOLD_MS = 2200
 const MAX_FRAME_DELTA_MS = 64
 const REPLAY_FRAME_INTERVAL_MS = 1000 / BOUNCE_REPLAY_FPS
-/** 录制上限要盖住倒计时 + 最长弹跳 + 结果停留。 */
-const REPLAY_MAX_SECONDS = Math.ceil((COUNTDOWN_MS + MAX_BOUNCE_MS + RESULT_HOLD_MS) / 1000) + 5
+/** 录制上限要盖住倒计时 + 最长模拟 + 结果停留。 */
+const REPLAY_MAX_SECONDS = Math.ceil((COUNTDOWN_MS + MAX_SIM_MS + RESULT_HOLD_MS) / 1000) + 5
+/** 还没开始时哑铃挂在两片上方。 */
+const IDLE_SIM = createSim({ angle: 0, spin: 0, vx: 0, vy: 0, x: 0.5, y: WORLD_HEIGHT * 0.26 })
 
 type BouncePrefs = {
   exerciseKey: string
@@ -96,9 +101,8 @@ export default function DumbbellBouncePage() {
   const statusRef = useRef<BounceStatus>('idle')
   const speedRef = useRef<BounceSpeed>(initialPrefs.speed)
   const exerciseLabelRef = useRef(exerciseLabelOf(initialPrefs.exerciseKey))
-  const phaseRef = useRef(START_PHASE)
+  const simRef = useRef<BounceSim>(IDLE_SIM)
   const countdownStartedAtRef = useRef(0)
-  const bounceStartedAtRef = useRef(0)
   const resultAtRef = useRef(0)
   const lastTickAtRef = useRef(0)
   const canvasRef = useRef<CanvasHandle | null>(null)
@@ -121,13 +125,13 @@ export default function DumbbellBouncePage() {
   useShareAppMessage(() => sharePayload)
   useShareTimeline(() => createTimelinePayload(sharePayload))
 
-  const buildScene = (now: number): BounceScene => ({
-    countdownMs: now - countdownStartedAtRef.current,
-    exerciseLabel: exerciseLabelRef.current,
-    phase: phaseRef.current,
-    resultAgeMs: now - resultAtRef.current,
-    status: statusRef.current
-  })
+  const buildScene = (now: number): BounceScene =>
+    sceneFromSim(simRef.current, {
+      countdownMs: now - countdownStartedAtRef.current,
+      exerciseLabel: exerciseLabelRef.current,
+      resultAgeMs: now - resultAtRef.current,
+      status: statusRef.current
+    })
 
   const changeStatus = (next: BounceStatus) => {
     statusRef.current = next
@@ -159,10 +163,10 @@ export default function DumbbellBouncePage() {
     }
   }
 
-  const stopBounce = () => {
+  const finishRound = () => {
     if (statusRef.current !== 'bouncing') return
     resultAtRef.current = Date.now()
-    setResultReps(hitCount(phaseRef.current))
+    setResultReps(simRef.current.hits)
     changeStatus('result')
     void Taro.vibrateShort({ type: 'heavy' }).catch(() => undefined)
     if (recordingRef.current) {
@@ -181,15 +185,14 @@ export default function DumbbellBouncePage() {
     lastTickAtRef.current = now
 
     if (statusRef.current === 'countdown' && now - countdownStartedAtRef.current >= COUNTDOWN_MS) {
-      bounceStartedAtRef.current = now
       changeStatus('bouncing')
     } else if (statusRef.current === 'bouncing') {
-      const before = hitCount(phaseRef.current)
-      phaseRef.current = advancePhase(phaseRef.current, delta, speedRef.current)
-      if (hitCount(phaseRef.current) > before && speedRef.current === 1) {
+      const before = simRef.current.hits
+      simRef.current = advanceSim(simRef.current, delta, speedRef.current)
+      if (simRef.current.hits > before && speedRef.current === 1) {
         void Taro.vibrateShort({ type: 'light' }).catch(() => undefined)
       }
-      if (now - bounceStartedAtRef.current >= MAX_BOUNCE_MS) stopBounce()
+      if (simRef.current.ended) finishRound()
     }
 
     handle.ctx.clearRect(0, 0, handle.width, handle.height)
@@ -276,7 +279,8 @@ export default function DumbbellBouncePage() {
       return
     }
     if (recording || processing) return
-    phaseRef.current = START_PHASE
+    // 每局随机松手：位置、角度、初速度、自转都不同，撞几下全看物理。
+    simRef.current = createSim(createRelease())
     setVideoPath('')
     setResultReps(0)
     countdownStartedAtRef.current = Date.now()
@@ -285,10 +289,6 @@ export default function DumbbellBouncePage() {
   }
 
   const handleMainAction = () => {
-    if (status === 'bouncing') {
-      stopBounce()
-      return
-    }
     if (status === 'idle' || status === 'result') startRound()
   }
 
@@ -349,18 +349,18 @@ export default function DumbbellBouncePage() {
 
   const busy = status === 'countdown' || status === 'bouncing'
   const mainLabel = status === 'countdown'
-    ? '准备…'
+    ? '准备松手…'
     : status === 'bouncing'
-      ? '停！'
+      ? '弹跳中…'
       : status === 'result'
-        ? '再来一次'
-        : '开始弹'
-  const mainDisabled = status === 'countdown' || (status !== 'bouncing' && (recording || processing))
+        ? '再扔一次'
+        : '松手扔哑铃'
+  const mainDisabled = busy || recording || processing
 
   return (
     <PageThemeRoot>
       <View className='bounce-page'>
-        <View className='bounce-stage' onClick={() => status === 'bouncing' && stopBounce()}>
+        <View className='bounce-stage'>
           <Camera
             className='bounce-camera'
             devicePosition={USER_FACING_CAMERA.devicePosition}
@@ -436,7 +436,7 @@ export default function DumbbellBouncePage() {
 
           <View className='bounce-actions'>
             <View
-              className={`bounce-main ${status === 'bouncing' ? 'bounce-main--stop' : ''} ${mainDisabled ? 'bounce-main--disabled' : ''}`}
+              className={`bounce-main ${mainDisabled ? 'bounce-main--disabled' : ''}`}
               onClick={() => !mainDisabled && handleMainAction()}
             >
               <Text className='bounce-main__text'>{mainLabel}</Text>
@@ -456,7 +456,7 @@ export default function DumbbellBouncePage() {
           <Text className='bounce-hint'>
             {status === 'result'
               ? `今天的任务：${resultReps} 个${exerciseLabelOf(exerciseKey)}。视频免费保存，可以直接发抖音、小红书。`
-              : '哑铃撞一下杠铃片算 1 个，点“停”或点画面喊停，停在几就做几个。'}
+              : '每次从随机位置和角度松手，哑铃撞一下杠铃片算 1 个，自己掉下去就结束。'}
           </Text>
         </View>
       </View>
