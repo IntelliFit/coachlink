@@ -1,3 +1,10 @@
+## 体验版：薄肌 PK + 哑铃弹跳（2026-10-25，只上 dev）
+
+- 用户已在 SQL Editor 执行 20261025090000_boji_scores.sql；只读核实 service 可查表、rank 函数返回 {sample_users:0}，anon 读表/调函数均 401。
+- dev 4ef05011 = f626bda8 + 84fa7889（哑铃弹跳相机游戏，纯小程序）+ feat/boji-pk（超越 X%、最像谁、好友 PK）。冲突 src/app/toolbox/boji/page.tsx：保留暗色 dark: 样式 + ChallengeBanner + 新隐私文案。typecheck 通过；vitest 1075/1076（既有 streetliftingLocationOverview）。**origin/main 仍 f626bda8**，等用户真机测完再合。
+- 小程序开发版 **2026.10.25.1139**（2956 模块，总包 10,123,108 / 主包 1,987,777，描述 trial-4ef0501-boji-pk-dumbbell），用户手机真机测，未本地 UI 验证。
+- Web `coachlink@sha256:33a25e28…`（标签 4ef0501，服务器 binary diff 还原，2131 文件 blob 一致）**只切 coachlink-dev**（c9a851ae → 33a25e28，3/3，buildTime 2026-10-25T03:39:06Z）；challenge 未知 id 返回 404「这场 PK 不存在或已失效」，analyze 未登录 401。**coachlink-main 仍 c9a851ae**（不含 PK），送审版 2026.10.25.1004 不受影响。测完后：dev→main 合并、coachlink-main 切 33a25e28、再出正式版。
+
 ## 送审包：合并 + 小程序 2026.10.25.1004（2026-10-25，未推镜像）
 
 - dev/main 推到 f833dc13：origin/dev 两个封面提交、dev 上 kg/lbs 记录（2e60be14）与身体数据默认填自己（f93a88ca + 决策记录）、海报超过 8 个动作截断修复（4742154e，来自"动作超过8个显示不全"会话）、get-profile/get-student-profile 越权修复（claude/quizzical-murdock-4e9b31）、feat/ui-refresh（网页发现页、工具箱暗色、热门动作、单臂引体公开）、自定义动作关键帧角度标注（claude/suspicious-goodall-f1741a，e40087e4）。
