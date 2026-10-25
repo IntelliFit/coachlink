@@ -1,3 +1,11 @@
+## 送审包：合并 + 小程序 2026.10.25.1004（2026-10-25，未推镜像）
+
+- dev/main 推到 f833dc13：origin/dev 两个封面提交、dev 上 kg/lbs 记录（2e60be14）与身体数据默认填自己（f93a88ca + 决策记录）、海报超过 8 个动作截断修复（4742154e，来自"动作超过8个显示不全"会话）、get-profile/get-student-profile 越权修复（claude/quizzical-murdock-4e9b31）、feat/ui-refresh（网页发现页、工具箱暗色、热门动作、单臂引体公开）、自定义动作关键帧角度标注（claude/suspicious-goodall-f1741a，e40087e4）。
+- **未纳入**：feat/boji-pk（排名/最像谁/PK，需先执行线上迁移 20261025090000_boji_scores.sql 并上线后端，所在会话正等用户回答）；"pushup健身挑战工具"会话正在主检出写的哑铃弹跳游戏（dumbbell-bounce、arcadeReplayRecorder、cameraCompositeRecorder 未提交）。
+- 小程序在干净 worktree（D:/CodexWork/coachlink-release-2026-10-25，node_modules 用联接）构建，避免带入主检出未提交改动：2944 模块/976 文件，只含正式域名，无 dumbbell-bounce。DevTools 端口 43678 上传开发版 **2026.10.25.1004**（总包 10,069,349 / 主包 1,981,156，描述 release-f833dc1-audit）。
+- 门禁：typecheck 通过；worktree 内 vitest 7 文件失败，其中 5 个是 worktree 环境问题（apps/mobile 无 expo、联接导致模块身份不同），在主检出重跑只剩既有 streetliftingLocationOverview。
+- **镜像未推送**：线上 Web 仍 f7cffc5b（9684fc5f）。新小程序对旧后端兼容（kg/lbs 客户端已换算成 kg 发送），但在后端更新前 lbs 单位不保存、"测别人"视频仍会进挑战榜、越权修复未生效。建议正式发布前推 Web 镜像。
+
 ## 全量合并 + 小程序体验包（2026-10-24，未推镜像）
 
 - dev/main 推到 299f9cfb：主检出 c010845f（单杠地图做工具箱首卡 + 小程序页面进入追踪）、AGENTS/CLAUDE 镜像推送规则、feat/boji-weapp（薄肌检测器小程序页）、feat/ui-refresh 3 个提交 + 该 worktree 未提交的功率分析页 v1 改版（8c6384bb）、perf/bearer-auth-parallel、perf/list-students-speed、perf/coach-overview-student-payment-parallel。唯一冲突 src/testUtils/mockSupabase.ts 保留 perf 分支新增的 is()。
