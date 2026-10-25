@@ -1,3 +1,10 @@
+## 正式发布准备：薄肌 PK + 哑铃弹跳物理版（2026-10-25）
+
+- 用户真机测试：薄肌 PK 没问题；哑铃弹跳有问题，pushup 会话改为真实物理（57f207fa，只改小程序/文档/测试）。
+- dev/main 均推到 57f207fa。typecheck 通过；vitest 1078/1079（既有 streetliftingLocationOverview）。
+- 后端无新改动，直接用已在 dev 真机验证的 `coachlink@sha256:33a25e28…`（4ef05011）：coachlink-main c9a851ae → 33a25e28，3/3，healthy/login/boji/功率分析 200，challenge 未知 id 404。dev 早已是 33a25e28。Worker 仍 d41b45f6（无变化）。
+- 小程序开发版 **2026.10.25.1213**（2956 模块，总包 10,124,839 / 主包 1,989,697，描述 release-57f207f-boji-pk-dumbbell），用于体验版和送审；哑铃弹跳录制/保存视频需真机确认。
+
 ## 体验版：薄肌 PK + 哑铃弹跳（2026-10-25，只上 dev）
 
 - 用户已在 SQL Editor 执行 20261025090000_boji_scores.sql；只读核实 service 可查表、rank 函数返回 {sample_users:0}，anon 读表/调函数均 401。
