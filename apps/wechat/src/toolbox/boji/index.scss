@@ -258,4 +258,231 @@
       color: var(--cl-ink-3);
     }
   }
+
+  // 排名 / 最像谁 / PK（2026-10-25）
+  .boji-total__rank {
+    color: var(--cl-on-accent);
+    font-size: $cl-font-card;
+    line-height: $cl-line-card;
+    font-weight: 700;
+  }
+
+  .boji-insight__kicker {
+    color: var(--cl-ink-3);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+  }
+
+  .boji-insight__title {
+    color: var(--cl-ink);
+    font-size: $cl-font-card;
+    line-height: $cl-line-card;
+    font-weight: 700;
+  }
+
+  .boji-duel {
+    display: flex;
+    flex-direction: column;
+
+    &__row {
+      display: flex;
+      align-items: center;
+      gap: $cl-space-2;
+      padding: $cl-space-1 0;
+      border-bottom: 2rpx solid var(--cl-line-soft);
+
+      &--head {
+        border-bottom-width: 0;
+      }
+    }
+
+    &__name {
+      flex: 1;
+      color: var(--cl-ink-2);
+      font-size: $cl-font-meta;
+      line-height: $cl-line-meta;
+    }
+
+    &__num {
+      width: 80rpx;
+      color: var(--cl-ink-3);
+      font-size: $cl-font-meta;
+      line-height: $cl-line-meta;
+      text-align: right;
+
+      &--mine {
+        color: var(--cl-ink);
+        font-weight: 700;
+      }
+    }
+
+    &__badge {
+      width: 80rpx;
+      border-radius: $cl-radius-pill;
+      font-size: $cl-font-tag;
+      line-height: $cl-line-tag;
+      text-align: center;
+
+      &--win {
+        background: var(--cl-done-soft);
+        color: var(--cl-done);
+      }
+
+      &--lose {
+        background: var(--cl-clay-soft);
+        color: var(--cl-clay-text);
+      }
+
+      &--tie,
+      &--none {
+        background: var(--cl-sunk);
+        color: var(--cl-ink-3);
+      }
+    }
+  }
+
+  // 原生分享按钮：外观与 ClButton 主按钮一致
+  .boji-share-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: $cl-button-lg;
+    margin: $cl-space-1 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: $cl-radius-button;
+    background: var(--cl-clay-strong);
+    color: var(--cl-on-accent);
+    font-size: $cl-font-card;
+    line-height: $cl-button-lg;
+
+    &::after {
+      border: 0;
+    }
+
+    &--pressed {
+      opacity: 0.85;
+    }
+  }
+
+  .boji-pk {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-2;
+    padding: $cl-card-padding;
+    border-radius: $cl-radius-card;
+    background: var(--cl-ink);
+
+    &__kicker {
+      color: var(--cl-clay-soft);
+      font-size: $cl-font-tag;
+      line-height: $cl-line-tag;
+    }
+
+    &__head {
+      display: flex;
+      align-items: center;
+      gap: $cl-space-2;
+    }
+
+    &__avatar {
+      flex-shrink: 0;
+      width: 96rpx;
+      height: 96rpx;
+      border-radius: $cl-radius-pill;
+
+      &--empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--cl-ink-2);
+        color: var(--cl-paper);
+        font-size: $cl-font-card;
+      }
+    }
+
+    &__who {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    &__name {
+      color: var(--cl-paper);
+      font-size: $cl-font-card;
+      line-height: $cl-line-card;
+      font-weight: 700;
+    }
+
+    &__sub {
+      color: var(--cl-ink-4);
+      font-size: $cl-font-tag;
+      line-height: $cl-line-tag;
+    }
+
+    &__total {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    &__total-value {
+      color: var(--cl-paper);
+      font-size: 64rpx;
+      line-height: 72rpx;
+      font-weight: 700;
+    }
+
+    &__grid {
+      display: flex;
+      gap: $cl-space-1;
+    }
+
+    &__cell {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: $cl-space-1 $cl-space-2;
+      border-radius: $cl-radius-tag;
+      background: var(--cl-ink-2);
+    }
+
+    &__cell-value {
+      color: var(--cl-paper);
+      font-size: $cl-font-card;
+      line-height: $cl-line-card;
+      font-weight: 700;
+    }
+
+    &__responses {
+      display: flex;
+      flex-direction: column;
+      gap: $cl-space-1;
+    }
+
+    &__response {
+      display: flex;
+      align-items: center;
+      gap: $cl-space-2;
+    }
+
+    &__response-name {
+      flex: 1;
+      overflow: hidden;
+      color: var(--cl-paper);
+      font-size: $cl-font-meta;
+      line-height: $cl-line-meta;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &__response-result {
+      color: var(--cl-clay-soft);
+      font-size: $cl-font-meta;
+      line-height: $cl-line-meta;
+      font-weight: 700;
+    }
+  }
 }

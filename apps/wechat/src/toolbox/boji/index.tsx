@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Canvas, Text, View } from '@tarojs/components'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, { useDidShow, useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import {
   BOJI_PHOTO_TIPS,
   BOJI_SHAPE_COLORS,
@@ -12,12 +12,21 @@ import {
   type BojiAnalysisDto,
   type BojiMetricCard
 } from '@coachlink/core/src/bojiDetector'
+import { bojiPercentileText, bojiShareTitle, isBojiScoreId, type BojiChallengeView } from '@coachlink/core/src/bojiInsights'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
 import { ClButton } from '@/components/ui'
 import { useTheme } from '@/hooks/useTheme'
 import { authService } from '@/services/authService'
-import { analyzeBojiPhoto, choosePhoto, preparePhoto, type PreparedPhoto } from '@/services/bojiDetectorService'
+import {
+  analyzeBojiPhoto,
+  choosePhoto,
+  fetchBojiChallenge,
+  preparePhoto,
+  type PreparedPhoto
+} from '@/services/bojiDetectorService'
 import { buildSharePath, createSharePayload, createTimelinePayload, openCoachLinkShareMenu } from '@/utils/share'
+import { BojiInsightsView } from './BojiInsights'
+import { ChallengeBanner } from './ChallengeBanner'
 import './index.scss'
 
 const PAGE_PATH = '/toolbox/boji/index'
@@ -95,11 +104,28 @@ export default function BojiDetectorPage() {
   const [analysis, setAnalysis] = useState<BojiAnalysisDto | null>(null)
   const [error, setError] = useState('')
   const [showMarks, setShowMarks] = useState(true)
+  const router = useRouter()
+  const challengeId = isBojiScoreId(router.params?.challenge) ? router.params.challenge : null
+  const [challenge, setChallenge] = useState<BojiChallengeView | null>(null)
 
-  const sharePayload = useMemo(
-    () => createSharePayload({ title: '薄肌检测器：一张正面照量出腹肌和倒三角', path: buildSharePath(PAGE_PATH) }),
-    []
-  )
+  // 每次显示都重新取：登录回来后才知道自己是不是发起人
+  useDidShow(() => {
+    if (!challengeId) return
+    fetchBojiChallenge(challengeId)
+      .then(setChallenge)
+      .catch(() => setChallenge(null))
+  })
+
+  const scoreId = analysis?.insights?.scoreId ?? null
+  const sharePayload = useMemo(() => {
+    if (analysis && scoreId) {
+      return createSharePayload({
+        title: bojiShareTitle(bojiTotalScore(analysis), analysis.insights?.percentile ?? null),
+        path: buildSharePath(PAGE_PATH, { challenge: scoreId }),
+      })
+    }
+    return createSharePayload({ title: '薄肌检测器：一张正面照量出腹肌和倒三角', path: buildSharePath(PAGE_PATH) })
+  }, [analysis, scoreId])
   useShareAppMessage(() => sharePayload)
   useShareTimeline(() => createTimelinePayload(sharePayload))
   useEffect(() => {
@@ -121,10 +147,13 @@ export default function BojiDetectorPage() {
   const promptLogin = () => {
     Taro.showModal({
       title: '登录后可用',
-      content: '薄肌检测需要登录，照片只用于这一次检测，不会保存。',
+      content: '薄肌检测需要登录。照片只用于这一次检测，不保存；只记录分数，用于排名和 PK。',
       confirmText: '去登录',
       success: (res) => {
-        if (res.confirm) Taro.navigateTo({ url: authService.buildLoginUrl(PAGE_PATH) })
+        if (res.confirm) {
+          const returnTo = challengeId ? buildSharePath(PAGE_PATH, { challenge: challengeId }) : PAGE_PATH
+          Taro.navigateTo({ url: authService.buildLoginUrl(returnTo) })
+        }
       }
     })
   }
@@ -142,7 +171,8 @@ export default function BojiDetectorPage() {
     try {
       const prepared = await preparePhoto(path)
       setPhoto(prepared)
-      setAnalysis(await analyzeBojiPhoto(prepared.path))
+      // 自己打开自己的 PK 卡时不算应战
+      setAnalysis(await analyzeBojiPhoto(prepared.path, challenge?.isOwner ? null : challengeId))
       setPhase('done')
     } catch (err) {
       const message = err instanceof Error ? err.message : '检测失败，请稍后再试'
@@ -158,6 +188,7 @@ export default function BojiDetectorPage() {
     <PageThemeRoot>
       <View className={`boji-page theme-${effectiveTheme}`}>
         <View className='boji-content'>
+          {challenge ? <ChallengeBanner view={challenge} /> : null}
           <View className='boji-intro'>
             <Text className='boji-kicker'>测试版 · 照片不保存</Text>
             <Text className='boji-title'>薄肌检测器</Text>
@@ -181,7 +212,7 @@ export default function BojiDetectorPage() {
               </ClButton>
             </View>
             {error ? <Text className='boji-error'>{error}</Text> : null}
-            <Text className='boji-privacy'>照片只用于这一次检测，服务器不保存。结果只是自测参考，不是医疗诊断。</Text>
+            <Text className='boji-privacy'>照片只用于这一次检测，不保存；只记录分数，用于排名和 PK。结果只是自测参考，不是医疗诊断。</Text>
           </View>
 
           {analysis && photo ? (
@@ -189,12 +220,17 @@ export default function BojiDetectorPage() {
               <View className='boji-total'>
                 <Text className='boji-total__label'>综合分</Text>
                 <Text className='boji-total__value cl-num'>{total ?? '—'}</Text>
+                {analysis.insights?.percentile ? (
+                  <Text className='boji-total__rank'>{bojiPercentileText(analysis.insights.percentile)}</Text>
+                ) : null}
                 <Text className='boji-total__note'>
                   {total === null
                     ? '这张照片能测的项目太少，不给综合分。按拍摄建议换一张再试。'
-                    : '测试版：分数还没有用真人评分校准，请主要看原始数值和自己前后的变化。'}
+                    : '测试版：分数还没有用真人评分校准，PK 图个乐；认真对比请看原始数值和自己前后的变化。'}
                 </Text>
               </View>
+
+              <BojiInsightsView insights={analysis.insights} />
 
               <View className='boji-card boji-card--flush'>
                 <View className='boji-card__head'>

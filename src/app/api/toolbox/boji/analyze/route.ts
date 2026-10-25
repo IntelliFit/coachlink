@@ -8,6 +8,7 @@ import {
   isAllowedContentType,
   normalizeContentType,
 } from '@/lib/bojiDetector';
+import { buildBojiInsights } from '@/lib/bojiScores';
 import type { ApiData } from '@/types/api';
 import type { BojiAnalysisDto } from '@coachlink/core/src/bojiDetector';
 
@@ -20,7 +21,9 @@ function fail(status: number, message: string, headers?: Record<string, string>)
 
 /**
  * 薄肌检测：请求体就是照片本身（image/jpeg、image/png、image/webp 或
- * application/octet-stream）。网页和小程序共用。照片只转发给分析服务，不保存。
+ * application/octet-stream）。网页和小程序共用。照片只转发给分析服务，不保存；
+ * 只记录分数（tool_boji_scores），用于「超越 X%」和 PK。
+ * 可选查询参数 challenge=<成绩 id>：应战好友发起的 PK。
  */
 export async function POST(request: NextRequest) {
   const userId = await getApiUserId(request);
@@ -46,7 +49,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const data = await analyzeWithBojiService(photo, config);
+    const analysis = await analyzeWithBojiService(photo, config);
+    const challengeId = new URL(request.url).searchParams.get('challenge');
+    let data: BojiAnalysisDto = analysis;
+    try {
+      data = { ...analysis, insights: await buildBojiInsights({ analysis, userId, challengeId }) };
+    } catch (error) {
+      // 排名和 PK 是附加信息，出错时照常返回检测结果
+      console.error('[boji] insights failed:', error instanceof Error ? error.message : 'unknown error');
+    }
     return NextResponse.json<ApiData<BojiAnalysisDto>>({ success: true, message: '检测完成', data });
   } catch (error) {
     if (error instanceof BojiServiceError && error.kind === 'bad_image') {

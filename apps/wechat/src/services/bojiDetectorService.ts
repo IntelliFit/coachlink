@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
 import { BOJI_UPLOAD_MAX_SIDE, type BojiAnalysisDto } from '@coachlink/core/src/bojiDetector'
+import { isBojiScoreId, type BojiChallengeView } from '@coachlink/core/src/bojiInsights'
 import { request } from '@/utils/request'
 
 /**
@@ -47,13 +48,14 @@ export async function preparePhoto(path: string): Promise<PreparedPhoto> {
   return { path: compressed.tempFilePath, width, height }
 }
 
-export async function analyzeBojiPhoto(path: string): Promise<BojiAnalysisDto> {
+/** challengeId：应战好友的 PK 时传对方的成绩 id */
+export async function analyzeBojiPhoto(path: string, challengeId?: string | null): Promise<BojiAnalysisDto> {
   const bytes = Taro.getFileSystemManager().readFileSync(path) as ArrayBuffer
   if (bytes.byteLength > MAX_UPLOAD_BYTES) {
     throw new Error('照片太大了，请换一张或裁剪后再试')
   }
   const res = await request<BojiAnalysisDto>({
-    url: '/api/toolbox/boji/analyze',
+    url: `/api/toolbox/boji/analyze${isBojiScoreId(challengeId) ? `?challenge=${challengeId}` : ''}`,
     method: 'POST',
     data: bytes,
     header: { 'Content-Type': 'image/jpeg' },
@@ -63,4 +65,15 @@ export async function analyzeBojiPhoto(path: string): Promise<BojiAnalysisDto> {
     throw new Error(res.message || '检测失败，请稍后再试')
   }
   return res.data
+}
+
+/** PK 卡：不登录也能看；发起人本人还会拿到应战记录 */
+export async function fetchBojiChallenge(id: string): Promise<BojiChallengeView | null> {
+  if (!isBojiScoreId(id)) return null
+  const res = await request<BojiChallengeView>({
+    url: `/api/toolbox/boji/challenge/${id}`,
+    method: 'GET',
+    showErrorToast: false,
+  })
+  return res.success && res.data ? res.data : null
 }

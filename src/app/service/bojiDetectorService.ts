@@ -1,4 +1,5 @@
 import { BOJI_UPLOAD_MAX_SIDE, type BojiAnalysisDto } from '@coachlink/core/src/bojiDetector';
+import { isBojiScoreId, type BojiChallengeView } from '@coachlink/core/src/bojiInsights';
 import type { ApiData } from '@/types/api';
 
 /** 薄肌检测器网页端：本地压缩照片，再交给 /api/toolbox/boji/analyze。 */
@@ -44,10 +45,12 @@ export async function preparePhoto(file: File): Promise<PreparedPhoto> {
   return { blob, url: URL.createObjectURL(blob), width, height };
 }
 
-export async function analyzeBojiPhoto(photo: Blob): Promise<BojiAnalysisDto> {
+/** challengeId：应战好友的 PK 时传对方的成绩 id */
+export async function analyzeBojiPhoto(photo: Blob, challengeId?: string | null): Promise<BojiAnalysisDto> {
+  const query = isBojiScoreId(challengeId) ? `?challenge=${challengeId}` : '';
   let response: Response;
   try {
-    response = await fetch('/api/toolbox/boji/analyze', {
+    response = await fetch(`/api/toolbox/boji/analyze${query}`, {
       method: 'POST',
       body: photo,
       headers: { 'Content-Type': 'image/jpeg' },
@@ -61,4 +64,24 @@ export async function analyzeBojiPhoto(photo: Blob): Promise<BojiAnalysisDto> {
     throw new BojiRequestError(body?.message || '检测失败，请稍后再试', response.status);
   }
   return body.data;
+}
+
+export async function fetchBojiChallenge(id: string): Promise<BojiChallengeView> {
+  if (!isBojiScoreId(id)) throw new BojiRequestError('PK 链接无效', 400);
+  let response: Response;
+  try {
+    response = await fetch(`/api/toolbox/boji/challenge/${id}`, { credentials: 'same-origin', cache: 'no-store' });
+  } catch {
+    throw new BojiRequestError('网络连接失败，请稍后再试', 0);
+  }
+  const body = (await response.json().catch(() => null)) as ApiData<BojiChallengeView> | null;
+  if (!response.ok || !body?.success || !body.data) {
+    throw new BojiRequestError(body?.message || 'PK 信息打不开', response.status);
+  }
+  return body.data;
+}
+
+/** 分享给好友的 PK 链接 */
+export function bojiChallengeUrl(scoreId: string, origin = window.location.origin): string {
+  return `${origin}/toolbox/boji?challenge=${scoreId}`;
 }
