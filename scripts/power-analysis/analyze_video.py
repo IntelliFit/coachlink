@@ -760,7 +760,7 @@ def run_custom(args: argparse.Namespace, fps: float, width: int, height: int, tr
     }
     if args.keyframes_dir and reps and signal is not None:
         manifest = export_keyframes(
-            args.input, track, reps, args.keyframes_dir, fps, motion.phase_labels_zh, signal.axis_kind, motion.rest
+            args.input, track, reps, args.keyframes_dir, fps, motion.phase_labels_zh, signal.axis_kind, motion.rest, motion
         )
         metrics["keyframeCount"] = len(manifest["frames"]) if manifest else 0
     emit_progress(55)

@@ -4,6 +4,10 @@ Per DECISIONS 2026-08-09 the default cloud tier is derived material only: no
 original video and no audio. Each keyframe has the face pixelated, the pose
 skeleton drawn, and is cropped to the person and shrunk, so the model sees the
 movement rather than the person or the room.
+
+The measured angles are printed next to their joints on each keyframe and also
+written to the manifest (per frame, plus a short resampled curve per rep), so
+the model reads every number off the measurement instead of estimating it.
 """
 import json
 import os
@@ -12,7 +16,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 
-from render_overlay import BODY_POSE_CONNECTIONS, JOINT_BGR, SKELETON_BGR
+import generic_motion as gm
+import pose_features as pf
+from hud import ACCENT_BGR, font, pill, render_text
+from render_overlay import BODY_POSE_CONNECTIONS, JOINT_BGR, LABEL_BGR, SKELETON_BGR
 
 MAX_REPS = 3
 MAX_LONG_SIDE = 640
@@ -20,6 +27,15 @@ JPEG_QUALITY = 82
 FACE_INDEXES = list(range(0, 11))
 CROP_MARGIN = 0.15
 MANIFEST_NAME = "keyframes.json"
+MANIFEST_VERSION = 2
+# Besides the main joint, these are labelled whenever the landmarks show them.
+EXTRA_JOINTS = ("knee", "hip", "elbow")
+TRUNK = "trunk"
+ANGLE_LABELS_ZH = {"elbow": "肘", "shoulder": "肩", "hip": "髋", "knee": "膝", TRUNK: "躯干"}
+SEQUENCE_POINTS = 8
+# A rep's curve is only resampled when most of its frames have a measured angle.
+MIN_SEQUENCE_COVERAGE = 0.6
+LABEL_FONT_SHARE = 1 / 34
 
 
 def pick_reps(reps: List[Dict[str, Any]], limit: int = MAX_REPS) -> List[Dict[str, Any]]:
@@ -107,12 +123,141 @@ def crop_box(track: np.ndarray, start: int, end: int, width: int, height: int) -
     )
 
 
-def _shrink(image: np.ndarray) -> np.ndarray:
+def _shrink(image: np.ndarray) -> Tuple[np.ndarray, float]:
+    """A copy no larger than MAX_LONG_SIDE, and the ratio applied."""
     long_side = max(image.shape[:2])
     if long_side <= MAX_LONG_SIDE:
-        return image
+        return image.copy(), 1.0
     ratio = MAX_LONG_SIDE / long_side
-    return cv2.resize(image, (int(image.shape[1] * ratio), int(image.shape[0] * ratio)), interpolation=cv2.INTER_AREA)
+    size = (int(image.shape[1] * ratio), int(image.shape[0] * ratio))
+    return cv2.resize(image, size, interpolation=cv2.INTER_AREA), ratio
+
+
+def angle_series(track: np.ndarray, motion: gm.GenericMotion, fps: float) -> Dict[str, np.ndarray]:
+    """Smoothed angle series to label: the main joint first, then knee/hip/elbow, then trunk lean.
+
+    Joints use the side facing the camera, like the main joint; the trunk uses both sides,
+    so it reads the same from the front and from the side.
+    """
+    window = max(1, int(round(fps * 0.08)))
+    series: Dict[str, np.ndarray] = {}
+    if motion.main_joint and motion.joint_series is not None:
+        series[motion.main_joint] = motion.joint_series
+    for joint in EXTRA_JOINTS:
+        if joint not in series:
+            angle = pf.smooth(gm.joint_angle(track, joint, motion.joint_side), window)
+            # Like the main joint choice: an angle this small is a flattened 2D projection.
+            with np.errstate(invalid="ignore"):
+                series[joint] = np.where(angle >= gm.MIN_PLAUSIBLE_DEG, angle, np.nan)
+    series[TRUNK] = pf.smooth(pf.trunk_lean(track, "both"), window)
+    return series
+
+
+def frame_angles(series: Dict[str, np.ndarray], frame: int) -> Dict[str, int]:
+    """Whole-degree angles measured at this frame; joints without a reading are left out."""
+    angles: Dict[str, int] = {}
+    for name, values in series.items():
+        value = pf.value_at(values, frame)
+        if value is not None:
+            angles[name] = int(round(value))
+    return angles
+
+
+def resample_rep(values: np.ndarray, start: int, end: int, points: int = SEQUENCE_POINTS) -> Optional[List[int]]:
+    """The rep's curve at evenly spaced moments from start to end, in whole degrees."""
+    start, end = max(0, start), min(values.size - 1, end)
+    if end <= start:
+        return None
+    chunk = values[start:end + 1]
+    finite = np.flatnonzero(np.isfinite(chunk))
+    if finite.size < 2 or finite.size < MIN_SEQUENCE_COVERAGE * chunk.size:
+        return None
+    targets = np.linspace(0, chunk.size - 1, points)
+    return [int(round(value)) for value in np.interp(targets, finite, chunk[finite])]
+
+
+def rep_angle_curves(series: Dict[str, np.ndarray], reps: List[Dict[str, Any]], main_joint: Optional[str]) -> List[Dict[str, Any]]:
+    """Per rep: the main joint and trunk lean resampled to a few points (each only when measured)."""
+    names = [name for name in (main_joint, TRUNK) if name and name in series]
+    curves = []
+    for rep in reps:
+        angles = {}
+        for name in names:
+            curve = resample_rep(series[name], int(rep["startFrame"]), int(rep["endFrame"]))
+            if curve is not None:
+                angles[name] = curve
+        if angles:
+            curves.append({"repIndex": int(rep["repIndex"]), "anglesDeg": angles})
+    return curves
+
+
+def angle_anchor(row: np.ndarray, name: str, side: str) -> Optional[Tuple[float, float]]:
+    """Where a label belongs: the joint vertex, or the middle of the trunk line."""
+    track = row[None, ...]
+    if name == TRUNK:
+        shoulder = pf.side_points(track, "both", "shoulder")[0]
+        hip = pf.side_points(track, "both", "hip")[0]
+        point = (shoulder + hip) / 2
+    else:
+        point = pf.side_points(track, side, name)[0]
+    if not np.all(np.isfinite(point)):
+        return None
+    return float(point[0]), float(point[1])
+
+
+def _overlaps(box: Tuple[int, int, int, int], placed: List[Tuple[int, int, int, int]]) -> bool:
+    x, y, w, h = box
+    return any(x < px + pw and px < x + w and y < py + ph and py < y + h for px, py, pw, ph in placed)
+
+
+def place_label(
+    anchor: Tuple[int, int], size: Tuple[int, int], placed: List[Tuple[int, int, int, int]], image_size: Tuple[int, int]
+) -> Tuple[int, int]:
+    """Beside the joint, right first, then left; shifted up or down to clear earlier labels."""
+    (ax, ay), (w, h), (width, height) = anchor, size, image_size
+    gap = max(4, h // 3)
+    candidates = []
+    for x in (ax + gap, ax - gap - w):
+        for y in (ay - h // 2, ay - h // 2 - h - 2, ay + h // 2 + 2):
+            candidates.append((min(max(0, x), max(0, width - w)), min(max(0, y), max(0, height - h))))
+    for x, y in candidates:
+        if not _overlaps((x, y, w, h), placed):
+            return x, y
+    return candidates[0]
+
+
+def draw_angle_labels(
+    image: np.ndarray,
+    row: np.ndarray,
+    angles: Dict[str, int],
+    side: str,
+    origin: Tuple[int, int],
+    ratio: float,
+    main_joint: Optional[str],
+) -> np.ndarray:
+    """Prints each measured angle beside its joint on a cropped, shrunk keyframe.
+
+    The main joint gets the accent colour so it stands out from the context angles.
+    """
+    if not angles:
+        return image
+    size = max(13.0, max(image.shape[:2]) * LABEL_FONT_SHARE)
+    texts = []
+    placed: List[Tuple[int, int, int, int]] = []
+    for name, value in angles.items():
+        anchor = angle_anchor(row, name, side)
+        if anchor is None:
+            continue
+        point = (int((anchor[0] - origin[0]) * ratio), int((anchor[1] - origin[1]) * ratio))
+        if not (0 <= point[0] < image.shape[1] and 0 <= point[1] < image.shape[0]):
+            continue
+        text = f"{ANGLE_LABELS_ZH[name]} {value}°"
+        box = (int(font(size, True).getlength(text) + size * 1.2), int(size * 1.7))
+        x, y = place_label(point, box, placed, (image.shape[1], image.shape[0]))
+        color = ACCENT_BGR if name == main_joint else LABEL_BGR
+        cv2.circle(image, point, max(3, int(size / 4)), color, -1, cv2.LINE_AA)
+        placed.append(pill(image, x, y, text, size, color, texts, alpha=0.82))
+    return render_text(image, texts)
 
 
 def plan_keyframes(
@@ -135,6 +280,7 @@ def export_keyframes(
     phase_labels: Tuple[str, str],
     axis: str,
     rest: str,
+    motion: Optional[gm.GenericMotion] = None,
 ) -> Optional[Dict[str, Any]]:
     plan = plan_keyframes(reps, phase_labels, axis, rest)
     if not plan:
@@ -142,6 +288,9 @@ def export_keyframes(
     wanted: Dict[int, List[Dict[str, Any]]] = {}
     for item in plan:
         wanted.setdefault(item["frame"], []).append(item)
+    series = angle_series(track, motion, fps) if motion is not None else {}
+    main_joint = motion.main_joint if motion is not None else None
+    side = motion.joint_side if motion is not None else "left"
     os.makedirs(out_dir, exist_ok=True)
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -161,11 +310,14 @@ def export_keyframes(
                 # No pose means no known face position: skip rather than send an unblurred person.
                 if np.isfinite(row[0, 0]) and blur_face(frame, row):
                     draw_skeleton(frame, row)
+                    angles = frame_angles(series, index)
                     for item in wanted[index]:
                         rep = item["rep"]
                         x0, y0, x1, y1 = crop_box(track, int(rep["startFrame"]), int(rep["endFrame"]), width, height)
                         name = f"rep{item['repIndex']}_{item['phase']}.jpg"
-                        cv2.imwrite(os.path.join(out_dir, name), _shrink(frame[y0:y1, x0:x1]), [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+                        image, ratio = _shrink(frame[y0:y1, x0:x1])
+                        image = draw_angle_labels(image, row, angles, side, (x0, y0), ratio, main_joint)
+                        cv2.imwrite(os.path.join(out_dir, name), image, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
                         frames.append(
                             {
                                 "file": name,
@@ -173,6 +325,7 @@ def export_keyframes(
                                 "phase": item["phase"],
                                 "phaseZh": item["phaseZh"],
                                 "timeS": round(index / max(fps, 1.0), 2),
+                                "anglesDeg": angles,
                             }
                         )
             index += 1
@@ -181,7 +334,14 @@ def export_keyframes(
     if not frames:
         return None
     frames.sort(key=lambda item: (item["repIndex"], item["timeS"]))
-    manifest = {"version": 1, "faceBlurred": True, "audio": False, "frames": frames}
+    manifest = {
+        "version": MANIFEST_VERSION,
+        "faceBlurred": True,
+        "audio": False,
+        "mainJoint": main_joint,
+        "frames": frames,
+        "repAngles": rep_angle_curves(series, reps, main_joint),
+    }
     with open(os.path.join(out_dir, MANIFEST_NAME), "w", encoding="utf-8") as handle:
         json.dump(manifest, handle, ensure_ascii=False, indent=2)
     return manifest

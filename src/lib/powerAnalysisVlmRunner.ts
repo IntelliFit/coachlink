@@ -9,6 +9,7 @@ import { getCoachlinkVisionLlm } from "./coachlinkLlm";
 import {
   buildCustomVlmMessages,
   buildVlmChecks,
+  collectMeasuredAngles,
   collectMeasuredNumbers,
   mergeVlmChecks,
   parseCustomVlmResponse,
@@ -65,11 +66,17 @@ export async function addCustomVlmObservations(params: CustomVlmParams): Promise
       model,
       temperature: 0.2,
       max_tokens: 900,
-      messages: buildCustomVlmMessages(metrics, actionName, images),
+      messages: buildCustomVlmMessages(metrics, actionName, images, manifest),
     });
     const text = completion.choices?.[0]?.message?.content ?? "";
     const allowed = collectMeasuredNumbers(metrics, manifest, actionName);
-    const parsed = parseCustomVlmResponse(String(text), allowed, Number(metrics.repCount) || 0, metrics.custom?.mainJointZh);
+    const parsed = parseCustomVlmResponse(
+      String(text),
+      allowed,
+      Number(metrics.repCount) || 0,
+      metrics.custom?.mainJointZh,
+      collectMeasuredAngles(metrics, manifest),
+    );
     if (!parsed) {
       log?.("[power-analysis/vlm] reply was not valid JSON");
       return mergeVlmChecks(metrics, [vlmUnavailableCheck("AI 观察这次没有返回有效结果，可稍后重新分析")]);
