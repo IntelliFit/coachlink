@@ -8,6 +8,8 @@ export const WORKOUT_POSTER_WIDTH = 750
 export const WORKOUT_POSTER_MIN_HEIGHT = 1440
 
 const POSTER_DPR = 2
+// 画布高度随动作数增长；DPR 2 下约 20 个动作仍在小程序画布像素上限内，超出才折叠。
+export const WORKOUT_POSTER_MAX_ACTIONS = 20
 const BRAND = '#CF6D4E'
 const INK = '#1F2933'
 const MUTED = '#68727D'
@@ -332,7 +334,7 @@ export async function drawWorkoutPoster(
   data: WorkoutPosterData,
   canvas: HTMLCanvasElement
 ) {
-  const displayedActions = data.actionRows.slice(0, 8)
+  const displayedActions = data.actionRows.slice(0, WORKOUT_POSTER_MAX_ACTIONS)
   const hiddenActionCount = Math.max(0, data.actionRows.length - displayedActions.length)
   const qrTarget = String(data.shareUrl || '').trim() || 'https://coachlink.fit'
   const linksToRecord = data.shareMode === 'record' && Boolean(String(data.shareUrl || '').trim())
