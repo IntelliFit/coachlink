@@ -14,6 +14,7 @@ import DiscoveryHero from './sections/DiscoveryHero';
 import CoachGridSection from './sections/CoachGridSection';
 import ServiceGridSection from './sections/ServiceGridSection';
 import FreePlansSection from './sections/FreePlansSection';
+import HotActionsSection from './sections/HotActionsSection';
 import ToolsSection from './sections/ToolsSection';
 import GearSection from './sections/GearSection';
 import ArticlesSection from './sections/ArticlesSection';
@@ -260,6 +261,7 @@ function DiscoveryContentInner() {
                 />
                 <ServiceGridSection items={serviceItems} loading={productFeedLoading} />
                 <FreePlansSection plans={plans} total={planTotal} loading={plansLoading} />
+                <HotActionsSection />
                 <ToolsSection />
                 <ArticlesSection articles={articles} />
                 <GearSection onSelect={() => showToast({ severity: 'info', summary: '商品详情', detail: '该商品即将上架，敬请期待' })} />
