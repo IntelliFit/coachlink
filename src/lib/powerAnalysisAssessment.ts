@@ -11,7 +11,7 @@ import { getPowerAnalysisModeLabel, isBarbellPowerAnalysisMode } from "@coachlin
 const CHECK_STATUSES: PowerAnalysisCheckStatus[] = ["issue", "warn", "info", "good", "unavailable"];
 const VIEWS = ["front", "side", "oblique", "unknown"] as const;
 const MEASUREMENT_TARGETS = ["body_anchor", "barbell_plate", "barbell_body_proxy"] as const;
-const SCALE_SOURCES = ["plate_diameter", "body_height", "torso_segment", "frame_fallback"] as const;
+const SCALE_SOURCES = ["plate_diameter", "body_height", "torso_segment", "limb_segments", "frame_fallback"] as const;
 const CONFIDENCES = ["high", "medium", "low"] as const;
 const MAX_CHECKS = 20;
 
@@ -107,6 +107,7 @@ const SCALE_SOURCE_ZH: Record<PowerAnalysisMeasurement["scaleSource"], string> =
   plate_diameter: "按杠铃片直径换算",
   body_height: "按身高换算",
   torso_segment: "按躯干长度估算",
+  limb_segments: "按躯干和腿的长度换算",
   frame_fallback: "人物没有完整入镜，按画面高度粗略估算",
 };
 

@@ -1,0 +1,14 @@
+{
+  "description": "Loose per-mode limits a single rep can physically reach. Read by the Python analyzer (drops reps beyond them) and by the server leaderboard guard. Set from 2026-10 production data with generous headroom above the real-rep cluster.",
+  "partialRepShareOfMedian": 0.4,
+  "modes": {
+    "pullup": { "maxPeakVelocityMps": 5.0, "maxDisplacementHeightRatio": 0.75 },
+    "muscleup": { "maxPeakVelocityMps": 7.0, "maxDisplacementHeightRatio": 1.0 },
+    "dip": { "maxPeakVelocityMps": 4.0, "maxDisplacementHeightRatio": 0.6 },
+    "pushup": { "maxPeakVelocityMps": 5.0, "maxDisplacementHeightRatio": 0.5 },
+    "squat": { "maxPeakVelocityMps": 5.0, "maxDisplacementHeightRatio": 0.7 },
+    "bench_press": { "maxPeakVelocityMps": 3.0, "maxDisplacementHeightRatio": null },
+    "back_squat": { "maxPeakVelocityMps": 3.5, "maxDisplacementHeightRatio": null },
+    "deadlift": { "maxPeakVelocityMps": 3.5, "maxDisplacementHeightRatio": null }
+  }
+}

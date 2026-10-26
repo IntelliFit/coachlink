@@ -59,6 +59,7 @@ const SCALE_SOURCE_ZH: Record<string, string> = {
   plate_diameter: '按杠铃片直径换算',
   body_height: '按身高换算',
   torso_segment: '按躯干长度估算',
+  limb_segments: '按躯干和腿的长度换算',
   frame_fallback: '人物没有完整入镜，按画面高度粗略估算'
 }
 

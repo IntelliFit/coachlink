@@ -29,6 +29,7 @@ import { buildProfileBodyMetricsPatch } from "@coachlink/core/src/bodyMetrics";
 import { useMyBodyMetrics } from "@/hooks/useMyBodyMetrics";
 import AssessmentCard from "./AssessmentCard";
 import BodyMetricsField from "./BodyMetricsField";
+import { reportPowerClientEvent } from "./clientEvents";
 import CustomResult from "./CustomResult";
 import PowerCurves from "./PowerCurves";
 
@@ -126,6 +127,8 @@ export default function PowerAnalysisToolPage() {
   const previewRef = useRef<HTMLVideoElement | null>(null);
   const [phase, setPhase] = useState<UploadPhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadProgressRef = useRef(0);
+  uploadProgressRef.current = uploadProgress;
   const [job, setJob] = useState<PowerAnalysisJobDto | null>(null);
   const [llmLoading, setLlmLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -167,6 +170,14 @@ export default function PowerAnalysisToolPage() {
       if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (phase !== "uploading" || !job?.id) return;
+    const jobId = job.id;
+    const onLeave = () => reportPowerClientEvent(jobId, "left_during_upload", { progress: uploadProgressRef.current });
+    window.addEventListener("pagehide", onLeave);
+    return () => window.removeEventListener("pagehide", onLeave);
+  }, [phase, job?.id]);
 
   useEffect(() => {
     if (!bodyMetrics.loaded || subject !== "self" || bodyTouchedRef.current) return;
@@ -353,6 +364,7 @@ export default function PowerAnalysisToolPage() {
     setJob(null);
     llmRequestedRef.current = null;
 
+    let createdJobId: string | null = null;
     try {
       setPhase("creating");
       const created = await readApi<CreatePowerAnalysisUploadUrlResponseDto>(
@@ -374,6 +386,7 @@ export default function PowerAnalysisToolPage() {
         }),
       );
       setJob(created.job);
+      createdJobId = created.job.id;
       if (subject === "self") bodyMetrics.remember({ heightCm, weightKg });
 
       setPhase("uploading");
@@ -381,6 +394,11 @@ export default function PowerAnalysisToolPage() {
       setPhase("uploaded");
       showToast({ severity: "success", summary: "视频已上传", detail: "现在可以点击开始分析。" });
     } catch (error: any) {
+      reportPowerClientEvent(createdJobId, "upload_failed", {
+        stage: "upload",
+        message: String(error?.message || ""),
+        progress: uploadProgressRef.current,
+      });
       setPhase("idle");
       setJob(null);
       setUploadProgress(0);

@@ -28,6 +28,7 @@ import {
 } from '@coachlink/core/src/powerAnalysisModes'
 import PowerCurveChart, { type PowerCurvePoint } from './PowerCurveChart'
 import AssessmentSection, { type PowerAnalysisAssessment, type PowerAnalysisMeasurement } from './AssessmentSection'
+import { reportPowerClientEvent } from './clientEvents'
 import './index.scss'
 
 type PowerAnalysisQuality = 'compressed' | 'original'
@@ -883,9 +884,21 @@ export default function WechatPowerAnalysisPage() {
       })
   })
 
+  const phaseRef = useRef<UploadPhase>(phase)
+  const uploadProgressRef = useRef(0)
+  phaseRef.current = phase
+  uploadProgressRef.current = uploadProgress
+
   useEffect(() => {
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+      const pending = jobRef.current
+      if (pending?.status !== 'awaiting_upload') return
+      if (phaseRef.current === 'uploading') {
+        reportPowerClientEvent(pending.id, 'left_during_upload', { progress: uploadProgressRef.current })
+      } else if (phaseRef.current === 'uploaded') {
+        reportPowerClientEvent(pending.id, 'left_without_start')
+      }
     }
   }, [])
 
@@ -1051,6 +1064,7 @@ export default function WechatPowerAnalysisPage() {
     setUploadProgress(0)
     llmRequestedRef.current = null
 
+    let createdJobId: string | null = null
     try {
       setPhase('creating')
       const created = await callPowerApi<CreatePowerAnalysisUploadUrlResponseDto>({
@@ -1072,6 +1086,7 @@ export default function WechatPowerAnalysisPage() {
         }
       })
       setJob(created.job)
+      createdJobId = created.job.id
 
       setPhase('uploading')
       setUploadProgress(1)
@@ -1087,8 +1102,13 @@ export default function WechatPowerAnalysisPage() {
       setPhase('uploaded')
       Taro.showToast({ title: '视频已上传', icon: 'success' })
     } catch (error: any) {
-      setUploadProgress(0)
       const message = error?.message || '上传失败'
+      reportPowerClientEvent(createdJobId, 'upload_failed', {
+        stage: 'upload',
+        message: String(error?.errMsg || message),
+        progress: uploadProgressRef.current
+      })
+      setUploadProgress(0)
 
       if (previousDownloadableJob) {
         setVideo(null)

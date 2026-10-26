@@ -74,11 +74,20 @@ export interface PowerAnalysisAssessment {
 export interface PowerAnalysisMeasurement {
   target: "body_anchor" | "barbell_plate" | "barbell_body_proxy";
   anchorLabelZh: string;
-  scaleSource: "plate_diameter" | "body_height" | "torso_segment" | "frame_fallback";
+  scaleSource: "plate_diameter" | "body_height" | "torso_segment" | "limb_segments" | "frame_fallback";
   confidence: "high" | "medium" | "low";
   plateDiameterCm?: number;
   trackingCoverage?: number;
   warningsZh: string[];
+}
+
+export interface PowerAnalysisExcludedRep {
+  startTimeS: number | null;
+  endTimeS: number | null;
+  displacementM: number | null;
+  maxVelocityMps: number | null;
+  reason: "displacement_beyond_body" | "velocity_beyond_body" | "partial_rep";
+  reasonZh: string;
 }
 
 /** What the generic analyzer followed for a custom movement. */
@@ -116,6 +125,8 @@ export interface PowerAnalysisMetrics {
     velocityLossPct?: number | null;
   };
   reps: PowerAnalysisRepMetric[];
+  /** Reps left out of the result: tracking jumps beyond human range, or partial reps. */
+  excludedReps?: PowerAnalysisExcludedRep[];
   timeSeries?: PowerAnalysisTimeSeriesPoint[];
   rating?: PowerAnalysisRating;
   assessment?: PowerAnalysisAssessment;

@@ -1,5 +1,6 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { normalizePowerAnalysisQuality } from "@/lib/powerAnalysisEntitlements";
+import { findPowerAnalysisRankingBlocker } from "@/lib/powerAnalysisPlausibility";
 import {
   buildCustomFallbackSummary,
   buildFallbackAssessmentLines,
@@ -236,12 +237,14 @@ export async function mapPowerAnalysisJobWithQueueInfo(row: any): Promise<PowerA
   dto.queueInfo = await getPowerAnalysisQueueInfo(row);
   // Barbell lifting power and custom movements are different measurements; they stay out of the challenge boards.
   // So does a video of someone else: it would put their result under the uploader's name.
+  // And so does a result beyond human range (a tracking jump), which would top the boards for good.
   if (
     dto.status === "done" &&
     dto.metrics &&
     row?.user_id &&
     isRankedPowerAnalysisMode(dto.mode) &&
-    dto.subject === "self"
+    dto.subject === "self" &&
+    !findPowerAnalysisRankingBlocker(dto.metrics, dto.mode, dto.heightCm)
   ) {
     dto.ranking = await syncPowerAnalysisRanking(row.id, row.user_id);
   }

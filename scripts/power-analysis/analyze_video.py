@@ -13,8 +13,10 @@ import mediapipe as mp
 import numpy as np
 
 import generic_motion as gm
+import plausibility
 import pose_features as pf
 from assessment import build_assessment
+from body_scale import height_scale_is_squashed, segment_scale_m_per_px
 from barbell_reps import G, HP_WATT, refine_barbell_reps
 from custom_checks import build_custom_assessment
 from keyframes import export_keyframes
@@ -25,7 +27,7 @@ from render_overlay import render_output_video
 from video_encoding import finalize_output_video
 
 
-ANALYZER_VERSION = "2.0.0"
+ANALYZER_VERSION = "2.1.0"
 DEFAULT_PLATE_DIAMETER_CM = 45.0
 # Torso (shoulder to hip joint) as a share of standing height, used when lying down.
 TORSO_HEIGHT_RATIO = 0.288
@@ -172,12 +174,24 @@ class Measured:
     plate_radius: Optional[float] = None
 
 
+def body_anchor_scale(track: np.ndarray, mode: str, frame_height: int, height_cm: float) -> Tuple[float, str, List[str]]:
+    # Bodyweight squats spend half the clip low, so only the tallest frames show full height.
+    height_scale = height_scale_m_per_px(track, frame_height, height_cm, standing_only=mode == "squat")
+    segment_scale = segment_scale_m_per_px(track, height_cm)
+    if mode == "pushup" and segment_scale is not None:
+        return segment_scale, "limb_segments", []
+    if height_scale_is_squashed(height_scale, segment_scale):
+        return segment_scale, "limb_segments", ["画面里身体没有完整伸直入镜（如屈腿、脚出画面），已改用躯干和腿的长度换算尺寸"]
+    if height_scale is not None:
+        return height_scale, "body_height", []
+    if segment_scale is not None:
+        return segment_scale, "limb_segments", []
+    return frame_fallback_scale(frame_height, height_cm), "frame_fallback", []
+
+
 def measure_body_anchor(track: np.ndarray, mode: str, frame_height: int, height_cm: float) -> Measured:
     preset = get_mode_preset(mode)
-    scale = height_scale_m_per_px(track, frame_height, height_cm)
-    source = "body_height"
-    if scale is None:
-        scale, source = frame_fallback_scale(frame_height, height_cm), "frame_fallback"
+    scale, source, warnings = body_anchor_scale(track, mode, frame_height, height_cm)
     anchor = body_anchor_y(track, str(preset["anchor"]))
     if not np.any(np.isfinite(anchor)):
         raise RuntimeError("No stable pose landmarks detected")
@@ -186,7 +200,8 @@ def measure_body_anchor(track: np.ndarray, mode: str, frame_height: int, height_
         "target": "body_anchor",
         "anchorLabelZh": "髋部" if preset["anchor"] == "hip" else "肩部",
         "scaleSource": source,
-        "confidence": "medium" if source == "body_height" else "low",
+        "confidence": "low" if source == "frame_fallback" else "medium",
+        "warningsZh": warnings,
     }
     return Measured(y_track=y_track, scale=scale, measurement=measurement)
 
@@ -545,18 +560,29 @@ def build_time_series(
     scale_m_per_px: float,
     effective_mass_kg: float,
     max_points: int = 600,
+    mode: str = "",
+    excluded: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, float]]:
     frame_count = len(y_track)
     if frame_count <= 0:
         return []
 
+    # Tracking jumps would otherwise draw a spike that flattens every real rep on the chart.
+    dropped = [False] * frame_count
+    for item in excluded or []:
+        if item.get("reason") == "partial_rep" or item.get("startFrame") is None:
+            continue
+        for frame_index in range(max(0, int(item["startFrame"])), min(frame_count, int(item["endFrame"]) + 1)):
+            dropped[frame_index] = True
+
     velocities = [0.0] * frame_count
     for index in range(1, frame_count):
         current_y = y_track[index]
         previous_y = y_track[index - 1]
-        if current_y is None or previous_y is None:
+        if current_y is None or previous_y is None or dropped[index]:
             continue
-        velocities[index] = max(0.0, ((previous_y - current_y) * scale_m_per_px) * fps)
+        raw = max(0.0, ((previous_y - current_y) * scale_m_per_px) * fps)
+        velocities[index] = plausibility.clean_series_velocity(raw, mode)
 
     velocity_window = max(3, int(round(fps * 0.12)))
     smoothed_velocity: List[float] = []
@@ -624,12 +650,20 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     else:
         reps = detect_reps(y_track, fps, scale, effective_mass_kg, args.mode)
         annotate_body_reps(reps, y_track, fps, scale)
+    reps, excluded_reps = plausibility.split_reps(reps, args.mode, args.height_cm)
+    measurement = {
+        **measurement,
+        "warningsZh": list(measurement.get("warningsZh") or []) + plausibility.exclusion_warnings_zh(excluded_reps),
+    }
 
     metrics = build_metrics(args.mode, reps, args.weight_kg, external_load_kg)
     metrics["analyzerVersion"] = ANALYZER_VERSION
+    metrics["excludedReps"] = excluded_reps
     if not barbell:
         metrics["rating"] = build_power_rating(metrics)
-    metrics["timeSeries"] = build_time_series(y_track, reps, fps, scale, effective_mass_kg)
+    metrics["timeSeries"] = build_time_series(
+        y_track, reps, fps, scale, effective_mass_kg, mode=args.mode, excluded=excluded_reps
+    )
 
     context = RuleContext(
         args.mode,
