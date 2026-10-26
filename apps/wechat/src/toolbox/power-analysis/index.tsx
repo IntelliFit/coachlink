@@ -916,9 +916,7 @@ export default function WechatPowerAnalysisPage() {
       })
   })
 
-  const phaseRef = useRef<UploadPhase>(phase)
   const uploadProgressRef = useRef(0)
-  phaseRef.current = phase
   uploadProgressRef.current = uploadProgress
 
   useEffect(() => {
