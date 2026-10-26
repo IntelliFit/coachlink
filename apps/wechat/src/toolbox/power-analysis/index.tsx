@@ -26,6 +26,12 @@ import {
   POWER_ANALYSIS_MODE_OPTIONS as MODE_OPTIONS,
   type PowerAnalysisMode
 } from '@coachlink/core/src/powerAnalysisModes'
+import {
+  isActivePowerAnalysisJobStatus,
+  isTerminalPowerAnalysisJobStatus,
+  POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_CODE,
+  type PowerAnalysisJobStatus
+} from '@coachlink/core/src/powerAnalysisJobs'
 import PowerCurveChart, { type PowerCurvePoint } from './PowerCurveChart'
 import AssessmentSection, { type PowerAnalysisAssessment, type PowerAnalysisMeasurement } from './AssessmentSection'
 import { reportPowerClientEvent } from './clientEvents'
@@ -34,7 +40,6 @@ import './index.scss'
 type PowerAnalysisQuality = 'compressed' | 'original'
 type OverlayLanguage = 'zh' | 'en'
 type OverlayLanguagePreference = 'auto' | OverlayLanguage
-type PowerAnalysisJobStatus = 'awaiting_upload' | 'queued' | 'processing' | 'done' | 'failed' | 'expired'
 type UploadPhase = 'idle' | 'creating' | 'uploading' | 'uploaded' | 'enqueueing' | 'queued' | 'done'
 
 interface PowerAnalysisRepMetric {
@@ -110,6 +115,7 @@ interface PowerAnalysisJobDto {
   heightCm: number
   weightKg: number
   externalLoadKg: number
+  plateDiameterCm?: number
   customActionName?: string
   status: PowerAnalysisJobStatus
   progress: number
@@ -191,7 +197,8 @@ interface SelectedVideo {
   height?: number
 }
 
-const TERMINAL_STATUSES: PowerAnalysisJobStatus[] = ['done', 'failed', 'expired']
+// Keep polling through brief network drops; the job keeps running on the server either way.
+const POLL_FAILURE_TOAST_AFTER = 4
 // 动作分组展示：自重 / 杠铃三大项 / 其他。列表本身仍以 @coachlink/core 为准。
 const MODE_GROUPS = [
   { title: '自重动作', options: MODE_OPTIONS.filter((item) => !item.barbell && item.value !== 'custom') },
@@ -447,10 +454,19 @@ async function callPowerApi<T>(options: {
   })
 
   if (!res.success || !res.data) {
-    throw new Error(res.message || '请求失败')
+    const error = new Error(res.message || '请求失败') as Error & { code?: string }
+    error.code = (res as { code?: string }).code
+    throw error
   }
 
   return res.data
+}
+
+async function fetchActivePowerJob() {
+  const data = await callPowerApi<{ job: PowerAnalysisJobDto | null }>({
+    url: '/api/toolbox/power-analysis/jobs/active'
+  })
+  return data.job
 }
 
 function createPowerUploadId() {
@@ -703,6 +719,8 @@ export default function WechatPowerAnalysisPage() {
   const restoredDownloadUserRef = useRef<string | null>(null)
   const restoredComparisonUserRef = useRef<string | null>(null)
   const jobRef = useRef<PowerAnalysisJobDto | null>(null)
+  const phaseRef = useRef<UploadPhase>('idle')
+  const pollFailuresRef = useRef(0)
 
   const [mode, setMode] = useState<PowerAnalysisMode>('pullup')
   const [heightCm, setHeightCm] = useState('175')
@@ -785,6 +803,10 @@ export default function WechatPowerAnalysisPage() {
     phase === 'uploaded' &&
     job?.status === 'awaiting_upload'
 
+  useEffect(() => {
+    phaseRef.current = phase
+  }, [phase])
+
   useShareAppMessage(() => sharePayload)
   useShareTimeline(() => createTimelinePayload(sharePayload))
 
@@ -828,6 +850,16 @@ export default function WechatPowerAnalysisPage() {
         if (!next.availableQualities.includes(quality)) setQuality('compressed')
       })
       .catch(() => setEntitlements(DEFAULT_ENTITLEMENTS))
+
+    const inFlightHere =
+      Boolean(pollTimerRef.current) || ['creating', 'uploading', 'uploaded', 'enqueueing'].includes(phaseRef.current)
+    if (!inFlightHere) {
+      void fetchActivePowerJob()
+        .then((active) => {
+          if (active && isActivePowerAnalysisJobStatus(active.status)) followActiveJob(active)
+        })
+        .catch((error) => console.warn('[power-analysis] active job lookup failed', error))
+    }
 
     if (restoredComparisonUserRef.current !== session.userId) {
       restoredComparisonUserRef.current = session.userId
@@ -875,7 +907,7 @@ export default function WechatPowerAnalysisPage() {
       url: `/api/toolbox/power-analysis/jobs/${stored.jobId}`
     })
       .then((restored) => {
-        if (jobRef.current || restored.status !== 'done' || !restored.canDownload) return
+        if (jobRef.current || pollTimerRef.current || restored.status !== 'done' || !restored.canDownload) return
         setJob(restored)
         setPhase('done')
       })
@@ -992,26 +1024,104 @@ export default function WechatPowerAnalysisPage() {
 
   const pollJob = (jobId: string) => {
     stopPolling()
+    pollFailuresRef.current = 0
     pollTimerRef.current = setInterval(async () => {
       try {
         const next = await callPowerApi<PowerAnalysisJobDto>({
           url: `/api/toolbox/power-analysis/jobs/${jobId}`
         })
+        pollFailuresRef.current = 0
         setJob(next)
-        if (TERMINAL_STATUSES.includes(next.status)) {
+        if (isTerminalPowerAnalysisJobStatus(next.status)) {
           stopPolling()
           setPhase('done')
         }
       } catch (error: any) {
-        stopPolling()
-        setPhase('idle')
+        pollFailuresRef.current += 1
+        if (pollFailuresRef.current !== POLL_FAILURE_TOAST_AFTER) return
         Taro.showToast({
-          title: error?.message || '任务状态获取失败',
+          title: error?.message || '状态刷新失败，正在重试',
           icon: 'none',
           duration: 2500
         })
       }
     }, 1800)
+  }
+
+  /** Shows a queued or processing job (with the settings it was submitted with) and polls it. */
+  const followActiveJob = (active: PowerAnalysisJobDto) => {
+    setMode(active.mode)
+    setHeightCm(String(active.heightCm))
+    setWeightKg(String(active.weightKg))
+    if (isBarbellPowerAnalysisMode(active.mode)) {
+      setBarbellKg(String(active.externalLoadKg))
+      if (active.plateDiameterCm) setPlateDiameterCm(String(active.plateDiameterCm))
+    } else {
+      setExternalLoadKg(String(active.externalLoadKg))
+    }
+    if (active.customActionName) setCustomActionName(active.customActionName)
+    if (active.quality) setQuality(active.quality)
+    setVideo(null)
+    setUploadProgress(0)
+    llmRequestedRef.current = null
+    setDownloadRetryAvailable(false)
+    setJob(active)
+    setPhase('queued')
+    pollJob(active.id)
+  }
+
+  const cancelPowerJob = (jobId: string) =>
+    callPowerApi<PowerAnalysisJobDto>({
+      url: `/api/toolbox/power-analysis/jobs/${jobId}/cancel`,
+      method: 'POST'
+    })
+
+  const handleCancel = () => {
+    const jobId = job?.id
+    if (!jobId) return
+    Taro.showModal({
+      title: '取消这次分析？',
+      content: '取消后这个视频不会出结果，也不占今天的分析次数。',
+      confirmText: '取消分析',
+      cancelText: '继续等待',
+      success: async (res) => {
+        if (!res.confirm) return
+        try {
+          await cancelPowerJob(jobId)
+          handleReset()
+          Taro.showToast({ title: '已取消分析', icon: 'none' })
+        } catch (error: any) {
+          Taro.showToast({ title: error?.message || '取消失败，请稍后重试', icon: 'none', duration: 2500 })
+        }
+      }
+    })
+  }
+
+  /** A new upload hit the one-active-job limit: let the user follow the old job or replace it. */
+  const handleActiveJobConflict = async (nextVideo: SelectedVideo) => {
+    const active = await fetchActivePowerJob().catch(() => null)
+    if (!active || !isActivePowerAnalysisJobStatus(active.status)) {
+      Taro.showToast({ title: '上一个任务刚结束，请重新选择视频', icon: 'none', duration: 2500 })
+      return
+    }
+    Taro.showModal({
+      title: '上一个视频还在分析',
+      content: '可以查看它的进度；选"取消旧的"会撤销它，改为分析刚选的视频。',
+      confirmText: '取消旧的',
+      cancelText: '查看进度',
+      success: async (res) => {
+        if (!res.confirm) {
+          followActiveJob(active)
+          return
+        }
+        try {
+          await cancelPowerJob(active.id)
+          await prepareUpload(nextVideo)
+        } catch (error: any) {
+          Taro.showToast({ title: error?.message || '取消失败，请稍后重试', icon: 'none', duration: 2500 })
+        }
+      }
+    })
   }
 
   const prepareUpload = async (nextVideo: SelectedVideo) => {
@@ -1109,6 +1219,14 @@ export default function WechatPowerAnalysisPage() {
         progress: uploadProgressRef.current
       })
       setUploadProgress(0)
+
+      if (error?.code === POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_CODE) {
+        setVideo(null)
+        setJob(previousDownloadableJob)
+        setPhase(previousDownloadableJob ? 'done' : 'idle')
+        void handleActiveJobConflict(preparedVideo)
+        return
+      }
 
       if (previousDownloadableJob) {
         setVideo(null)
@@ -1349,6 +1467,7 @@ export default function WechatPowerAnalysisPage() {
     if (job?.status === 'done') return '分析完成'
     if (job?.status === 'failed') return '分析失败'
     if (job?.status === 'expired') return '任务已过期'
+    if (job?.status === 'canceled') return '已取消'
     return '选择视频后会自动上传'
   })()
 
@@ -1885,9 +2004,16 @@ export default function WechatPowerAnalysisPage() {
       </View>
 
       <View className='pa-footer'>
-        <View className={`secondary-action reset-btn pa-footer__reset ${isBusy ? 'disabled' : ''}`} onClick={() => !isBusy && handleReset()}>
-          <Text>重置</Text>
-        </View>
+        {/* While a job is queued or analyzing, "reset" would only hide it; cancel it on the server instead. */}
+        {job?.id && isActivePowerAnalysisJobStatus(job.status) ? (
+          <View className='secondary-action reset-btn pa-footer__reset' onClick={handleCancel}>
+            <Text>取消分析</Text>
+          </View>
+        ) : (
+          <View className={`secondary-action reset-btn pa-footer__reset ${isBusy ? 'disabled' : ''}`} onClick={() => !isBusy && handleReset()}>
+            <Text>重置</Text>
+          </View>
+        )}
         <View className={`primary-action start-analysis-btn pa-footer__start ${canSubmit ? '' : 'disabled'}`} onClick={handleStart}>
           <Text>{['creating', 'uploading'].includes(phase) ? '上传中' : isBusy ? '处理中' : video ? '开始分析' : '先选择视频'}</Text>
         </View>

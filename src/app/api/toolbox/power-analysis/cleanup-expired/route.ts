@@ -34,7 +34,8 @@ export async function POST(req: Request) {
   const { data: rows, error } = await db
     .from("tool_power_analysis_jobs")
     .select("id, input_storage_bucket, input_storage_path, output_storage_bucket, output_storage_path")
-    .neq("status", "expired")
+    // Canceled jobs removed their files when canceled and keep their status.
+    .not("status", "in", "(expired,canceled)")
     .lt("expires_at", now)
     .limit(100);
 

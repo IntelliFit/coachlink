@@ -63,14 +63,43 @@ function hasArg(name: string) {
   return process.argv.includes(name);
 }
 
-async function updateJob(id: string, patch: Record<string, unknown>) {
-  const { error } = await supabase
+class JobCanceledError extends Error {
+  constructor(jobId: string) {
+    super(`job ${jobId} was canceled by the user`);
+    this.name = "JobCanceledError";
+  }
+}
+
+/**
+ * Writes `patch` unless the user canceled the job meanwhile. Returns false only when the job is
+ * canceled (or gone); a failed write is logged and treated as still running.
+ */
+async function updateUncanceledJob(id: string, patch: Record<string, unknown>) {
+  const { data, error } = await supabase
     .from("tool_power_analysis_jobs")
     .update(patch)
-    .eq("id", id);
+    .eq("id", id)
+    .neq("status", "canceled")
+    .select("id")
+    .maybeSingle();
   if (error) {
     console.warn("[power-worker] update failed:", id, error.message);
+    return true;
   }
+  return Boolean(data);
+}
+
+async function throwIfCanceled(id: string) {
+  const { data, error } = await supabase
+    .from("tool_power_analysis_jobs")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    console.warn("[power-worker] status check failed:", id, error.message);
+    return;
+  }
+  if (!data || data.status === "canceled") throw new JobCanceledError(id);
 }
 
 async function claimJob(jobId?: string, queueTopic?: string) {
@@ -212,6 +241,7 @@ async function runAnalyzer(job: any, workDir: string) {
 
     let stderr = "";
     let lastProgress = 10;
+    let canceled = false;
 
     child.stdout.on("data", (chunk) => {
       const text = chunk.toString("utf8");
@@ -224,7 +254,11 @@ async function runAnalyzer(job: any, workDir: string) {
             const progress = Math.max(10, Math.min(95, Number(payload.progress)));
             if (progress >= lastProgress + 5 || progress >= 95) {
               lastProgress = progress;
-              void updateJob(job.id, { progress: Math.round(progress) });
+              void updateUncanceledJob(job.id, { progress: Math.round(progress) }).then((written) => {
+                if (written || canceled) return;
+                canceled = true;
+                child.kill("SIGTERM");
+              });
             }
           }
         } catch {
@@ -240,7 +274,8 @@ async function runAnalyzer(job: any, workDir: string) {
 
     child.on("error", reject);
     child.on("close", (code) => {
-      if (code === 0) resolve();
+      if (canceled) reject(new JobCanceledError(job.id));
+      else if (code === 0) resolve();
       else reject(new Error(stderr.trim() || `Python analyzer exited with code ${code}`));
     });
   });
@@ -250,6 +285,8 @@ async function runAnalyzer(job: any, workDir: string) {
   }
 
   const analyzed = JSON.parse(await fsPromises.readFile(metricsPath, "utf8"));
+  // Skip the paid vision-model call and the upload for a job the user canceled.
+  await throwIfCanceled(job.id);
   const metrics = custom
     ? await addCustomVlmObservations({
         metrics: analyzed,
@@ -264,6 +301,7 @@ async function runAnalyzer(job: any, workDir: string) {
     job.output_storage_path ||
     `toolbox/power-analysis/tmp/${job.user_id}/${job.id}/output.mp4`;
 
+  await throwIfCanceled(job.id);
   await uploadObject(job.output_storage_bucket || bucketFallback, outputStoragePath, outputPath);
   return { metrics, outputStoragePath };
 }
@@ -282,7 +320,7 @@ async function processJob(jobId?: string, queueTopic?: string) {
 
   try {
     const { metrics, outputStoragePath } = await runAnalyzer(job, workDir);
-    await updateJob(job.id, {
+    const written = await updateUncanceledJob(job.id, {
       status: "done",
       progress: 100,
       metrics_json: metrics,
@@ -290,11 +328,24 @@ async function processJob(jobId?: string, queueTopic?: string) {
       completed_at: new Date().toISOString(),
       error_message: null,
     });
+    if (!written) {
+      // Canceled while the result was uploading: drop the result file it will never show.
+      await supabase.storage
+        .from(job.output_storage_bucket || bucketFallback)
+        .remove([outputStoragePath])
+        .catch(() => null);
+      console.log(`[power-worker] canceled ${job.id} (result discarded)`);
+      return true;
+    }
     console.log(`[power-worker] done ${job.id}`);
     return true;
   } catch (error) {
+    if (error instanceof JobCanceledError) {
+      console.log(`[power-worker] canceled ${job.id}`);
+      return true;
+    }
     const message = error instanceof Error ? error.message : String(error);
-    await updateJob(job.id, {
+    await updateUncanceledJob(job.id, {
       status: "failed",
       progress: 100,
       error_message: message.slice(0, 1000),
@@ -312,7 +363,8 @@ async function cleanupExpired() {
   const { data: rows, error } = await supabase
     .from("tool_power_analysis_jobs")
     .select("id, input_storage_bucket, input_storage_path, output_storage_bucket, output_storage_path")
-    .neq("status", "expired")
+    // Canceled jobs removed their files when canceled and keep their status.
+    .not("status", "in", "(expired,canceled)")
     .lt("expires_at", now)
     .limit(500);
 

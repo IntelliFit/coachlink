@@ -16,6 +16,11 @@ import {
   normalizePowerAnalysisSubject,
   POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
 } from "@coachlink/core/src/powerAnalysisModes";
+import {
+  POWER_ANALYSIS_ACTIVE_JOB_STATUSES,
+  POWER_ANALYSIS_CANCELABLE_JOB_STATUSES,
+  POWER_ANALYSIS_CANCELED_MESSAGE,
+} from "@coachlink/core/src/powerAnalysisJobs";
 import type {
   PowerAnalysisJobDto,
   PowerAnalysisQueueInfoDto,
@@ -127,7 +132,8 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
   );
   const expiresAt = String(row?.expires_at || "");
   const expired = expiresAt ? new Date(expiresAt).getTime() <= Date.now() : false;
-  const status = expired && row?.status !== "done" ? "expired" : row?.status;
+  // Done and canceled keep their status after the files expire; the rest show as expired.
+  const status = expired && row?.status !== "done" && row?.status !== "canceled" ? "expired" : row?.status;
   const mode = normalizeMode(row?.mode) || "pullup";
   const plateDiameterCm = Number(metadata.plate_diameter_cm);
   const customActionName = String(metadata.custom_action_name ?? "").trim();
@@ -425,8 +431,60 @@ export async function getOwnedPowerAnalysisJob(jobId: string, userId: string) {
   return data || null;
 }
 
+/** The user's newest queued or processing job that has not expired, after releasing stale ones. */
+export async function getActivePowerAnalysisJobForUser(userId: string) {
+  await failStalePowerAnalysisJobsForUser(userId);
+  const { data, error } = await db
+    .from("tool_power_analysis_jobs")
+    .select("*")
+    .eq("user_id", userId)
+    .in("status", [...POWER_ANALYSIS_ACTIVE_JOB_STATUSES])
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+/**
+ * Marks a cancelable job canceled and removes its uploaded files. Returns the canceled row, or
+ * null when the job left the cancelable states first (for example the worker just finished it).
+ * The worker re-checks the status before writing, so a job canceled mid-analysis never gets a result.
+ */
+export async function cancelPowerAnalysisJob(row: any) {
+  const { data, error } = await db
+    .from("tool_power_analysis_jobs")
+    .update({
+      status: "canceled",
+      progress: 100,
+      error_message: POWER_ANALYSIS_CANCELED_MESSAGE,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", row.id)
+    .in("status", [...POWER_ANALYSIS_CANCELABLE_JOB_STATUSES])
+    .select("*")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const paths = [row.input_storage_path, row.output_storage_path].filter(Boolean);
+  if (paths.length > 0) {
+    const { error: removeError } = await db.storage
+      .from(row.input_storage_bucket || POWER_ANALYSIS_BUCKET)
+      .remove(paths);
+    if (removeError) {
+      // The daily cleanup does not revisit canceled jobs, so log for manual cleanup.
+      console.warn("[power-analysis] canceled job file removal failed:", row.id, removeError.message);
+    }
+  }
+  return data;
+}
+
 export async function expirePowerAnalysisJobIfNeeded(row: any) {
-  if (!row || row.status === "expired") return row;
+  // A canceled job's files were removed when it was canceled.
+  if (!row || row.status === "expired" || row.status === "canceled") return row;
   const expiresAt = row.expires_at ? new Date(row.expires_at).getTime() : 0;
   if (!expiresAt || expiresAt > Date.now()) return row;
 

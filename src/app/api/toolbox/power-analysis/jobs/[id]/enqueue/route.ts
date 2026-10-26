@@ -49,6 +49,13 @@ export async function POST(
     );
   }
 
+  if (current.status === "canceled") {
+    return NextResponse.json<ApiData<null>>(
+      { success: false, message: "任务已取消，请重新选择视频", data: null },
+      { status: 409 },
+    );
+  }
+
   if (current.status !== "awaiting_upload") {
     return NextResponse.json<ApiData<PowerAnalysisJobDto>>({
       success: true,

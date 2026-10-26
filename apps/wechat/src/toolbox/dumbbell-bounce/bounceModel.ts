@@ -2,6 +2,10 @@
  * 哑铃弹弹：小哑铃从随机位置、随机姿态被松手，在重力下落进左右两块
  * 圆形杠铃片之间来回弹，每撞一次片子计 1 次，自己掉出画面就结束。
  *
+ * 这是“游戏物理”：重力、碰撞、摩擦带出的转动都是真的，但碰撞完全弹性且总能量守恒，
+ * 哑铃不会越弹越没劲。两片之间的缝比哑铃短、比哑铃粗，只有碰巧竖着经过缝口才会掉出去，
+ * 所以大多数局弹几十下，不少局上百，偶尔上千。
+ *
  * 运动是一个 2D 刚体模拟（胶囊形哑铃 vs 圆形片子，冲量法碰撞 + 摩擦），
  * 坐标系固定为宽 1、高 16/9 的“世界”，实时画布和录制画布只是不同缩放，
  * 所以同一局在屏幕上和视频里的轨迹完全一致。这个文件不依赖 Taro，可单测。
@@ -9,13 +13,15 @@
 
 export type BounceStatus = 'idle' | 'countdown' | 'bouncing' | 'result'
 
-export type BounceSpeed = 1 | 2 | 3
+export type BounceSpeed = 1 | 2 | 3 | 5 | 10
 
-export const BOUNCE_SPEEDS: BounceSpeed[] = [1, 2, 3]
+/** 长局可能撞上千下，给到 10 倍快进。 */
+export const BOUNCE_SPEEDS: BounceSpeed[] = [1, 2, 3, 5, 10]
 
 export const COUNTDOWN_MS = 3000
-/** 兜底：无论如何一局最多模拟这么久（世界时间）。 */
-export const MAX_SIM_MS = 60000
+/** 兜底：一局最多模拟这么久（世界时间）或撞这么多下，超过就按当前次数结束。 */
+export const MAX_SIM_MS = 20 * 60 * 1000
+export const MAX_HITS = 9999
 
 export const WORLD_WIDTH = 1
 export const WORLD_HEIGHT = 16 / 9
@@ -41,17 +47,18 @@ export type Plate = {
   radius: number
 }
 
-/** 两片之间最窄处（片子圆心高度）的缝隙，略大于哑铃长度：横着能掉下去，但要先在漏斗里弹一阵。 */
+/** 两片之间最窄处（片子圆心高度）的缝隙：比哑铃粗细略宽、比哑铃长度窄，只能竖着掉下去。 */
 export type PlateGeometry = {
   plateRadius: number
   throatGap: number
 }
 
-// 2026-10-25 离线调参（2000 次随机松手）：中位 4 下、P90 8 下、最多 20 下，
-// 约 8% 直接掉穿（0 下），一局约 1.3 秒（世界时间），没有卡住的情况。
+// 2026-10-26 离线调参（300 次随机松手，摩擦按局随机）：<10 下 11%、10-99 下 45%、
+// 100-999 下 40%、1000 下以上 4%；中位 82 下，P90 约 530，P99 约 1500，最多约 3700。
+// 1× 下中位一局约 12 秒，P90 约 80 秒。
 export const DEFAULT_GEOMETRY: PlateGeometry = {
   plateRadius: 0.5,
-  throatGap: 0.28
+  throatGap: 0.16
 }
 
 const PLATE_Y = WORLD_HEIGHT * 0.6
@@ -77,15 +84,24 @@ export type PhysicsTuning = {
   gravity: number
   restitution: number
   friction: number
+  /**
+   * 能量守恒：每步把速度和转速按比例校正到“松手时的总能量”。哑铃永远弹不过
+   * 松手的高度，也不会越弹越没劲，只能靠碰巧竖起来从缝里掉出去才结束。
+   */
+  conserveEnergy: boolean
 }
 
 export const DEFAULT_TUNING: PhysicsTuning = {
   plates: PLATES,
   gravity: 6,
-  // 包胶哑铃撞包胶片，回弹偏高；摩擦让它撞完会带出转动。
-  restitution: 0.88,
-  friction: 0.18
+  restitution: 1,
+  // 每局实际摩擦由 randomFriction 决定，这里是不指定时的默认值。
+  friction: 0.15,
+  conserveEnergy: true
 }
+
+/** 摩擦越大，撞击越容易把哑铃“搓”着转起来、越难恰好竖着掉下去；按局随机、偏向小值，拉出长尾。 */
+const MAX_FRICTION = 0.35
 
 const MASS = 1
 const INERTIA = MASS * (DUMBBELL_LENGTH * DUMBBELL_LENGTH / 12 + CAPSULE_RADIUS * CAPSULE_RADIUS / 2)
@@ -112,6 +128,10 @@ export type BounceEnd = 'fell' | 'stuck' | 'timeout'
 
 export type BounceSim = {
   body: DumbbellBody
+  /** 本局哑铃和片子之间的摩擦系数（相当于这只哑铃的“手感”）。 */
+  friction: number
+  /** 松手时的总机械能（y 轴向下，势能 = -m·g·y），能量守恒模式按它校正。 */
+  energy: number
   ended: BounceEnd | null
   hits: number
   /** 每块片子上一次计数时的模拟时间（秒），用来画撞击闪光。 */
@@ -140,21 +160,36 @@ function between(random: RandomSource, min: number, max: number) {
   return min + (max - min) * random()
 }
 
-/** 随机松手：位置在两片上方，姿态、初速度（可能先往上抛）和自转都随机。 */
+/** 随机松手：位置在两片之间的漏斗里，姿态、初速度和自转都随机。 */
 export function createRelease(random: RandomSource = Math.random): DumbbellBody {
   return {
     angle: between(random, 0, Math.PI * 2),
-    spin: between(random, -7, 7),
-    vx: between(random, -0.6, 0.6),
-    vy: between(random, -1, 0),
-    x: between(random, 0.18, 0.82),
-    y: between(random, WORLD_HEIGHT * 0.18, WORLD_HEIGHT * 0.3)
+    spin: between(random, -6, 6),
+    vx: between(random, -0.4, 0.4),
+    vy: between(random, -0.4, 0.2),
+    x: between(random, 0.38, 0.62),
+    y: between(random, 0.6, 0.72)
   }
 }
 
-export function createSim(body: DumbbellBody): BounceSim {
+export function randomFriction(random: RandomSource = Math.random) {
+  const roll = random()
+  return MAX_FRICTION * roll * roll
+}
+
+function kineticEnergy(body: DumbbellBody) {
+  return 0.5 * MASS * (body.vx * body.vx + body.vy * body.vy) + 0.5 * INERTIA * body.spin * body.spin
+}
+
+export function createSim(
+  body: DumbbellBody,
+  tuning: PhysicsTuning = DEFAULT_TUNING,
+  friction: number = tuning.friction
+): BounceSim {
   return {
     body: { ...body },
+    friction,
+    energy: kineticEnergy(body) - MASS * tuning.gravity * body.y,
     ended: null,
     hits: 0,
     lastHitAt: { left: -Infinity, right: -Infinity },
@@ -178,7 +213,7 @@ type Contact = {
 }
 
 /** 胶囊 vs 圆的碰撞：分离 + 法向冲量（带回弹）+ 库仑摩擦冲量。 */
-function resolvePlate(body: DumbbellBody, plate: Plate, tuning: PhysicsTuning): Contact {
+function resolvePlate(body: DumbbellBody, plate: Plate, tuning: PhysicsTuning, friction: number): Contact {
   const cos = Math.cos(body.angle)
   const sin = Math.sin(body.angle)
   const closest = closestPointOnSegment(
@@ -219,7 +254,7 @@ function resolvePlate(body: DumbbellBody, plate: Plate, tuning: PhysicsTuning): 
     const tangentSpeed = (vx - spin * ry) * tx + (vy + spin * rx) * ty
     const rCrossT = rx * ty - ry * tx
     const rawTangentImpulse = -tangentSpeed / (1 / MASS + (rCrossT * rCrossT) / INERTIA)
-    const maxTangentImpulse = tuning.friction * normalImpulse
+    const maxTangentImpulse = friction * normalImpulse
     const tangentImpulse = Math.max(-maxTangentImpulse, Math.min(maxTangentImpulse, rawTangentImpulse))
     vx += (tangentImpulse * tx) / MASS
     vy += (tangentImpulse * ty) / MASS
@@ -239,6 +274,15 @@ function resolvePlate(body: DumbbellBody, plate: Plate, tuning: PhysicsTuning): 
     },
     hit
   }
+}
+
+/** 把动能（平动 + 转动）按同一比例缩放到“总能量 - 当前势能”，消掉碰撞和积分的能量漂移。 */
+function withEnergy(body: DumbbellBody, energy: number, tuning: PhysicsTuning): DumbbellBody {
+  const current = kineticEnergy(body)
+  const target = Math.max(0, energy + MASS * tuning.gravity * body.y)
+  if (current <= 1e-12) return body
+  const scale = Math.sqrt(target / current)
+  return { ...body, spin: body.spin * scale, vx: body.vx * scale, vy: body.vy * scale }
 }
 
 function hasEscaped(body: DumbbellBody) {
@@ -261,7 +305,7 @@ function step(sim: BounceSim, tuning: PhysicsTuning): BounceSim {
   let lastHitAt = sim.lastHitAt
 
   tuning.plates.forEach((plate) => {
-    const contact = resolvePlate(body, plate, tuning)
+    const contact = resolvePlate(body, plate, tuning, sim.friction)
     body = contact.body
     if (contact.hit && time - lastHitAt[plate.side] >= HIT_COOLDOWN_SECONDS) {
       hits += 1
@@ -269,13 +313,17 @@ function step(sim: BounceSim, tuning: PhysicsTuning): BounceSim {
     }
   })
 
+  if (tuning.conserveEnergy) {
+    body = withEnergy(body, sim.energy, tuning)
+  }
+
   const speed = Math.sqrt(body.vx * body.vx + body.vy * body.vy)
   const stillFor = speed < STUCK_SPEED && Math.abs(body.spin) < 0.5 ? sim.stillFor + dt : 0
   const ended: BounceEnd | null = hasEscaped(body)
     ? 'fell'
     : stillFor >= STUCK_SECONDS
       ? 'stuck'
-      : time * 1000 >= MAX_SIM_MS
+      : time * 1000 >= MAX_SIM_MS || hits >= MAX_HITS
         ? 'timeout'
         : null
 
@@ -297,13 +345,27 @@ export function advanceSim(
   return next
 }
 
+/** 新开一局：随机松手姿态 + 随机摩擦。 */
+export function createRound(random: RandomSource = Math.random, tuning: PhysicsTuning = DEFAULT_TUNING) {
+  const body = createRelease(random)
+  return createSim(body, tuning, randomFriction(random))
+}
+
 /** 一口气跑完一局，返回撞片次数和结束方式（单测、调参用）。 */
-export function simulateRound(body: DumbbellBody, tuning: PhysicsTuning = DEFAULT_TUNING) {
-  let sim = createSim(body)
+export function runToEnd(start: BounceSim, tuning: PhysicsTuning = DEFAULT_TUNING) {
+  let sim = start
   while (!sim.ended) {
     sim = advanceSim(sim, 1000, 1, tuning)
   }
   return { ended: sim.ended, hits: sim.hits, seconds: sim.time }
+}
+
+export function simulateRound(
+  body: DumbbellBody,
+  tuning: PhysicsTuning = DEFAULT_TUNING,
+  friction: number = tuning.friction
+) {
+  return runToEnd(createSim(body, tuning, friction), tuning)
 }
 
 /** 画面需要的全部状态；实时画布和合成录制都只看这一份快照。 */
