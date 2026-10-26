@@ -6,7 +6,9 @@
 
 import type { BojiInsights } from './bojiInsights';
 
-export type BojiMetricKey = 'v_taper' | 'symmetry' | 'arms' | 'abs';
+export type BojiMetricKey = 'v_taper' | 'symmetry' | 'arms' | 'abs' | 'waist_hip';
+/** 打分档：女性看马甲线和腰臀比，手臂不计分（引擎 0.2 起） */
+export type BojiSex = 'male' | 'female';
 export type BojiMetricStatus = 'ok' | 'low_confidence' | 'unavailable';
 export type BojiPoint = [number, number];
 /** 2×3 仿射矩阵：分析图坐标 → 上传照片的坐标 */
@@ -26,10 +28,13 @@ export interface BojiReport {
   image_size: [number, number];
   deskew_deg: number;
   quality: string[];
-  metrics: Record<BojiMetricKey, BojiMetric>;
+  /** 男性档没有 waist_hip */
+  metrics: Partial<Record<BojiMetricKey, BojiMetric>>;
   total: { score: number | null; weights_used: Record<string, number>; missing: string[]; calibration: string };
   to_original: BojiAffine;
   original_size: [number, number] | null;
+  /** 引擎 0.1 不返回，按男性档处理 */
+  profile?: BojiSex;
 }
 
 export interface BojiAnalysisDto {
@@ -41,13 +46,26 @@ export interface BojiAnalysisDto {
 }
 
 export const BOJI_METRIC_ORDER: BojiMetricKey[] = ['abs', 'v_taper', 'arms', 'symmetry'];
+export const BOJI_FEMALE_METRIC_ORDER: BojiMetricKey[] = ['abs', 'waist_hip', 'v_taper', 'symmetry'];
+
+export function isBojiSex(value: unknown): value is BojiSex {
+  return value === 'male' || value === 'female';
+}
+
+export function bojiReportSex(report: Pick<BojiReport, 'profile'> | null | undefined): BojiSex {
+  return report?.profile === 'female' ? 'female' : 'male';
+}
+
+export function bojiMetricOrder(sex: BojiSex): BojiMetricKey[] {
+  return sex === 'female' ? BOJI_FEMALE_METRIC_ORDER : BOJI_METRIC_ORDER;
+}
 export const BOJI_UPLOAD_MAX_SIDE = 1600;
 
 // ---------------------------------------------------------------------------
 // 标注图形
 // ---------------------------------------------------------------------------
 
-export type BojiShapeKind = 'shoulder' | 'waist' | 'arm' | 'alba' | 'groove' | 'lateral' | 'block';
+export type BojiShapeKind = 'shoulder' | 'waist' | 'hip' | 'arm' | 'alba' | 'groove' | 'lateral' | 'block';
 
 export interface BojiShape {
   kind: BojiShapeKind;
@@ -95,9 +113,15 @@ export function bojiOverlayShapes(report: BojiReport): BojiShape[] {
     for (const line of Array.isArray(lines) ? lines : []) add('arm', line);
   }
   const vTaper = report.metrics.v_taper;
-  if (vTaper && vTaper.status !== 'unavailable') {
+  const vTaperShown = !!vTaper && vTaper.status !== 'unavailable';
+  if (vTaper && vTaperShown) {
     add('shoulder', vTaper.geometry.shoulder_line);
     add('waist', vTaper.geometry.waist_line);
+  }
+  const waistHip = report.metrics.waist_hip;
+  if (waistHip && waistHip.status !== 'unavailable') {
+    if (!vTaperShown) add('waist', waistHip.geometry.waist_line);
+    add('hip', waistHip.geometry.hip_line);
   }
   return shapes;
 }
@@ -122,7 +146,18 @@ const TITLES: Record<BojiMetricKey, { title: string; explain: string }> = {
   v_taper: { title: '倒三角', explain: '三角肌外缘宽 ÷ 最窄腰宽' },
   arms: { title: '手臂围度', explain: '上臂宽 ÷ 上臂长（肩到肘）' },
   symmetry: { title: '左右对称', explain: '轮廓左右镜像的重合度、肩线倾斜、左右上臂粗细比' },
+  waist_hip: { title: '腰臀比', explain: '最窄腰宽 ÷ 最宽臀宽' },
 };
+
+const FEMALE_TITLES: Partial<Record<BojiMetricKey, { title: string; explain: string }>> = {
+  abs: { title: '马甲线', explain: '看腹白线和腹部两侧竖线有多清楚，不数块' },
+  v_taper: { title: '肩腰比', explain: '肩宽 ÷ 最窄腰宽' },
+  waist_hip: { title: '腰臀比', explain: '最窄腰宽 ÷ 最宽臀宽，越小曲线越明显' },
+};
+
+export function bojiMetricTitle(key: BojiMetricKey, sex: BojiSex): { title: string; explain: string } {
+  return (sex === 'female' ? FEMALE_TITLES[key] : undefined) ?? TITLES[key];
+}
 
 function num(values: Record<string, unknown>, key: string): number | null {
   const v = values[key];
@@ -133,7 +168,31 @@ function pct(value: number | null): string {
   return value === null ? '—' : `${Math.round(value * 100)}%`;
 }
 
-function describeMetric(key: BojiMetricKey, values: Record<string, unknown>): { headline: string; details: string[] } {
+function describeFemaleMetric(key: BojiMetricKey, values: Record<string, unknown>): { headline: string; details: string[] } | null {
+  switch (key) {
+    case 'abs': {
+      const index = num(values, 'line_index');
+      return {
+        headline: index === null ? '—' : `马甲线清晰度 ${(index * 100).toFixed(1)}`,
+        details: ['腹肌线条受光线影响大，前后对比请用同一地点和光线'],
+      };
+    }
+    case 'v_taper': {
+      const ratio = num(values, 'ratio');
+      return { headline: ratio === null ? '—' : `肩腰比 ${ratio.toFixed(2)}`, details: ['健身女性多在 1.5–1.8'] };
+    }
+    case 'waist_hip': {
+      const ratio = num(values, 'ratio');
+      return { headline: ratio === null ? '—' : `腰臀比 ${ratio.toFixed(2)}`, details: ['正面轮廓宽度之比，女性常见 0.65–0.80'] };
+    }
+    default:
+      return null;
+  }
+}
+
+function describeMetric(key: BojiMetricKey, values: Record<string, unknown>, sex: BojiSex = 'male'): { headline: string; details: string[] } {
+  const female = sex === 'female' ? describeFemaleMetric(key, values) : null;
+  if (female) return female;
   switch (key) {
     case 'abs': {
       const packs = num(values, 'pack_count') ?? 0;
@@ -160,6 +219,10 @@ function describeMetric(key: BojiMetricKey, values: Record<string, unknown>): { 
         details: balance === null ? [] : [`左右粗细比 ${balance.toFixed(2)}`],
       };
     }
+    case 'waist_hip': {
+      const ratio = num(values, 'ratio');
+      return { headline: ratio === null ? '—' : `腰臀比 ${ratio.toFixed(2)}`, details: [] };
+    }
     case 'symmetry': {
       const tilt = num(values, 'shoulder_tilt_deg');
       return {
@@ -179,15 +242,16 @@ export function describeReason(code: string, messages: BojiAnalysisDto['messages
 export function bojiMetricCards(analysis: BojiAnalysisDto): BojiMetricCard[] {
   // 不用 flatMap：小程序的 TS lib 和部分旧基础库不支持。
   const cards: BojiMetricCard[] = [];
-  for (const key of BOJI_METRIC_ORDER) {
+  const sex = bojiReportSex(analysis.report);
+  for (const key of bojiMetricOrder(sex)) {
     const metric = analysis.report.metrics[key];
     if (!metric) continue;
     const text = metric.status === 'unavailable'
       ? { headline: '这张照片测不了', details: [] as string[] }
-      : describeMetric(key, metric.values);
+      : describeMetric(key, metric.values, sex);
     cards.push({
       key,
-      ...TITLES[key],
+      ...bojiMetricTitle(key, sex),
       status: metric.status,
       score: metric.status === 'unavailable' || metric.score === null ? null : Math.round(metric.score),
       headline: text.headline,
@@ -220,11 +284,28 @@ export function bojiEnclosureColor(enclosure: number): string {
 export const BOJI_SHAPE_COLORS: Record<Exclude<BojiShapeKind, 'block'>, string> = {
   shoulder: '#FACC15',
   waist: '#EF4444',
+  hip: '#D946EF',
   arm: '#22D3EE',
   alba: '#3B82F6',
   groove: '#F97316',
   lateral: '#7DD3FC',
 };
+
+export const BOJI_FEMALE_PHOTO_TIPS = [
+  '正面站立，手臂自然下垂、离身体一拳，手不要放在髋部',
+  '穿运动内衣和短裤或低腰裤，露出整个腹部，拍到大腿根',
+  '相机与腰同高、正对身体，人占画面一半以上',
+  '光源在头顶前上方；前后对比用同一地点、同一光线',
+];
+
+export function bojiPhotoTips(sex: BojiSex): string[] {
+  return sex === 'female' ? BOJI_FEMALE_PHOTO_TIPS : BOJI_PHOTO_TIPS;
+}
+
+/** 女性结果页固定提示：不鼓励追求过低体脂 */
+export const BOJI_FEMALE_HEALTH_NOTE = '线条好看不等于越瘦越好：女性体脂过低可能影响月经和骨骼健康，请在健康范围内练。';
+
+export const BOJI_SEX_LABELS: Record<BojiSex, string> = { male: '男生', female: '女生' };
 
 export const BOJI_PHOTO_TIPS = [
   '正面站立，手臂自然下垂、离身体约一拳',

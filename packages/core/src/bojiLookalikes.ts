@@ -4,14 +4,17 @@
  *
  * 名单和目标分是运营配置，不是对本人照片的测量：改名单、改描述只需改这个文件。
  * 2026-10-25 首版取自运营给的名单（精瘦线条 / 运动员 / 大肌肉三组）。
+ * 女性名单（2026-10-26）是待运营确认的草稿，目标分看马甲线、腰臀比、肩腰比。
  */
 
-export type BojiLookalikeGroup = 'lean' | 'athlete' | 'muscle';
+export type BojiLookalikeGroup = 'lean' | 'athlete' | 'muscle' | 'curvy';
 
+/** 男性名单用 abs / vTaper / arms，女性名单用 abs / waistHip / vTaper */
 export interface BojiLookalikeTarget {
   abs: number;
   vTaper: number;
-  arms: number;
+  arms?: number;
+  waistHip?: number;
 }
 
 export interface BojiLookalike {
@@ -27,6 +30,7 @@ export const BOJI_LOOKALIKE_GROUP_LABELS: Record<BojiLookalikeGroup, string> = {
   lean: '精瘦线条型',
   athlete: '运动员型',
   muscle: '大肌肉型',
+  curvy: '曲线型',
 };
 
 export const BOJI_LOOKALIKES: BojiLookalike[] = [
@@ -51,6 +55,19 @@ export const BOJI_LOOKALIKES: BojiLookalike[] = [
   { key: 'chris_hemsworth', name: '克里斯·海姆斯沃斯', group: 'muscle', tagline: '胸肩臂突出的大肌肉电影体型', target: { abs: 70, vTaper: 85, arms: 92 } },
 ];
 
+export const BOJI_FEMALE_LOOKALIKES: BojiLookalike[] = [
+  { key: 'pamela_reif', name: '帕梅拉', group: 'lean', tagline: '马甲线清楚、整体紧致的健身博主身材', target: { abs: 90, waistHip: 75, vTaper: 60 } },
+  { key: 'chloe_ting', name: 'Chloe Ting', group: 'lean', tagline: '居家训练练出来的紧致腰腹', target: { abs: 80, waistHip: 70, vTaper: 55 } },
+  { key: 'wang_wanfei', name: '王婉霏', group: 'lean', tagline: '跳操练出的匀称线条', target: { abs: 85, waistHip: 80, vTaper: 60 } },
+  { key: 'gal_gadot', name: '盖尔·加朵', group: 'athlete', tagline: '《神奇女侠》里修长有力的身材', target: { abs: 80, waistHip: 75, vTaper: 75 } },
+  { key: 'eileen_gu', name: '谷爱凌', group: 'athlete', tagline: '滑雪运动员的力量型紧实身材', target: { abs: 75, waistHip: 60, vTaper: 70 } },
+  { key: 'simone_biles', name: '西蒙·拜尔斯', group: 'athlete', tagline: '体操运动员，腹部线条极其清楚', target: { abs: 95, waistHip: 60, vTaper: 90 } },
+  { key: 'serena_williams', name: '小威廉姆斯', group: 'athlete', tagline: '网球运动员的力量型身材', target: { abs: 70, waistHip: 85, vTaper: 85 } },
+  { key: 'zhu_ting', name: '朱婷', group: 'athlete', tagline: '排球运动员的修长匀称身材', target: { abs: 65, waistHip: 55, vTaper: 70 } },
+  { key: 'scarlett_johansson', name: '斯嘉丽·约翰逊', group: 'curvy', tagline: '《黑寡妇》里紧致又有曲线', target: { abs: 70, waistHip: 90, vTaper: 60 } },
+  { key: 'beyonce', name: '碧昂丝', group: 'curvy', tagline: '舞台上有力量感的曲线身材', target: { abs: 60, waistHip: 92, vTaper: 60 } },
+];
+
 /** 平均每项差距在这个分数以内算「最接近」，否则说成「练下去最可能成为」 */
 export const BOJI_LOOKALIKE_CLOSE_DISTANCE = 12;
 
@@ -65,19 +82,21 @@ export interface BojiLookalikeMatch {
 
 export type BojiLookalikeScores = Partial<Record<keyof BojiLookalikeTarget, number | null>>;
 
-/** 至少要有两项可用的单项分才匹配；取均方根距离最小的一位。 */
+const TARGET_KEYS = ['abs', 'vTaper', 'arms', 'waistHip'] as const;
+
+/** 至少要有两项可用、且人物有目标分的单项分才匹配；取均方根距离最小的一位。 */
 export function matchBojiLookalike(
   scores: BojiLookalikeScores,
   candidates: BojiLookalike[] = BOJI_LOOKALIKES,
 ): BojiLookalikeMatch | null {
-  const keys = (['abs', 'vTaper', 'arms'] as const).filter((k) => {
-    const v = scores[k];
-    return typeof v === 'number' && Number.isFinite(v);
-  });
-  if (keys.length < 2 || candidates.length === 0) return null;
   let best: { item: BojiLookalike; distance: number } | null = null;
   for (const item of candidates) {
-    const squared = keys.reduce((sum, k) => sum + (Number(scores[k]) - item.target[k]) ** 2, 0);
+    const keys = TARGET_KEYS.filter((k) => {
+      const v = scores[k];
+      return typeof v === 'number' && Number.isFinite(v) && typeof item.target[k] === 'number';
+    });
+    if (keys.length < 2) continue;
+    const squared = keys.reduce((sum, k) => sum + (Number(scores[k]) - Number(item.target[k])) ** 2, 0);
     const distance = Math.sqrt(squared / keys.length);
     if (!best || distance < best.distance) best = { item, distance };
   }

@@ -1,9 +1,11 @@
 import { Button, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import type { BojiSex } from '@coachlink/core/src/bojiDetector'
 import {
   BOJI_DUEL_LABELS,
   BOJI_DUEL_LIGHTING_TIP,
-  BOJI_DUEL_METRIC_LABELS,
+  BOJI_DUEL_MIXED_TIP,
+  bojiDuelMetricLabel,
   bojiDuelHeadline,
   bojiLookalikeText,
   type BojiInsights,
@@ -20,7 +22,7 @@ function showTimelineGuide() {
 }
 
 /** 检测结果下方：PK 结果、身材最像谁、邀请好友 PK（微信原生分享按钮） */
-export function BojiInsightsView({ insights }: { insights: BojiInsights | undefined }) {
+export function BojiInsightsView({ insights, sex = 'male' }: { insights: BojiInsights | undefined; sex?: BojiSex }) {
   if (!insights) return null
   const { challenge, lookalike, scoreId } = insights
   return (
@@ -38,7 +40,7 @@ export function BojiInsightsView({ insights }: { insights: BojiInsights | undefi
             </View>
             {challenge.duel.lines.map((line) => (
               <View key={line.key} className='boji-duel__row'>
-                <Text className='boji-duel__name'>{BOJI_DUEL_METRIC_LABELS[line.key]}</Text>
+                <Text className='boji-duel__name'>{bojiDuelMetricLabel(line.key, sex)}</Text>
                 <Text className='boji-duel__num boji-duel__num--mine cl-num'>{line.mine === null ? '—' : Math.round(line.mine)}</Text>
                 <Text className='boji-duel__num cl-num'>{line.theirs === null ? '—' : Math.round(line.theirs)}</Text>
                 <Text className={`boji-duel__badge boji-duel__badge--${line.outcome ?? 'none'}`}>
@@ -47,7 +49,9 @@ export function BojiInsightsView({ insights }: { insights: BojiInsights | undefi
               </View>
             ))}
           </View>
-          <Text className='boji-privacy'>{BOJI_DUEL_LIGHTING_TIP}</Text>
+          <Text className='boji-privacy'>
+            {challenge.mixedSex ? `${BOJI_DUEL_MIXED_TIP}${BOJI_DUEL_LIGHTING_TIP}` : BOJI_DUEL_LIGHTING_TIP}
+          </Text>
         </View>
       ) : null}
 

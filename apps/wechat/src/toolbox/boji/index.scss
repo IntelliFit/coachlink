@@ -366,6 +366,36 @@
     }
   }
 
+  .boji-card__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $cl-space-2;
+  }
+
+  // 打分标准：墨色表示已选（与筛选标签、分段一致）
+  .boji-sex {
+    display: flex;
+    gap: $cl-space-1;
+    padding: $cl-space-1;
+    border: 2rpx solid var(--cl-control-line);
+    border-radius: $cl-radius-pill;
+
+    &__option {
+      padding: 0 $cl-space-3;
+      border-radius: $cl-radius-pill;
+      color: var(--cl-ink-2);
+      font-size: $cl-font-meta;
+      line-height: 56rpx;
+
+      &--on {
+        background: var(--cl-ink);
+        color: var(--cl-paper);
+        font-weight: 600;
+      }
+    }
+  }
+
   .boji-share-timeline {
     display: flex;
     align-items: center;

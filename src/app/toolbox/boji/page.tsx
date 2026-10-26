@@ -6,7 +6,12 @@ import { useSession } from 'next-auth/react';
 import { useLoginModal } from '@/components/auth/LoginModalContext';
 import { ArrowLeft, Camera, Eye, EyeOff, Loader2, LogIn, RotateCcw, ShieldCheck, Sparkles } from 'lucide-react';
 import {
-  BOJI_PHOTO_TIPS,
+  BOJI_FEMALE_HEALTH_NOTE,
+  BOJI_SEX_LABELS,
+  bojiPhotoTips,
+  bojiReportSex,
+  isBojiSex,
+  type BojiSex,
   bojiMetricCards,
   bojiQualityNotes,
   bojiTotalScore,
@@ -23,10 +28,22 @@ import {
 import BojiInsightsPanel from './BojiInsightsPanel';
 import BojiOverlay from './BojiOverlay';
 import ChallengeBanner from './ChallengeBanner';
-import { OVERLAY_LEGEND } from './overlayLegend';
+import { overlayLegend } from './overlayLegend';
 import MetricCard from './MetricCard';
 
 type Phase = 'idle' | 'working' | 'done' | 'error';
+
+const SEX_STORAGE_KEY = 'coachlink.boji.sex';
+const SEXES: BojiSex[] = ['male', 'female'];
+
+function readStoredSex(): BojiSex {
+  try {
+    const value = window.localStorage.getItem(SEX_STORAGE_KEY);
+    return isBojiSex(value) ? value : 'male';
+  } catch {
+    return 'male';
+  }
+}
 
 export default function BojiDetectorPage() {
   const router = useRouter();
@@ -40,6 +57,20 @@ export default function BojiDetectorPage() {
   const [showMarks, setShowMarks] = useState(true);
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<BojiChallengeView | null>(null);
+  const [sex, setSex] = useState<BojiSex>('male');
+
+  useEffect(() => {
+    setSex(readStoredSex());
+  }, []);
+
+  const chooseSex = (next: BojiSex) => {
+    setSex(next);
+    try {
+      window.localStorage.setItem(SEX_STORAGE_KEY, next);
+    } catch {
+      // 存不了只影响下次默认值
+    }
+  };
 
   // PK 链接 ?challenge=<成绩 id>：不用 useSearchParams，免得整页失去静态渲染
   useEffect(() => {
@@ -58,6 +89,7 @@ export default function BojiDetectorPage() {
   const cards = useMemo(() => (analysis ? bojiMetricCards(analysis) : []), [analysis]);
   const total = analysis ? bojiTotalScore(analysis) : null;
   const notes = analysis ? bojiQualityNotes(analysis) : [];
+  const resultSex = analysis ? bojiReportSex(analysis.report) : sex;
   const loggedOut = sessionStatus === 'unauthenticated';
 
   const reset = () => {
@@ -77,7 +109,7 @@ export default function BojiDetectorPage() {
       const prepared = await preparePhoto(file);
       setPhoto(prepared);
       // 自己打开自己的 PK 链接时不算应战
-      setAnalysis(await analyzeBojiPhoto(prepared.blob, challenge?.isOwner ? null : challengeId));
+      setAnalysis(await analyzeBojiPhoto(prepared.blob, challenge?.isOwner ? null : challengeId, sex));
       setPhase('done');
     } catch (err) {
       const status = err instanceof BojiRequestError ? err.status : 0;
@@ -115,13 +147,15 @@ export default function BojiDetectorPage() {
                 </div>
                 <h1 className="text-3xl font-black leading-tight tracking-tight md:text-5xl">薄肌检测器</h1>
                 <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300 md:text-base">
-                  上传一张正面照，量出腹肌分块、倒三角、手臂围度和左右对称。每个数字都会在照片上标出是在哪里量的。
+                  {sex === 'female'
+                    ? '上传一张正面照，量出马甲线、腰臀比、肩腰比和左右对称。每个数字都会在照片上标出是在哪里量的。'
+                    : '上传一张正面照，量出腹肌分块、倒三角、手臂围度和左右对称。每个数字都会在照片上标出是在哪里量的。'}
                 </p>
               </div>
               <div>
                 <div className="mb-3 text-xs font-bold text-[#F0C5B7]">拍摄建议</div>
                 <ul className="space-y-2 text-sm leading-6 text-slate-300">
-                  {BOJI_PHOTO_TIPS.map((tip) => (
+                  {bojiPhotoTips(sex).map((tip) => (
                     <li key={tip} className="flex gap-2">
                       <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#CF6D4E]" />
                       {tip}
@@ -136,6 +170,25 @@ export default function BojiDetectorPage() {
                 <div className="text-lg font-black">上传正面照</div>
                 <div className="mt-1 text-xs leading-5 text-slate-500 dark:text-[#A0978B]">
                   JPG / PNG 均可，会先在你的浏览器里压缩再上传。
+                </div>
+                <div className="mt-4 inline-flex rounded-full border border-slate-200 dark:border-[#37312B] p-1" role="radiogroup" aria-label="打分标准">
+                  {SEXES.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      role="radio"
+                      aria-checked={sex === option}
+                      disabled={phase === 'working'}
+                      onClick={() => chooseSex(option)}
+                      className={`h-9 rounded-full px-5 text-sm font-bold transition ${
+                        sex === option
+                          ? 'bg-slate-900 text-white dark:bg-[#F2EEE8] dark:text-[#161412]'
+                          : 'text-slate-600 hover:text-slate-950 dark:text-[#CBC3B8] dark:hover:text-[#F2EEE8]'
+                      }`}
+                    >
+                      {BOJI_SEX_LABELS[option]}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -218,7 +271,7 @@ export default function BojiDetectorPage() {
                 showMarks={showMarks}
               />
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600 dark:text-[#CBC3B8]">
-                {OVERLAY_LEGEND.map((item) => (
+                {overlayLegend(resultSex).map((item) => (
                   <span key={item.label} className="inline-flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                     {item.label}
@@ -239,8 +292,11 @@ export default function BojiDetectorPage() {
                     ? '这张照片能测的项目太少，不给综合分。按拍摄建议换一张再试。'
                     : '测试版：分数还没有用真人评分校准，PK 图个乐；认真对比请看下面的原始数值和自己前后的变化。'}
                 </p>
+                {resultSex === 'female' && (
+                  <p className="mt-2 text-xs leading-5 text-[#FFF0EA]">{BOJI_FEMALE_HEALTH_NOTE}</p>
+                )}
               </div>
-              <BojiInsightsPanel insights={analysis.insights} total={total} />
+              <BojiInsightsPanel insights={analysis.insights} total={total} sex={resultSex} />
               {notes.length > 0 && (
                 <div className="rounded-3xl border border-amber-200 dark:border-[#5A4626] bg-amber-50 dark:bg-[#3A2E1A] p-4 text-xs leading-5 text-amber-800 dark:text-[#E8B866]">
                   {notes.map((note) => (

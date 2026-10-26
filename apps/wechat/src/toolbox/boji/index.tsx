@@ -2,15 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { Canvas, Text, View } from '@tarojs/components'
 import Taro, { useDidShow, useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import {
-  BOJI_PHOTO_TIPS,
+  BOJI_FEMALE_HEALTH_NOTE,
+  BOJI_SEX_LABELS,
   BOJI_SHAPE_COLORS,
   bojiEnclosureColor,
   bojiMetricCards,
   bojiOverlayShapes,
+  bojiPhotoTips,
   bojiQualityNotes,
+  bojiReportSex,
   bojiTotalScore,
+  isBojiSex,
   type BojiAnalysisDto,
-  type BojiMetricCard
+  type BojiMetricCard,
+  type BojiSex
 } from '@coachlink/core/src/bojiDetector'
 import { bojiPercentileText, bojiShareTitle, isBojiScoreId, type BojiChallengeView } from '@coachlink/core/src/bojiInsights'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
@@ -45,6 +50,23 @@ function isTimelineSinglePage(): boolean {
 }
 
 type Phase = 'idle' | 'working' | 'done' | 'error'
+
+const SEX_STORAGE_KEY = 'coachlink_boji_sex'
+const SEXES: BojiSex[] = ['male', 'female']
+
+function readStoredSex(): BojiSex {
+  try {
+    const value = Taro.getStorageSync(SEX_STORAGE_KEY)
+    return isBojiSex(value) ? value : 'male'
+  } catch {
+    return 'male'
+  }
+}
+
+const METHOD_TEXT: Record<BojiSex, string> = {
+  male: '先找到关节和人体轮廓，再量轮廓宽度（倒三角、手臂、对称），最后在腹部找腹白线和每条横沟，逐块计算被沟围住的比例。腹肌数值依赖阴影：同一个人，光越柔和数值越低，前后对比请用同一地点和光线。',
+  female: '先找到关节和人体轮廓，量出最窄腰宽和髋部最宽处（腰臀比）、肩宽（肩腰比）和左右对称；马甲线不数块，只看腹白线和腹部两侧竖线有多清楚。线条数值依赖阴影：光越柔和数值越低，前后对比请用同一地点和光线。',
+}
 
 const STATUS_BADGE: Record<BojiMetricCard['status'], string> = {
   ok: '',
@@ -99,7 +121,7 @@ async function drawResult(photo: PreparedPhoto, analysis: BojiAnalysisDto, showM
       continue
     }
     ctx.strokeStyle = BOJI_SHAPE_COLORS[shape.kind]
-    ctx.lineWidth = shape.kind === 'shoulder' || shape.kind === 'waist' ? 3 : 2
+    ctx.lineWidth = shape.kind === 'shoulder' || shape.kind === 'waist' || shape.kind === 'hip' ? 3 : 2
     ctx.lineCap = 'round'
     ctx.setLineDash(shape.kind === 'lateral' ? [6, 5] : [])
     ctx.stroke()
@@ -115,6 +137,7 @@ export default function BojiDetectorPage() {
   const [error, setError] = useState('')
   const [showMarks, setShowMarks] = useState(true)
   const [singlePage] = useState(isTimelineSinglePage)
+  const [sex, setSex] = useState<BojiSex>(readStoredSex)
   const router = useRouter()
   const challengeId = isBojiScoreId(router.params?.challenge) ? router.params.challenge : null
   const [challenge, setChallenge] = useState<BojiChallengeView | null>(null)
@@ -154,6 +177,17 @@ export default function BojiDetectorPage() {
   const cards = useMemo(() => (analysis ? bojiMetricCards(analysis) : []), [analysis])
   const total = analysis ? bojiTotalScore(analysis) : null
   const notes = analysis ? bojiQualityNotes(analysis) : []
+  const resultSex = analysis ? bojiReportSex(analysis.report) : sex
+
+  const chooseSex = (next: BojiSex) => {
+    if (phase === 'working') return
+    setSex(next)
+    try {
+      Taro.setStorageSync(SEX_STORAGE_KEY, next)
+    } catch {
+      // 存不了只影响下次默认值
+    }
+  }
 
   const promptLogin = () => {
     Taro.showModal({
@@ -183,7 +217,7 @@ export default function BojiDetectorPage() {
       const prepared = await preparePhoto(path)
       setPhoto(prepared)
       // 自己打开自己的 PK 卡时不算应战
-      setAnalysis(await analyzeBojiPhoto(prepared.path, challenge?.isOwner ? null : challengeId))
+      setAnalysis(await analyzeBojiPhoto(prepared.path, challenge?.isOwner ? null : challengeId, sex))
       setPhase('done')
     } catch (err) {
       const message = err instanceof Error ? err.message : '检测失败，请稍后再试'
@@ -203,12 +237,29 @@ export default function BojiDetectorPage() {
           <View className='boji-intro'>
             <Text className='boji-kicker'>测试版 · 照片不保存</Text>
             <Text className='boji-title'>薄肌检测器</Text>
-            <Text className='boji-desc'>上传一张正面照，量出腹肌分块、倒三角、手臂围度和左右对称，并在照片上标出测量位置。</Text>
+            <Text className='boji-desc'>
+              {sex === 'female'
+                ? '上传一张正面照，量出马甲线、腰臀比、肩腰比和左右对称，并在照片上标出测量位置。'
+                : '上传一张正面照，量出腹肌分块、倒三角、手臂围度和左右对称，并在照片上标出测量位置。'}
+            </Text>
           </View>
 
           <View className='boji-card'>
-            <Text className='boji-card__title'>拍摄建议</Text>
-            {BOJI_PHOTO_TIPS.map((tip) => (
+            <View className='boji-card__row'>
+              <Text className='boji-card__title'>拍摄建议</Text>
+              <View className='boji-sex'>
+                {SEXES.map((option) => (
+                  <Text
+                    key={option}
+                    className={`boji-sex__option ${sex === option ? 'boji-sex__option--on' : ''}`}
+                    onClick={() => chooseSex(option)}
+                  >
+                    {BOJI_SEX_LABELS[option]}
+                  </Text>
+                ))}
+              </View>
+            </View>
+            {bojiPhotoTips(sex).map((tip) => (
               <View key={tip} className='boji-tip'>
                 <View className='boji-tip__dot' />
                 <Text className='boji-tip__text'>{tip}</Text>
@@ -245,9 +296,10 @@ export default function BojiDetectorPage() {
                     ? '这张照片能测的项目太少，不给综合分。按拍摄建议换一张再试。'
                     : '测试版：分数还没有用真人评分校准，PK 图个乐；认真对比请看原始数值和自己前后的变化。'}
                 </Text>
+                {resultSex === 'female' ? <Text className='boji-total__note'>{BOJI_FEMALE_HEALTH_NOTE}</Text> : null}
               </View>
 
-              <BojiInsightsView insights={analysis.insights} />
+              <BojiInsightsView insights={analysis.insights} sex={resultSex} />
 
               <View className='boji-card boji-card--flush'>
                 <View className='boji-card__head'>
@@ -300,9 +352,7 @@ export default function BojiDetectorPage() {
 
           <View className='boji-card'>
             <Text className='boji-card__title'>它是怎么测的</Text>
-            <Text className='boji-method'>
-              先找到关节和人体轮廓，再量轮廓宽度（倒三角、手臂、对称），最后在腹部找腹白线和每条横沟，逐块计算被沟围住的比例。腹肌数值依赖阴影：同一个人，光越柔和数值越低，前后对比请用同一地点和光线。
-            </Text>
+            <Text className='boji-method'>{METHOD_TEXT[resultSex]}</Text>
           </View>
         </View>
       </View>

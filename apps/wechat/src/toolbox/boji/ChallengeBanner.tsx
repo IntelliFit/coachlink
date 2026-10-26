@@ -1,14 +1,19 @@
 import { Image, Text, View } from '@tarojs/components'
+import { BOJI_SEX_LABELS, bojiMetricOrder, type BojiMetricKey } from '@coachlink/core/src/bojiDetector'
 import {
   BOJI_DUEL_LABELS,
-  BOJI_DUEL_METRIC_LABELS,
-  BOJI_DUEL_ORDER,
+  bojiDuelMetricLabel,
   bojiLookalikeText,
   type BojiChallengeView,
+  type BojiMetricScores,
 } from '@coachlink/core/src/bojiInsights'
 
-function fmt(value: number | null): string {
-  return value === null ? '—' : String(Math.round(value))
+function fmt(value: number | null | undefined): string {
+  return typeof value === 'number' ? String(Math.round(value)) : '—'
+}
+
+function scoreOf(scores: BojiMetricScores, key: BojiMetricKey): number | null | undefined {
+  return scores[key as keyof BojiMetricScores]
 }
 
 /** 打开 PK 分享卡时：好友看到对手的分数；发起人自己看到应战记录 */
@@ -27,7 +32,10 @@ export function ChallengeBanner({ view }: { view: BojiChallengeView }) {
         )}
         <View className='boji-pk__who'>
           <Text className='boji-pk__name'>{card.nickname}</Text>
-          {card.lookalike ? <Text className='boji-pk__sub'>{bojiLookalikeText(card.lookalike)}</Text> : null}
+          <Text className='boji-pk__sub'>
+            {BOJI_SEX_LABELS[card.sex]}
+            {card.lookalike ? ` · ${bojiLookalikeText(card.lookalike)}` : ''}
+          </Text>
         </View>
         <View className='boji-pk__total'>
           <Text className='boji-pk__sub'>综合分</Text>
@@ -35,10 +43,10 @@ export function ChallengeBanner({ view }: { view: BojiChallengeView }) {
         </View>
       </View>
       <View className='boji-pk__grid'>
-        {BOJI_DUEL_ORDER.map((key) => (
+        {bojiMetricOrder(card.sex).map((key) => (
           <View key={key} className='boji-pk__cell'>
-            <Text className='boji-pk__sub'>{BOJI_DUEL_METRIC_LABELS[key]}</Text>
-            <Text className='boji-pk__cell-value cl-num'>{fmt(card.scores[key])}</Text>
+            <Text className='boji-pk__sub'>{bojiDuelMetricLabel(key, card.sex)}</Text>
+            <Text className='boji-pk__cell-value cl-num'>{fmt(scoreOf(card.scores, key))}</Text>
           </View>
         ))}
       </View>

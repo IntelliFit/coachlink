@@ -5,12 +5,14 @@ import { Check, Copy, Share2, Swords, UserRound } from 'lucide-react';
 import {
   BOJI_DUEL_LABELS,
   BOJI_DUEL_LIGHTING_TIP,
-  BOJI_DUEL_METRIC_LABELS,
+  BOJI_DUEL_MIXED_TIP,
+  bojiDuelMetricLabel,
   bojiDuelHeadline,
   bojiLookalikeText,
   bojiShareTitle,
   type BojiInsights,
 } from '@coachlink/core/src/bojiInsights';
+import type { BojiSex } from '@coachlink/core/src/bojiDetector';
 import { bojiChallengeUrl } from '@/app/service/bojiDetectorService';
 
 const OUTCOME_CLASS = {
@@ -31,7 +33,7 @@ function LookalikeCard({ insights }: { insights: BojiInsights }) {
   );
 }
 
-function DuelCard({ insights }: { insights: BojiInsights }) {
+function DuelCard({ insights, sex }: { insights: BojiInsights; sex: BojiSex }) {
   const challenge = insights.challenge;
   if (!challenge) return null;
   const { opponent, duel } = challenge;
@@ -49,7 +51,7 @@ function DuelCard({ insights }: { insights: BojiInsights }) {
         <span />
         {duel.lines.map((line) => (
           <div key={line.key} className="contents">
-            <span className="font-semibold text-slate-700">{BOJI_DUEL_METRIC_LABELS[line.key]}</span>
+            <span className="font-semibold text-slate-700">{bojiDuelMetricLabel(line.key, sex)}</span>
             <span className="text-right font-black text-slate-950">{line.mine === null ? '—' : Math.round(line.mine)}</span>
             <span className="text-right text-slate-600">{line.theirs === null ? '—' : Math.round(line.theirs)}</span>
             <span className={`rounded-full px-2 py-0.5 text-center text-xs font-bold ${line.outcome ? OUTCOME_CLASS[line.outcome] : 'text-slate-400'}`}>
@@ -58,7 +60,9 @@ function DuelCard({ insights }: { insights: BojiInsights }) {
           </div>
         ))}
       </div>
-      <p className="mt-3 text-xs leading-5 text-slate-500">{BOJI_DUEL_LIGHTING_TIP}</p>
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        {challenge.mixedSex ? `${BOJI_DUEL_MIXED_TIP}${BOJI_DUEL_LIGHTING_TIP}` : BOJI_DUEL_LIGHTING_TIP}
+      </p>
     </div>
   );
 }
@@ -106,11 +110,19 @@ function InviteCard({ insights, total }: { insights: BojiInsights; total: number
 }
 
 /** 检测结果下方：最像谁、PK 结果、邀请好友 */
-export default function BojiInsightsPanel({ insights, total }: { insights: BojiInsights | undefined; total: number | null }) {
+export default function BojiInsightsPanel({
+  insights,
+  total,
+  sex = 'male',
+}: {
+  insights: BojiInsights | undefined;
+  total: number | null;
+  sex?: BojiSex;
+}) {
   if (!insights) return null;
   return (
     <>
-      <DuelCard insights={insights} />
+      <DuelCard insights={insights} sex={sex} />
       <LookalikeCard insights={insights} />
       <InviteCard insights={insights} total={total} />
     </>

@@ -10,7 +10,7 @@ import {
 } from '@/lib/bojiDetector';
 import { buildBojiInsights } from '@/lib/bojiScores';
 import type { ApiData } from '@/types/api';
-import type { BojiAnalysisDto } from '@coachlink/core/src/bojiDetector';
+import { isBojiSex, type BojiAnalysisDto } from '@coachlink/core/src/bojiDetector';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,7 @@ function fail(status: number, message: string, headers?: Record<string, string>)
  * 薄肌检测：请求体就是照片本身（image/jpeg、image/png、image/webp 或
  * application/octet-stream）。网页和小程序共用。照片只转发给分析服务，不保存；
  * 只记录分数（tool_boji_scores），用于「超越 X%」和 PK。
- * 可选查询参数 challenge=<成绩 id>：应战好友发起的 PK。
+ * 可选查询参数 challenge=<成绩 id>：应战好友发起的 PK；sex=female：女性档（马甲线、腰臀比）。
  */
 export async function POST(request: NextRequest) {
   const userId = await getApiUserId(request);
@@ -49,8 +49,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const analysis = await analyzeWithBojiService(photo, config);
-    const challengeId = new URL(request.url).searchParams.get('challenge');
+    const params = new URL(request.url).searchParams;
+    const requestedSex = params.get('sex');
+    const analysis = await analyzeWithBojiService(photo, config, fetch, isBojiSex(requestedSex) ? requestedSex : 'male');
+    const challengeId = params.get('challenge');
     let data: BojiAnalysisDto = analysis;
     try {
       data = { ...analysis, insights: await buildBojiInsights({ analysis, userId, challengeId }) };
