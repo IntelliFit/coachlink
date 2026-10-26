@@ -1,0 +1,122 @@
+@use '../../styles/tokens' as *;
+
+// 薄肌检测器改版（2026-10-26）新组件：环形分、雷达图、PK 对比条。尺寸和间距按 8rpx 栅格。
+.boji-ring {
+  position: relative;
+  flex-shrink: 0;
+
+  &__canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  &__center {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__value {
+    color: var(--cl-paper);
+    font-size: 104rpx;
+    line-height: 112rpx;
+    font-weight: 700;
+  }
+
+  &__label {
+    color: var(--cl-ink-4);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+  }
+}
+
+.boji-radar {
+  display: block;
+  width: 100%;
+  height: 560rpx;
+}
+
+.boji-duelbars {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-3;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: $cl-space-1;
+  }
+
+  &__side {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: $cl-space-2;
+
+    &--mine {
+      justify-content: flex-end;
+    }
+  }
+
+  &__label {
+    width: 128rpx;
+    flex-shrink: 0;
+    color: var(--cl-ink);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+    font-weight: 500;
+    text-align: center;
+  }
+
+  &__track {
+    flex: 1;
+    height: 24rpx;
+    display: flex;
+
+    &--mine {
+      justify-content: flex-end;
+    }
+  }
+
+  &__fill {
+    height: 24rpx;
+    border-radius: $cl-radius-pill;
+    background: var(--cl-line);
+
+    &--mine {
+      background: var(--cl-clay);
+    }
+
+    &--theirs {
+      background: var(--cl-done);
+    }
+  }
+
+  &__num {
+    width: 64rpx;
+    flex-shrink: 0;
+    color: var(--cl-ink-3);
+    font-size: 40rpx;
+    line-height: 48rpx;
+    font-weight: 700;
+    text-align: center;
+
+    &--mine {
+      color: var(--cl-clay-text);
+    }
+
+    &--theirs {
+      color: var(--cl-done);
+    }
+  }
+}
