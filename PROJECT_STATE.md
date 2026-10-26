@@ -1,3 +1,13 @@
+## 正式发布：薄肌 v2 + 公告 + 功率取消/合理性 + 游戏修复（2026-10-27 凌晨）
+
+- dev/main dfb22152：本地 dev 7 个提交（哑铃弹弹长尾物理、引体/俯卧撑游戏头部校准与 5 秒倒计时、功率分析恢复/取消任务与剔除不可能次数）+ 公告功能 e765c723（原"通知栏功能"会话未提交、未测）+ feat/boji-redesign + feat/power-settings-order。不含：feat/boji-poster-qr（已决定不用）、wonderful-bun 路人打码（未提交）。
+- 迁移：20261026120000（canceled）用户确认已执行；20261025120000_announcements 用户已执行，只读核实两表 service 200、anon 401。表里有两条 10-25 的【测试】公告（published、popup、all），expires_at 2026-10-25T06:43Z 已过期，查询按 expires_at 过滤，用户看不到；建议在 /admin/announcements 删除。
+- 门禁：typecheck 通过；vitest 1173/1174（既有 streetliftingLocationOverview）。
+- Web `coachlink@sha256:0e24cf22…`（标签 dfb2215，服务器 binary diff 还原，2244 文件 blob 一致）：dev 9a2af0df → 0e24cf22、main 33a25e28 → 0e24cf22，均 3/3，两分钟无错误日志；healthy/login/boji/功率分析 200，公告接口与管理接口未登录 401，challenge 未知 id 404。dev 保留 BOJI_SERVICE_URL → boji-service-dev。
+- 薄肌引擎：coachlink-boji-service-main `:latest`（旧引擎）→ `coachlink-boji-service@sha256:c786820a…`（female-3b41c87，男生分数口径变化：腹肌行数上限、对称只比躯干）。单节点 CPU 预留 97%，新 pod 200m/100m 都调度不上；已把 main 的 requests.cpu 改为 100m、滚动策略改为 maxSurge 0 / maxUnavailable 1（先停旧再起新，中断约 11 秒），deploy/k8s/boji-service/main/deployment.yaml 已同步。改后节点 CPU 预留 95%。
+- Worker `coachlink-power-worker@sha256:013fabff…`（标签 power-20261026-dfb2215，155e1c02 基础叠加代码，镜像内 74 项测试通过）：worker-dev、worker-main d41b45f6 → 013fabff，Kafka 两组各 1 个新成员持有 16 分区。
+- 小程序开发版 **2026.10.27.0014**（2985 模块，总包 10,619,449 / 主包 2,005,855 字节，离 2MB 上限约 90KB），描述 release-dfb2215-boji-v2-announcements。公告功能未在任何端实测过，用户在体验版真机测。
+
 ## 待下次小程序发版：哑铃弹弹长尾物理（2026-10-26，只在 dev）
 
 - `cc6216b8`：完全弹性 + 能量守恒、缝比哑铃短（只能竖着掉）、每局随机摩擦；中位约 84 下，3.5% 上千。倍速 1/2/3/5/10×，录制上限 10 分钟。
