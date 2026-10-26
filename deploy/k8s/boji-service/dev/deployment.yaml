@@ -51,7 +51,8 @@ spec:
             timeoutSeconds: 5
           resources:
             requests:
-              cpu: "200m"
+              # 单节点 CPU 预留已近满（2026-10-26 约 95%），测试服务只预留 0.1 核，上限照旧
+              cpu: "100m"
               memory: "512Mi"
             limits:
               cpu: "2"

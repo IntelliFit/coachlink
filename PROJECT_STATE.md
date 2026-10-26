@@ -1,3 +1,13 @@
+## 体验版：薄肌改版 + 女性版 + 朋友圈（2026-10-26，只上 dev）
+
+- 整合分支 `feat/boji-redesign`（各对话改动都已汇总：改版、女性版、腹肌每侧 ≤4 行与人物头像、朋友圈引导、男女同框封面；`feat/boji-poster-qr` 按决定不用）。typecheck 0 错；vitest 1103/1104（既有 streetliftingLocationOverview）+ 5 个文件因 worktree 缺 apps/mobile 依赖无法加载；引擎 pytest 102 通过。
+- 用户已执行 `20261026090000_boji_scores_sex.sql`（只读核实 sex 列与 `boji_total_score_rank_by_sex` 存在，表 220 行）。
+- 引擎 `boji-detector` 分支 `feat/female-profile`（3b41c87，v0.2.0）已推 GitHub；main 未动。
+- 新增体验版专用检测服务 `coachlink-boji-service-dev`（`coachlink-boji-service@sha256:c786820a…`，标签 female-3b41c87，CPU 预留 100m：单节点预留已约 95%）。正式站仍用 `coachlink-boji-service-main`（旧引擎）。
+- Web `coachlink@sha256:9a2af0df…`（标签 boji-v2-5fcafcb，服务器以 b5caf5a4 worktree + binary diff 还原 5fcafcb6，271 文件 blob 一致）**只切 coachlink-dev**（33a25e28 → 9a2af0df，3/3），并设 `BOJI_SERVICE_URL=http://coachlink-boji-service-dev:8000`。dev /api/healthy、/toolbox/boji 200，challenge 未知 id 404，analyze 未登录 401。**coachlink-main 仍 33a25e28**。
+- 小程序主包超限（2152KB > 2048KB）：Taro vite 把多处引用的模块放进主包 common.js。新增 `apps/wechat/config/weappBojiChunk.ts` 把薄肌脚本与封面放进 `toolbox/boji-common.js`；开发者工具里工具箱页与薄肌页正常。开发版 **2026.10.26.1802**（主包 1,987,151，描述 trial-4837f37-boji-v2）。
+- 正式发布时：合并 feat/boji-redesign → dev → main；boji-service-main 换成 c786820a（会改变男生分数：腹肌行数上限、对称只比躯干）或保持旧引擎二选一；coachlink-main 切新 Web 镜像（去掉/保留 BOJI_SERVICE_URL 视服务选择）；引擎 feat/female-profile 合进 main。
+
 ## 正式发布准备：薄肌 PK + 哑铃弹跳物理版（2026-10-25）
 
 - 用户真机测试：薄肌 PK 没问题；哑铃弹跳有问题，pushup 会话改为真实物理（57f207fa，只改小程序/文档/测试）。
