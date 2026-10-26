@@ -15,9 +15,8 @@ import {
   BOUNCE_EXERCISES,
   BOUNCE_SPEEDS,
   COUNTDOWN_MS,
-  createRelease,
+  createRound,
   createSim,
-  MAX_SIM_MS,
   sceneFromSim,
   WORLD_HEIGHT,
   type BounceScene,
@@ -40,8 +39,13 @@ const PREFS_KEY = 'dumbbell_bounce_prefs_v1'
 const RESULT_HOLD_MS = 2200
 const MAX_FRAME_DELTA_MS = 64
 const REPLAY_FRAME_INTERVAL_MS = 1000 / BOUNCE_REPLAY_FPS
-/** 录制上限要盖住倒计时 + 最长模拟 + 结果停留。 */
-const REPLAY_MAX_SECONDS = Math.ceil((COUNTDOWN_MS + MAX_SIM_MS + RESULT_HOLD_MS) / 1000) + 5
+/**
+ * 录制上限 10 分钟（真实时间）。1× 下 99% 的局在 5 分钟内结束；更长的局到点后
+ * 视频停在这里，游戏照常弹完，建议这种局开快进。
+ */
+const REPLAY_MAX_SECONDS = 600
+/** 撞得很密时震动会连成一片，至少间隔这么久才震一次。 */
+const HIT_VIBRATE_GAP_MS = 150
 /** 还没开始时哑铃挂在两片上方。 */
 const IDLE_SIM = createSim({ angle: 0, spin: 0, vx: 0, vy: 0, x: 0.5, y: WORLD_HEIGHT * 0.26 })
 
@@ -105,6 +109,7 @@ export default function DumbbellBouncePage() {
   const countdownStartedAtRef = useRef(0)
   const resultAtRef = useRef(0)
   const lastTickAtRef = useRef(0)
+  const lastVibrateAtRef = useRef(0)
   const canvasRef = useRef<CanvasHandle | null>(null)
   const rafIdRef = useRef<number | null>(null)
   const recorderRef = useRef<DumbbellBounceRecorder | null>(null)
@@ -189,7 +194,12 @@ export default function DumbbellBouncePage() {
     } else if (statusRef.current === 'bouncing') {
       const before = simRef.current.hits
       simRef.current = advanceSim(simRef.current, delta, speedRef.current)
-      if (simRef.current.hits > before && speedRef.current === 1) {
+      if (
+        simRef.current.hits > before
+        && speedRef.current === 1
+        && now - lastVibrateAtRef.current >= HIT_VIBRATE_GAP_MS
+      ) {
+        lastVibrateAtRef.current = now
         void Taro.vibrateShort({ type: 'light' }).catch(() => undefined)
       }
       if (simRef.current.ended) finishRound()
@@ -280,7 +290,7 @@ export default function DumbbellBouncePage() {
     }
     if (recording || processing) return
     // 每局随机松手：位置、角度、初速度、自转都不同，撞几下全看物理。
-    simRef.current = createSim(createRelease())
+    simRef.current = createRound()
     setVideoPath('')
     setResultReps(0)
     countdownStartedAtRef.current = Date.now()
@@ -456,7 +466,7 @@ export default function DumbbellBouncePage() {
           <Text className='bounce-hint'>
             {status === 'result'
               ? `今天的任务：${resultReps} 个${exerciseLabelOf(exerciseKey)}。视频免费保存，可以直接发抖音、小红书。`
-              : '每次从随机位置和角度松手，哑铃撞一下杠铃片算 1 个，自己掉下去就结束。'}
+              : '每次随机松手，撞一下杠铃片算 1 个，碰巧竖着掉进缝里才结束；弹得久就开 5×、10× 快进。'}
           </Text>
         </View>
       </View>
