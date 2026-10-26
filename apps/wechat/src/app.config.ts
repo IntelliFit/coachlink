@@ -72,6 +72,8 @@ export default {
         'friends/index',
         'messages/index',
         'messages/chat/index',
+        'announcements/index',
+        'announcements/detail/index',
         'my-coaches/index',
         'payment-waiting/index',
         'payment-test/index',

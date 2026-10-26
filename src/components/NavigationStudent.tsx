@@ -18,6 +18,7 @@ import { userService } from '@/app/service/userService';
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
 import { useCart } from '@/context/CartContext';
 import type { UserProfilesRow } from '@/types';
+import AnnouncementBellButton from '@/components/announcement/AnnouncementBellButton';
 import {
     PlayCircle,
     Search,
@@ -380,6 +381,7 @@ export default function NavigationStudent() {
             ) : session?.user ? (
                 <>
                     <div className="flex items-center gap-0.5 bg-surface-50 p-1 rounded-2xl mr-2">
+                        <AnnouncementBellButton />
                         <button onClick={() => router.push('/messages')} className="relative p-2 rounded-xl text-surface-500 hover:bg-surface hover:text-primary-500 transition-all pi pi-bell p-overlay-badge">
                             <MessageBadge className="absolute top-1.5 right-1.5 border-2 border-surface-50" />
                         </button>
@@ -581,7 +583,8 @@ export default function NavigationStudent() {
                         </div>
 
                         {/* 右侧：消息图标（信封样式，带红点） */}
-                        <div className="flex-1 flex justify-end">
+                        <div className="flex-1 flex justify-end items-center gap-1">
+                            {session?.user && <AnnouncementBellButton className="text-surface-600" />}
                             <button
                                 onClick={() => router.push('/messages')}
                                 className="relative p-2 -mr-2 text-surface-600 active:scale-90 transition-transform"

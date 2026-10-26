@@ -8,6 +8,9 @@ import { View, Text, ScrollView, Textarea } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
+import AnnouncementBar from '@/components/AnnouncementBar'
+import AnnouncementPopup from '@/components/AnnouncementPopup'
+import { announcementService, type UserAnnouncement } from '@/services/announcementService'
 import { ClButton } from '@/components/ui'
 import type { PublicTrainingPlanListItem } from '@/services/knowledgeService'
 import StarterHome, { type QuickStartTemplate } from './components/StarterHome'
@@ -788,6 +791,15 @@ function TodayTrainingScreen() {
     }
   }, [])
 
+  // 平台通知：每次回到首页拉一次，有新发布的就立刻弹出（每人每条只弹一次）。
+  const [announcementPopups, setAnnouncementPopups] = useState<UserAnnouncement[]>([])
+  useDidShow(() => {
+    void announcementService.load().then(() => {
+      const popups = announcementService.takePopups()
+      if (popups.length > 0) setAnnouncementPopups(popups)
+    })
+  })
+
   useDidShow(() => {
     // 执行页已回写同一份 60 天缓存；返回时先回显，再由云端校正。
     const cached = getTodayTrainingBootFromCache().cache
@@ -1496,6 +1508,7 @@ function TodayTrainingScreen() {
     <View className={`today-training-page main-home-page compact-training-home tt-home theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
+          <AnnouncementBar />
           {!!instance && (
             <View className='tt-home__date-row' onClick={() => enableScheduleMonthExpand && setCalendarExpanded(true)}>
               <Text className='tt-home__date'>{selectedDateLabel}</Text>
@@ -1857,6 +1870,10 @@ function TodayTrainingScreen() {
             </View>
           </View>
         </View>
+      )}
+
+      {announcementPopups.length > 0 && (
+        <AnnouncementPopup items={announcementPopups} onClose={() => setAnnouncementPopups([])} />
       )}
     </View>
     </PageThemeRoot>

@@ -17,6 +17,7 @@ import { coachService } from '@/app/service/coachService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { userService } from '@/app/service/userService';
 import type { UserProfilesRow } from '@/types';
+import AnnouncementBellButton from '@/components/announcement/AnnouncementBellButton';
 import {
     LayoutDashboard,
     PlayCircle,
@@ -218,6 +219,7 @@ export default function NavigationCoach() {
             ) : session?.user ? (
                 <>
                     <div className="flex items-center gap-0.5 bg-surface-50 p-1 rounded-2xl mr-2">
+                        <AnnouncementBellButton />
                         <button onClick={() => router.push('/messages')} className="relative p-2 rounded-xl text-surface-500 hover:bg-surface hover:text-primary-500 transition-all pi pi-bell p-overlay-badge">
                             <MessageBadge className="absolute top-1.5 right-1.5 border-2 border-surface-50" />
                         </button>

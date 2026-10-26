@@ -18,6 +18,8 @@ import { PageThemeRoot } from '@/components/PageThemeRoot'
 import { XPayTrialEntry } from '@/components/XPayTrialEntry'
 import { ClButton, ClTag } from '@/components/ui'
 import { getCapsuleLayout } from '@/utils/capsuleLayout'
+import { announcementService } from '@/services/announcementService'
+import { useAnnouncementFeed } from '@/hooks/useAnnouncementFeed'
 interface MenuItem {
   key: string
   label: string
@@ -215,8 +217,10 @@ function Profile() {
     }
   }, [])
 
+  const announcementFeed = useAnnouncementFeed()
   useDidShow(() => {
     void loadCurrentUser()
+    void announcementService.load(60 * 1000)
   })
 
   const points = user?.points ?? 0
@@ -313,6 +317,14 @@ function Profile() {
       icon: 'icon-messages',
       path: '/me/messages/index',
       badge: profileStats.unreadMessages > 0 ? String(Math.min(profileStats.unreadMessages, 99)) : undefined,
+      requiresAuth: true
+    },
+    {
+      key: 'announcements',
+      label: '平台通知',
+      icon: 'icon-messages',
+      path: '/me/announcements/index',
+      badge: announcementFeed.unreadCount > 0 ? String(Math.min(announcementFeed.unreadCount, 99)) : undefined,
       requiresAuth: true
     },
     {

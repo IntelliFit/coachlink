@@ -12,6 +12,7 @@ import { ChatProvider } from '@/context/ChatContext';
 import { NotificationPermissionProvider } from '@/context/NotificationPermissionContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { CartProvider } from '@/context/CartContext';
+import { AnnouncementProvider } from '@/components/announcement/AnnouncementContext';
 import Footer from './Footer';
 import { registerSw } from '@/lib/swRegistration';
 
@@ -135,6 +136,7 @@ export default function ClientLayout({
                             <ChatProvider>
                                 <NotificationPermissionProvider>
                                     <CartProvider>
+                                        <AnnouncementProvider>
                                         <GuideWrapper>
                                         <div className="flex flex-col">
                                             {/* 移动端底部导航（学员端）会占据一定高度：为内容预留底部安全区 */}
@@ -144,6 +146,7 @@ export default function ClientLayout({
                                             <Footer />
                                         </div>
                                         </GuideWrapper>
+                                        </AnnouncementProvider>
                                     </CartProvider>
                                 </NotificationPermissionProvider>
                             </ChatProvider>
