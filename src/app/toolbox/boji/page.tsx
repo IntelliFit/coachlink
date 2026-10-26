@@ -268,6 +268,9 @@ export default function BojiDetectorPage() {
                   sex={resultSex}
                   packCount={snapshot.absPackCount}
                 />
+                {resultSex === 'female' && (
+                  <p className="rounded-2xl bg-[#EFEAE2] p-3 text-xs leading-5 text-slate-700 dark:bg-[#2A2622] dark:text-[#CBC3B8]">{BOJI_FEMALE_HEALTH_NOTE}</p>
+                )}
                 <LookalikeCard insights={analysis.insights} />
                 <InviteCard insights={analysis.insights} total={total} />
                 <div className={`${CARD} p-5 md:p-6`}>
@@ -360,7 +363,6 @@ export default function BojiDetectorPage() {
             照片只用于这一次检测，不保存；只记录分数，用于排名和 PK。
           </span>
           {analysis && <span>测试版：分数供自测和好友 PK 娱乐，不是医疗诊断。</span>}
-          {analysis && resultSex === 'female' && <span>{BOJI_FEMALE_HEALTH_NOTE}</span>}
         </div>
       </div>
     </main>

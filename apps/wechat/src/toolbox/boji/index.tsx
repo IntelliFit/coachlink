@@ -315,6 +315,7 @@ export default function BojiDetectorPage() {
                 sex={resultSex}
                 packCount={snapshot.absPackCount}
               />
+              {resultSex === 'female' ? <Text className='boji-soft-note'>{BOJI_FEMALE_HEALTH_NOTE}</Text> : null}
               <LookalikeCard insights={analysis.insights} />
               <ShareActions canShare={!!scoreId && !singlePage} onPoster={shareImages.openPoster} />
 
@@ -362,7 +363,6 @@ export default function BojiDetectorPage() {
             {analysis ? (
               <Text className='boji-privacy'>测试版：分数供自测和好友 PK 娱乐，不是医疗诊断。</Text>
             ) : null}
-            {analysis && resultSex === 'female' ? <Text className='boji-privacy'>{BOJI_FEMALE_HEALTH_NOTE}</Text> : null}
           </View>
         </View>
 
