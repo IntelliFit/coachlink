@@ -16,19 +16,13 @@ $boji-clay-light: #F0A285;
   flex-direction: column;
   gap: $cl-space-3;
 
+  // 示例图 4:3（686rpx 宽 → 512rpx 高，取 8 的倍数）
   &__sample {
     position: relative;
-    height: 600rpx;
+    height: 512rpx;
     border-radius: $cl-radius-sheet;
     overflow: hidden;
     background: $boji-dark;
-
-    &--plain {
-      height: 320rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
   }
 
   &__image {
@@ -38,66 +32,14 @@ $boji-clay-light: #F0A285;
 
   &__tag {
     position: absolute;
-    top: $cl-space-3;
     left: $cl-space-3;
+    bottom: $cl-space-3;
     padding: 0 $cl-space-2;
     border-radius: $cl-radius-pill;
     background: rgba(30, 28, 26, 0.72);
     color: $boji-on-dark;
     font-size: $cl-font-tag;
     line-height: 40rpx;
-  }
-
-  &__chip {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    padding: $cl-space-2 $cl-space-3;
-    border-radius: $cl-radius-card;
-
-    &--ratio {
-      top: 112rpx;
-      right: $cl-space-3;
-      background: #FFFFFF;
-      color: $boji-dark;
-    }
-
-    &--rank {
-      right: $cl-space-3;
-      bottom: $cl-space-4;
-      align-items: flex-end;
-      background: var(--cl-clay-strong);
-      color: #FFFFFF;
-    }
-  }
-
-  &__chip-label {
-    font-size: $cl-font-tag;
-    line-height: $cl-line-tag;
-    opacity: 0.85;
-  }
-
-  &__chip-value {
-    font-size: 48rpx;
-    line-height: 56rpx;
-    font-weight: 700;
-  }
-
-  &__metrics {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: $cl-space-2;
-    padding: $cl-space-6 $cl-space-4 0;
-  }
-
-  &__metric {
-    padding: $cl-space-1 $cl-space-3;
-    border-radius: $cl-radius-pill;
-    background: $boji-dark-2;
-    color: $boji-on-dark;
-    font-size: $cl-font-meta;
-    line-height: $cl-line-meta;
   }
 
   &__copy {

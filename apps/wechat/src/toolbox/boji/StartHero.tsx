@@ -22,29 +22,11 @@ export function StartHero({ sex, onSexChange, disabled }: { sex: BojiSex; onSexC
   const copy = HEADLINES[sex]
   return (
     <View className='boji-start'>
-      {sex === 'male' ? (
-        <View className='boji-start__sample'>
-          <Image className='boji-start__image' src={sampleCover} mode='aspectFill' />
-          <Text className='boji-start__tag'>示例结果</Text>
-          <View className='boji-start__chip boji-start__chip--ratio'>
-            <Text className='boji-start__chip-label'>肩腰比</Text>
-            <Text className='boji-start__chip-value cl-num'>1.86</Text>
-          </View>
-          <View className='boji-start__chip boji-start__chip--rank'>
-            <Text className='boji-start__chip-label'>超越了约</Text>
-            <Text className='boji-start__chip-value cl-num'>93%</Text>
-          </View>
-        </View>
-      ) : (
-        <View className='boji-start__sample boji-start__sample--plain'>
-          <Text className='boji-start__tag'>测这四项</Text>
-          <View className='boji-start__metrics'>
-            {['马甲线', '腰臀比', '肩腰比', '左右对称'].map((name) => (
-              <Text key={name} className='boji-start__metric'>{name}</Text>
-            ))}
-          </View>
-        </View>
-      )}
+      {/* 男女同框示例图，图上已有「男生 · 腹肌」「女生 · 腰臀比」标签 */}
+      <View className='boji-start__sample'>
+        <Image className='boji-start__image' src={sampleCover} mode='aspectFill' />
+        <Text className='boji-start__tag'>示例结果</Text>
+      </View>
 
       <View className='boji-start__copy'>
         <Text className='boji-start__title'>{copy.title}</Text>

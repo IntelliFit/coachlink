@@ -39,16 +39,14 @@ type Phase = 'idle' | 'working' | 'done' | 'error';
 const SEX_STORAGE_KEY = 'coachlink.boji.sex';
 const SEXES: BojiSex[] = ['male', 'female'];
 
-const HEADLINES: Record<BojiSex, { title: string; desc: string; metrics: string[] }> = {
+const HEADLINES: Record<BojiSex, { title: string; desc: string }> = {
   male: {
     title: '一张正面照，测出你的薄肌等级',
     desc: '量腹肌分块、倒三角、手臂和左右对称，看看你超越了多少人、身材最像哪位明星，再拉好友 PK。',
-    metrics: ['腹肌', '倒三角', '手臂', '左右对称'],
   },
   female: {
     title: '一张正面照，测出你的马甲线和曲线',
     desc: '量马甲线、腰臀比、肩腰比和左右对称，看看你超越了多少人、身材最像哪位明星，再拉闺蜜 PK。',
-    metrics: ['马甲线', '腰臀比', '肩腰比', '左右对称'],
   },
 };
 
@@ -196,30 +194,16 @@ export default function BojiDetectorPage() {
 
         {!analysis || !snapshot ? (
           <section className="grid gap-6 md:grid-cols-[1fr_1fr] md:items-center">
-            {sex === 'male' ? (
-              <div className="relative overflow-hidden rounded-[32px] bg-[#1E1C1A]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/boji/sample-result.webp" alt="示例：检测器在正面照上标出肩线、腰线和腹肌分块" className="aspect-[4/3] w-full object-cover" />
-                <span className="absolute left-3 top-3 rounded-full bg-[#1E1C1A]/75 px-3 py-1 text-xs text-[#F5F2ED]">示例结果</span>
-                <span className="absolute right-3 top-14 flex flex-col rounded-2xl bg-white px-3 py-2 text-slate-950 shadow-lg">
-                  <span className="text-[11px] text-slate-500">肩腰比</span>
-                  <span className="text-2xl font-black leading-none">1.86</span>
-                </span>
-                <span className="absolute bottom-4 right-3 flex flex-col items-end rounded-2xl bg-[#B4553A] px-3 py-2 text-white">
-                  <span className="text-[11px] opacity-90">超越了约</span>
-                  <span className="text-3xl font-black leading-none">93%</span>
-                </span>
-              </div>
-            ) : (
-              <div className="flex aspect-[4/3] flex-col items-center justify-center gap-4 rounded-[32px] bg-[#1E1C1A] p-6 text-[#F5F2ED]">
-                <span className="text-sm text-[#C9C2B8]">测这四项</span>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {copy.metrics.map((m) => (
-                    <span key={m} className="rounded-full bg-[#3A3631] px-4 py-1.5 text-sm">{m}</span>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* 男女同框示例图，图上已有「男生 · 腹肌」「女生 · 腰臀比」标签 */}
+            <div className="relative overflow-hidden rounded-[32px] bg-[#1E1C1A]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/boji/sample-result.webp"
+                alt="示例：检测器在正面照上标出肩线、腰线、臀线和腹肌分块"
+                className="aspect-[4/3] w-full object-cover"
+              />
+              <span className="absolute bottom-3 left-3 rounded-full bg-[#1E1C1A]/75 px-3 py-1 text-xs text-[#F5F2ED]">示例结果</span>
+            </div>
 
             <div className="flex flex-col gap-5">
               <div>
