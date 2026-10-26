@@ -145,7 +145,7 @@ const TITLES: Record<BojiMetricKey, { title: string; explain: string }> = {
   abs: { title: '腹肌', explain: '找出腹白线和每条横沟，逐块量它被沟围住了多少' },
   v_taper: { title: '倒三角', explain: '三角肌外缘宽 ÷ 最窄腰宽' },
   arms: { title: '手臂围度', explain: '上臂宽 ÷ 上臂长（肩到肘）' },
-  symmetry: { title: '左右对称', explain: '轮廓左右镜像的重合度、肩线倾斜、左右上臂粗细比' },
+  symmetry: { title: '左右对称', explain: '躯干（腋下到腰）左右镜像的重合度、肩线倾斜、左右上臂粗细比' },
   waist_hip: { title: '腰臀比', explain: '最窄腰宽 ÷ 最宽臀宽' },
 };
 
