@@ -28,8 +28,20 @@ function LookalikeCard({ insights }: { insights: BojiInsights }) {
         <span>{match.groupLabel}</span>
         {match.similarity !== undefined && <span className="text-[#CF6D4E]">相似度 {match.similarity}%</span>}
       </div>
-      <div className="mt-1 text-lg font-black text-slate-950">{bojiLookalikeText(match)}</div>
-      <div className="mt-1 text-sm text-slate-600">{match.tagline}</div>
+      <div className="mt-3 flex items-center gap-3">
+        {match.photoPath ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={match.photoPath} alt={match.name} className="h-14 w-14 shrink-0 rounded-full object-cover" />
+        ) : (
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#F7F4EF] text-xl font-black text-[#CF6D4E]">
+            {match.name.slice(0, 1)}
+          </span>
+        )}
+        <div className="min-w-0">
+          <div className="text-lg font-black text-slate-950">{bojiLookalikeText(match)}</div>
+          <div className="mt-0.5 text-sm text-slate-600">{match.tagline}</div>
+        </div>
+      </div>
       {match.traits && match.traits.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {match.traits.map((trait) => (

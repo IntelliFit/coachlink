@@ -75,6 +75,22 @@ export const BOJI_LOOKALIKES: BojiLookalike[] = [
   p('luka_doncic', '卢卡·东契奇', 'athlete', '壮实型球星，靠力量和节奏', -1.5, -1, 0),
   p('ma_long', '马龙', 'athlete', '乒乓球冠军的均衡体型', -1, 0, 0),
 
+  // 国内运动员和武打演员（2026-10-26 补充）
+  p('ning_zetao', '宁泽涛', 'athlete', '游泳名将，腹肌和肩线都很漂亮', 1, 0.5, 0),
+  p('zhang_jike', '张继科', 'athlete', '乒乓球大满贯，精干紧实', 0.5, 0, 0),
+  p('lin_dan', '林丹', 'athlete', '羽毛球超级全满贯，匀称有爆发力', 0.5, -0.5, -0.5),
+  p('li_ning', '李宁', 'athlete', '体操王子，挺拔的倒三角', 0, 1, 0),
+  p('li_xiaopeng', '李小鹏', 'athlete', '体操冠军，上肢发达', 0.5, 0, 1),
+  p('zou_shiming', '邹市明', 'athlete', '奥运拳击冠军，轻量级的紧实', 0.5, -0.5, 0.5),
+  p('yi_jianlian', '易建联', 'athlete', '高大舒展的篮球体型', -0.5, 0.5, 0.5),
+  p('wu_lei_football', '武磊', 'athlete', '前锋的灵活结实', 0, -0.5, 0),
+  p('yao_ming', '姚明', 'athlete', '大骨架的篮球巨人', -0.5, -0.5, 0),
+  p('jet_li', '李连杰', 'athlete', '武术冠军出身，灵巧紧凑', 0.5, 0, -0.5),
+  p('jackie_chan', '成龙', 'athlete', '动作片里的耐打体型', -0.5, 0, 0),
+  p('vincent_zhao', '赵文卓', 'athlete', '挺拔的武打小生', 0, 0.5, -0.5),
+  p('sammo_hung', '洪金宝', 'athlete', '身手敏捷的大块头', -1, 0, 0.5),
+  p('daniel_wu', '吴彦祖', 'athlete', '常年自律的紧实线条', 1, 0, 0.5),
+
   // 大肌肉和健身圈
   p('chris_heria', 'Chris Heria', 'muscle', '街头健身，腹肌明显、上肢发达', 1, 0.5, 1.5),
   p('david_laid', 'David Laid', 'muscle', '健身审美型，宽肩窄腰', 0.5, 1.5, 0.5),

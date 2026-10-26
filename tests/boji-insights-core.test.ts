@@ -203,3 +203,27 @@ describe('helpers', () => {
     expect(isBojiScoreId(undefined)).toBe(false);
   });
 });
+
+describe('lookalike photos', () => {
+  it('only references avatars that exist and every photo has a credit', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const { BOJI_LOOKALIKE_PHOTOS } = await import('../packages/core/src/bojiLookalikePhotos');
+    const { bojiLookalikePhoto } = await import('../packages/core/src/bojiLookalikes');
+    const keys = new Set(BOJI_LOOKALIKES.map((l) => l.key));
+    for (const [key, photo] of Object.entries(BOJI_LOOKALIKE_PHOTOS)) {
+      expect(keys.has(key)).toBe(true);
+      expect(photo.artist.length).toBeGreaterThan(1);
+      expect(photo.licence).toMatch(/^(CC BY|CC0|Public domain)/i);
+      expect(photo.licence).not.toMatch(/NC|ND/);
+      const file = path.join(__dirname, '..', 'public', bojiLookalikePhoto(key).photoPath!);
+      expect(fs.existsSync(file)).toBe(true);
+    }
+  });
+
+  it('falls back to no photo for people without a licensed portrait', async () => {
+    const { bojiLookalikePhoto } = await import('../packages/core/src/bojiLookalikes');
+    expect(bojiLookalikePhoto('wang_yibo')).toEqual({});
+    expect(bojiLookalikePhoto('bruce_lee').photoCredit).toContain('Wikimedia Commons');
+  });
+});

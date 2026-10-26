@@ -1,0 +1,77 @@
+/**
+ * 薄肌检测器人物头像的来源。头像在 public/images/boji-lookalikes/<key>.webp，
+ * 由 Wikimedia Commons 照片裁剪缩放而来（2026-10-26），授权均允许商用（公有领域、CC0、CC BY、CC BY-SA）。
+ * 页面展示头像时要在底部署名。没有列出的人物用姓名首字头像。完整列表见 public/images/boji-lookalikes/CREDITS.md。
+ */
+
+export interface BojiLookalikePhoto {
+  artist: string;
+  licence: string;
+  source: string;
+}
+
+export const BOJI_LOOKALIKE_PHOTOS: Record<string, BojiLookalikePhoto> = {
+  bruce_lee: { artist: 'National General Pictures', licence: 'Public domain', source: 'https://commons.wikimedia.org/wiki/File:Bruce_Lee_1973_(cropped).jpg' },
+  brad_pitt: { artist: 'Toglenn', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Brad_Pitt_2019_by_Glenn_Francis.jpg' },
+  bai_jingting: { artist: 'iQIYI Indonesia', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:Bai_Jingting_2023_series_clip.jpg' },
+  tom_holland: { artist: 'PhilipRomano', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:TomHolland-byPhilipRomano.jpg' },
+  beckham: { artist: 'The Democratic Alliance', licence: 'CC BY-SA 2.0', source: 'https://commons.wikimedia.org/wiki/File:David_Beckham_2009.jpg' },
+  jackson_wang: { artist: 'Narasi', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:Jackson_Wang_interviewed_for_POVJOV_02.png' },
+  jackson_yee: { artist: '刹寂_易烊千玺个站', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:%E6%98%93%E7%83%8A%E5%8D%83%E7%8E%BA%E6%BC%94%E5%94%B1%E4%BC%9A01.jpg' },
+  conor_mcgregor: { artist: 'Andrius Petrucenia on Flickr (Original version) UCinternational (Crop)', licence: 'CC BY-SA 2.0', source: 'https://commons.wikimedia.org/wiki/File:Conor_McGregor,_UFC_189_World_Tour_London_(2).jpg' },
+  donnie_yen: { artist: 'Will629', licence: 'CC0', source: 'https://commons.wikimedia.org/wiki/File:Donnie_Yen_20250323.jpg' },
+  keanu_reeves: { artist: 'Gabriel Hutchinson', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Keanu_Reeves_at_TIFF_2025_02_(Cropped).jpg' },
+  su_bingtian: { artist: 'Dmitry Rozhkov', licence: 'CC BY-SA 3.0', source: 'https://commons.wikimedia.org/wiki/File:2013_World_Championships_in_Athletics_(August,_10)_by_Dmitry_Rozhkov_63.jpg' },
+  timothee_chalamet: { artist: 'Harald Krichel', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Timoth%C3%A9e_Chalamet-63541_(cropped).jpg' },
+  federer: { artist: 'si.robi', licence: 'CC BY-SA 2.0', source: 'https://commons.wikimedia.org/wiki/File:Federer_WM16_(37)_(28136155830).jpg' },
+  messi: { artist: 'Bryan Berlin', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg' },
+  tony_leung: { artist: 'Dick Thomas Johnson from Tokyo, Japan', licence: 'CC BY 2.0', source: 'https://commons.wikimedia.org/wiki/File:Tony_Leung_as_the_President_of_the_International_Competition_Jury_at_Opening_Ceremony_of_the_Tokyo_International_Film_Festival_2024_(54578353950).jpg' },
+  hu_bing: { artist: 'Hu Bing', licence: 'CC BY-SA 3.0', source: 'https://commons.wikimedia.org/wiki/File:The_New_40.jpg' },
+  usain_bolt: { artist: 'Fernando Frazão/Agência Brasil', licence: 'CC BY 3.0 br', source: 'https://commons.wikimedia.org/wiki/File:Usain_Bolt_Rio_100m_final_2016k.jpg' },
+  cristiano_ronaldo: { artist: 'Bryan Berlin', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Cristiano_Ronaldo_Croatia_v_Portugal_2_July_2026-075_(cropped).jpg' },
+  michael_phelps: { artist: 'Agência Brasil Fotografias', licence: 'CC BY 2.0', source: 'https://commons.wikimedia.org/wiki/File:Michael_Phelps_August_2016.jpg' },
+  sun_yang: { artist: 'https://www.flickr.com/people/koreanet/', licence: 'CC BY-SA 2.0', source: 'https://commons.wikimedia.org/wiki/File:Incheon_AsianGames_Swimming_34.jpg' },
+  eddie_peng: { artist: 'am730', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:Eddie_Peng_(%E5%BD%AD%E4%BA%8E%E6%99%8F)_-_Exclusive_Interview_with_am730_in_January_2024.png' },
+  wu_lei: { artist: 'Dick Thomas Johnson from Tokyo, Japan', licence: 'CC BY 2.0', source: 'https://commons.wikimedia.org/wiki/File:Wu_Lei_from_%22Dwelling_by_the_West_Lake%22_at_Red_Carpet_of_the_Tokyo_International_Film_Festival_2023_(53348376819).jpg' },
+  mike_tyson: { artist: 'Super Festivals', licence: 'CC BY 2.0', source: 'https://commons.wikimedia.org/wiki/File:Mike_Tyson_Photo_Op_GalaxyCon_Austin_2023.jpg' },
+  nadal: { artist: 'Barcex', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Rafael_Nadal_en_2024_(cropped).jpg' },
+  neymar: { artist: 'Bryan Berlin', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Neymar_Junior_Brazil_V_Morocco_13_June_2026-40.jpg' },
+  lebron_james: { artist: 'Erik Drost', licence: 'CC BY 2.0', source: 'https://commons.wikimedia.org/wiki/File:LeBron_James_(51959977144)_(cropped2).jpg' },
+  michael_b_jordan: { artist: 'Kevin Paul', licence: 'CC BY 4.0', source: 'https://commons.wikimedia.org/wiki/File:Michael_B_Jordan_-_Sinners_(cropped).jpg' },
+  jake_gyllenhaal: { artist: 'Toglenn', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Jake_Gyllenhaal_2019_by_Glenn_Francis.jpg' },
+  zac_efron: { artist: 'Eva Rinaldi from Sydney Australia', licence: 'CC BY-SA 2.0', source: 'https://commons.wikimedia.org/wiki/File:Zac_Efron,_Eva_Rinaldi_Photography_(10)_(34732926735).jpg' },
+  wu_jing: { artist: 'celinahoran', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Wu_Jing_(Wolf_Warrior_2).jpg' },
+  zhang_jin: { artist: 'am730', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:%E5%BC%B5%E6%99%89.jpg' },
+  zou_kai: { artist: 'Tksteven', licence: 'CC BY-SA 2.5', source: 'https://commons.wikimedia.org/wiki/File:Zou_Kai.JPG' },
+  tyson_fury: { artist: 'Mike DiDomizio', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Tyson_Fury_at_Place_Bell,_Laval_Quebec,_Canada_-_Dec_16_2017_(cropped).jpg' },
+  luka_doncic: { artist: 'Erik Drost', licence: 'CC BY 2.0', source: 'https://commons.wikimedia.org/wiki/File:Luka_Doncic_(51914951721)_(cropped1).jpg' },
+  ma_long: { artist: 'China News Service', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:Ma_Long_(2024).png' },
+  ning_zetao: { artist: 'Voltmetro', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Kazan_2015_-_Ning_Zetao_after_100_metres_frestyle_M_final.JPG' },
+  zhang_jike: { artist: 'Pierre-Yves Beaudouin', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Mondial_Ping_-_Men%27s_Singles_-_Final_-_Zhang_Jike_vs_Wang_Hao_-_40.jpg' },
+  lin_dan: { artist: 'Idontknowwhatisit', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Lin_Dan_photp_(Cropped).jpg' },
+  li_ning: { artist: 'Tim Hipps, U.S. Army', licence: 'Public domain', source: 'https://commons.wikimedia.org/wiki/File:Li_Ling_during_2008_Summer_Olympics_opening_ceremony.jpg' },
+  li_xiaopeng: { artist: 'Tksteven', licence: 'CC BY-SA 2.5', source: 'https://commons.wikimedia.org/wiki/File:Li_Xiaopeng.jpg' },
+  yi_jianlian: { artist: 'Keith Allison from Owings Mills, USA', licence: 'CC BY-SA 2.0', source: 'https://commons.wikimedia.org/wiki/File:Yi_Jianlian_Wizards_2.jpg' },
+  wu_lei_football: { artist: 'El Loko Foto', licence: 'CC BY 4.0', source: 'https://commons.wikimedia.org/wiki/File:Wu_Lei_20191101_(cropped).jpg' },
+  yao_ming: { artist: 'Keith Allison from Baltimore, USA', licence: 'CC BY-SA 3.0', source: 'https://commons.wikimedia.org/wiki/File:YaoMingonoffense2.jpg' },
+  jet_li: { artist: 'Mark_Zuckerberg,_founder_Facebook,_and_Jet_Li.jpg: Robert Scoble derivative work: Teemeah (talk)', licence: 'CC BY 2.0', source: 'https://commons.wikimedia.org/wiki/File:Jet_Li_cropped.JPG' },
+  jackie_chan: { artist: 'Segolene Liger', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Jackie_Chan_-_2025_Locarno_Film_Festival.jpg' },
+  vincent_zhao: { artist: 'am730', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:Vincent_Zhao_(%E8%B6%99%E6%96%87%E5%8D%93)_(cropped).jpg' },
+  sammo_hung: { artist: 'am730', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:Sammo_Hung_20240414.jpg' },
+  daniel_wu: { artist: 'Gage Skidmore', licence: 'CC BY-SA 3.0', source: 'https://commons.wikimedia.org/wiki/File:Daniel_Wu_by_Gage_Skidmore.jpg' },
+  david_laid: { artist: 'Gymshark', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:David_Laid_thirst_tweets_video_for_Gymshark_2021_03_(cropped).jpg' },
+  cbum: { artist: 'Gymshark', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:Chris_Bumstead_on_Gymshark.jpg' },
+  ronnie_coleman: { artist: 'www.localfitness.com.au', licence: 'CC BY-SA 3.0', source: 'https://commons.wikimedia.org/wiki/File:Ronnie_Coleman_8_x_Mr_Olympia_-_2009_-_5.png' },
+  arnold: { artist: 'DHSgov', licence: 'Public domain', source: 'https://commons.wikimedia.org/wiki/File:Arnold_Schwarzenegger_2025_(cropped).jpg' },
+  henry_cavill: { artist: 'Gage Skidmore from Peoria, AZ, United States of America', licence: 'CC BY-SA 2.0', source: 'https://commons.wikimedia.org/wiki/File:Henry_Cavill_(48417913146)_(cropped).jpg' },
+  chris_hemsworth: { artist: 'Kevin Paul', licence: 'CC BY 4.0', source: 'https://commons.wikimedia.org/wiki/File:Chris_Hemsworth_-_Crime_101.jpg' },
+  dwayne_johnson: { artist: 'Harald Krichel', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Dwayne_Johnson-1809_(cropped).jpg' },
+  chris_evans: { artist: 'Amy Martin Photography', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Chris_Evans_Red_2024.jpg' },
+  hugh_jackman: { artist: 'Bryan Berlin', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Hugh_Jackman_Is_This_Thing_On-68_(cropped).jpg' },
+  jason_statham: { artist: 'MTV International', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:Jason_Statham_2018.jpg' },
+  mark_wahlberg: { artist: 'U.S. Marine Corps photo by Sgt. Jorge A. Rosales', licence: 'Public domain', source: 'https://commons.wikimedia.org/wiki/File:Mark_Wahlberg_2021.jpg' },
+  stallone: { artist: 'Georges Biard', licence: 'CC BY-SA 3.0', source: 'https://commons.wikimedia.org/wiki/File:Sylvester_Stallone_Cannes_2019.jpg' },
+  frank_zane: { artist: 'David Shankbone', licence: 'CC BY 3.0', source: 'https://commons.wikimedia.org/wiki/File:Frank_Zane_2011_Shankbone.JPG' },
+  tom_hardy: { artist: 'Gage Skidmore', licence: 'CC BY-SA 3.0', source: 'https://commons.wikimedia.org/wiki/File:Tom_Hardy_by_Gage_Skidmore_in_2018.jpg' },
+  huang_jingyu: { artist: 'Jingyu yam', licence: 'CC BY-SA 4.0', source: 'https://commons.wikimedia.org/wiki/File:Huang_Jingyu.png' },
+};

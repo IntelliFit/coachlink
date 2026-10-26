@@ -283,6 +283,11 @@ export default function BojiDetectorPage() {
             </a>
             。
           </p>
+          {analysis?.insights?.lookalike?.photoCredit && (
+            <p className="mt-2 text-xs text-slate-400">
+              人物照片：{analysis.insights.lookalike.name}，{analysis.insights.lookalike.photoCredit}
+            </p>
+          )}
         </section>
       </div>
     </main>

@@ -304,6 +304,11 @@ export default function BojiDetectorPage() {
               先找到关节和人体轮廓，再量轮廓宽度（倒三角、手臂、对称），最后在腹部找腹白线和每条横沟，逐块计算被沟围住的比例。腹肌数值依赖阴影：同一个人，光越柔和数值越低，前后对比请用同一地点和光线。
             </Text>
           </View>
+          {analysis?.insights?.lookalike?.photoCredit ? (
+            <Text className='boji-photo-credit'>
+              人物照片：{analysis.insights.lookalike.name}，{analysis.insights.lookalike.photoCredit}
+            </Text>
+          ) : null}
         </View>
       </View>
     </PageThemeRoot>

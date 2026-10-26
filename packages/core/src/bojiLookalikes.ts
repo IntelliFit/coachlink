@@ -14,6 +14,7 @@ import {
   type BojiLookalike,
   type BojiLookalikeTarget,
 } from './bojiLookalikeRoster';
+import { BOJI_LOOKALIKE_PHOTOS } from './bojiLookalikePhotos';
 
 export {
   BOJI_LOOKALIKE_GROUP_LABELS,
@@ -49,6 +50,20 @@ export interface BojiLookalikeMatch {
   runnerUp?: string;
   /** 三项身材特点，如「腹肌清晰」「倒三角明显」「手臂偏细」 */
   traits?: string[];
+  /** 头像路径（相对网站根目录）；没有授权照片的人物没有，前端显示姓名首字 */
+  photoPath?: string;
+  /** 头像署名，页面底部展示 */
+  photoCredit?: string;
+}
+
+/** 头像的路径和署名；没有授权照片时返回空对象 */
+export function bojiLookalikePhoto(key: string): Pick<BojiLookalikeMatch, 'photoPath' | 'photoCredit'> {
+  const photo = BOJI_LOOKALIKE_PHOTOS[key];
+  if (!photo) return {};
+  return {
+    photoPath: `/images/boji-lookalikes/${key}.webp`,
+    photoCredit: `${photo.artist}，${photo.licence}，来自 Wikimedia Commons（已裁剪）`,
+  };
 }
 
 export interface BojiLookalikeMeasures {
@@ -111,5 +126,6 @@ export function matchBojiLookalike(
     traits: levels.map(({ dim, level }) =>
       level >= TRAIT_THRESHOLD ? dim.high : level <= -TRAIT_THRESHOLD ? dim.low : dim.mid,
     ),
+    ...bojiLookalikePhoto(best.item.key),
   };
 }

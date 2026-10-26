@@ -1,4 +1,4 @@
-import { Button, Text, View } from '@tarojs/components'
+import { Button, Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {
   BOJI_DUEL_LABELS,
@@ -8,6 +8,7 @@ import {
   bojiLookalikeText,
   type BojiInsights,
 } from '@coachlink/core/src/bojiInsights'
+import { API_BASE_URL } from '@/utils/request'
 
 /** 微信不允许按钮直接发朋友圈，只能从右上角菜单进入，这里告诉用户怎么做 */
 function showTimelineGuide() {
@@ -59,8 +60,19 @@ export function BojiInsightsView({ insights }: { insights: BojiInsights | undefi
               <Text className='boji-insight__similarity'>相似度 {lookalike.similarity}%</Text>
             ) : null}
           </View>
-          <Text className='boji-insight__title'>{bojiLookalikeText(lookalike)}</Text>
-          <Text className='boji-desc'>{lookalike.tagline}</Text>
+          <View className='boji-lookalike'>
+            {lookalike.photoPath ? (
+              <Image className='boji-lookalike__avatar' src={`${API_BASE_URL}${lookalike.photoPath}`} mode='aspectFill' />
+            ) : (
+              <View className='boji-lookalike__avatar boji-lookalike__avatar--initial'>
+                <Text>{lookalike.name.slice(0, 1)}</Text>
+              </View>
+            )}
+            <View className='boji-lookalike__text'>
+              <Text className='boji-insight__title'>{bojiLookalikeText(lookalike)}</Text>
+              <Text className='boji-desc'>{lookalike.tagline}</Text>
+            </View>
+          </View>
           {lookalike.traits && lookalike.traits.length > 0 ? (
             <View className='boji-traits'>
               {lookalike.traits.map((trait) => (

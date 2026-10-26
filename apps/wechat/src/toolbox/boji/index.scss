@@ -287,6 +287,44 @@
     font-weight: 700;
   }
 
+  .boji-lookalike {
+    display: flex;
+    align-items: center;
+    gap: $cl-space-2;
+
+    &__avatar {
+      flex-shrink: 0;
+      width: 112rpx;
+      height: 112rpx;
+      border-radius: $cl-radius-pill;
+      background: var(--cl-sunk);
+
+      &--initial {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--cl-clay-text);
+        font-size: $cl-font-section;
+        font-weight: 700;
+      }
+    }
+
+    &__text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: $cl-space-1;
+    }
+  }
+
+  .boji-photo-credit {
+    color: var(--cl-ink-4);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+    text-align: center;
+  }
+
   .boji-traits {
     display: flex;
     flex-wrap: wrap;
