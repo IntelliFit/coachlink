@@ -273,6 +273,35 @@
     line-height: $cl-line-tag;
   }
 
+  .boji-insight__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $cl-space-2;
+  }
+
+  .boji-insight__similarity {
+    color: var(--cl-clay-text);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+    font-weight: 700;
+  }
+
+  .boji-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $cl-space-1;
+
+    &__item {
+      padding: 0 $cl-space-2;
+      border-radius: $cl-radius-pill;
+      background: var(--cl-sunk);
+      color: var(--cl-ink-2);
+      font-size: $cl-font-tag;
+      line-height: $cl-line-tag;
+    }
+  }
+
   .boji-insight__title {
     color: var(--cl-ink);
     font-size: $cl-font-card;

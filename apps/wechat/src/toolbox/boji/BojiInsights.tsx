@@ -53,9 +53,22 @@ export function BojiInsightsView({ insights }: { insights: BojiInsights | undefi
 
       {lookalike ? (
         <View className='boji-card'>
-          <Text className='boji-insight__kicker'>{lookalike.groupLabel}</Text>
+          <View className='boji-insight__row'>
+            <Text className='boji-insight__kicker'>{lookalike.groupLabel}</Text>
+            {lookalike.similarity !== undefined ? (
+              <Text className='boji-insight__similarity'>相似度 {lookalike.similarity}%</Text>
+            ) : null}
+          </View>
           <Text className='boji-insight__title'>{bojiLookalikeText(lookalike)}</Text>
           <Text className='boji-desc'>{lookalike.tagline}</Text>
+          {lookalike.traits && lookalike.traits.length > 0 ? (
+            <View className='boji-traits'>
+              {lookalike.traits.map((trait) => (
+                <Text key={trait} className='boji-traits__item'>{trait}</Text>
+              ))}
+            </View>
+          ) : null}
+          {lookalike.runnerUp ? <Text className='boji-insight__kicker'>其次像：{lookalike.runnerUp}</Text> : null}
         </View>
       ) : null}
 

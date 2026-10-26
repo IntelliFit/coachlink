@@ -108,20 +108,37 @@ describe('bojiPercentile', () => {
 
 describe('lookalikes', () => {
   it('uses unique keys and a distinct level combination per person', () => {
+    expect(BOJI_LOOKALIKES.length).toBeGreaterThanOrEqual(50);
     expect(new Set(BOJI_LOOKALIKES.map((l) => l.key)).size).toBe(BOJI_LOOKALIKES.length);
+    const steps = [-1.5, -1, -0.5, 0, 0.5, 1, 1.5];
     for (const l of BOJI_LOOKALIKES) {
-      for (const v of Object.values(l.target)) expect([-1, 0, 1]).toContain(v);
+      for (const v of Object.values(l.target)) expect(steps).toContain(v);
     }
     const combos = BOJI_LOOKALIKES.map((l) => `${l.target.abs},${l.target.vTaper},${l.target.arms}`);
     expect(new Set(combos).size).toBe(BOJI_LOOKALIKES.length);
   });
 
-  it('matches an exact target as close and a distant profile as potential', () => {
+  it('matches an exact target as close, with similarity, runner-up and traits', () => {
     const lee = BOJI_LOOKALIKES.find((l) => l.key === 'bruce_lee')!;
-    expect(matchBojiLookalike(measuresAt(lee.target))).toMatchObject({ key: 'bruce_lee', closeness: 'close', groupLabel: '精瘦线条型' });
-    // 腹肌偏高、倒三角偏低、手臂中等：没有人物占这个组合，措辞是「练下去」
-    const far = matchBojiLookalike(measuresAt({ abs: 1, vTaper: -1, arms: 0 }));
+    const match = matchBojiLookalike(measuresAt(lee.target));
+    expect(match).toMatchObject({ key: 'bruce_lee', closeness: 'close', groupLabel: '精瘦线条型', similarity: 99 });
+    expect(match?.runnerUp).toBeTruthy();
+    expect(match?.runnerUp).not.toBe('李小龙');
+    // 李小龙：腹肌 1.5 档、倒三角 0.5 档、手臂 -1 档
+    expect(match?.traits).toEqual(['腹肌清晰', '倒三角明显', '手臂偏细']);
+  });
+
+  it('words a distant match as potential', () => {
+    const only = [{ ...BOJI_LOOKALIKES[0], target: { abs: 1.5, vTaper: 1.5, arms: 1.5 } }];
+    const far = matchBojiLookalike(measuresAt({ abs: -1, vTaper: -1, arms: -1 }), only);
     expect(far?.closeness).toBe('potential');
+    expect(far?.similarity).toBe(40);
+    expect(far?.runnerUp).toBeUndefined();
+  });
+
+  it('describes middle levels as medium', () => {
+    expect(matchBojiLookalike(measuresAt({ abs: 0, vTaper: 0, arms: 0 }))?.traits).toEqual(['腹肌中等', '倒三角中等', '手臂中等']);
+    expect(matchBojiLookalike({ absDefinition: 0.2, upperArmRatio: 0.6 })?.traits).toEqual(['腹肌还不明显', '手臂粗壮']);
   });
 
   it('spreads people who all score highly instead of matching one person', () => {

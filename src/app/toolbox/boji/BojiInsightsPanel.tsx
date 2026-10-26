@@ -24,9 +24,22 @@ function LookalikeCard({ insights }: { insights: BojiInsights }) {
   if (!match) return null;
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5">
-      <div className="text-xs font-bold text-slate-500">{match.groupLabel}</div>
+      <div className="flex items-center justify-between gap-3 text-xs font-bold text-slate-500">
+        <span>{match.groupLabel}</span>
+        {match.similarity !== undefined && <span className="text-[#CF6D4E]">相似度 {match.similarity}%</span>}
+      </div>
       <div className="mt-1 text-lg font-black text-slate-950">{bojiLookalikeText(match)}</div>
       <div className="mt-1 text-sm text-slate-600">{match.tagline}</div>
+      {match.traits && match.traits.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {match.traits.map((trait) => (
+            <span key={trait} className="rounded-full bg-[#F7F4EF] px-3 py-1 text-xs font-semibold text-slate-700">
+              {trait}
+            </span>
+          ))}
+        </div>
+      )}
+      {match.runnerUp && <div className="mt-3 text-xs text-slate-500">其次像：{match.runnerUp}</div>}
     </div>
   );
 }
