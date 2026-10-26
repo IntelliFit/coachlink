@@ -1,4 +1,4 @@
-import { Button, Text, View } from '@tarojs/components'
+import { Button, Image, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import type { BojiSex } from '@coachlink/core/src/bojiDetector'
 import {
@@ -10,6 +10,7 @@ import {
   bojiLookalikeText,
   type BojiInsights,
 } from '@coachlink/core/src/bojiInsights'
+import { API_BASE_URL } from '@/utils/request'
 
 /** 微信不允许按钮直接发朋友圈，只能从右上角菜单进入，这里告诉用户怎么做 */
 function showTimelineGuide() {
@@ -57,9 +58,33 @@ export function BojiInsightsView({ insights, sex = 'male' }: { insights: BojiIns
 
       {lookalike ? (
         <View className='boji-card'>
-          <Text className='boji-insight__kicker'>{lookalike.groupLabel}</Text>
-          <Text className='boji-insight__title'>{bojiLookalikeText(lookalike)}</Text>
-          <Text className='boji-desc'>{lookalike.tagline}</Text>
+          <View className='boji-insight__row'>
+            <Text className='boji-insight__kicker'>{lookalike.groupLabel}</Text>
+            {lookalike.similarity !== undefined ? (
+              <Text className='boji-insight__similarity'>相似度 {lookalike.similarity}%</Text>
+            ) : null}
+          </View>
+          <View className='boji-lookalike'>
+            {lookalike.photoPath ? (
+              <Image className='boji-lookalike__avatar' src={`${API_BASE_URL}${lookalike.photoPath}`} mode='aspectFill' />
+            ) : (
+              <View className='boji-lookalike__avatar boji-lookalike__avatar--initial'>
+                <Text>{lookalike.name.slice(0, 1)}</Text>
+              </View>
+            )}
+            <View className='boji-lookalike__text'>
+              <Text className='boji-insight__title'>{bojiLookalikeText(lookalike)}</Text>
+              <Text className='boji-desc'>{lookalike.tagline}</Text>
+            </View>
+          </View>
+          {lookalike.traits && lookalike.traits.length > 0 ? (
+            <View className='boji-traits'>
+              {lookalike.traits.map((trait) => (
+                <Text key={trait} className='boji-traits__item'>{trait}</Text>
+              ))}
+            </View>
+          ) : null}
+          {lookalike.runnerUp ? <Text className='boji-insight__kicker'>其次像：{lookalike.runnerUp}</Text> : null}
         </View>
       ) : null}
 

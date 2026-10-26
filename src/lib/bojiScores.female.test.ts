@@ -42,6 +42,9 @@ function row(id: string, userId: string, patch: Partial<StoredBojiScore> = {}): 
     v_taper_score: 80,
     arms_score: 60,
     symmetry_score: 60,
+    shoulder_waist_ratio: 1.8,
+    upper_arm_ratio: 0.4,
+    abs_definition: 0.7,
     created_at: '2026-10-26T00:00:00Z',
     ...patch,
   };

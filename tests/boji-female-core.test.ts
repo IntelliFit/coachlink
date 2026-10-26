@@ -16,10 +16,15 @@ import {
   bojiPercentile,
   bojiScoreSnapshot,
   compareBojiScores,
-  lookalikeForScores,
+  lookalikeForMeasures,
   lookalikeForSnapshot,
 } from '../packages/core/src/bojiInsights';
-import { BOJI_FEMALE_LOOKALIKES, BOJI_LOOKALIKES } from '../packages/core/src/bojiLookalikes';
+import {
+  BOJI_FEMALE_LOOKALIKE_REFERENCE,
+  BOJI_FEMALE_LOOKALIKES,
+  BOJI_LOOKALIKES,
+  matchBojiFemaleLookalike,
+} from '../packages/core/src/bojiLookalikes';
 
 function metric(key: BojiMetric['key'], patch: Partial<BojiMetric> = {}): BojiMetric {
   return { key, status: 'ok', score: 80, values: {}, reasons: [], geometry: {}, ...patch };
@@ -96,15 +101,40 @@ describe('female insights', () => {
   it('matches against the female list only', () => {
     const match = lookalikeForSnapshot(bojiScoreSnapshot(femaleReport()));
     expect(BOJI_FEMALE_LOOKALIKES.map((l) => l.key)).toContain(match?.key);
-    const target = BOJI_FEMALE_LOOKALIKES[0].target;
-    expect(lookalikeForScores({ abs: target.abs, v_taper: target.vTaper, arms: null, symmetry: null, waist_hip: target.waistHip }, 'female'))
-      .toMatchObject({ key: BOJI_FEMALE_LOOKALIKES[0].key, closeness: 'close' });
-    for (const l of BOJI_FEMALE_LOOKALIKES) expect(typeof l.target.waistHip).toBe('number');
-    for (const l of BOJI_LOOKALIKES) expect(typeof l.target.arms).toBe('number');
+    expect(match?.traits).toHaveLength(2);           // shoulders were not measurable
+    expect(BOJI_LOOKALIKES.map((l) => l.key)).not.toContain('pamela_reif');
+  });
+
+  it('places measures at the reference median on the middle levels', () => {
+    const ref = BOJI_FEMALE_LOOKALIKE_REFERENCE;
+    const middle = matchBojiFemaleLookalike({
+      absLineIndex: ref.absLineIndex.median,
+      waistHipRatio: ref.waistHipRatio.median,
+      shoulderWaistRatio: ref.shoulderWaistRatio.median,
+    });
+    expect(middle?.traits).toEqual(['马甲线隐约可见', '腰臀曲线中等', '肩腰比例中等']);
+    // A smaller waist/hip ratio means a curvier figure.
+    const curvy = matchBojiFemaleLookalike({ absLineIndex: ref.absLineIndex.median, waistHipRatio: 0.6, shoulderWaistRatio: 1.72 });
+    expect(curvy?.traits?.[1]).toBe('腰臀曲线明显');
+    expect(curvy?.groupLabel).toBe('曲线型');
+    expect(lookalikeForMeasures('male', { absLineIndex: 0.03, waistHipRatio: 0.6 })).toBeNull();
+  });
+
+  it('gives every woman on the list a different combination of levels', () => {
+    const points = BOJI_FEMALE_LOOKALIKES.map((l) => `${l.target.abs},${l.target.curve},${l.target.vTaper}`);
+    expect(new Set(points).size).toBe(points.length);
+    expect(new Set(BOJI_FEMALE_LOOKALIKES.map((l) => l.key)).size).toBe(BOJI_FEMALE_LOOKALIKES.length);
+    for (const l of BOJI_FEMALE_LOOKALIKES) {
+      for (const v of Object.values(l.target)) {
+        expect(Math.abs(v)).toBeLessThanOrEqual(1.5);
+        expect(Number.isInteger(v * 2)).toBe(true);
+      }
+    }
   });
 
   it('estimates the percentile from the female prior', () => {
-    expect(bojiPercentile(55, null, undefined, 'female')).toEqual({ value: 50, basis: 'estimate', sampleUsers: 0 });
+    expect(bojiPercentile(68, null, undefined, 'female')).toEqual({ value: 50, basis: 'estimate', sampleUsers: 0 });
+    expect(bojiPercentile(68, null)?.value).toBeLessThan(50);   // the male prior is centred higher
   });
 });
 

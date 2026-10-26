@@ -354,6 +354,11 @@ export default function BojiDetectorPage() {
             <Text className='boji-card__title'>它是怎么测的</Text>
             <Text className='boji-method'>{METHOD_TEXT[resultSex]}</Text>
           </View>
+          {analysis?.insights?.lookalike?.photoCredit ? (
+            <Text className='boji-photo-credit'>
+              人物照片：{analysis.insights.lookalike.name}，{analysis.insights.lookalike.photoCredit}
+            </Text>
+          ) : null}
         </View>
       </View>
     </PageThemeRoot>
