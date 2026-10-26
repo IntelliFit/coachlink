@@ -1,15 +1,17 @@
 import { Text, View } from '@tarojs/components'
-import { BOJI_DUEL_METRIC_LABELS, type BojiDuel } from '@coachlink/core/src/bojiInsights'
+import type { BojiSex } from '@coachlink/core/src/bojiDetector'
+import { bojiShortMetricLabel } from '@coachlink/core/src/bojiDisplay'
+import type { BojiDuel } from '@coachlink/core/src/bojiInsights'
 import './redesign.scss'
 
 /** PK 逐项对比：左边是你、右边是对方，赢的一边高亮 */
-export function DuelBars({ duel }: { duel: BojiDuel }) {
+export function DuelBars({ duel, sex }: { duel: BojiDuel; sex: BojiSex }) {
   return (
     <View className='boji-duelbars'>
       {duel.lines.map((line) => {
         const mineWins = line.outcome === 'win'
         const theirsWin = line.outcome === 'lose'
-        const label = line.key === 'arms' ? '手臂' : line.key === 'symmetry' ? '对称' : BOJI_DUEL_METRIC_LABELS[line.key]
+        const label = bojiShortMetricLabel(line.key, sex)
         return (
           <View key={line.key} className='boji-duelbars__row'>
             <View className='boji-duelbars__side boji-duelbars__side--mine'>

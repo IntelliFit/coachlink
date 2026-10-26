@@ -1,5 +1,6 @@
-import { bojiRadarAxes, bojiRingArc } from '@coachlink/core/src/bojiDisplay';
-import { BOJI_DUEL_METRIC_LABELS, type BojiDuel, type BojiMetricScores } from '@coachlink/core/src/bojiInsights';
+import type { BojiSex } from '@coachlink/core/src/bojiDetector';
+import { bojiRadarAxes, bojiRingArc, bojiShortMetricLabel } from '@coachlink/core/src/bojiDisplay';
+import type { BojiDuel, BojiMetricScores } from '@coachlink/core/src/bojiInsights';
 
 /** 薄肌检测器改版（2026-10-26）：环形综合分、四项雷达图、PK 逐项对比条。 */
 
@@ -34,18 +35,16 @@ export function ScoreRing({ total, size = 136 }: { total: number | null; size?: 
   );
 }
 
-const SHORT_LABELS: Record<string, string> = { 手臂围度: '手臂', 左右对称: '对称' };
-
-export function RadarChart({ scores }: { scores: BojiMetricScores }) {
+export function RadarChart({ scores, sex }: { scores: BojiMetricScores; sex: BojiSex }) {
   const cx = 130;
   const cy = 130;
   const radius = 100;
   const grid = [1, 0.75, 0.5, 0.25].map((level) =>
-    bojiRadarAxes({ abs: 100 * level, v_taper: 100 * level, arms: 100 * level, symmetry: 100 * level }, cx, cy, radius)
+    bojiRadarAxes({ abs: 100 * level, v_taper: 100 * level, arms: 100 * level, symmetry: 100 * level, waist_hip: 100 * level }, cx, cy, radius, sex)
       .map((a) => a.point.join(','))
       .join(' '),
   );
-  const axes = bojiRadarAxes(scores, cx, cy, radius);
+  const axes = bojiRadarAxes(scores, cx, cy, radius, sex);
   const shape = axes.map((a) => a.point.join(',')).join(' ');
   const summary = axes.map((a) => `${a.label} ${a.score ?? '测不了'}`).join('，');
   return (
@@ -65,7 +64,7 @@ export function RadarChart({ scores }: { scores: BojiMetricScores }) {
           <g key={a.key}>
             <circle cx={a.point[0]} cy={a.point[1]} r={4} fill="#B4553A" />
             <text x={ex + dx} y={ey + dy} textAnchor={anchor} fontSize={13} fontWeight={700} className="fill-slate-900 dark:fill-slate-100">
-              {SHORT_LABELS[a.label] ?? a.label} {a.score ?? '—'}
+              {a.label} {a.score ?? '—'}
             </text>
           </g>
         );
@@ -75,13 +74,13 @@ export function RadarChart({ scores }: { scores: BojiMetricScores }) {
 }
 
 /** 左边是你、右边是对方，赢的一边高亮（你：陶土色，对方：绿色） */
-export function DuelBars({ duel }: { duel: BojiDuel }) {
+export function DuelBars({ duel, sex }: { duel: BojiDuel; sex: BojiSex }) {
   return (
     <div className="flex flex-col gap-4">
       {duel.lines.map((line) => {
         const mineWins = line.outcome === 'win';
         const theirsWin = line.outcome === 'lose';
-        const label = SHORT_LABELS[BOJI_DUEL_METRIC_LABELS[line.key]] ?? BOJI_DUEL_METRIC_LABELS[line.key];
+        const label = bojiShortMetricLabel(line.key, sex);
         return (
           <div key={line.key} className="grid grid-cols-[minmax(0,1fr)_64px_minmax(0,1fr)] items-center gap-2">
             <div className="flex items-center justify-end gap-2">

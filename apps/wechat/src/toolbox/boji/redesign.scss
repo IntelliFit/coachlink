@@ -25,15 +25,16 @@
     justify-content: center;
   }
 
+  // 环形分只出现在固定深色的成绩卡上，文字用固定浅色，深色模式下也看得见
   &__value {
-    color: var(--cl-paper);
+    color: #F5F2ED;
     font-size: 104rpx;
     line-height: 112rpx;
     font-weight: 700;
   }
 
   &__label {
-    color: var(--cl-ink-4);
+    color: #C9C2B8;
     font-size: $cl-font-tag;
     line-height: $cl-line-tag;
   }

@@ -5,7 +5,9 @@
  * 都只画分数和称号，不画照片。
  */
 
-import { BOJI_DUEL_METRIC_LABELS, BOJI_DUEL_ORDER, type BojiMetricScores } from '@coachlink/core/src/bojiInsights'
+import type { BojiMetricKey, BojiSex } from '@coachlink/core/src/bojiDetector'
+import { bojiDisplayKeys, bojiShortMetricLabel } from '@coachlink/core/src/bojiDisplay'
+import type { BojiMetricScores } from '@coachlink/core/src/bojiInsights'
 import { resolveCanvasImageSrc } from '@/utils/weapp-canvas-image'
 
 export const BOJI_POSTER_WIDTH = 750
@@ -26,6 +28,7 @@ const TRACK = '#E7E1D7'
 const FONT = '"PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif'
 
 export interface BojiShareImageData {
+  sex: BojiSex
   total: number | null
   percentile: number | null
   lookalikeName: string | null
@@ -82,6 +85,11 @@ function ring(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, 
     ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, fraction))
     ctx.stroke()
   }
+}
+
+function scoreOf(data: BojiShareImageData, key: BojiMetricKey): number | null {
+  const v = data.scores[key as keyof BojiMetricScores]
+  return typeof v === 'number' ? v : null
 }
 
 function fmt(value: number | null): string {
@@ -156,9 +164,9 @@ export async function drawBojiPoster(ctx: CanvasRenderingContext2D, data: BojiSh
   }
 
   // 四项进度条
-  for (const key of BOJI_DUEL_ORDER) {
-    const score = data.scores[key]
-    text(ctx, BOJI_DUEL_METRIC_LABELS[key], 48, y + 26, 28, INK)
+  for (const key of bojiDisplayKeys(data.sex)) {
+    const score = scoreOf(data, key)
+    text(ctx, bojiShortMetricLabel(key, data.sex), 48, y + 26, 28, INK)
     fillRounded(ctx, 200, y + 6, 420, 20, 10, TRACK)
     if (score !== null) fillRounded(ctx, 200, y + 6, Math.max(20, (420 * Math.min(100, score)) / 100), 20, 10, CLAY)
     text(ctx, fmt(score), W - 48, y + 30, 36, INK, { weight: 700, align: 'right' })
@@ -209,13 +217,13 @@ export function drawBojiShareCard(ctx: CanvasRenderingContext2D, data: BojiShare
   if (data.lookalikeName) text(ctx, `身材最像 ${data.lookalikeName}`, right, 268, 20, PAPER, { weight: 700 })
 
   // 底部：两项最高分 + 邀请
-  const top = BOJI_DUEL_ORDER
-    .filter((k) => data.scores[k] !== null)
-    .sort((a, b) => (data.scores[b] ?? 0) - (data.scores[a] ?? 0))
+  const top = bojiDisplayKeys(data.sex)
+    .filter((k) => scoreOf(data, k) !== null)
+    .sort((a, b) => (scoreOf(data, b) ?? 0) - (scoreOf(data, a) ?? 0))
     .slice(0, 2)
   let x = 32
   for (const key of top) {
-    const label = `${BOJI_DUEL_METRIC_LABELS[key]} ${fmt(data.scores[key])}`
+    const label = `${bojiShortMetricLabel(key, data.sex)} ${fmt(scoreOf(data, key))}`
     ctx.font = `400 15px ${FONT}`
     const w = ctx.measureText(label).width + 24
     fillRounded(ctx, x, 326, w, 32, 16, TRACK_DARK)

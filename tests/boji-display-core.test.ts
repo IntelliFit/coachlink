@@ -20,7 +20,7 @@ describe('bojiStrengths', () => {
   it('picks the best and weakest measured metric', () => {
     expect(bojiStrengths(scores(91.3, 88, 64.6, 80))).toEqual({
       best: { key: 'abs', label: '腹肌', score: 91 },
-      weakest: { key: 'arms', label: '手臂围度', score: 65 },
+      weakest: { key: 'arms', label: '手臂', score: 65 },
     });
   });
 
@@ -33,6 +33,24 @@ describe('bojiStrengths', () => {
   it('gives a training tip for the weakest metric', () => {
     expect(bojiTrainingTip(bojiStrengths(scores(91, 88, 65, 80)))).toContain('手臂');
     expect(bojiTrainingTip(null)).toBe('');
+  });
+});
+
+describe('female profile', () => {
+  const female = { abs: 70, v_taper: 80, arms: 99, symmetry: 75, waist_hip: 60 };
+
+  it('ignores arms and names metrics the female way', () => {
+    expect(bojiStrengths(female, 'female')).toEqual({
+      best: { key: 'v_taper', label: '肩腰比', score: 80 },
+      weakest: { key: 'waist_hip', label: '腰臀比', score: 60 },
+    });
+    expect(bojiTrainingTip(bojiStrengths(female, 'female'), 'female')).toContain('臀');
+    expect(bojiTrainingTip(bojiStrengths({ ...female, abs: 10 }, 'female'), 'female')).toContain('马甲线');
+  });
+
+  it('puts waist/hip on the radar instead of arms', () => {
+    const axes = bojiRadarAxes(female, 100, 100, 80, 'female');
+    expect(axes.map((a) => a.label)).toEqual(['马甲线', '腰臀比', '肩腰比', '对称']);
   });
 });
 

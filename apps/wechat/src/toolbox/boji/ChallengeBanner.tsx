@@ -52,7 +52,7 @@ export function ChallengeBanner({ view }: { view: BojiChallengeView }) {
       </View>
       {isOwner ? (
         <View className='boji-pk__responses'>
-          <Text className='boji-pk__name'>应战记录</Text>
+          <Text className='boji-pk__name'>我的 PK 战绩</Text>
           {responses.length === 0 ? (
             <Text className='boji-pk__sub'>还没有人应战，把这张卡转发给好友吧。</Text>
           ) : (

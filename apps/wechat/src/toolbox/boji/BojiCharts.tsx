@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Canvas, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import type { BojiSex } from '@coachlink/core/src/bojiDetector'
 import { bojiRadarAxes, bojiRingArc } from '@coachlink/core/src/bojiDisplay'
 import type { BojiMetricScores } from '@coachlink/core/src/bojiInsights'
 import './redesign.scss'
@@ -83,7 +84,7 @@ export function ScoreRing({ id, total, sizeRpx = 272 }: { id: string; total: num
   )
 }
 
-export function RadarChart({ id, scores, colors }: { id: string; scores: BojiMetricScores; colors: ChartColors }) {
+export function RadarChart({ id, scores, sex, colors }: { id: string; scores: BojiMetricScores; sex: BojiSex; colors: ChartColors }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       withCanvas(id, (ctx, w, h) => {
@@ -93,13 +94,14 @@ export function RadarChart({ id, scores, colors }: { id: string; scores: BojiMet
         ctx.lineWidth = 1
         ctx.strokeStyle = colors.grid
         for (const level of [1, 0.75, 0.5, 0.25]) {
-          const axes = bojiRadarAxes({ abs: 100 * level, v_taper: 100 * level, arms: 100 * level, symmetry: 100 * level }, cx, cy, radius)
+          const v = 100 * level
+          const axes = bojiRadarAxes({ abs: v, v_taper: v, arms: v, symmetry: v, waist_hip: v }, cx, cy, radius, sex)
           ctx.beginPath()
           axes.forEach((a, i) => (i === 0 ? ctx.moveTo(a.point[0], a.point[1]) : ctx.lineTo(a.point[0], a.point[1])))
           ctx.closePath()
           ctx.stroke()
         }
-        const axes = bojiRadarAxes(scores, cx, cy, radius)
+        const axes = bojiRadarAxes(scores, cx, cy, radius, sex)
         ctx.beginPath()
         ctx.moveTo(cx, cy - radius)
         ctx.lineTo(cx, cy + radius)
@@ -127,7 +129,7 @@ export function RadarChart({ id, scores, colors }: { id: string; scores: BojiMet
           ctx.arc(a.point[0], a.point[1], 3.5, 0, Math.PI * 2)
           ctx.fill()
           ctx.fillStyle = colors.label
-          const label = `${a.label === '手臂围度' ? '手臂' : a.label === '左右对称' ? '对称' : a.label} ${a.score === null ? '—' : a.score}`
+          const label = `${a.label} ${a.score === null ? '—' : a.score}`
           const [ex, ey] = a.end
           ctx.textAlign = ex > cx + 1 ? 'left' : ex < cx - 1 ? 'right' : 'center'
           ctx.textBaseline = ey < cy - 1 ? 'bottom' : ey > cy + 1 ? 'top' : 'middle'
@@ -138,7 +140,7 @@ export function RadarChart({ id, scores, colors }: { id: string; scores: BojiMet
       }).catch(() => undefined)
     }, 30)
     return () => clearTimeout(timer)
-  }, [id, scores, colors])
+  }, [id, scores, sex, colors])
 
   return <Canvas type='2d' id={id} className='boji-radar' />
 }

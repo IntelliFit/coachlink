@@ -1,80 +1,87 @@
-import { Button, Text, View } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import { Button, Image, Text, View } from '@tarojs/components'
 import type { BojiSex } from '@coachlink/core/src/bojiDetector'
 import {
-  BOJI_DUEL_LABELS,
   BOJI_DUEL_LIGHTING_TIP,
   BOJI_DUEL_MIXED_TIP,
-  bojiDuelMetricLabel,
   bojiDuelHeadline,
-  bojiLookalikeText,
+  type BojiChallengeOutcome,
   type BojiInsights,
 } from '@coachlink/core/src/bojiInsights'
+import { DuelBars } from './DuelBars'
 
-/** 微信不允许按钮直接发朋友圈，只能从右上角菜单进入，这里告诉用户怎么做 */
-function showTimelineGuide() {
-  Taro.showModal({
-    title: '分享到朋友圈',
-    content: '点右上角「···」，选择「分享到朋友圈」。朋友从朋友圈点进来就能看到你的分数，并接受 PK。',
-    showCancel: false,
-    confirmText: '知道了',
-  })
+function fmt(value: number | null): string {
+  return value === null ? '—' : String(Math.round(value))
 }
 
-/** 检测结果下方：PK 结果、身材最像谁、邀请好友 PK（微信原生分享按钮） */
-export function BojiInsightsView({ insights, sex = 'male' }: { insights: BojiInsights | undefined; sex?: BojiSex }) {
-  if (!insights) return null
-  const { challenge, lookalike, scoreId } = insights
+/** 应战完成：你 VS 对方，总分 + 胜负 + 逐项对比条 */
+export function DuelView({ challenge, myTotal, sex }: { challenge: BojiChallengeOutcome; myTotal: number | null; sex: BojiSex }) {
+  const { opponent, duel } = challenge
   return (
-    <>
-      {challenge ? (
-        <View className='boji-card'>
-          <Text className='boji-insight__kicker'>和 {challenge.opponent.nickname} 的 PK</Text>
-          <Text className='boji-insight__title'>{bojiDuelHeadline(challenge.duel)}</Text>
-          <View className='boji-duel'>
-            <View className='boji-duel__row boji-duel__row--head'>
-              <Text className='boji-duel__name'>项目</Text>
-              <Text className='boji-duel__num'>你</Text>
-              <Text className='boji-duel__num'>TA</Text>
-              <Text className='boji-duel__badge'> </Text>
+    <View className='boji-vs-wrap'>
+      <View className='boji-vs'>
+        <View className='boji-vs__side'>
+          <View className='boji-vs__avatar boji-vs__avatar--me'>
+            <Text>我</Text>
+          </View>
+          <Text className='boji-vs__name'>你</Text>
+          <Text className='boji-vs__total boji-vs__total--me cl-num'>{fmt(myTotal)}</Text>
+        </View>
+        <Text className='boji-vs__mark cl-num'>VS</Text>
+        <View className='boji-vs__side'>
+          {opponent.avatarUrl ? (
+            <Image className='boji-vs__avatar' src={opponent.avatarUrl} mode='aspectFill' />
+          ) : (
+            <View className='boji-vs__avatar'>
+              <Text>{opponent.nickname.slice(0, 1)}</Text>
             </View>
-            {challenge.duel.lines.map((line) => (
-              <View key={line.key} className='boji-duel__row'>
-                <Text className='boji-duel__name'>{bojiDuelMetricLabel(line.key, sex)}</Text>
-                <Text className='boji-duel__num boji-duel__num--mine cl-num'>{line.mine === null ? '—' : Math.round(line.mine)}</Text>
-                <Text className='boji-duel__num cl-num'>{line.theirs === null ? '—' : Math.round(line.theirs)}</Text>
-                <Text className={`boji-duel__badge boji-duel__badge--${line.outcome ?? 'none'}`}>
-                  {line.outcome ? BOJI_DUEL_LABELS[line.outcome] : '不计'}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <Text className='boji-privacy'>
-            {challenge.mixedSex ? `${BOJI_DUEL_MIXED_TIP}${BOJI_DUEL_LIGHTING_TIP}` : BOJI_DUEL_LIGHTING_TIP}
-          </Text>
+          )}
+          <Text className='boji-vs__name'>{opponent.nickname}</Text>
+          <Text className='boji-vs__total cl-num'>{fmt(opponent.total)}</Text>
         </View>
-      ) : null}
+      </View>
+      <Text className={`boji-vs__verdict boji-vs__verdict--${duel.overall}`}>{bojiDuelHeadline(duel)}</Text>
 
-      {lookalike ? (
-        <View className='boji-card'>
-          <Text className='boji-insight__kicker'>{lookalike.groupLabel}</Text>
-          <Text className='boji-insight__title'>{bojiLookalikeText(lookalike)}</Text>
-          <Text className='boji-desc'>{lookalike.tagline}</Text>
-        </View>
-      ) : null}
+      <View className='boji-card'>
+        <Text className='boji-card__title'>逐项对比</Text>
+        <DuelBars duel={duel} sex={sex} />
+        <Text className='boji-soft-note'>
+          {challenge.mixedSex ? `${BOJI_DUEL_MIXED_TIP}${BOJI_DUEL_LIGHTING_TIP}` : BOJI_DUEL_LIGHTING_TIP}
+        </Text>
+      </View>
+    </View>
+  )
+}
 
-      {scoreId ? (
-        <View className='boji-card'>
-          <Text className='boji-card__title'>叫上好友 PK 薄肌</Text>
-          <Text className='boji-desc'>好友点开自己测一次，就能逐项比出输赢。对方只看到你的昵称和分数，看不到照片。</Text>
-          <Button className='boji-share-btn' openType='share' hoverClass='boji-share-btn--pressed'>
-            发给微信好友 PK
-          </Button>
-          <View className='boji-share-timeline' hoverClass='boji-share-btn--pressed' onClick={showTimelineGuide}>
-            <Text>分享到朋友圈</Text>
-          </View>
-        </View>
-      ) : null}
-    </>
+/** 身材最像谁 */
+export function LookalikeCard({ insights }: { insights: BojiInsights | undefined }) {
+  const match = insights?.lookalike
+  if (!match) return null
+  return (
+    <View className='boji-look'>
+      <View className='boji-look__avatar'>
+        <Text>{match.name.slice(0, 1)}</Text>
+      </View>
+      <View className='boji-look__body'>
+        <Text className='boji-look__kicker'>{match.closeness === 'close' ? '你的身材最接近' : '照这个方向练，最可能成为'}</Text>
+        <Text className='boji-look__name'>{match.name}</Text>
+        <Text className='boji-look__tagline'>{match.tagline}</Text>
+        <Text className='boji-look__group'>{match.groupLabel}</Text>
+      </View>
+    </View>
+  )
+}
+
+/** 找好友 PK（原生分享按钮）+ 存海报发朋友圈 */
+export function ShareActions({ canShare, onPoster }: { canShare: boolean; onPoster: () => void }) {
+  if (!canShare) return null
+  return (
+    <View className='boji-share-row'>
+      <Button className='boji-share-btn' openType='share' hoverClass='boji-share-btn--pressed'>
+        找好友 PK
+      </Button>
+      <View className='boji-share-timeline' hoverClass='boji-share-btn--pressed' onClick={onPoster}>
+        <Text>存海报发朋友圈</Text>
+      </View>
+    </View>
   )
 }
