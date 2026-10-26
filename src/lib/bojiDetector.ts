@@ -1,5 +1,5 @@
 import { getRedisClient } from '@/lib/redisClient';
-import type { BojiAnalysisDto } from '@coachlink/core/src/bojiDetector';
+import type { BojiAnalysisDto, BojiSex } from '@coachlink/core/src/bojiDetector';
 
 /**
  * 薄肌检测器的服务端调用：转发照片给集群内的 Python 服务（boji-detector），
@@ -137,16 +137,19 @@ function isAnalysis(value: unknown): value is BojiAnalysisDto {
     && !!v.messages && typeof v.messages === 'object';
 }
 
+/** sex：female 用女性档打分（引擎 0.2 起）；旧引擎会忽略这个参数，按男性档返回 */
 export async function analyzeWithBojiService(
   photo: Uint8Array,
   config: BojiConfig = getBojiConfig(),
   fetchImpl: typeof fetch = fetch,
+  sex: BojiSex = 'male',
 ): Promise<BojiAnalysisDto> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.timeoutMs);
   let response: Response;
   try {
-    response = await fetchImpl(`${config.serviceUrl}/v1/analyze`, {
+    const query = sex === 'female' ? '?sex=female' : '';
+    response = await fetchImpl(`${config.serviceUrl}/v1/analyze${query}`, {
       method: 'POST',
       body: photo,
       headers: {

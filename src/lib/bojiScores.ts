@@ -1,11 +1,12 @@
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
-import type { BojiAnalysisDto } from '@coachlink/core/src/bojiDetector';
+import type { BojiAnalysisDto, BojiSex } from '@coachlink/core/src/bojiDetector';
 import {
   bojiPercentile,
   bojiScoreSnapshot,
   compareBojiScores,
   isBojiScoreId,
   isRecordableBojiSnapshot,
+  lookalikeForMeasures,
   lookalikeForSnapshot,
   type BojiChallengeCard,
   type BojiChallengeView,
@@ -13,7 +14,6 @@ import {
   type BojiMetricScores,
   type BojiScoreSnapshot,
 } from '@coachlink/core/src/bojiInsights';
-import { matchBojiLookalike } from '@coachlink/core/src/bojiLookalikes';
 
 /**
  * 薄肌检测成绩（tool_boji_scores）：只存分数，不存照片。
@@ -23,11 +23,20 @@ import { matchBojiLookalike } from '@coachlink/core/src/bojiLookalikes';
 export interface StoredBojiScore {
   id: string;
   user_id: string;
+  /** 迁移 20261026 之前的行没有这一列，按男性处理 */
+  sex?: BojiSex;
   total_score: number | null;
   abs_score: number | null;
   v_taper_score: number | null;
   arms_score: number | null;
   symmetry_score: number | null;
+  shoulder_waist_ratio: number | null;
+  upper_arm_ratio: number | null;
+  abs_definition: number | null;
+  /** 女性档的列：迁移 20261026 之前的行没有 */
+  waist_hip_score?: number | null;
+  waist_hip_ratio?: number | null;
+  abs_line_index?: number | null;
   created_at: string;
 }
 
@@ -47,12 +56,14 @@ export interface BojiProfile {
 export interface BojiScoreStore {
   insert(score: NewBojiScore): Promise<string>;
   find(id: string): Promise<StoredBojiScore | null>;
-  rankTotal(total: number, excludeUserId: string): Promise<{ sampleUsers: number; belowUsers: number }>;
+  /** sex 省略时按男性排名（与旧版接口一致） */
+  rankTotal(total: number, excludeUserId: string, sex?: BojiSex): Promise<{ sampleUsers: number; belowUsers: number }>;
   listResponses(challengeScoreId: string, limit: number): Promise<StoredBojiScore[]>;
   profiles(userIds: string[]): Promise<Map<string, BojiProfile>>;
 }
 
-const SCORE_COLUMNS = 'id, user_id, total_score, abs_score, v_taper_score, arms_score, symmetry_score, created_at';
+// 读整行：女性相关的列在迁移执行前不存在，不点名就不会因缺列报错
+const SCORE_COLUMNS = '*';
 const DEFAULT_NICKNAME = '健身朋友';
 const RESPONSE_LIMIT = 20;
 
@@ -66,11 +77,18 @@ function toStored(row: Record<string, unknown>): StoredBojiScore {
   return {
     id: String(row.id),
     user_id: String(row.user_id),
+    sex: row.sex === 'female' ? 'female' : 'male',
     total_score: num(row.total_score),
     abs_score: num(row.abs_score),
     v_taper_score: num(row.v_taper_score),
     arms_score: num(row.arms_score),
     symmetry_score: num(row.symmetry_score),
+    shoulder_waist_ratio: num(row.shoulder_waist_ratio),
+    upper_arm_ratio: num(row.upper_arm_ratio),
+    abs_definition: num(row.abs_definition),
+    waist_hip_score: num(row.waist_hip_score),
+    waist_hip_ratio: num(row.waist_hip_ratio),
+    abs_line_index: num(row.abs_line_index),
     created_at: String(row.created_at ?? ''),
   };
 }
@@ -80,9 +98,19 @@ export function supabaseBojiScoreStore(db: unknown = serviceRoleSupabase): BojiS
   const client = db as any;
   return {
     async insert({ userId, snapshot, lookalikeKey, challengeScoreId, engineVersion }) {
+      // 女性列只在女性成绩里写：迁移执行前男性成绩照常入库
+      const femaleColumns = snapshot.sex === 'female'
+        ? {
+            sex: 'female',
+            waist_hip_score: snapshot.scores.waist_hip ?? null,
+            waist_hip_ratio: snapshot.waistHipRatio,
+            abs_line_index: snapshot.absLineIndex,
+          }
+        : {};
       const { data, error } = await client
         .from('tool_boji_scores')
         .insert({
+          ...femaleColumns,
           user_id: userId,
           total_score: snapshot.total,
           abs_score: snapshot.scores.abs,
@@ -108,8 +136,10 @@ export function supabaseBojiScoreStore(db: unknown = serviceRoleSupabase): BojiS
       if (error) throw new Error(`load boji score failed: ${error.message}`);
       return data ? toStored(data) : null;
     },
-    async rankTotal(total, excludeUserId) {
-      const { data, error } = await client.rpc('boji_total_score_rank', { p_score: total, p_exclude_user: excludeUserId });
+    async rankTotal(total, excludeUserId, sex) {
+      const { data, error } = sex === 'female'
+        ? await client.rpc('boji_total_score_rank_by_sex', { p_score: total, p_exclude_user: excludeUserId, p_sex: sex })
+        : await client.rpc('boji_total_score_rank', { p_score: total, p_exclude_user: excludeUserId });
       if (error) throw new Error(`rank boji score failed: ${error.message}`);
       const row = Array.isArray(data) ? data[0] : data;
       return { sampleUsers: num(row?.sample_users) ?? 0, belowUsers: num(row?.below_users) ?? 0 };
@@ -139,18 +169,32 @@ export function supabaseBojiScoreStore(db: unknown = serviceRoleSupabase): BojiS
 }
 
 function storedScores(row: StoredBojiScore): BojiMetricScores {
-  return { abs: row.abs_score, v_taper: row.v_taper_score, arms: row.arms_score, symmetry: row.symmetry_score };
+  const scores: BojiMetricScores = {
+    abs: row.abs_score,
+    v_taper: row.v_taper_score,
+    arms: row.arms_score,
+    symmetry: row.symmetry_score,
+  };
+  if (row.sex === 'female') scores.waist_hip = row.waist_hip_score ?? null;
+  return scores;
 }
 
 function toCard(row: StoredBojiScore, profile: BojiProfile | undefined): BojiChallengeCard {
   const scores = storedScores(row);
   return {
     id: row.id,
+    sex: row.sex ?? 'male',
     nickname: profile?.nickname ?? DEFAULT_NICKNAME,
     avatarUrl: profile?.avatarUrl ?? '',
     total: row.total_score,
     scores,
-    lookalike: matchBojiLookalike({ abs: scores.abs, vTaper: scores.v_taper, arms: scores.arms }),
+    lookalike: lookalikeForMeasures(row.sex ?? 'male', {
+      absDefinition: row.abs_definition,
+      shoulderWaistRatio: row.shoulder_waist_ratio,
+      upperArmRatio: row.upper_arm_ratio,
+      absLineIndex: row.abs_line_index ?? null,
+      waistHipRatio: row.waist_hip_ratio ?? null,
+    }),
     createdAt: row.created_at,
   };
 }
@@ -195,7 +239,9 @@ export async function buildBojiInsights({
   let sample: { sampleUsers: number; belowUsers: number } | null = null;
   if (snapshot.total !== null) {
     try {
-      sample = await store.rankTotal(snapshot.total, userId);
+      sample = snapshot.sex === 'female'
+        ? await store.rankTotal(snapshot.total, userId, 'female')
+        : await store.rankTotal(snapshot.total, userId);
     } catch (error) {
       console.error('[boji] rank:', error instanceof Error ? error.message : error);
     }
@@ -218,10 +264,19 @@ export async function buildBojiInsights({
   if (opponent) {
     const profiles = await safeProfiles(store, [opponent.user_id]);
     const card = toCard(opponent, profiles.get(opponent.user_id));
-    challenge = { opponent: card, duel: compareBojiScores(snapshot, card) };
+    challenge = {
+      opponent: card,
+      duel: compareBojiScores(snapshot, card),
+      ...(card.sex !== snapshot.sex ? { mixedSex: true } : {}),
+    };
   }
 
-  return { scoreId, percentile: bojiPercentile(snapshot.total, sample), lookalike, challenge };
+  return {
+    scoreId,
+    percentile: bojiPercentile(snapshot.total, sample, undefined, snapshot.sex),
+    lookalike,
+    challenge,
+  };
 }
 
 /** 打开 PK 链接：任何人都能看到发起人的分数卡；发起人自己还能看到应战记录。 */

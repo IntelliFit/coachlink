@@ -1,0 +1,423 @@
+@use '../../styles/tokens' as *;
+
+// 薄肌检测器改版（2026-10-26）：开始页、结果主卡、明星卡、PK 对决、详细数据。
+// 成绩卡和对决卡固定深色（品牌高光时刻），其余跟随浅色/深色主题变量。
+$boji-dark: #1E1C1A;
+$boji-dark-2: #3A3631;
+$boji-on-dark: #F5F2ED;
+$boji-on-dark-muted: #C9C2B8;
+$boji-clay-light: #F0A285;
+
+// ---------------------------------------------------------------------------
+// 开始页主视觉
+// ---------------------------------------------------------------------------
+.boji-start {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-3;
+
+  // 示例图 4:3（686rpx 宽 → 512rpx 高，取 8 的倍数）
+  &__sample {
+    position: relative;
+    height: 512rpx;
+    border-radius: $cl-radius-sheet;
+    overflow: hidden;
+    background: $boji-dark;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__tag {
+    position: absolute;
+    left: $cl-space-3;
+    bottom: $cl-space-3;
+    padding: 0 $cl-space-2;
+    border-radius: $cl-radius-pill;
+    background: rgba(30, 28, 26, 0.72);
+    color: $boji-on-dark;
+    font-size: $cl-font-tag;
+    line-height: 40rpx;
+  }
+
+  &__copy {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-1;
+    padding: 0 $cl-space-1;
+  }
+
+  &__title {
+    color: var(--cl-ink);
+    font-size: 56rpx;
+    line-height: 72rpx;
+    font-weight: 800;
+    white-space: pre-line;
+  }
+
+  &__desc {
+    color: var(--cl-ink-2);
+    font-size: $cl-font-meta;
+    line-height: 44rpx;
+  }
+
+  &__features {
+    display: flex;
+    gap: $cl-space-2;
+  }
+
+  &__feature {
+    flex: 1;
+    padding: $cl-space-2 0;
+    border-radius: $cl-radius-card;
+    background: var(--cl-card);
+    color: var(--cl-clay-text);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+    font-weight: 600;
+    text-align: center;
+  }
+}
+
+.boji-page .boji-sex--block {
+  align-self: center;
+}
+
+.boji-page .boji-actions__row {
+  display: flex;
+  gap: $cl-space-2;
+}
+
+// ---------------------------------------------------------------------------
+// 结果页
+// ---------------------------------------------------------------------------
+.boji-hero {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-3;
+  padding: $cl-space-6 $cl-space-4;
+  border-radius: $cl-radius-sheet;
+  background: $boji-dark;
+
+  &__main {
+    display: flex;
+    align-items: center;
+    gap: $cl-space-4;
+  }
+
+  &__rank {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__kicker,
+  &__rank-text {
+    color: $boji-on-dark-muted;
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+  }
+
+  &__kicker {
+    margin-bottom: $cl-space-1;
+  }
+
+  &__rank-value {
+    color: $boji-clay-light;
+    font-size: 96rpx;
+    line-height: 104rpx;
+    font-weight: 700;
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $cl-space-1;
+  }
+
+  &__chip {
+    padding: 0 $cl-space-3;
+    border-radius: $cl-radius-pill;
+    background: $boji-dark-2;
+    color: $boji-on-dark;
+    font-size: $cl-font-tag;
+    line-height: 48rpx;
+  }
+}
+
+.boji-look-card {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-2;
+  padding: $cl-card-padding;
+  border-radius: $cl-radius-sheet;
+  background: var(--cl-card);
+}
+
+.boji-look {
+  display: flex;
+  align-items: center;
+  gap: $cl-space-4;
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $cl-space-2;
+  }
+
+  &__similarity {
+    color: var(--cl-clay-text);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+    font-weight: 700;
+  }
+
+  &__traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $cl-space-1;
+  }
+
+  &__trait {
+    padding: 0 $cl-space-2;
+    border-radius: $cl-radius-pill;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+    font-size: $cl-font-tag;
+    line-height: 40rpx;
+  }
+
+  &__runner {
+    color: var(--cl-ink-3);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+  }
+
+  &__avatar {
+    flex-shrink: 0;
+    width: 144rpx;
+    height: 144rpx;
+    border-radius: $cl-radius-pill;
+    background: var(--cl-clay);
+    color: #FFFFFF;
+    font-size: 64rpx;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &--photo {
+      background: var(--cl-sunk);
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__kicker {
+    color: var(--cl-ink-3);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+  }
+
+  &__name {
+    color: var(--cl-ink);
+    font-size: 48rpx;
+    line-height: 64rpx;
+    font-weight: 800;
+  }
+
+  &__tagline {
+    color: var(--cl-ink-2);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+  }
+
+  &__group {
+    align-self: flex-start;
+    margin-top: $cl-space-1;
+    padding: 0 $cl-space-2;
+    border-radius: $cl-radius-pill;
+    background: var(--cl-clay-soft);
+    color: var(--cl-clay-text);
+    font-size: $cl-font-tag;
+    line-height: 40rpx;
+  }
+}
+
+.boji-page .boji-share-row {
+  display: flex;
+  gap: $cl-space-2;
+
+  .boji-share-btn,
+  .boji-share-timeline {
+    flex: 1;
+    margin: 0;
+  }
+}
+
+.boji-soft-note {
+  padding: $cl-space-2 $cl-space-3;
+  border-radius: $cl-radius-tag;
+  background: var(--cl-sunk);
+  color: var(--cl-ink-2);
+  font-size: $cl-font-tag;
+  line-height: $cl-line-tag;
+}
+
+// ---------------------------------------------------------------------------
+// PK 对决
+// ---------------------------------------------------------------------------
+.boji-vs-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-3;
+}
+
+.boji-vs {
+  display: flex;
+  align-items: center;
+  padding: $cl-space-6 $cl-space-3 $cl-space-2;
+  border-radius: $cl-radius-sheet $cl-radius-sheet 0 0;
+  background: $boji-dark;
+
+  &__side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $cl-space-1;
+  }
+
+  &__avatar {
+    width: 144rpx;
+    height: 144rpx;
+    border-radius: $cl-radius-pill;
+    background: #4A453F;
+    color: $boji-on-dark;
+    font-size: 56rpx;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &--me {
+      background: var(--cl-clay);
+      color: #FFFFFF;
+    }
+  }
+
+  &__name {
+    max-width: 240rpx;
+    overflow: hidden;
+    color: $boji-on-dark;
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__total {
+    color: $boji-on-dark-muted;
+    font-size: 96rpx;
+    line-height: 104rpx;
+    font-weight: 700;
+
+    &--me {
+      color: $boji-clay-light;
+    }
+  }
+
+  &__mark {
+    width: 112rpx;
+    color: #8A847C;
+    font-size: 64rpx;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  &__verdict {
+    margin-top: -$cl-space-3;
+    padding: $cl-space-2 0 $cl-space-4;
+    border-radius: 0 0 $cl-radius-sheet $cl-radius-sheet;
+    background: $boji-dark;
+    color: $boji-on-dark;
+    font-size: $cl-font-card;
+    line-height: $cl-line-card;
+    font-weight: 800;
+    text-align: center;
+
+    &--win {
+      color: $boji-clay-light;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 详细数据（默认折叠）
+// ---------------------------------------------------------------------------
+.boji-details {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-2;
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $cl-space-2;
+    padding: $cl-space-3 $cl-space-4;
+    border-radius: $cl-radius-card;
+    background: var(--cl-card);
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__title {
+    color: var(--cl-ink);
+    font-size: $cl-font-body;
+    line-height: $cl-line-body;
+    font-weight: 500;
+  }
+
+  &__summary {
+    color: var(--cl-ink-3);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+  }
+
+  &__chevron {
+    color: var(--cl-ink-3);
+    font-size: 48rpx;
+    line-height: 48rpx;
+    transform: rotate(90deg);
+
+    &--open {
+      transform: rotate(-90deg);
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: $cl-space-3;
+  }
+}
+
+.boji-footnotes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $cl-space-1;
+  padding-top: $cl-space-1;
+  text-align: center;
+}

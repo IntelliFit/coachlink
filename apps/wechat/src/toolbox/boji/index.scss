@@ -273,6 +273,73 @@
     line-height: $cl-line-tag;
   }
 
+  .boji-insight__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $cl-space-2;
+  }
+
+  .boji-insight__similarity {
+    color: var(--cl-clay-text);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+    font-weight: 700;
+  }
+
+  .boji-lookalike {
+    display: flex;
+    align-items: center;
+    gap: $cl-space-2;
+
+    &__avatar {
+      flex-shrink: 0;
+      width: 112rpx;
+      height: 112rpx;
+      border-radius: $cl-radius-pill;
+      background: var(--cl-sunk);
+
+      &--initial {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--cl-clay-text);
+        font-size: $cl-font-section;
+        font-weight: 700;
+      }
+    }
+
+    &__text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: $cl-space-1;
+    }
+  }
+
+  .boji-photo-credit {
+    color: var(--cl-ink-4);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+    text-align: center;
+  }
+
+  .boji-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $cl-space-1;
+
+    &__item {
+      padding: 0 $cl-space-2;
+      border-radius: $cl-radius-pill;
+      background: var(--cl-sunk);
+      color: var(--cl-ink-2);
+      font-size: $cl-font-tag;
+      line-height: $cl-line-tag;
+    }
+  }
+
   .boji-insight__title {
     color: var(--cl-ink);
     font-size: $cl-font-card;
@@ -364,6 +431,57 @@
     &--pressed {
       opacity: 0.85;
     }
+  }
+
+  .boji-card__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $cl-space-2;
+  }
+
+  // 打分标准：墨色表示已选（与筛选标签、分段一致）
+  .boji-sex {
+    display: flex;
+    gap: $cl-space-1;
+    padding: $cl-space-1;
+    border: 2rpx solid var(--cl-control-line);
+    border-radius: $cl-radius-pill;
+
+    &__option {
+      padding: 0 $cl-space-3;
+      border-radius: $cl-radius-pill;
+      color: var(--cl-ink-2);
+      font-size: $cl-font-meta;
+      line-height: 56rpx;
+
+      &--on {
+        background: var(--cl-ink);
+        color: var(--cl-paper);
+        font-weight: 600;
+      }
+    }
+  }
+
+  .boji-share-timeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: $cl-button-lg;
+    border: 2rpx solid var(--cl-control-line);
+    border-radius: $cl-radius-button;
+    background: var(--cl-card);
+    color: var(--cl-ink);
+    font-size: $cl-font-card;
+  }
+
+  .boji-timeline-note {
+    padding: $cl-space-2 $cl-space-3;
+    border-radius: $cl-radius-tag;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
   }
 
   .boji-pk {

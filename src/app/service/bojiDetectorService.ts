@@ -1,4 +1,4 @@
-import { BOJI_UPLOAD_MAX_SIDE, type BojiAnalysisDto } from '@coachlink/core/src/bojiDetector';
+import { BOJI_UPLOAD_MAX_SIDE, type BojiAnalysisDto, type BojiSex } from '@coachlink/core/src/bojiDetector';
 import { isBojiScoreId, type BojiChallengeView } from '@coachlink/core/src/bojiInsights';
 import type { ApiData } from '@/types/api';
 
@@ -45,9 +45,16 @@ export async function preparePhoto(file: File): Promise<PreparedPhoto> {
   return { blob, url: URL.createObjectURL(blob), width, height };
 }
 
-/** challengeId：应战好友的 PK 时传对方的成绩 id */
-export async function analyzeBojiPhoto(photo: Blob, challengeId?: string | null): Promise<BojiAnalysisDto> {
-  const query = isBojiScoreId(challengeId) ? `?challenge=${challengeId}` : '';
+/** challengeId：应战好友的 PK 时传对方的成绩 id；sex：female 用女性档打分 */
+export async function analyzeBojiPhoto(
+  photo: Blob,
+  challengeId?: string | null,
+  sex: BojiSex = 'male',
+): Promise<BojiAnalysisDto> {
+  const params = new URLSearchParams();
+  if (isBojiScoreId(challengeId)) params.set('challenge', challengeId);
+  if (sex === 'female') params.set('sex', sex);
+  const query = params.toString() ? `?${params.toString()}` : '';
   let response: Response;
   try {
     response = await fetch(`/api/toolbox/boji/analyze${query}`, {

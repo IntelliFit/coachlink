@@ -3,16 +3,18 @@
  * 只处理分数，不涉及照片。
  */
 
-import type { BojiMetricKey, BojiReport } from './bojiDetector';
-import { matchBojiLookalike, type BojiLookalikeMatch } from './bojiLookalikes';
+import { bojiReportSex, type BojiMetricKey, type BojiReport, type BojiSex } from './bojiDetector';
+import { matchBojiFemaleLookalike, matchBojiLookalike, type BojiLookalikeMatch } from './bojiLookalikes';
 
 // ---------------------------------------------------------------------------
 // 分数快照：一次检测里可用于排名、匹配和 PK 的数值
 // ---------------------------------------------------------------------------
 
-export type BojiMetricScores = Record<BojiMetricKey, number | null>;
+/** waist_hip 只有女性档有 */
+export type BojiMetricScores = Record<Exclude<BojiMetricKey, 'waist_hip'>, number | null> & { waist_hip?: number | null };
 
 export interface BojiScoreSnapshot {
+  sex: BojiSex;
   total: number | null;
   scores: BojiMetricScores;
   shoulderWaistRatio: number | null;
@@ -20,6 +22,9 @@ export interface BojiScoreSnapshot {
   absPackCount: number | null;
   absDefinition: number | null;
   silhouetteIou: number | null;
+  /** 女性档 */
+  waistHipRatio: number | null;
+  absLineIndex: number | null;
 }
 
 function finite(value: unknown): number | null {
@@ -42,36 +47,75 @@ export function bojiScoreSnapshot(report: BojiReport | null | undefined): BojiSc
     if (!metric || metric.status === 'unavailable') return null;
     return finite(metric.values?.[field]);
   };
+  const sex = bojiReportSex(report);
+  const scores: BojiMetricScores = {
+    abs: score('abs'),
+    v_taper: score('v_taper'),
+    arms: score('arms'),
+    symmetry: score('symmetry'),
+  };
+  if (sex === 'female') scores.waist_hip = score('waist_hip');
   return {
+    sex,
     total: round1(finite(report?.total?.score)),
-    scores: { abs: score('abs'), v_taper: score('v_taper'), arms: score('arms'), symmetry: score('symmetry') },
+    scores,
     shoulderWaistRatio: value('v_taper', 'ratio'),
     upperArmRatio: value('arms', 'upper_ratio'),
     absPackCount: value('abs', 'pack_count'),
     absDefinition: value('abs', 'definition_index'),
     silhouetteIou: value('symmetry', 'silhouette_iou'),
+    waistHipRatio: sex === 'female' ? value('waist_hip', 'ratio') : null,
+    absLineIndex: sex === 'female' ? value('abs', 'line_index') : null,
   };
 }
 
 /** 至少一项单项分可用才值得记录（照片完全测不了时不入库）。 */
 export function isRecordableBojiSnapshot(snapshot: BojiScoreSnapshot): boolean {
-  return Object.values(snapshot.scores).some((v) => v !== null);
+  return Object.values(snapshot.scores).some((v) => v !== null && v !== undefined);
+}
+
+/** 匹配人物用的原始测量（不是单项分）：男性看腹肌块、肩腰比、上臂；女性看马甲线、腰臀比、肩腰比。 */
+export interface BojiLookalikeInput {
+  absDefinition?: number | null;
+  shoulderWaistRatio?: number | null;
+  upperArmRatio?: number | null;
+  absLineIndex?: number | null;
+  waistHipRatio?: number | null;
+}
+
+export function lookalikeForMeasures(sex: BojiSex, m: BojiLookalikeInput): BojiLookalikeMatch | null {
+  if (sex === 'female') {
+    return matchBojiFemaleLookalike({
+      absLineIndex: m.absLineIndex,
+      waistHipRatio: m.waistHipRatio,
+      shoulderWaistRatio: m.shoulderWaistRatio,
+    });
+  }
+  return matchBojiLookalike({
+    absDefinition: m.absDefinition,
+    shoulderWaistRatio: m.shoulderWaistRatio,
+    upperArmRatio: m.upperArmRatio,
+  });
 }
 
 export function lookalikeForSnapshot(snapshot: BojiScoreSnapshot): BojiLookalikeMatch | null {
-  return matchBojiLookalike({
-    abs: snapshot.scores.abs,
-    vTaper: snapshot.scores.v_taper,
-    arms: snapshot.scores.arms,
-  });
+  return lookalikeForMeasures(snapshot.sex, snapshot);
 }
 
 // ---------------------------------------------------------------------------
 // 超越比例：真实检测人数不足时用预设分布估算，够了以后换真实分布
 // ---------------------------------------------------------------------------
 
-/** 预设的综合分分布（正态）。用测试照片的分数大致定的：普通人偏低，练过的人 60–90。 */
-export const BOJI_PERCENTILE_PRIOR = { mean: 55, sd: 16 };
+/**
+ * 预设的综合分分布（正态）。2026-10-26 按线上前 114 次检测（均值 78.4、标准差 16.6）
+ * 校正；原先的均值 55 让大多数人都显示「超越 95% 以上」。
+ */
+export const BOJI_PERCENTILE_PRIOR = { mean: 78, sd: 17 };
+/**
+ * 女性档的预设分布：暂按引擎 0.2 在 20 张女性健身照上的综合分（均值约 67、标准差约 17）定；
+ * 女性真实检测满 100 人后换成真实分布。
+ */
+export const BOJI_FEMALE_PERCENTILE_PRIOR = { mean: 68, sd: 17 };
 /** 真实检测人数（按人去重）达到这个数后改用真实分布 */
 export const BOJI_PERCENTILE_MIN_REAL_USERS = 100;
 
@@ -107,6 +151,7 @@ export function bojiPercentile(
   total: number | null,
   sample: { sampleUsers: number; belowUsers: number } | null,
   minRealUsers = BOJI_PERCENTILE_MIN_REAL_USERS,
+  sex: BojiSex = 'male',
 ): BojiPercentile | null {
   if (total === null || !Number.isFinite(total)) return null;
   const sampleUsers = Math.max(0, Math.floor(sample?.sampleUsers ?? 0));
@@ -114,7 +159,8 @@ export function bojiPercentile(
     const below = Math.min(sampleUsers, Math.max(0, Math.floor(sample.belowUsers)));
     return { value: clampPercent(below / sampleUsers), basis: 'measured', sampleUsers };
   }
-  return { value: estimateBojiPercentile(total), basis: 'estimate', sampleUsers };
+  const prior = sex === 'female' ? BOJI_FEMALE_PERCENTILE_PRIOR : BOJI_PERCENTILE_PRIOR;
+  return { value: estimateBojiPercentile(total, prior), basis: 'estimate', sampleUsers };
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +170,7 @@ export function bojiPercentile(
 /** 公开的 PK 卡片：只有昵称、头像和分数，没有照片 */
 export interface BojiChallengeCard {
   id: string;
+  sex: BojiSex;
   nickname: string;
   avatarUrl: string;
   total: number | null;
@@ -151,7 +198,10 @@ export interface BojiDuel {
   overall: BojiDuelOutcome;
 }
 
-export const BOJI_DUEL_ORDER: BojiMetricKey[] = ['abs', 'v_taper', 'arms', 'symmetry'];
+export const BOJI_DUEL_ORDER: BojiMetricKey[] = ['abs', 'waist_hip', 'v_taper', 'arms', 'symmetry'];
+
+/** 女性档不看手臂：手臂分不进 PK */
+const FEMALE_SKIPPED: BojiMetricKey[] = ['arms'];
 
 function outcomeOf(mine: number, theirs: number): BojiDuelOutcome {
   const a = Math.round(mine);
@@ -159,13 +209,26 @@ function outcomeOf(mine: number, theirs: number): BojiDuelOutcome {
   return a === b ? 'tie' : a > b ? 'win' : 'lose';
 }
 
-export function compareBojiScores(
-  mine: { total: number | null; scores: BojiMetricScores },
-  theirs: { total: number | null; scores: BojiMetricScores },
-): BojiDuel {
-  const lines: BojiDuelLine[] = BOJI_DUEL_ORDER.map((key) => {
-    const a = mine.scores[key];
-    const b = theirs.scores[key];
+type DuelSide = { total: number | null; scores: BojiMetricScores; sex?: BojiSex };
+
+function duelScore(side: DuelSide, key: BojiMetricKey): number | null {
+  if (side.sex === 'female' && FEMALE_SKIPPED.includes(key)) return null;
+  const v = side.scores[key as keyof BojiMetricScores];
+  return typeof v === 'number' ? v : null;
+}
+
+function inDuel(key: BojiMetricKey, mine: DuelSide, theirs: DuelSide): boolean {
+  const female = mine.sex === 'female' || theirs.sex === 'female';
+  if (key === 'waist_hip') return female;
+  if (key === 'arms') return mine.sex !== 'female' || theirs.sex !== 'female';
+  return true;
+}
+
+/** 男女对战时各按自己的标准打分，只比双方都有的项（另一方没有的项显示「不计」）。 */
+export function compareBojiScores(mine: DuelSide, theirs: DuelSide): BojiDuel {
+  const lines: BojiDuelLine[] = BOJI_DUEL_ORDER.filter((key) => inDuel(key, mine, theirs)).map((key) => {
+    const a = duelScore(mine, key);
+    const b = duelScore(theirs, key);
     return { key, mine: a, theirs: b, outcome: a === null || b === null ? null : outcomeOf(a, b) };
   });
   const count = (o: BojiDuelOutcome) => lines.filter((l) => l.outcome === o).length;
@@ -185,6 +248,8 @@ export function compareBojiScores(
 export interface BojiChallengeOutcome {
   opponent: BojiChallengeCard;
   duel: BojiDuel;
+  /** 一男一女：各按自己的标准打分 */
+  mixedSex?: boolean;
 }
 
 export interface BojiInsights {
@@ -218,7 +283,17 @@ export const BOJI_DUEL_METRIC_LABELS: Record<BojiMetricKey, string> = {
   v_taper: '倒三角',
   arms: '手臂围度',
   symmetry: '左右对称',
+  waist_hip: '腰臀比',
 };
+
+const FEMALE_DUEL_LABELS: Partial<Record<BojiMetricKey, string>> = { abs: '马甲线', v_taper: '肩腰比' };
+
+/** 按看的人的性别显示项目名 */
+export function bojiDuelMetricLabel(key: BojiMetricKey, sex: BojiSex): string {
+  return (sex === 'female' ? FEMALE_DUEL_LABELS[key] : undefined) ?? BOJI_DUEL_METRIC_LABELS[key];
+}
+
+export const BOJI_DUEL_MIXED_TIP = '男生和女生各按自己的标准打分，只比双方都能测的项，图个乐。';
 
 /** PK 时腹肌受光线影响最大，提示双方 */
 export const BOJI_DUEL_LIGHTING_TIP = '腹肌分数受光线影响大，同样的地点和光线比才公平。';

@@ -1,5 +1,5 @@
 import Taro from '@tarojs/taro'
-import { BOJI_UPLOAD_MAX_SIDE, type BojiAnalysisDto } from '@coachlink/core/src/bojiDetector'
+import { BOJI_UPLOAD_MAX_SIDE, type BojiAnalysisDto, type BojiSex } from '@coachlink/core/src/bojiDetector'
 import { isBojiScoreId, type BojiChallengeView } from '@coachlink/core/src/bojiInsights'
 import { request } from '@/utils/request'
 
@@ -48,14 +48,25 @@ export async function preparePhoto(path: string): Promise<PreparedPhoto> {
   return { path: compressed.tempFilePath, width, height }
 }
 
-/** challengeId：应战好友的 PK 时传对方的成绩 id */
-export async function analyzeBojiPhoto(path: string, challengeId?: string | null): Promise<BojiAnalysisDto> {
+/** challengeId：应战好友的 PK 时传对方的成绩 id；sex：female 用女性档打分 */
+function analyzeQuery(challengeId: string | null | undefined, sex: BojiSex): string {
+  const parts: string[] = []
+  if (isBojiScoreId(challengeId)) parts.push(`challenge=${challengeId}`)
+  if (sex === 'female') parts.push('sex=female')
+  return parts.length ? `?${parts.join('&')}` : ''
+}
+
+export async function analyzeBojiPhoto(
+  path: string,
+  challengeId?: string | null,
+  sex: BojiSex = 'male',
+): Promise<BojiAnalysisDto> {
   const bytes = Taro.getFileSystemManager().readFileSync(path) as ArrayBuffer
   if (bytes.byteLength > MAX_UPLOAD_BYTES) {
     throw new Error('照片太大了，请换一张或裁剪后再试')
   }
   const res = await request<BojiAnalysisDto>({
-    url: `/api/toolbox/boji/analyze${isBojiScoreId(challengeId) ? `?challenge=${challengeId}` : ''}`,
+    url: `/api/toolbox/boji/analyze${analyzeQuery(challengeId, sex)}`,
     method: 'POST',
     data: bytes,
     header: { 'Content-Type': 'image/jpeg' },

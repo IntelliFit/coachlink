@@ -109,6 +109,7 @@ const PUBLIC_PATHS = new Set([
     "/api/payment/wechat/xpay/notify",
     "/api/og/streetlifting-location",
     "/api/miniapp/qrcode/streetlifting-location",
+    "/api/miniapp/qrcode/boji-challenge",
     "/api/streetlifting-index/stats",
     "/api/streetlifting-index/formulas/list",
     "/api/streetlifting-index/submissions/list",

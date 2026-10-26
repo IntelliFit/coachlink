@@ -1,58 +1,54 @@
 /**
- * 薄肌检测器「身材最像谁」：每位人物配一组目标分数（腹肌、倒三角、手臂，0–100，
- * 与检测结果的单项分同一刻度），检测完取距离最近的一位。
+ * 薄肌检测器「身材最像谁」。
  *
- * 名单和目标分是运营配置，不是对本人照片的测量：改名单、改描述只需改这个文件。
- * 2026-10-25 首版取自运营给的名单（精瘦线条 / 运动员 / 大肌肉三组）。
+ * 用三项原始测量值匹配：腹肌清晰度（definition_index）、肩腰比、上臂宽/长。
+ * 每项先和真实用户的中位水平比，换算成连续档位（0 为中位，±1 约一个四分位距），
+ * 再取档位最接近的人物。名单见 bojiLookalikeRoster.ts，每位人物占一个不同的档位点，
+ * 所以练得好的人也会按各自特点分散到不同人物上（2026-10-26 前按单项分匹配，单项分
+ * 普遍接近满分，结果三成以上都是 CBum）。
  */
 
-export type BojiLookalikeGroup = 'lean' | 'athlete' | 'muscle';
+import {
+  BOJI_LOOKALIKE_GROUP_LABELS,
+  BOJI_LOOKALIKES,
+  type BojiLookalike,
+  type BojiLookalikeTarget,
+} from './bojiLookalikeRoster';
+import { BOJI_LOOKALIKE_PHOTOS } from './bojiLookalikePhotos';
+import {
+  BOJI_FEMALE_LOOKALIKE_GROUP_LABELS,
+  BOJI_FEMALE_LOOKALIKES,
+  type BojiFemaleLookalike,
+} from './bojiFemaleLookalikeRoster';
 
-export interface BojiLookalikeTarget {
-  abs: number;
-  vTaper: number;
-  arms: number;
-}
+export {
+  BOJI_FEMALE_LOOKALIKE_GROUP_LABELS,
+  BOJI_FEMALE_LOOKALIKES,
+  type BojiFemaleLookalike,
+  type BojiFemaleLookalikeGroup,
+  type BojiFemaleLookalikeTarget,
+} from './bojiFemaleLookalikeRoster';
 
-export interface BojiLookalike {
-  key: string;
-  name: string;
-  group: BojiLookalikeGroup;
-  /** 一句话身材描述，显示在名字下面 */
-  tagline: string;
-  target: BojiLookalikeTarget;
-}
+export {
+  BOJI_LOOKALIKE_GROUP_LABELS,
+  BOJI_LOOKALIKES,
+  type BojiLookalike,
+  type BojiLookalikeGroup,
+  type BojiLookalikeTarget,
+} from './bojiLookalikeRoster';
 
-export const BOJI_LOOKALIKE_GROUP_LABELS: Record<BojiLookalikeGroup, string> = {
-  lean: '精瘦线条型',
-  athlete: '运动员型',
-  muscle: '大肌肉型',
-};
+/**
+ * 每项原始测量的中位水平和「一档」的距离：取自 2026-10-25 线上
+ * 114 次检测（48 人）的中位数和四分位距（IQR / 1.35）。
+ */
+export const BOJI_LOOKALIKE_REFERENCE = {
+  absDefinition: { median: 0.695, spread: 0.196 },
+  shoulderWaistRatio: { median: 1.961, spread: 0.326 },
+  upperArmRatio: { median: 0.431, spread: 0.09 },
+} as const;
 
-export const BOJI_LOOKALIKES: BojiLookalike[] = [
-  { key: 'bruce_lee', name: '李小龙', group: 'lean', tagline: '低围度、高线条，精瘦格斗型', target: { abs: 95, vTaper: 85, arms: 45 } },
-  { key: 'brad_pitt', name: '布拉德·皮特', group: 'lean', tagline: '《搏击俱乐部》时期，腹肌清楚、整体精瘦', target: { abs: 90, vTaper: 75, arms: 50 } },
-  { key: 'bai_jingting', name: '白敬亭', group: 'lean', tagline: '宽肩窄腰，穿衣显瘦脱衣有肉', target: { abs: 70, vTaper: 85, arms: 45 } },
-  { key: 'tom_holland', name: '汤姆·赫兰德', group: 'lean', tagline: '灵活精干，体操运动感', target: { abs: 85, vTaper: 70, arms: 55 } },
-  { key: 'beckham', name: '贝克汉姆', group: 'lean', tagline: '流线型足球运动员身材，围度适中', target: { abs: 75, vTaper: 70, arms: 55 } },
-  { key: 'jackson_wang', name: '王嘉尔', group: 'lean', tagline: '偏精壮，舞台感强', target: { abs: 80, vTaper: 75, arms: 65 } },
-  { key: 'usain_bolt', name: '尤塞恩·博尔特', group: 'athlete', tagline: '修长爆发，短跑运动员风格', target: { abs: 70, vTaper: 80, arms: 55 } },
-  { key: 'cristiano_ronaldo', name: 'C罗', group: 'athlete', tagline: '腹部线条和全身肌肉都很均衡', target: { abs: 95, vTaper: 85, arms: 70 } },
-  { key: 'michael_phelps', name: '迈克尔·菲尔普斯', group: 'athlete', tagline: '肩背发达，游泳运动员倒三角', target: { abs: 75, vTaper: 98, arms: 60 } },
-  { key: 'eddie_peng', name: '彭于晏', group: 'athlete', tagline: '《激战》时期的精壮格斗身材', target: { abs: 90, vTaper: 85, arms: 75 } },
-  { key: 'wu_lei', name: '吴磊', group: 'athlete', tagline: '青年运动型，紧致偏精瘦', target: { abs: 70, vTaper: 65, arms: 50 } },
-  { key: 'mike_tyson', name: '迈克·泰森', group: 'athlete', tagline: '厚实有力的拳击体型', target: { abs: 55, vTaper: 75, arms: 95 } },
-  { key: 'chris_heria', name: 'Chris Heria', group: 'muscle', tagline: '街头健身，腹肌明显、上肢发达', target: { abs: 92, vTaper: 88, arms: 85 } },
-  { key: 'david_laid', name: 'David Laid', group: 'muscle', tagline: '健身审美型，宽肩窄腰', target: { abs: 88, vTaper: 95, arms: 80 } },
-  { key: 'cbum', name: 'CBum', group: 'muscle', tagline: '古典健美，极强的 X 型比例', target: { abs: 85, vTaper: 100, arms: 95 } },
-  { key: 'ronnie_coleman', name: '罗尼·库尔曼', group: 'muscle', tagline: '巨兽级健美体型', target: { abs: 70, vTaper: 90, arms: 100 } },
-  { key: 'arnold', name: '阿诺·施瓦辛格', group: 'muscle', tagline: '经典健美，胸臂发达', target: { abs: 80, vTaper: 95, arms: 100 } },
-  { key: 'henry_cavill', name: '亨利·卡维尔', group: 'muscle', tagline: '超级英雄电影里的厚实肌肉', target: { abs: 75, vTaper: 85, arms: 85 } },
-  { key: 'chris_hemsworth', name: '克里斯·海姆斯沃斯', group: 'muscle', tagline: '胸肩臂突出的大肌肉电影体型', target: { abs: 70, vTaper: 85, arms: 92 } },
-];
-
-/** 平均每项差距在这个分数以内算「最接近」，否则说成「练下去最可能成为」 */
-export const BOJI_LOOKALIKE_CLOSE_DISTANCE = 12;
+/** 平均每项差距在这个档位距离以内算「最接近」，否则说成「练下去最可能成为」 */
+export const BOJI_LOOKALIKE_CLOSE_DISTANCE = 0.5;
 
 export interface BojiLookalikeMatch {
   key: string;
@@ -61,32 +57,165 @@ export interface BojiLookalikeMatch {
   tagline: string;
   /** close：身材已经接近；potential：差距较大，只是方向最接近 */
   closeness: 'close' | 'potential';
+  /** 相似度 40–99，由档位距离换算，只用于展示 */
+  similarity?: number;
+  /** 第二接近的人物 */
+  runnerUp?: string;
+  /** 三项身材特点，如「腹肌清晰」「倒三角明显」「手臂偏细」 */
+  traits?: string[];
+  /** 头像路径（相对网站根目录）；没有授权照片的人物没有，前端显示姓名首字 */
+  photoPath?: string;
+  /** 头像署名，页面底部展示 */
+  photoCredit?: string;
 }
 
-export type BojiLookalikeScores = Partial<Record<keyof BojiLookalikeTarget, number | null>>;
+/** 头像的路径和署名；没有授权照片时返回空对象 */
+export function bojiLookalikePhoto(key: string): Pick<BojiLookalikeMatch, 'photoPath' | 'photoCredit'> {
+  const photo = BOJI_LOOKALIKE_PHOTOS[key];
+  if (!photo) return {};
+  return {
+    photoPath: `/images/boji-lookalikes/${key}.webp`,
+    photoCredit: `${photo.artist}，${photo.licence}，来自 Wikimedia Commons（已裁剪）`,
+  };
+}
 
-/** 至少要有两项可用的单项分才匹配；取均方根距离最小的一位。 */
-export function matchBojiLookalike(
-  scores: BojiLookalikeScores,
-  candidates: BojiLookalike[] = BOJI_LOOKALIKES,
-): BojiLookalikeMatch | null {
-  const keys = (['abs', 'vTaper', 'arms'] as const).filter((k) => {
-    const v = scores[k];
-    return typeof v === 'number' && Number.isFinite(v);
-  });
-  if (keys.length < 2 || candidates.length === 0) return null;
-  let best: { item: BojiLookalike; distance: number } | null = null;
-  for (const item of candidates) {
-    const squared = keys.reduce((sum, k) => sum + (Number(scores[k]) - item.target[k]) ** 2, 0);
-    const distance = Math.sqrt(squared / keys.length);
-    if (!best || distance < best.distance) best = { item, distance };
-  }
-  if (!best) return null;
+export interface BojiLookalikeMeasures {
+  absDefinition?: number | null;
+  shoulderWaistRatio?: number | null;
+  upperArmRatio?: number | null;
+}
+
+type Dimension = keyof BojiLookalikeTarget;
+type Measure = keyof BojiLookalikeMeasures;
+
+const DIMENSIONS: { key: Dimension; measure: Measure; low: string; mid: string; high: string }[] = [
+  { key: 'abs', measure: 'absDefinition', low: '腹肌还不明显', mid: '腹肌中等', high: '腹肌清晰' },
+  { key: 'vTaper', measure: 'shoulderWaistRatio', low: '倒三角偏弱', mid: '倒三角中等', high: '倒三角明显' },
+  { key: 'arms', measure: 'upperArmRatio', low: '手臂偏细', mid: '手臂中等', high: '手臂粗壮' },
+];
+
+/** 档位超过半档算偏高或偏低 */
+const TRAIT_THRESHOLD = 0.5;
+
+/** 原始测量 → 连续档位，限制在 ±1.5 档，避免个别离谱值主导匹配 */
+export function bojiLookalikeLevel(measure: Measure, value: number): number {
+  const ref = BOJI_LOOKALIKE_REFERENCE[measure];
+  return Math.max(-1.5, Math.min(1.5, (value - ref.median) / ref.spread));
+}
+
+/** 档位距离 → 展示用相似度：距离 0 为 99，每差一档约少 30，最低 40 */
+export function bojiLookalikeSimilarity(distance: number): number {
+  return Math.max(40, Math.min(99, Math.round(99 - 30 * distance)));
+}
+
+interface RosterItem {
+  key: string;
+  name: string;
+  tagline: string;
+  groupLabel: string;
+  target: Record<string, number>;
+}
+
+interface Level {
+  key: string;
+  level: number;
+  trait: string;
+}
+
+/** 两份名单共用：按档位均方根距离排序，给出最接近、第二接近和身材特点。 */
+function rankLookalikes(levels: Level[], candidates: RosterItem[]): BojiLookalikeMatch | null {
+  if (levels.length < 2 || candidates.length === 0) return null;
+  const ranked = candidates
+    .map((item) => {
+      const squared = levels.reduce((sum, { key, level }) => sum + (level - item.target[key]) ** 2, 0);
+      return { item, distance: Math.sqrt(squared / levels.length) };
+    })
+    .sort((a, b) => a.distance - b.distance);
+  const [best, second] = ranked;
   return {
     key: best.item.key,
     name: best.item.name,
-    groupLabel: BOJI_LOOKALIKE_GROUP_LABELS[best.item.group],
+    groupLabel: best.item.groupLabel,
     tagline: best.item.tagline,
     closeness: best.distance <= BOJI_LOOKALIKE_CLOSE_DISTANCE ? 'close' : 'potential',
+    similarity: bojiLookalikeSimilarity(best.distance),
+    runnerUp: second?.item.name,
+    traits: levels.map((l) => l.trait),
+    ...bojiLookalikePhoto(best.item.key),
   };
+}
+
+function traitFor(level: number, words: { low: string; mid: string; high: string }): string {
+  return level >= TRAIT_THRESHOLD ? words.high : level <= -TRAIT_THRESHOLD ? words.low : words.mid;
+}
+
+/** 至少要有两项可用的测量值才匹配；按档位均方根距离排序。 */
+export function matchBojiLookalike(
+  measures: BojiLookalikeMeasures,
+  candidates: BojiLookalike[] = BOJI_LOOKALIKES,
+): BojiLookalikeMatch | null {
+  const levels: Level[] = [];
+  for (const dim of DIMENSIONS) {
+    const v = measures[dim.measure];
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      const level = bojiLookalikeLevel(dim.measure, v);
+      levels.push({ key: dim.key, level, trait: traitFor(level, dim) });
+    }
+  }
+  return rankLookalikes(
+    levels,
+    candidates.map((c) => ({ ...c, groupLabel: BOJI_LOOKALIKE_GROUP_LABELS[c.group], target: { ...c.target } })),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 女性档：马甲线、腰臀曲线、肩腰比
+// ---------------------------------------------------------------------------
+
+/**
+ * 女性三项原始测量的参考水平。暂取 2026-10-26 引擎 0.2 在 20 张 CC0 女性健身照上的
+ * 中位数和四分位距（IQR / 1.35）；女性真实检测攒够后按线上数据重算。
+ */
+export const BOJI_FEMALE_LOOKALIKE_REFERENCE = {
+  absLineIndex: { median: 0.014, spread: 0.008 },
+  waistHipRatio: { median: 0.7, spread: 0.06 },
+  shoulderWaistRatio: { median: 1.72, spread: 0.12 },
+} as const;
+
+export interface BojiFemaleLookalikeMeasures {
+  absLineIndex?: number | null;
+  waistHipRatio?: number | null;
+  shoulderWaistRatio?: number | null;
+}
+
+type FemaleMeasure = keyof BojiFemaleLookalikeMeasures;
+
+/** sign：腰臀比越小曲线越明显，所以取反 */
+const FEMALE_DIMENSIONS: { key: string; measure: FemaleMeasure; sign: 1 | -1; low: string; mid: string; high: string }[] = [
+  { key: 'abs', measure: 'absLineIndex', sign: 1, low: '马甲线还不明显', mid: '马甲线隐约可见', high: '马甲线清晰' },
+  { key: 'curve', measure: 'waistHipRatio', sign: -1, low: '腰臀曲线平直', mid: '腰臀曲线中等', high: '腰臀曲线明显' },
+  { key: 'vTaper', measure: 'shoulderWaistRatio', sign: 1, low: '肩部偏窄', mid: '肩腰比例中等', high: '肩宽腰细' },
+];
+
+export function bojiFemaleLookalikeLevel(measure: FemaleMeasure, value: number, sign: 1 | -1 = 1): number {
+  const ref = BOJI_FEMALE_LOOKALIKE_REFERENCE[measure];
+  return Math.max(-1.5, Math.min(1.5, (sign * (value - ref.median)) / ref.spread));
+}
+
+export function matchBojiFemaleLookalike(
+  measures: BojiFemaleLookalikeMeasures,
+  candidates: BojiFemaleLookalike[] = BOJI_FEMALE_LOOKALIKES,
+): BojiLookalikeMatch | null {
+  const levels: Level[] = [];
+  for (const dim of FEMALE_DIMENSIONS) {
+    const v = measures[dim.measure];
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      const level = bojiFemaleLookalikeLevel(dim.measure, v, dim.sign);
+      levels.push({ key: dim.key, level, trait: traitFor(level, dim) });
+    }
+  }
+  return rankLookalikes(
+    levels,
+    candidates.map((c) => ({ ...c, groupLabel: BOJI_FEMALE_LOOKALIKE_GROUP_LABELS[c.group], target: { ...c.target } })),
+  );
 }
