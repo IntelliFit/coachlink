@@ -20,6 +20,11 @@ import {
   type BodyTrackingRuntimeState
 } from '../games/bodyPointTracker'
 import {
+  mapHeadTravelToStage,
+  updateHeadTravel,
+  type HeadTravelRange
+} from '../games/headTravelMapper'
+import {
   getHeadCompanionMetrics,
   headCompanionHitsRect,
   placeCompanionBesideHead,
@@ -49,7 +54,7 @@ type DashWall = {
   x: number
 }
 
-type GameStatus = 'idle' | 'playing' | 'ended'
+type GameStatus = 'idle' | 'countdown' | 'playing' | 'ended'
 
 type HeadLockState = {
   estimated: boolean
@@ -77,6 +82,8 @@ const WALL_SPAWN_MS = 1180
 const DASH_DURATION_MS = 720
 const TRACKING_UI_INTERVAL_MS = 64
 const MAX_LIVES = 3
+// 点开始后留时间趴下、撑好起始姿势，倒计时结束才开始计时和出障碍。
+const START_COUNTDOWN_SECONDS = 5
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -91,9 +98,12 @@ function formatPercent(value: number) {
 }
 
 function buildWall(id: number): DashWall {
+  // 通道中心围绕画面中线对称分布（28%–72%），与头部行程校准后的小鸟范围匹配。
+  const gapHeight = 0.3 + Math.random() * 0.06
+  const gapCenter = 0.28 + Math.random() * 0.44
   return {
-    gapHeight: 0.3 + Math.random() * 0.06,
-    gapY: 0.22 + Math.random() * 0.32,
+    gapHeight,
+    gapY: gapCenter - gapHeight / 2,
     id,
     passed: false,
     width: 0.16,
@@ -138,9 +148,12 @@ export default function PushupDashPage() {
   const gameRoundRef = useRef(0)
   const roundSyncStartedRef = useRef(false)
   const gameStartingRef = useRef(false)
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const playerPositionRef = useRef({ x: 0.32, y: 0.52 })
+  const headTravelRef = useRef<HeadTravelRange | null>(null)
 
   const [gameStatus, setGameStatus] = useState<GameStatus>('idle')
+  const [countdownLeft, setCountdownLeft] = useState(0)
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [motionEnergy, setMotionEnergy] = useState(0)
@@ -213,6 +226,10 @@ export default function PushupDashPage() {
     gameStatusRef.current = gameStatus
   }, [gameStatus])
 
+  useEffect(() => () => {
+    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current)
+  }, [])
+
   const beginDashFromRep = () => {
     const now = Date.now()
     dashUntilRef.current = now + DASH_DURATION_MS
@@ -275,10 +292,14 @@ export default function PushupDashPage() {
           : null
         if (projectedHead && snapshot.lockState === 'locked') {
           const metrics = companionMetricsRef.current
-          playerPositionRef.current = placeCompanionBesideHead(projectedHead, {
-            halfHeight: metrics.visualHalfHeight,
-            halfWidth: metrics.visualHalfWidth
-          })
+          headTravelRef.current = updateHeadTravel(headTravelRef.current, projectedHead.y, now)
+          playerPositionRef.current = placeCompanionBesideHead(
+            { ...projectedHead, y: mapHeadTravelToStage(headTravelRef.current, projectedHead.y) },
+            {
+              halfHeight: metrics.visualHalfHeight,
+              halfWidth: metrics.visualHalfWidth
+            }
+          )
         }
         if (
           now - lastTrackingUiAtRef.current >= TRACKING_UI_INTERVAL_MS
@@ -397,6 +418,9 @@ export default function PushupDashPage() {
               frameWidth: width,
               items: replayItems,
               player: {
+                halfHeight: companionMetricsRef.current.visualHalfHeight,
+                halfWidth: companionMetricsRef.current.visualHalfWidth,
+                shape: 'bird',
                 x: playerPositionRef.current.x,
                 y: playerPositionRef.current.y
               },
@@ -509,7 +533,7 @@ export default function PushupDashPage() {
   }
 
   useEffect(() => {
-    if (gameStatus !== 'playing') return
+    if (gameStatus !== 'playing' && gameStatus !== 'countdown') return
 
     void Taro.setKeepScreenOn({ keepScreenOn: true }).catch(() => undefined)
     return () => {
@@ -769,6 +793,28 @@ export default function PushupDashPage() {
     lastWallSpawnAtRef.current = Date.now()
   }
 
+  const clearStartCountdown = () => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current)
+      countdownTimerRef.current = null
+    }
+    setCountdownLeft(0)
+  }
+
+  const beginPlaying = (withRecording: boolean) => {
+    const startedAt = Date.now()
+    gameWallStartedAtRef.current = startedAt
+    gameStartedAtRef.current = startedAt
+    lastWallSpawnAtRef.current = startedAt
+    // 倒计时结束时头部还没回到画面：按“跟踪丢失暂停”处理，识别到头部后再开始计时。
+    trackingPausedAtRef.current = trackingActiveRef.current ? 0 : startedAt
+    setGameStatus('playing')
+    gameStatusRef.current = 'playing'
+    if (withRecording) {
+      void beginRecording()
+    }
+  }
+
   const startGame = async (withRecording: boolean) => {
     if (cameraError) {
       Taro.showToast({ title: '当前设备暂不支持试玩', icon: 'none' })
@@ -785,11 +831,29 @@ export default function PushupDashPage() {
     if (gameStartingRef.current) return
     gameStartingRef.current = true
     gameRoundRef.current += 1
+    const roundId = gameRoundRef.current
+    clearStartCountdown()
     resetForNewGame()
     setRecordedVideo(null)
     gameSessionIdRef.current = null
+    setGameStatus('countdown')
+    gameStatusRef.current = 'countdown'
+    setCountdownLeft(START_COUNTDOWN_SECONDS)
+    let remaining = START_COUNTDOWN_SECONDS
+    countdownTimerRef.current = setInterval(() => {
+      remaining -= 1
+      if (remaining > 0) {
+        setCountdownLeft(remaining)
+        return
+      }
+      clearStartCountdown()
+      if (roundId === gameRoundRef.current) beginPlaying(withRecording)
+    }, 1000)
+
     try {
+      // 在线榜会话在倒计时期间建立；服务端只要求本局计时不超过会话墙钟时间，提前建立是安全的。
       const session = await motionGameLeaderboardService.startSession('pushup-dash')
+      if (roundId !== gameRoundRef.current) return
       gameSessionIdRef.current = session?.sessionId || null
       if (session) {
         setBestScore(session.bestScore)
@@ -798,17 +862,18 @@ export default function PushupDashPage() {
       if (!session) {
         Taro.showToast({ title: '可继续试玩，本局暂不计入在线榜', icon: 'none' })
       }
-      const startedAt = Date.now()
-      gameWallStartedAtRef.current = startedAt
-      gameStartedAtRef.current = startedAt
-      setGameStatus('playing')
-      gameStatusRef.current = 'playing'
-      if (withRecording) {
-        void beginRecording()
-      }
     } finally {
       gameStartingRef.current = false
     }
+  }
+
+  const cancelStartCountdown = () => {
+    if (gameStatusRef.current !== 'countdown') return
+    clearStartCountdown()
+    gameRoundRef.current += 1
+    gameStartingRef.current = false
+    setGameStatus('idle')
+    gameStatusRef.current = 'idle'
   }
 
   const handleSaveVideo = async () => {
@@ -837,6 +902,8 @@ export default function PushupDashPage() {
   const statusText =
     gameStatus === 'playing'
       ? '突围中'
+      : gameStatus === 'countdown'
+        ? '准备中'
       : gameStatus === 'ended'
         ? '已结束'
         : '待开始'
@@ -913,7 +980,7 @@ export default function PushupDashPage() {
 
                 <View className='stage-objective'>
                   <Text className='stage-objective-text'>上下移动头部，带小鸟穿过通道</Text>
-                  <Text className='stage-objective-text stage-objective-text--bad'>完整俯卧撑会点亮冲刺反馈</Text>
+                  <Text className='stage-objective-text stage-objective-text--bad'>幅度自动校准：下到一半时小鸟在中线</Text>
                 </View>
 
                 {headLock.visible ? (
@@ -975,6 +1042,14 @@ export default function PushupDashPage() {
                 {feedback ? (
                   <View key={feedback.id} className={`stage-feedback stage-feedback--${feedback.tone}`}>
                     <Text className='stage-feedback-text'>{feedback.text}</Text>
+                  </View>
+                ) : null}
+
+                {gameStatus === 'countdown' && countdownLeft > 0 ? (
+                  <View className='stage-countdown'>
+                    <Text key={countdownLeft} className='stage-countdown-number'>{countdownLeft}</Text>
+                    <Text className='stage-countdown-title'>到位准备</Text>
+                    <Text className='stage-countdown-desc'>趴下撑好起始姿势，让脸留在画面里，倒计时结束自动开始</Text>
                   </View>
                 ) : null}
 
@@ -1087,19 +1162,25 @@ export default function PushupDashPage() {
               <Text className='section-kicker'>控制台</Text>
 
               <View className='controls-grid'>
-                <View
-                  className={`btn-primary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
-                  onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) void startGame(false)
-                  }}
-                >
-                  <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
-                </View>
+                {gameStatus === 'countdown' ? (
+                  <View className='btn-primary' onClick={cancelStartCountdown}>
+                    <Text className='btn-primary-text'>取消倒计时</Text>
+                  </View>
+                ) : (
+                  <View
+                    className={`btn-primary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
+                    onClick={() => {
+                      if (!cameraError && !replayProcessing && trackingActive) void startGame(false)
+                    }}
+                  >
+                    <Text className='btn-primary-text'>{gameStatus === 'playing' ? '重新开始' : '开始试玩'}</Text>
+                  </View>
+                )}
 
                 <View
-                  className={`btn-secondary ${cameraError || replayProcessing || !trackingActive ? 'disabled' : ''}`}
+                  className={`btn-secondary ${cameraError || replayProcessing || !trackingActive || gameStatus === 'countdown' ? 'disabled' : ''}`}
                   onClick={() => {
-                    if (!cameraError && !replayProcessing && trackingActive) void startGame(true)
+                    if (!cameraError && !replayProcessing && trackingActive && gameStatus !== 'countdown') void startGame(true)
                   }}
                 >
                   <Text className='btn-secondary-text'>开始试玩并录回放</Text>

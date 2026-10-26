@@ -15,15 +15,21 @@ export type ArcadeReplayItem = {
   size: number
 }
 
+export type ArcadeReplayPlayer = {
+  /** 与页面同一套相对舞台的尺寸（0–1），提供时回放角色和实时画面等大。 */
+  halfHeight?: number
+  halfWidth?: number
+  shape?: 'bird'
+  x: number
+  y: number
+}
+
 export type ArcadeReplayCapture = {
   frameBuffer: Uint8ClampedArray
   frameHeight: number
   frameWidth: number
   items: ArcadeReplayItem[]
-  player: {
-    x: number
-    y: number
-  }
+  player: ArcadeReplayPlayer
   replayFooterLabel: string
   score: number
   timerMode?: 'elapsed' | 'remaining'
@@ -126,21 +132,28 @@ function drawReplayItem(
   const centerY = item.y * height
   const radius = Math.max(8, item.size * width * 0.5)
   const fill = item.type === 'good' ? palette.goodFill : palette.badFill
-  const itemWidth = Math.max(radius * 2, (item.width || item.size) * width)
-  const itemHeight = Math.max(radius * 2, (item.height || item.size) * height)
 
   if (item.shape === 'rect') {
+    // 管道/墙体按实际宽高绘制：不能套用圆形道具的最小半径，否则高柱子会被画成宽度等于高度的方块。
+    const rectWidth = (item.width ?? item.size) * width
+    const rectHeight = (item.height ?? item.size) * height
+    if (rectWidth <= 0 || rectHeight <= 0) return
     drawRoundedRect(
       ctx,
-      centerX - itemWidth / 2,
-      centerY - itemHeight / 2,
-      itemWidth,
-      itemHeight,
-      Math.min(itemWidth, itemHeight) * 0.18,
-      fill
+      centerX - rectWidth / 2,
+      centerY - rectHeight / 2,
+      rectWidth,
+      rectHeight,
+      Math.min(12, rectWidth / 2, rectHeight / 2),
+      fill,
+      'rgba(255, 255, 255, 0.7)',
+      2
     )
     return
   }
+
+  const itemWidth = Math.max(radius * 2, (item.width || item.size) * width)
+  const itemHeight = Math.max(radius * 2, (item.height || item.size) * height)
 
   if (item.shape === 'pill') {
     drawRoundedRect(
@@ -194,14 +207,36 @@ function drawReplayItem(
   ctx.stroke()
 }
 
+function drawBird(ctx: any, player: ArcadeReplayPlayer, width: number, height: number) {
+  const halfWidth = Math.max(8, (player.halfWidth ?? 0.04) * width)
+  const halfHeight = Math.max(6, (player.halfHeight ?? 0.024) * height)
+  const left = player.x * width - halfWidth
+  const top = player.y * height - halfHeight
+  const birdWidth = halfWidth * 2
+  const birdHeight = halfHeight * 2
+
+  drawRoundedRect(ctx, left, top, birdWidth, birdHeight, halfHeight, '#f3b948', 'rgba(255,255,255,0.96)', 2)
+  drawRoundedRect(ctx, left + birdWidth * 0.12, top + birdHeight * 0.5, birdWidth * 0.5, birdHeight * 0.33, birdHeight * 0.17, '#cf6d4e')
+  drawRoundedRect(ctx, left + birdWidth * 0.75, top + birdHeight * 0.33, birdWidth * 0.25, birdHeight * 0.33, birdHeight * 0.17, '#cf6d4e')
+  ctx.beginPath()
+  ctx.arc(left + birdWidth * 0.8, top + birdHeight * 0.25, Math.max(1.5, birdHeight * 0.09), 0, Math.PI * 2)
+  ctx.fillStyle = '#172033'
+  ctx.fill()
+}
+
 function drawPlayer(
   ctx: any,
-  player: { x: number; y: number },
+  player: ArcadeReplayPlayer,
   width: number,
   height: number,
   palette: ReplayPalette,
   visualKey: MotionArcadeVisualKey
 ) {
+  if (player.shape === 'bird') {
+    drawBird(ctx, player, width, height)
+    return
+  }
+
   const playerX = player.x * width
   const playerY = player.y * height
 

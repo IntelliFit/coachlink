@@ -352,6 +352,47 @@
     line-height: 1;
   }
 
+  .stage-countdown {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 48rpx;
+    background: rgba(17, 24, 39, 0.4);
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 7;
+  }
+
+  .stage-countdown-number {
+    font-size: 192rpx;
+    font-weight: 900;
+    line-height: 1;
+    color: #ffffff;
+    text-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.32);
+    animation: arcade-countdown-pop 1000ms ease-out both;
+  }
+
+  .stage-countdown-title {
+    margin-top: 24rpx;
+    font-size: 32rpx;
+    font-weight: 800;
+    color: #ffffff;
+  }
+
+  .stage-countdown-desc {
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    line-height: 1.6;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
   .stage-note,
   .stage-error,
   .stage-tip-card {
@@ -663,6 +704,23 @@
 
   .tip-text {
     color: #5b6470;
+  }
+}
+
+@keyframes arcade-countdown-pop {
+  0% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+
+  24% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
