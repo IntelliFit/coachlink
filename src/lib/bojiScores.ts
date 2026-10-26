@@ -28,6 +28,9 @@ export interface StoredBojiScore {
   v_taper_score: number | null;
   arms_score: number | null;
   symmetry_score: number | null;
+  shoulder_waist_ratio: number | null;
+  upper_arm_ratio: number | null;
+  abs_definition: number | null;
   created_at: string;
 }
 
@@ -52,7 +55,8 @@ export interface BojiScoreStore {
   profiles(userIds: string[]): Promise<Map<string, BojiProfile>>;
 }
 
-const SCORE_COLUMNS = 'id, user_id, total_score, abs_score, v_taper_score, arms_score, symmetry_score, created_at';
+const SCORE_COLUMNS =
+  'id, user_id, total_score, abs_score, v_taper_score, arms_score, symmetry_score, shoulder_waist_ratio, upper_arm_ratio, abs_definition, created_at';
 const DEFAULT_NICKNAME = '健身朋友';
 const RESPONSE_LIMIT = 20;
 
@@ -71,6 +75,9 @@ function toStored(row: Record<string, unknown>): StoredBojiScore {
     v_taper_score: num(row.v_taper_score),
     arms_score: num(row.arms_score),
     symmetry_score: num(row.symmetry_score),
+    shoulder_waist_ratio: num(row.shoulder_waist_ratio),
+    upper_arm_ratio: num(row.upper_arm_ratio),
+    abs_definition: num(row.abs_definition),
     created_at: String(row.created_at ?? ''),
   };
 }
@@ -150,7 +157,11 @@ function toCard(row: StoredBojiScore, profile: BojiProfile | undefined): BojiCha
     avatarUrl: profile?.avatarUrl ?? '',
     total: row.total_score,
     scores,
-    lookalike: matchBojiLookalike({ abs: scores.abs, vTaper: scores.v_taper, arms: scores.arms }),
+    lookalike: matchBojiLookalike({
+      absDefinition: row.abs_definition,
+      shoulderWaistRatio: row.shoulder_waist_ratio,
+      upperArmRatio: row.upper_arm_ratio,
+    }),
     createdAt: row.created_at,
   };
 }

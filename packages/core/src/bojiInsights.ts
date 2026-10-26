@@ -60,9 +60,9 @@ export function isRecordableBojiSnapshot(snapshot: BojiScoreSnapshot): boolean {
 
 export function lookalikeForSnapshot(snapshot: BojiScoreSnapshot): BojiLookalikeMatch | null {
   return matchBojiLookalike({
-    abs: snapshot.scores.abs,
-    vTaper: snapshot.scores.v_taper,
-    arms: snapshot.scores.arms,
+    absDefinition: snapshot.absDefinition,
+    shoulderWaistRatio: snapshot.shoulderWaistRatio,
+    upperArmRatio: snapshot.upperArmRatio,
   });
 }
 
@@ -70,8 +70,11 @@ export function lookalikeForSnapshot(snapshot: BojiScoreSnapshot): BojiLookalike
 // 超越比例：真实检测人数不足时用预设分布估算，够了以后换真实分布
 // ---------------------------------------------------------------------------
 
-/** 预设的综合分分布（正态）。用测试照片的分数大致定的：普通人偏低，练过的人 60–90。 */
-export const BOJI_PERCENTILE_PRIOR = { mean: 55, sd: 16 };
+/**
+ * 预设的综合分分布（正态）。2026-10-26 按线上前 114 次检测（均值 78.4、标准差 16.6）
+ * 校正；原先的均值 55 让大多数人都显示「超越 95% 以上」。
+ */
+export const BOJI_PERCENTILE_PRIOR = { mean: 78, sd: 17 };
 /** 真实检测人数（按人去重）达到这个数后改用真实分布 */
 export const BOJI_PERCENTILE_MIN_REAL_USERS = 100;
 

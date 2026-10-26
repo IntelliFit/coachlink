@@ -14,7 +14,23 @@ import {
   lookalikeForSnapshot,
   type BojiMetricScores,
 } from '../packages/core/src/bojiInsights';
-import { BOJI_LOOKALIKES, matchBojiLookalike } from '../packages/core/src/bojiLookalikes';
+import {
+  BOJI_LOOKALIKE_REFERENCE,
+  BOJI_LOOKALIKES,
+  bojiLookalikeLevel,
+  matchBojiLookalike,
+  type BojiLookalikeTarget,
+} from '../packages/core/src/bojiLookalikes';
+
+/** 把档位换回原始测量值，方便构造「正好是某位人物」的身材 */
+function measuresAt(target: BojiLookalikeTarget) {
+  const at = (ref: { median: number; spread: number }, level: number) => ref.median + level * ref.spread;
+  return {
+    absDefinition: at(BOJI_LOOKALIKE_REFERENCE.absDefinition, target.abs),
+    shoulderWaistRatio: at(BOJI_LOOKALIKE_REFERENCE.shoulderWaistRatio, target.vTaper),
+    upperArmRatio: at(BOJI_LOOKALIKE_REFERENCE.upperArmRatio, target.arms),
+  };
+}
 
 function metric(key: BojiMetric['key'], patch: Partial<BojiMetric> = {}): BojiMetric {
   return { key, status: 'ok', score: 80, values: {}, reasons: [], geometry: {}, ...patch };
@@ -68,8 +84,9 @@ describe('bojiScoreSnapshot', () => {
 
 describe('bojiPercentile', () => {
   it('estimates from the prior distribution until enough real users exist', () => {
-    expect(estimateBojiPercentile(55)).toBe(50);
-    expect(estimateBojiPercentile(80)).toBeGreaterThan(90);
+    expect(estimateBojiPercentile(78)).toBe(50);
+    expect(estimateBojiPercentile(95)).toBeGreaterThan(80);
+    expect(estimateBojiPercentile(55)).toBeLessThan(15);
     expect(estimateBojiPercentile(-50)).toBe(1);
     expect(estimateBojiPercentile(500)).toBe(99);
     const p = bojiPercentile(71, { sampleUsers: 12, belowUsers: 11 });
@@ -85,29 +102,43 @@ describe('bojiPercentile', () => {
 
   it('returns null without a total and falls back to the estimate without a sample', () => {
     expect(bojiPercentile(null, { sampleUsers: 500, belowUsers: 1 })).toBeNull();
-    expect(bojiPercentile(55, null)).toEqual({ value: 50, basis: 'estimate', sampleUsers: 0 });
+    expect(bojiPercentile(78, null)).toEqual({ value: 50, basis: 'estimate', sampleUsers: 0 });
   });
 });
 
 describe('lookalikes', () => {
-  it('uses unique keys and in-range targets', () => {
+  it('uses unique keys and a distinct level combination per person', () => {
     expect(new Set(BOJI_LOOKALIKES.map((l) => l.key)).size).toBe(BOJI_LOOKALIKES.length);
     for (const l of BOJI_LOOKALIKES) {
-      for (const v of Object.values(l.target)) expect(v).toBeGreaterThanOrEqual(0);
-      for (const v of Object.values(l.target)) expect(v).toBeLessThanOrEqual(100);
+      for (const v of Object.values(l.target)) expect([-1, 0, 1]).toContain(v);
     }
+    const combos = BOJI_LOOKALIKES.map((l) => `${l.target.abs},${l.target.vTaper},${l.target.arms}`);
+    expect(new Set(combos).size).toBe(BOJI_LOOKALIKES.length);
   });
 
   it('matches an exact target as close and a distant profile as potential', () => {
     const lee = BOJI_LOOKALIKES.find((l) => l.key === 'bruce_lee')!;
-    expect(matchBojiLookalike(lee.target)).toMatchObject({ key: 'bruce_lee', closeness: 'close', groupLabel: '精瘦线条型' });
-    const far = matchBojiLookalike({ abs: 10, vTaper: 30, arms: 20 });
+    expect(matchBojiLookalike(measuresAt(lee.target))).toMatchObject({ key: 'bruce_lee', closeness: 'close', groupLabel: '精瘦线条型' });
+    // 腹肌偏高、倒三角偏低、手臂中等：没有人物占这个组合，措辞是「练下去」
+    const far = matchBojiLookalike(measuresAt({ abs: 1, vTaper: -1, arms: 0 }));
     expect(far?.closeness).toBe('potential');
   });
 
-  it('needs at least two usable scores', () => {
-    expect(matchBojiLookalike({ abs: 90, vTaper: null, arms: null })).toBeNull();
-    expect(matchBojiLookalike({ abs: 90, vTaper: 85 })).not.toBeNull();
+  it('spreads people who all score highly instead of matching one person', () => {
+    // 同样练得很好的两个人：一个手臂特别粗，一个倒三角特别明显
+    const bigArms = matchBojiLookalike({ absDefinition: 0.9, shoulderWaistRatio: 1.96, upperArmRatio: 0.55 });
+    const wideShoulders = matchBojiLookalike({ absDefinition: 0.7, shoulderWaistRatio: 2.4, upperArmRatio: 0.43 });
+    expect(bigArms?.key).not.toBe(wideShoulders?.key);
+  });
+
+  it('clamps outliers to one and a half levels', () => {
+    expect(bojiLookalikeLevel('upperArmRatio', 5)).toBe(1.5);
+    expect(bojiLookalikeLevel('shoulderWaistRatio', 0)).toBe(-1.5);
+  });
+
+  it('needs at least two usable measures', () => {
+    expect(matchBojiLookalike({ absDefinition: 0.9, shoulderWaistRatio: null, upperArmRatio: null })).toBeNull();
+    expect(matchBojiLookalike({ absDefinition: 0.9, shoulderWaistRatio: 2 })).not.toBeNull();
     expect(lookalikeForSnapshot(bojiScoreSnapshot(report()))).not.toBeNull();
   });
 
