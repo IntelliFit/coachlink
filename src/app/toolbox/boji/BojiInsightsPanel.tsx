@@ -62,18 +62,38 @@ export function LookalikeCard({ insights }: { insights: BojiInsights | undefined
   const match = insights?.lookalike;
   if (!match) return null;
   return (
-    <div className="flex items-center gap-4 rounded-[32px] border border-slate-200 bg-white p-5 dark:border-[#37312B] dark:bg-[#211E1B]">
-      <span className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-[#CF6D4E] text-3xl font-black text-white">
-        {match.name.slice(0, 1)}
-      </span>
-      <div className="min-w-0">
-        <div className="text-xs text-slate-500 dark:text-[#A0978B]">{match.closeness === 'close' ? '你的身材最接近' : '照这个方向练，最可能成为'}</div>
-        <div className="text-2xl font-black">{match.name}</div>
-        <div className="text-sm text-slate-600 dark:text-[#CBC3B8]">{match.tagline}</div>
-        <span className="mt-2 inline-block rounded-full bg-[#F6E3DB] px-3 py-0.5 text-xs font-semibold text-[#8F4430] dark:bg-[#3A2820] dark:text-[#F0A285]">
-          {match.groupLabel}
-        </span>
+    <div className="flex flex-col gap-3 rounded-[32px] border border-slate-200 bg-white p-5 dark:border-[#37312B] dark:bg-[#211E1B]">
+      <div className="flex items-center gap-4">
+        {match.photoPath ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={match.photoPath} alt={match.name} className="h-[72px] w-[72px] shrink-0 rounded-full bg-[#F7F4EF] object-cover" />
+        ) : (
+          <span className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-[#CF6D4E] text-3xl font-black text-white">
+            {match.name.slice(0, 1)}
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-[#A0978B]">
+            <span>{match.closeness === 'close' ? '你的身材最接近' : '照这个方向练，最可能成为'}</span>
+            {match.similarity !== undefined && <span className="font-bold text-[#B4553A] dark:text-[#F0A285]">相似度 {match.similarity}%</span>}
+          </div>
+          <div className="text-2xl font-black">{match.name}</div>
+          <div className="text-sm text-slate-600 dark:text-[#CBC3B8]">{match.tagline}</div>
+          <span className="mt-2 inline-block rounded-full bg-[#F6E3DB] px-3 py-0.5 text-xs font-semibold text-[#8F4430] dark:bg-[#3A2820] dark:text-[#F0A285]">
+            {match.groupLabel}
+          </span>
+        </div>
       </div>
+      {match.traits && match.traits.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {match.traits.map((trait) => (
+            <span key={trait} className="rounded-full bg-[#F7F4EF] px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-[#2A2622] dark:text-[#CBC3B8]">
+              {trait}
+            </span>
+          ))}
+        </div>
+      )}
+      {match.runnerUp && <div className="text-xs text-slate-500 dark:text-[#A0978B]">其次像：{match.runnerUp}</div>}
     </div>
   );
 }

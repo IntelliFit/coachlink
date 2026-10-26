@@ -204,13 +204,54 @@ $boji-clay-light: #F0A285;
   }
 }
 
+.boji-look-card {
+  display: flex;
+  flex-direction: column;
+  gap: $cl-space-2;
+  padding: $cl-card-padding;
+  border-radius: $cl-radius-sheet;
+  background: var(--cl-card);
+}
+
 .boji-look {
   display: flex;
   align-items: center;
   gap: $cl-space-4;
-  padding: $cl-card-padding;
-  border-radius: $cl-radius-sheet;
-  background: var(--cl-card);
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $cl-space-2;
+  }
+
+  &__similarity {
+    color: var(--cl-clay-text);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+    font-weight: 700;
+  }
+
+  &__traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $cl-space-1;
+  }
+
+  &__trait {
+    padding: 0 $cl-space-2;
+    border-radius: $cl-radius-pill;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+    font-size: $cl-font-tag;
+    line-height: 40rpx;
+  }
+
+  &__runner {
+    color: var(--cl-ink-3);
+    font-size: $cl-font-tag;
+    line-height: $cl-line-tag;
+  }
 
   &__avatar {
     flex-shrink: 0;
@@ -224,6 +265,10 @@ $boji-clay-light: #F0A285;
     display: flex;
     align-items: center;
     justify-content: center;
+
+    &--photo {
+      background: var(--cl-sunk);
+    }
   }
 
   &__body {

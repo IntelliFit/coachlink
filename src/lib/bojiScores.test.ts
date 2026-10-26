@@ -1,13 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BojiAnalysisDto, BojiMetric } from '@coachlink/core/src/bojiDetector';
+import { estimateBojiPercentile } from '@coachlink/core/src/bojiInsights';
 import { buildBojiInsights, getBojiChallengeView, type BojiScoreStore, type NewBojiScore, type StoredBojiScore } from './bojiScores';
 
 vi.mock('@/lib/supabaseClient', () => ({ serviceRoleSupabase: {} }));
 
 const OWNER_SCORE = '11111111-1111-4111-8111-111111111111';
 
+// 原始测量值取中等水平，让「最像谁」能匹配出结果
+const RAW_VALUES: Record<BojiMetric['key'], Record<string, number>> = {
+  abs: { definition_index: 0.7, pack_count: 6 },
+  v_taper: { ratio: 1.96 },
+  arms: { upper_ratio: 0.43 },
+  symmetry: { silhouette_iou: 0.8 },
+};
+
 function metric(key: BojiMetric['key'], score: number | null): BojiMetric {
-  return { key, status: score === null ? 'unavailable' : 'ok', score, values: {}, reasons: [], geometry: {} };
+  return { key, status: score === null ? 'unavailable' : 'ok', score, values: RAW_VALUES[key], reasons: [], geometry: {} };
 }
 
 function analysis(scores: { abs: number | null; v: number | null; arms: number | null; sym: number | null }, total: number | null): BojiAnalysisDto {
@@ -110,7 +119,7 @@ describe('buildBojiInsights', () => {
     try {
       const insights = await buildBojiInsights({ analysis: analysis({ abs: 90, v: 85, arms: 70, sym: 80 }, 55), userId: 'me', store });
       expect(insights.scoreId).toBeNull();
-      expect(insights.percentile).toEqual({ value: 50, basis: 'estimate', sampleUsers: 0 });
+      expect(insights.percentile).toEqual({ value: estimateBojiPercentile(55), basis: 'estimate', sampleUsers: 0 });
     } finally {
       spy.mockRestore();
     }

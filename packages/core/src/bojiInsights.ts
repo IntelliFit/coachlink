@@ -4,12 +4,7 @@
  */
 
 import { bojiReportSex, type BojiMetricKey, type BojiReport, type BojiSex } from './bojiDetector';
-import {
-  BOJI_FEMALE_LOOKALIKES,
-  BOJI_LOOKALIKES,
-  matchBojiLookalike,
-  type BojiLookalikeMatch,
-} from './bojiLookalikes';
+import { matchBojiFemaleLookalike, matchBojiLookalike, type BojiLookalikeMatch } from './bojiLookalikes';
 
 // ---------------------------------------------------------------------------
 // 分数快照：一次检测里可用于排名、匹配和 PK 的数值
@@ -79,28 +74,48 @@ export function isRecordableBojiSnapshot(snapshot: BojiScoreSnapshot): boolean {
   return Object.values(snapshot.scores).some((v) => v !== null && v !== undefined);
 }
 
-export function lookalikeForScores(scores: BojiMetricScores, sex: BojiSex = 'male'): BojiLookalikeMatch | null {
+/** 匹配人物用的原始测量（不是单项分）：男性看腹肌块、肩腰比、上臂；女性看马甲线、腰臀比、肩腰比。 */
+export interface BojiLookalikeInput {
+  absDefinition?: number | null;
+  shoulderWaistRatio?: number | null;
+  upperArmRatio?: number | null;
+  absLineIndex?: number | null;
+  waistHipRatio?: number | null;
+}
+
+export function lookalikeForMeasures(sex: BojiSex, m: BojiLookalikeInput): BojiLookalikeMatch | null {
   if (sex === 'female') {
-    return matchBojiLookalike(
-      { abs: scores.abs, vTaper: scores.v_taper, waistHip: scores.waist_hip ?? null },
-      BOJI_FEMALE_LOOKALIKES,
-    );
+    return matchBojiFemaleLookalike({
+      absLineIndex: m.absLineIndex,
+      waistHipRatio: m.waistHipRatio,
+      shoulderWaistRatio: m.shoulderWaistRatio,
+    });
   }
-  return matchBojiLookalike({ abs: scores.abs, vTaper: scores.v_taper, arms: scores.arms }, BOJI_LOOKALIKES);
+  return matchBojiLookalike({
+    absDefinition: m.absDefinition,
+    shoulderWaistRatio: m.shoulderWaistRatio,
+    upperArmRatio: m.upperArmRatio,
+  });
 }
 
 export function lookalikeForSnapshot(snapshot: BojiScoreSnapshot): BojiLookalikeMatch | null {
-  return lookalikeForScores(snapshot.scores, snapshot.sex);
+  return lookalikeForMeasures(snapshot.sex, snapshot);
 }
 
 // ---------------------------------------------------------------------------
 // 超越比例：真实检测人数不足时用预设分布估算，够了以后换真实分布
 // ---------------------------------------------------------------------------
 
-/** 预设的综合分分布（正态）。用测试照片的分数大致定的：普通人偏低，练过的人 60–90。 */
-export const BOJI_PERCENTILE_PRIOR = { mean: 55, sd: 16 };
-/** 女性档的预设分布：先和男性相同；两边各自满 100 人后换成各自的真实分布 */
-export const BOJI_FEMALE_PERCENTILE_PRIOR = { mean: 55, sd: 16 };
+/**
+ * 预设的综合分分布（正态）。2026-10-26 按线上前 114 次检测（均值 78.4、标准差 16.6）
+ * 校正；原先的均值 55 让大多数人都显示「超越 95% 以上」。
+ */
+export const BOJI_PERCENTILE_PRIOR = { mean: 78, sd: 17 };
+/**
+ * 女性档的预设分布：暂按引擎 0.2 在 20 张女性健身照上的综合分（均值约 67、标准差约 17）定；
+ * 女性真实检测满 100 人后换成真实分布。
+ */
+export const BOJI_FEMALE_PERCENTILE_PRIOR = { mean: 68, sd: 17 };
 /** 真实检测人数（按人去重）达到这个数后改用真实分布 */
 export const BOJI_PERCENTILE_MIN_REAL_USERS = 100;
 

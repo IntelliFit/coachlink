@@ -364,6 +364,11 @@ export default function BojiDetectorPage() {
               <Text className='boji-privacy'>测试版：分数供自测和好友 PK 娱乐，不是医疗诊断。</Text>
             ) : null}
           </View>
+          {analysis?.insights?.lookalike?.photoCredit ? (
+            <Text className='boji-photo-credit'>
+              人物照片：{analysis.insights.lookalike.name}，{analysis.insights.lookalike.photoCredit}
+            </Text>
+          ) : null}
         </View>
 
         <View className='share-poster-canvas-wrap'>

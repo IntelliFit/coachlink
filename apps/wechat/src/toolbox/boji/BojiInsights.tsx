@@ -7,6 +7,7 @@ import {
   type BojiChallengeOutcome,
   type BojiInsights,
 } from '@coachlink/core/src/bojiInsights'
+import { API_BASE_URL } from '@/utils/request'
 import { DuelBars } from './DuelBars'
 
 function fmt(value: number | null): string {
@@ -57,16 +58,34 @@ export function LookalikeCard({ insights }: { insights: BojiInsights | undefined
   const match = insights?.lookalike
   if (!match) return null
   return (
-    <View className='boji-look'>
-      <View className='boji-look__avatar'>
-        <Text>{match.name.slice(0, 1)}</Text>
+    <View className='boji-look-card'>
+      <View className='boji-look'>
+        {match.photoPath ? (
+          // 人物头像放在网页的 public 目录，由 API 域名提供
+          <Image className='boji-look__avatar boji-look__avatar--photo' src={`${API_BASE_URL}${match.photoPath}`} mode='aspectFill' />
+        ) : (
+          <View className='boji-look__avatar'>
+            <Text>{match.name.slice(0, 1)}</Text>
+          </View>
+        )}
+        <View className='boji-look__body'>
+          <View className='boji-look__top'>
+            <Text className='boji-look__kicker'>{match.closeness === 'close' ? '你的身材最接近' : '照这个方向练，最可能成为'}</Text>
+            {match.similarity !== undefined ? <Text className='boji-look__similarity'>相似度 {match.similarity}%</Text> : null}
+          </View>
+          <Text className='boji-look__name'>{match.name}</Text>
+          <Text className='boji-look__tagline'>{match.tagline}</Text>
+          <Text className='boji-look__group'>{match.groupLabel}</Text>
+        </View>
       </View>
-      <View className='boji-look__body'>
-        <Text className='boji-look__kicker'>{match.closeness === 'close' ? '你的身材最接近' : '照这个方向练，最可能成为'}</Text>
-        <Text className='boji-look__name'>{match.name}</Text>
-        <Text className='boji-look__tagline'>{match.tagline}</Text>
-        <Text className='boji-look__group'>{match.groupLabel}</Text>
-      </View>
+      {match.traits && match.traits.length > 0 ? (
+        <View className='boji-look__traits'>
+          {match.traits.map((trait) => (
+            <Text key={trait} className='boji-look__trait'>{trait}</Text>
+          ))}
+        </View>
+      ) : null}
+      {match.runnerUp ? <Text className='boji-look__runner'>其次像：{match.runnerUp}</Text> : null}
     </View>
   )
 }

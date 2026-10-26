@@ -6,7 +6,7 @@ import {
   compareBojiScores,
   isBojiScoreId,
   isRecordableBojiSnapshot,
-  lookalikeForScores,
+  lookalikeForMeasures,
   lookalikeForSnapshot,
   type BojiChallengeCard,
   type BojiChallengeView,
@@ -30,7 +30,13 @@ export interface StoredBojiScore {
   v_taper_score: number | null;
   arms_score: number | null;
   symmetry_score: number | null;
+  shoulder_waist_ratio: number | null;
+  upper_arm_ratio: number | null;
+  abs_definition: number | null;
+  /** 女性档的列：迁移 20261026 之前的行没有 */
   waist_hip_score?: number | null;
+  waist_hip_ratio?: number | null;
+  abs_line_index?: number | null;
   created_at: string;
 }
 
@@ -77,7 +83,12 @@ function toStored(row: Record<string, unknown>): StoredBojiScore {
     v_taper_score: num(row.v_taper_score),
     arms_score: num(row.arms_score),
     symmetry_score: num(row.symmetry_score),
+    shoulder_waist_ratio: num(row.shoulder_waist_ratio),
+    upper_arm_ratio: num(row.upper_arm_ratio),
+    abs_definition: num(row.abs_definition),
     waist_hip_score: num(row.waist_hip_score),
+    waist_hip_ratio: num(row.waist_hip_ratio),
+    abs_line_index: num(row.abs_line_index),
     created_at: String(row.created_at ?? ''),
   };
 }
@@ -177,7 +188,13 @@ function toCard(row: StoredBojiScore, profile: BojiProfile | undefined): BojiCha
     avatarUrl: profile?.avatarUrl ?? '',
     total: row.total_score,
     scores,
-    lookalike: lookalikeForScores(scores, row.sex ?? 'male'),
+    lookalike: lookalikeForMeasures(row.sex ?? 'male', {
+      absDefinition: row.abs_definition,
+      shoulderWaistRatio: row.shoulder_waist_ratio,
+      upperArmRatio: row.upper_arm_ratio,
+      absLineIndex: row.abs_line_index ?? null,
+      waistHipRatio: row.waist_hip_ratio ?? null,
+    }),
     createdAt: row.created_at,
   };
 }

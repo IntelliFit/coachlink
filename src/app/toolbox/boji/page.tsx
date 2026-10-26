@@ -363,6 +363,11 @@ export default function BojiDetectorPage() {
             照片只用于这一次检测，不保存；只记录分数，用于排名和 PK。
           </span>
           {analysis && <span>测试版：分数供自测和好友 PK 娱乐，不是医疗诊断。</span>}
+          {analysis?.insights?.lookalike?.photoCredit && (
+            <span className="text-slate-400">
+              人物照片：{analysis.insights.lookalike.name}，{analysis.insights.lookalike.photoCredit}
+            </span>
+          )}
         </div>
       </div>
     </main>
