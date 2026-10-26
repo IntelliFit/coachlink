@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: coachlink-boji-service-dev
+  labels:
+    app: coachlink-boji-service-dev
+    env: dev
+spec:
+  type: ClusterIP
+  selector:
+    app: coachlink-boji-service-dev
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
