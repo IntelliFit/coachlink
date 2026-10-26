@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "primereact/button";
+import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { ArrowLeft, Download, Loader2, Play, Upload, Wand2 } from "lucide-react";
 import { useToastContext } from "@/context/ToastContext";
 import type {
@@ -26,6 +27,11 @@ import {
   type PowerAnalysisSubject,
 } from "@coachlink/core/src/powerAnalysisModes";
 import { buildProfileBodyMetricsPatch } from "@coachlink/core/src/bodyMetrics";
+import {
+  isActivePowerAnalysisJobStatus,
+  isTerminalPowerAnalysisJobStatus,
+  POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_CODE,
+} from "@coachlink/core/src/powerAnalysisJobs";
 import { useMyBodyMetrics } from "@/hooks/useMyBodyMetrics";
 import AssessmentCard from "./AssessmentCard";
 import BodyMetricsField from "./BodyMetricsField";
@@ -69,12 +75,26 @@ function summaryTiles(metrics: NonNullable<PowerAnalysisJobDto["metrics"]>, barb
   ];
 }
 
+class PowerApiError extends Error {
+  constructor(message: string, readonly code?: string) {
+    super(message);
+    this.name = "PowerApiError";
+  }
+}
+
 async function readApi<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => null);
   if (!response.ok || !data?.success) {
-    throw new Error(data?.message || `请求失败（${response.status}）`);
+    throw new PowerApiError(data?.message || `请求失败（${response.status}）`, data?.code);
   }
   return data.data as T;
+}
+
+async function fetchActiveJob() {
+  const data = await readApi<{ job: PowerAnalysisJobDto | null }>(
+    await fetch("/api/toolbox/power-analysis/jobs/active", { method: "GET" }),
+  );
+  return data.job;
 }
 
 function putFile(uploadUrl: string, file: File, onProgress: (pct: number) => void) {
@@ -236,6 +256,13 @@ export default function PowerAnalysisToolPage() {
 
   useEffect(() => {
     const restoreJob = async () => {
+      // A job still queued or analyzing wins, even if it was started in another tab or device.
+      const active = await fetchActiveJob().catch(() => null);
+      if (active) {
+        followActiveJob(active);
+        return;
+      }
+
       const raw = window.sessionStorage.getItem(ACTIVE_JOB_STORAGE_KEY);
       if (!raw) return;
 
@@ -258,7 +285,7 @@ export default function PowerAnalysisToolPage() {
         else if (restored.status === "queued" || restored.status === "processing") {
           setPhase("queued");
           pollJob(restored.id);
-        } else if (["done", "failed", "expired"].includes(restored.status)) {
+        } else if (isTerminalPowerAnalysisJobStatus(restored.status)) {
           setPhase("done");
         }
       } catch {
@@ -297,7 +324,7 @@ export default function PowerAnalysisToolPage() {
         pollFailuresRef.current = 0;
         pollWarningShownRef.current = false;
         setJob(next);
-        if (["done", "failed", "expired"].includes(next.status)) {
+        if (isTerminalPowerAnalysisJobStatus(next.status)) {
           if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
           setPhase("done");
@@ -314,6 +341,78 @@ export default function PowerAnalysisToolPage() {
         });
       }
     }, 1800);
+  };
+
+  /** Shows a queued or processing job (with the settings it was submitted with) and polls it. */
+  const followActiveJob = (active: PowerAnalysisJobDto) => {
+    bodyTouchedRef.current = true;
+    setMode(active.mode);
+    setSubject(active.subject);
+    setHeightCm(String(active.heightCm));
+    setWeightKg(String(active.weightKg));
+    if (isBarbellPowerAnalysisMode(active.mode)) {
+      setBarbellKg(String(active.externalLoadKg));
+      if (active.plateDiameterCm) setPlateDiameterCm(String(active.plateDiameterCm));
+    } else {
+      setExternalLoadKg(String(active.externalLoadKg));
+    }
+    if (active.customActionName) setCustomActionName(active.customActionName);
+    setFile(null);
+    setUploadProgress(0);
+    llmRequestedRef.current = null;
+    setJob(active);
+    setPhase("queued");
+    pollJob(active.id);
+  };
+
+  const cancelJob = async (jobId: string) => {
+    await readApi<PowerAnalysisJobDto>(
+      await fetch(`/api/toolbox/power-analysis/jobs/${jobId}/cancel`, { method: "POST" }),
+    );
+  };
+
+  const handleCancel = () => {
+    const jobId = job?.id;
+    if (!jobId) return;
+    confirmDialog({
+      header: "取消这次分析？",
+      message: "取消后这个视频不会出结果，也不占今天的分析次数。",
+      acceptLabel: "取消分析",
+      rejectLabel: "继续等待",
+      accept: async () => {
+        try {
+          await cancelJob(jobId);
+          resetForm();
+          showToast({ severity: "info", summary: "已取消分析", detail: "可以重新选择动作和视频。" });
+        } catch (error: any) {
+          showToast({ severity: "error", summary: "取消失败", detail: error?.message || "请稍后重试" });
+        }
+      },
+    });
+  };
+
+  /** A new upload hit the one-active-job limit: let the user follow the old job or replace it. */
+  const handleActiveJobConflict = async (nextFile: File) => {
+    const active = await fetchActiveJob().catch(() => null);
+    if (!active || !isActivePowerAnalysisJobStatus(active.status)) {
+      showToast({ severity: "warn", summary: "上一个任务刚结束", detail: "请重新选择视频提交。" });
+      return;
+    }
+    confirmDialog({
+      header: "上一个视频还在分析",
+      message: "可以查看它的进度，或者取消它，改为分析刚选的视频。",
+      acceptLabel: "取消它，分析新视频",
+      rejectLabel: "查看进度",
+      accept: async () => {
+        try {
+          await cancelJob(active.id);
+          await prepareUpload(nextFile);
+        } catch (error: any) {
+          showToast({ severity: "error", summary: "取消失败", detail: error?.message || "请稍后重试" });
+        }
+      },
+      reject: () => followActiveJob(active),
+    });
   };
 
   const generateSummary = async (jobId: string) => {
@@ -384,6 +483,11 @@ export default function PowerAnalysisToolPage() {
       setPhase("idle");
       setJob(null);
       setUploadProgress(0);
+      if (error instanceof PowerApiError && error.code === POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_CODE) {
+        setFile(null);
+        void handleActiveJobConflict(nextFile);
+        return;
+      }
       showToast({ severity: "error", summary: "上传失败", detail: error?.message || "请稍后重试" });
     }
   };
@@ -466,6 +570,7 @@ export default function PowerAnalysisToolPage() {
     if (job?.status === "done") return "分析完成";
     if (job?.status === "failed") return "分析失败";
     if (job?.status === "expired") return "任务已过期";
+    if (job?.status === "canceled") return "已取消";
     return "选择视频后会自动上传";
   })();
 
@@ -488,6 +593,7 @@ export default function PowerAnalysisToolPage() {
 
   return (
     <main className="min-h-screen bg-surface-50 dark:bg-[#161412] px-4 py-6 md:px-8 md:py-10">
+      <ConfirmDialog />
       <div className="mx-auto max-w-6xl">
         <div className="mb-5 flex items-center justify-between gap-3">
           <Button
@@ -677,13 +783,25 @@ export default function PowerAnalysisToolPage() {
                   onClick={handleStart}
                   className="h-11 flex-1 rounded-xl border-[#B4553A] bg-[#B4553A] text-sm font-black text-white hover:border-[#9A4630] hover:bg-[#9A4630]"
                 />
-                <Button
-                  label="重置"
-                  outlined
-                  severity="secondary"
-                  onClick={resetForm}
-                  className="h-11 rounded-xl border-surface-200 text-sm font-black text-surface-800"
-                />
+                {/* While a job is queued or analyzing, "reset" would only hide it; cancel it on the server instead. */}
+                {job?.id && isActivePowerAnalysisJobStatus(job.status) ? (
+                  <Button
+                    label="取消分析"
+                    outlined
+                    severity="secondary"
+                    onClick={handleCancel}
+                    className="h-11 rounded-xl border-surface-200 text-sm font-black text-surface-800"
+                  />
+                ) : (
+                  <Button
+                    label="重置"
+                    outlined
+                    severity="secondary"
+                    disabled={isUploading || phase === "enqueueing"}
+                    onClick={resetForm}
+                    className="h-11 rounded-xl border-surface-200 text-sm font-black text-surface-800"
+                  />
+                )}
               </div>
             </div>
           </section>

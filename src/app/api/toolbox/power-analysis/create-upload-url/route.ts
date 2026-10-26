@@ -1,5 +1,9 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import {
+  POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_CODE,
+  POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_MESSAGE,
+} from "@coachlink/core/src/powerAnalysisJobs";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { getTaskQueueConfig } from "@/lib/taskqueue/config";
@@ -152,7 +156,12 @@ export async function POST(req: Request) {
 
   if ((activeCount || 0) >= 1) {
     return NextResponse.json<ApiData<null>>(
-      { success: false, message: "你已有一个视频正在上传或分析，请完成后再提交新任务", data: null },
+      {
+        success: false,
+        message: POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_MESSAGE,
+        code: POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_CODE,
+        data: null,
+      },
       { status: 409 },
     );
   }

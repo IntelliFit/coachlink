@@ -1,15 +1,9 @@
 import type { PowerAnalysisMode } from "@coachlink/core/src/powerAnalysisModes";
+import type { PowerAnalysisJobStatus } from "@coachlink/core/src/powerAnalysisJobs";
 
-export type { PowerAnalysisMode };
+export type { PowerAnalysisMode, PowerAnalysisJobStatus };
 export type PowerAnalysisQuality = "compressed" | "original";
 export type PowerAnalysisOverlayLanguage = "zh" | "en";
-export type PowerAnalysisJobStatus =
-  | "awaiting_upload"
-  | "queued"
-  | "processing"
-  | "done"
-  | "failed"
-  | "expired";
 
 export interface PowerAnalysisRepMetric {
   repIndex: number;
