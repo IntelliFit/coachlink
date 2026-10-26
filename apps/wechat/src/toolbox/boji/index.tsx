@@ -33,6 +33,16 @@ const PAGE_PATH = '/toolbox/boji/index'
 const CANVAS_ID = 'boji-canvas'
 /** 画布宽度（rpx）：750 减去左右 32rpx 页边距 */
 const CANVAS_WIDTH_RPX = 686
+/** 从朋友圈打开的「单页模式」场景值：不能登录、不能跳页 */
+const TIMELINE_SINGLE_PAGE_SCENE = 1154
+
+function isTimelineSinglePage(): boolean {
+  try {
+    return Taro.getEnterOptionsSync().scene === TIMELINE_SINGLE_PAGE_SCENE
+  } catch {
+    return false
+  }
+}
 
 type Phase = 'idle' | 'working' | 'done' | 'error'
 
@@ -104,6 +114,7 @@ export default function BojiDetectorPage() {
   const [analysis, setAnalysis] = useState<BojiAnalysisDto | null>(null)
   const [error, setError] = useState('')
   const [showMarks, setShowMarks] = useState(true)
+  const [singlePage] = useState(isTimelineSinglePage)
   const router = useRouter()
   const challengeId = isBojiScoreId(router.params?.challenge) ? router.params.challenge : null
   const [challenge, setChallenge] = useState<BojiChallengeView | null>(null)
@@ -203,14 +214,20 @@ export default function BojiDetectorPage() {
                 <Text className='boji-tip__text'>{tip}</Text>
               </View>
             ))}
-            <View className='boji-actions'>
-              <ClButton block loading={phase === 'working'} loadingText='正在检测…' onClick={() => start('album')}>
-                {phase === 'done' ? '换一张照片' : '从相册选择'}
-              </ClButton>
-              <ClButton block variant='secondary' disabled={phase === 'working'} onClick={() => start('camera')}>
-                拍一张
-              </ClButton>
-            </View>
+            {singlePage ? (
+              <Text className='boji-timeline-note'>
+                从朋友圈打开时不能检测。点屏幕下方「前往小程序」，就能测自己的薄肌{challengeId ? '并接受 PK' : ''}。
+              </Text>
+            ) : (
+              <View className='boji-actions'>
+                <ClButton block loading={phase === 'working'} loadingText='正在检测…' onClick={() => start('album')}>
+                  {phase === 'done' ? '换一张照片' : '从相册选择'}
+                </ClButton>
+                <ClButton block variant='secondary' disabled={phase === 'working'} onClick={() => start('camera')}>
+                  拍一张
+                </ClButton>
+              </View>
+            )}
             {error ? <Text className='boji-error'>{error}</Text> : null}
             <Text className='boji-privacy'>照片只用于这一次检测，不保存；只记录分数，用于排名和 PK。结果只是自测参考，不是医疗诊断。</Text>
           </View>

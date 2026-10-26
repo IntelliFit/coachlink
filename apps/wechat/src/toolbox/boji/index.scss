@@ -366,6 +366,27 @@
     }
   }
 
+  .boji-share-timeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: $cl-button-lg;
+    border: 2rpx solid var(--cl-control-line);
+    border-radius: $cl-radius-button;
+    background: var(--cl-card);
+    color: var(--cl-ink);
+    font-size: $cl-font-card;
+  }
+
+  .boji-timeline-note {
+    padding: $cl-space-2 $cl-space-3;
+    border-radius: $cl-radius-tag;
+    background: var(--cl-sunk);
+    color: var(--cl-ink-2);
+    font-size: $cl-font-meta;
+    line-height: $cl-line-meta;
+  }
+
   .boji-pk {
     display: flex;
     flex-direction: column;

@@ -1,4 +1,5 @@
 import { Button, Text, View } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import {
   BOJI_DUEL_LABELS,
   BOJI_DUEL_LIGHTING_TIP,
@@ -7,6 +8,16 @@ import {
   bojiLookalikeText,
   type BojiInsights,
 } from '@coachlink/core/src/bojiInsights'
+
+/** 微信不允许按钮直接发朋友圈，只能从右上角菜单进入，这里告诉用户怎么做 */
+function showTimelineGuide() {
+  Taro.showModal({
+    title: '分享到朋友圈',
+    content: '点右上角「···」，选择「分享到朋友圈」。朋友从朋友圈点进来就能看到你的分数，并接受 PK。',
+    showCancel: false,
+    confirmText: '知道了',
+  })
+}
 
 /** 检测结果下方：PK 结果、身材最像谁、邀请好友 PK（微信原生分享按钮） */
 export function BojiInsightsView({ insights }: { insights: BojiInsights | undefined }) {
@@ -55,6 +66,9 @@ export function BojiInsightsView({ insights }: { insights: BojiInsights | undefi
           <Button className='boji-share-btn' openType='share' hoverClass='boji-share-btn--pressed'>
             发给微信好友 PK
           </Button>
+          <View className='boji-share-timeline' hoverClass='boji-share-btn--pressed' onClick={showTimelineGuide}>
+            <Text>分享到朋友圈</Text>
+          </View>
         </View>
       ) : null}
     </>
