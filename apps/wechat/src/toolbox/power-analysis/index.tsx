@@ -796,7 +796,22 @@ export default function WechatPowerAnalysisPage() {
     ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase) ||
     job?.status === 'queued' ||
     job?.status === 'processing'
-  const settingsLocked = isBusy || phase === 'uploaded'
+  // Analysis settings are sent again when analysis starts, so they stay editable after upload.
+  const settingsLocked =
+    ['enqueueing', 'queued'].includes(phase) ||
+    job?.status === 'queued' ||
+    job?.status === 'processing'
+  // Quality decides how the video is compressed before upload, so it is fixed once a video is in.
+  const qualityLocked = isBusy || phase === 'uploaded'
+  const analysisSettingsPayload = {
+    mode,
+    heightCm: heightValue,
+    weightKg: weightValue,
+    externalLoadKg: externalLoadValue,
+    ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
+    ...(isCustom ? { customActionName: customActionName.trim() } : {}),
+    overlayLanguage
+  }
   const canSubmit =
     Boolean(video) &&
     formReady &&
@@ -954,7 +969,11 @@ export default function WechatPowerAnalysisPage() {
   }
 
   const handleQualityChange = (nextQuality: PowerAnalysisQuality) => {
-    if (settingsLocked) return
+    if (nextQuality === quality) return
+    if (qualityLocked) {
+      Taro.showToast({ title: '视频已按当前画质上传，换画质请重新选择视频', icon: 'none', duration: 2500 })
+      return
+    }
     if (nextQuality === 'original' && !entitlements.canUseOriginalQuality) {
       if (WECHAT_FREE_RELEASE) {
         Taro.showToast({ title: '原画质服务暂不可用，请稍后重试', icon: 'none' })
@@ -1179,18 +1198,12 @@ export default function WechatPowerAnalysisPage() {
         url: '/api/toolbox/power-analysis/create-upload-url',
         method: 'POST',
         data: {
-          mode,
-          heightCm: heightValue,
-          weightKg: weightValue,
-          externalLoadKg: externalLoadValue,
-          ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
-          ...(isCustom ? { customActionName: customActionName.trim() } : {}),
+          ...analysisSettingsPayload,
           originalFilename: preparedVideo.name,
           contentType: preparedVideo.contentType,
           fileSizeBytes: preparedVideo.size,
           durationSeconds: preparedVideo.duration,
-          quality,
-          overlayLanguage
+          quality
         }
       })
       setJob(created.job)
@@ -1339,7 +1352,9 @@ export default function WechatPowerAnalysisPage() {
       setPhase('enqueueing')
       const queued = await callPowerApi<PowerAnalysisJobDto>({
         url: `/api/toolbox/power-analysis/jobs/${job.id}/enqueue`,
-        method: 'POST'
+        method: 'POST',
+        // The latest settings win; the server re-validates them.
+        data: analysisSettingsPayload
       })
       setJob(queued)
       setPhase('queued')
@@ -1621,7 +1636,35 @@ export default function WechatPowerAnalysisPage() {
             <View className='pa-step__head'>
               <Text className='pa-step__index'>3</Text>
               <Text className='pa-step__title'>上传视频</Text>
-              <Text className='pa-step__hint'>选好后自动上传</Text>
+              <Text className='pa-step__hint'>先选画质，选好视频后自动上传</Text>
+            </View>
+
+            <View className='analysis-option-section'>
+              <View className='option-heading-row'>
+                <Text className='option-heading'>视频画质</Text>
+                <Text className='option-entitlement'>
+                  {WECHAT_FREE_RELEASE ? '' : `${membershipLabel(entitlements.tier)} · `}最大 {entitlements.maxVideoSizeMb}MB
+                </Text>
+              </View>
+              <View className={`quality-options ${qualityLocked ? 'quality-options--fixed' : ''}`}>
+                <View
+                  className={`analysis-option ${quality === 'compressed' ? 'active' : ''}`}
+                  onClick={() => handleQualityChange('compressed')}
+                >
+                  <Text className='analysis-option-title'>压缩画质</Text>
+                  <Text className='analysis-option-desc'>上传更快，适合日常测试</Text>
+                </View>
+                <View
+                  className={`analysis-option ${quality === 'original' ? 'active' : ''} ${entitlements.canUseOriginalQuality ? '' : 'locked'}`}
+                  onClick={() => handleQualityChange('original')}
+                >
+                  <Text className='analysis-option-title'>原画质</Text>
+                  <Text className='analysis-option-desc'>{WECHAT_FREE_RELEASE ? '保留分辨率与帧率' : '会员权益 · 保留分辨率与帧率'}</Text>
+                </View>
+              </View>
+              {qualityLocked && (
+                <Text className='quality-fixed-hint'>视频已按{quality === 'original' ? '原画质' : '压缩画质'}上传；换画质请点「重新选择」</Text>
+              )}
             </View>
 
             <View className='video-picker'>
@@ -1681,37 +1724,12 @@ export default function WechatPowerAnalysisPage() {
             <View className='pa-more' onClick={() => setMoreSettingsOpen((open) => !open)}>
               <Text className='pa-more__label'>更多设置</Text>
               <Text className='pa-more__value'>
-                {`${quality === 'original' ? '原画质' : '压缩画质'} · ${languagePreference === 'auto' ? '自动字幕' : languagePreference === 'zh' ? '中文字幕' : '英文字幕'}`}
+                {languagePreference === 'auto' ? '自动字幕' : languagePreference === 'zh' ? '中文字幕' : '英文字幕'}
               </Text>
               <Text className={`pa-more__caret ${moreSettingsOpen ? 'pa-more__caret--open' : ''}`}>›</Text>
             </View>
             {moreSettingsOpen && (
               <View className='pa-more-panel'>
-                <View className='analysis-option-section'>
-                  <View className='option-heading-row'>
-                    <Text className='option-heading'>视频画质</Text>
-                    <Text className='option-entitlement'>
-                      {WECHAT_FREE_RELEASE ? '' : `${membershipLabel(entitlements.tier)} · `}最大 {entitlements.maxVideoSizeMb}MB
-                    </Text>
-                  </View>
-                  <View className='quality-options'>
-                    <View
-                      className={`analysis-option ${quality === 'compressed' ? 'active' : ''}`}
-                      onClick={() => handleQualityChange('compressed')}
-                    >
-                      <Text className='analysis-option-title'>压缩画质</Text>
-                      <Text className='analysis-option-desc'>上传更快，适合日常测试</Text>
-                    </View>
-                    <View
-                      className={`analysis-option ${quality === 'original' ? 'active' : ''} ${entitlements.canUseOriginalQuality ? '' : 'locked'}`}
-                      onClick={() => handleQualityChange('original')}
-                    >
-                      <Text className='analysis-option-title'>原画质</Text>
-                      <Text className='analysis-option-desc'>{WECHAT_FREE_RELEASE ? '保留分辨率与帧率' : '会员权益 · 保留分辨率与帧率'}</Text>
-                    </View>
-                  </View>
-                </View>
-
                 <View className='analysis-option-section'>
                   <Text className='option-heading'>结果视频字幕</Text>
                   <View className='language-options'>

@@ -3,6 +3,12 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { publishTask } from "@/lib/taskqueue/factory";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { getTaskQueueConfig } from "@/lib/taskqueue/config";
+import {
+  hasPowerAnalysisSettings,
+  parsePowerAnalysisSettings,
+  settingsToJobMetadata,
+  type PowerAnalysisSettings,
+} from "@/lib/powerAnalysisSettings";
 import type { ApiData } from "@/types/api";
 import type { PowerAnalysisJobDto } from "../../../types";
 import {
@@ -20,8 +26,17 @@ function normalizeMetadata(value: unknown) {
   return value as Record<string, unknown>;
 }
 
+async function readOptionalJson(req: Request): Promise<unknown> {
+  try {
+    const text = await req.text();
+    return text.trim() ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession();
@@ -33,6 +48,21 @@ export async function POST(
   }
 
   const { id } = await context.params;
+
+  // Settings may change between upload and analysis; older clients send no body.
+  const body = await readOptionalJson(req);
+  let settings: PowerAnalysisSettings | null = null;
+  if (hasPowerAnalysisSettings(body)) {
+    const parsed = parsePowerAnalysisSettings(body);
+    if (parsed.ok === false) {
+      return NextResponse.json<ApiData<null>>(
+        { success: false, message: parsed.message, data: null },
+        { status: 400 },
+      );
+    }
+    settings = parsed.settings;
+  }
+
   const job = await getOwnedPowerAnalysisJob(id, session.user.id);
   if (!job) {
     return NextResponse.json<ApiData<null>>(
@@ -100,10 +130,14 @@ export async function POST(
   }
 
   const queueConfig = getTaskQueueConfig(process.env, { requireTopic: true });
-  const metadata = normalizeMetadata(current.metadata);
+  const currentMetadata = normalizeMetadata(current.metadata);
+  const metadata = settings ? settingsToJobMetadata(settings, currentMetadata) : currentMetadata;
   const { data, error } = await db
     .from("tool_power_analysis_jobs")
     .update({
+      ...(settings
+        ? { mode: settings.mode, height_cm: settings.heightCm, weight_kg: settings.weightKg }
+        : {}),
       status: "queued",
       progress: 5,
       error_message: null,

@@ -1642,6 +1642,19 @@ $pa-footer-height: 136rpx;
     gap: 24rpx;
   }
 
+  // 上传后画质固定：未选中的一项淡化，提示重新选择视频
+  .quality-options--fixed .analysis-option:not(.active) {
+    opacity: 0.48;
+  }
+
+  .quality-fixed-hint {
+    display: block;
+    margin-top: 8rpx;
+    color: var(--cl-ink-3);
+    font-size: 22rpx;
+    line-height: 32rpx;
+  }
+
   .analysis-option-section {
     margin: 0;
   }

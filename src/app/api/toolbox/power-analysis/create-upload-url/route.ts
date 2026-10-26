@@ -9,16 +9,10 @@ import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { getTaskQueueConfig } from "@/lib/taskqueue/config";
 import {
   getPowerAnalysisEntitlements,
-  normalizePowerAnalysisOverlayLanguage,
   normalizePowerAnalysisQuality,
 } from "@/lib/powerAnalysisEntitlements";
+import { parsePowerAnalysisSettings, settingsToJobMetadata } from "@/lib/powerAnalysisSettings";
 import type { ApiData } from "@/types/api";
-import {
-  isCustomPowerAnalysisMode,
-  normalizePowerAnalysisSubject,
-  parsePowerAnalysisCustomActionName,
-  parsePowerAnalysisLoadInput,
-} from "@coachlink/core/src/powerAnalysisModes";
 import type {
   CreatePowerAnalysisUploadUrlDto,
   CreatePowerAnalysisUploadUrlResponseDto,
@@ -31,8 +25,6 @@ import {
   isPowerAnalysisDailyLimitBypassed,
   isSupportedVideoContentType,
   mapPowerAnalysisJob,
-  normalizeMode,
-  numberInRange,
 } from "../_helpers";
 
 export const runtime = "nodejs";
@@ -63,44 +55,20 @@ export async function POST(req: Request) {
     );
   }
 
-  const mode = normalizeMode(body?.mode);
-  const heightCm = numberInRange(body?.heightCm, 100, 250);
-  const weightKg = numberInRange(body?.weightKg, 30, 250);
   const originalFilename = String(body?.originalFilename || "").trim();
   const contentType = String(body?.contentType || "").trim();
   const fileSizeBytes = Number(body?.fileSizeBytes || 0);
   const durationSeconds = Number(body?.durationSeconds || 0);
   const quality = normalizePowerAnalysisQuality(body?.quality) || "compressed";
-  const overlayLanguage = normalizePowerAnalysisOverlayLanguage(body?.overlayLanguage);
-  const subject = normalizePowerAnalysisSubject(body?.subject);
 
-  if (!mode || heightCm === null || weightKg === null) {
+  const parsedSettings = parsePowerAnalysisSettings(body);
+  if (parsedSettings.ok === false) {
     return NextResponse.json<ApiData<null>>(
-      { success: false, message: "请填写有效的动作类型、身高和体重", data: null },
+      { success: false, message: parsedSettings.message, data: null },
       { status: 400 },
     );
   }
-
-  const load = parsePowerAnalysisLoadInput(mode, body?.externalLoadKg, body?.plateDiameterCm);
-  if (!load.ok) {
-    return NextResponse.json<ApiData<null>>(
-      { success: false, message: load.message, data: null },
-      { status: 400 },
-    );
-  }
-  const { externalLoadKg, plateDiameterCm } = load;
-
-  let customActionName: string | null = null;
-  if (isCustomPowerAnalysisMode(mode)) {
-    const parsedName = parsePowerAnalysisCustomActionName(body?.customActionName);
-    if (parsedName.ok === false) {
-      return NextResponse.json<ApiData<null>>(
-        { success: false, message: parsedName.message, data: null },
-        { status: 400 },
-      );
-    }
-    customActionName = parsedName.name;
-  }
+  const settings = parsedSettings.settings;
 
   if (!originalFilename || !isSupportedVideoContentType(contentType)) {
     return NextResponse.json<ApiData<null>>(
@@ -215,9 +183,9 @@ export async function POST(req: Request) {
     .insert({
       id: jobId,
       user_id: userId,
-      mode,
-      height_cm: heightCm,
-      weight_kg: weightKg,
+      mode: settings.mode,
+      height_cm: settings.heightCm,
+      weight_kg: settings.weightKg,
       status: "awaiting_upload",
       progress: 0,
       input_storage_bucket: POWER_ANALYSIS_BUCKET,
@@ -229,16 +197,10 @@ export async function POST(req: Request) {
       queue_consumer_group: queueConfig.consumerGroup,
       original_filename: originalFilename,
       original_file_size_bytes: Math.round(fileSizeBytes),
-      metadata: {
+      metadata: settingsToJobMetadata(settings, {
         content_type: contentType,
-        external_load_kg: externalLoadKg,
-        effective_weight_kg: plateDiameterCm === null ? weightKg + externalLoadKg : externalLoadKg,
-        ...(plateDiameterCm === null ? {} : { plate_diameter_cm: plateDiameterCm }),
-        ...(customActionName === null ? {} : { custom_action_name: customActionName }),
-        subject,
         upload_strategy: "signed_upload_transient",
         quality,
-        overlay_language: overlayLanguage,
         membership_tier: entitlements.tier,
         max_video_size_mb: entitlements.maxVideoSizeMb,
         max_duration_seconds: entitlements.maxDurationSeconds,
@@ -246,7 +208,7 @@ export async function POST(req: Request) {
           ? durationSeconds
           : null,
         retention_hours: 24,
-      },
+      }),
       expires_at: expiresAt,
     })
     .select("*")
