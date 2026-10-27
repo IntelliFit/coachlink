@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
 import type { ApiData } from "@/types/api";
-import type { StreetliftingListLocationsDto } from "./entity";
-import type { StreetliftingListLocationsResponseDto } from "./entity";
-import { CHINA_PROVINCE_NAMES, getLocationCountry, normalizeLocationEquipment, validateLocationEquipment, withLocationEquipment } from '@coachlink/core';
+import type { StreetliftingListLocationsDto, StreetliftingListLocationsResponseDto, StreetliftingLocation } from "./entity";
+import { getLocationProvince, getLocationRegionCountry, matchesLocationEquipment, normalizeLocationEquipment, validateLocationEquipment, withLocationEquipment } from '@coachlink/core';
 import { readEquipmentLocations } from '../equipmentQuery';
+import { listLocationCountries, listLocationProvinces, matchesLocationRegionFilters } from '../regionFilter';
 
 export async function POST(req: Request) {
     try {
@@ -17,85 +17,58 @@ export async function POST(req: Request) {
         const limitRaw = Number(body?.limit || 30);
         const limit = Math.min(30, Math.max(1, Number.isFinite(limitRaw) ? limitRaw : 30));
         const from = (page - 1) * limit;
-        const to = from + limit - 1;
 
-        const search = (body?.search || "").trim();
-        const province = (body?.province || "").trim();
-        const country = (body?.country || "").trim();
-        const city = (body?.city || "").trim();
-        const county = (body?.county || "").trim();
+        const filters = {
+            search: (body?.search || "").trim(),
+            province: (body?.province || "").trim(),
+            country: (body?.country || "").trim(),
+            city: (body?.city || "").trim(),
+            county: (body?.county || "").trim(),
+        };
         const equipmentError = validateLocationEquipment(body?.equipment);
         if (equipmentError) return NextResponse.json({ success: false, message: equipmentError, data: null }, { status: 400 });
         const equipment = normalizeLocationEquipment(body?.equipment);
 
-        let q = db
+        const query = db
             .from("streetlifting_locations")
-            .select("*", { count: "exact" })
+            .select("*")
             .order("created_at", { ascending: false })
             .order('id', { ascending: false });
 
-        if (province && province !== "all") {
-            q = q.eq("province", province);
-        }
-        const legacyChina = `country.eq.中国,country.in.(CN,China,中国大陆),and(or(country.is.null,country.eq.\"\"),province.in.(${CHINA_PROVINCE_NAMES.join(',')}))`;
-        const chinaFilter = country === '中国';
-        if (country && country !== 'all' && !chinaFilter) q = q.eq('country', country);
-        if (city) {
-            q = q.eq("city", city);
-        }
-        if (county) {
-            q = q.eq("county", county);
-        }
-
-        if (search) {
-            const pattern = `"%${search.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, "\\%").replace(/_/g, "\\_")}%"`;
-            const searchTerms = [
-                    `name.ilike.${pattern}`,
-                    `country.ilike.${pattern}`,
-                    `province.ilike.${pattern}`,
-                    `city.ilike.${pattern}`,
-                    `address.ilike.${pattern}`,
-                    `description.ilike.${pattern}`,
-                ];
-            if (['中国', 'China', 'CN'].includes(search)) searchTerms.push(`and(or(country.is.null,country.eq.\"\"),province.in.(${CHINA_PROVINCE_NAMES.join(',')}))`);
-            const searchFilter = searchTerms.join(',');
-            q = q.or(chinaFilter ? `and(or(${legacyChina}),or(${searchFilter}))` : searchFilter);
-        } else if (chinaFilter) {
-            q = q.or(legacyChina);
-        }
-
-        const filtered = equipment.length
-            ? await readEquipmentLocations((start, end) => q.range(start, end), equipment)
-            : null;
-        const { data, error, count } = filtered
-            ? { data: filtered.slice(from, to + 1), error: null, count: filtered.length }
-            : await q.range(from, to);
-
-        if (error) {
+        // Region and keyword matching rely on normalized legacy province text ("广东",
+        // "北京是", "西安"), which PostgREST filters cannot express, so the (small) table
+        // is read in chunks and matched in memory, like map-pins.
+        let rows: StreetliftingLocation[];
+        try {
+            rows = await readEquipmentLocations<StreetliftingLocation>((start, end) => query.range(start, end), []);
+        } catch (error) {
             console.error("[streetlifting-index][locations] list error:", error);
             return NextResponse.json<ApiData<StreetliftingListLocationsResponseDto>>({
                 success: false,
-                message: error.message || "获取地点失败",
+                message: (error as Error)?.message || "获取地点失败",
                 data: null,
             }, { status: 500 });
         }
 
-        const { data: countryData } = await db.from('streetlifting_locations').select('country,province').limit(2000);
-        const provinces = Array.from(new Set((countryData || []).filter(item => !country || country === 'all' || getLocationCountry(item) === country).map(item => String(item.province || '').trim()).filter(Boolean))).sort();
-        const countries = Array.from(new Set((countryData || []).map(getLocationCountry).filter(Boolean))).sort((a, b) => a === '中国' ? -1 : b === '中国' ? 1 : a.localeCompare(b));
+        const filtered = rows.filter(item => matchesLocationEquipment(item, equipment) && matchesLocationRegionFilters(item, filters));
+        const pageRows = filtered.slice(from, from + limit);
 
         return NextResponse.json<ApiData<StreetliftingListLocationsResponseDto>>({
             success: true,
             message: "获取地点成功",
             data: {
-                locations: (data || []).map(item => ({ ...withLocationEquipment(item), country: getLocationCountry(item) || null })),
+                locations: pageRows.map(item => ({
+                    ...withLocationEquipment(item),
+                    country: getLocationRegionCountry(item) || null,
+                    province: getLocationProvince(item) || item.province,
+                })),
                 pagination: {
                     page,
                     limit,
-                    total: Number(count || 0),
+                    total: filtered.length,
                 },
-                provinces,
-                countries,
+                provinces: listLocationProvinces(rows, filters.country),
+                countries: listLocationCountries(rows),
             },
         });
     } catch (error) {

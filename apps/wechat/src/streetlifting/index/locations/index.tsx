@@ -1270,7 +1270,7 @@ export default function StreetliftingLocations() {
                   <Text className='iconfont icon-search loc-search__icon' />
                   <Input
                     className='loc-search__input'
-                    placeholder='搜索名称、城市或地址'
+                    placeholder='搜索名称、城市、区县或地址，可空格分隔'
                     placeholderClass='loc-search__placeholder'
                     value={search}
                     onInput={(e) => setSearch(e.detail.value)}

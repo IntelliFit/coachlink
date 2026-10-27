@@ -4,12 +4,15 @@ import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { StreetliftingStatsDto, StreetliftingStatsResponseDto } from "./entity";
 import { getStreetliftingLocationImageCount } from "../locations/contributorStats";
+import { getLocationProvince } from "@coachlink/core";
 
 type LocationStatsRow = {
     created_at: string | null;
     description: string | null;
+    country?: string | null;
     province: string | null;
     city: string | null;
+    address?: string | null;
     latitude: number | null;
     longitude: number | null;
     image_url: string | null;
@@ -67,7 +70,7 @@ export async function POST(req: Request) {
         for (let from = 0; ; from += batchSize) {
             const { data: locations, error: locationError } = await db
                 .from("streetlifting_locations")
-                .select("created_at, description, province, city, latitude, longitude, image_url, image_urls")
+                .select("created_at, description, country, province, city, address, latitude, longitude, image_url, image_urls")
                 .order("id", { ascending: true })
                 .range(from, from + batchSize - 1);
 
@@ -115,7 +118,7 @@ export async function POST(req: Request) {
         }
 
         locationRows.forEach((row) => {
-            const province = normalizeAreaName(row.province, "未填写省份");
+            const province = getLocationProvince(row) || "未填写省份";
             provinceMap.set(province, (provinceMap.get(province) || 0) + 1);
 
             const city = normalizeAreaName(row.city, province);
