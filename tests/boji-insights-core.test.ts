@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BojiMetric, BojiReport } from '../packages/core/src/bojiDetector';
 import {
-  BOJI_PERCENTILE_MIN_REAL_USERS,
   bojiDuelHeadline,
   bojiLookalikeText,
   bojiPercentile,
@@ -83,26 +82,17 @@ describe('bojiScoreSnapshot', () => {
 });
 
 describe('bojiPercentile', () => {
-  it('estimates from the prior distribution until enough real users exist', () => {
-    expect(estimateBojiPercentile(78)).toBe(50);
-    expect(estimateBojiPercentile(95)).toBeGreaterThan(80);
-    expect(estimateBojiPercentile(55)).toBeLessThan(15);
+  it('compares with ordinary people, so a well-trained 78 beats most of them', () => {
+    expect(estimateBojiPercentile(62)).toBe(50);
+    expect(estimateBojiPercentile(78)).toBe(84);
+    expect(estimateBojiPercentile(90)).toBeGreaterThanOrEqual(95);
     expect(estimateBojiPercentile(-50)).toBe(1);
     expect(estimateBojiPercentile(500)).toBe(99);
-    const p = bojiPercentile(71, { sampleUsers: 12, belowUsers: 11 });
-    expect(p).toEqual({ value: estimateBojiPercentile(71), basis: 'estimate', sampleUsers: 12 });
   });
 
-  it('switches to the measured distribution at the threshold', () => {
-    const n = BOJI_PERCENTILE_MIN_REAL_USERS;
-    expect(bojiPercentile(60, { sampleUsers: n, belowUsers: 30 })).toEqual({ value: 30, basis: 'measured', sampleUsers: n });
-    expect(bojiPercentile(60, { sampleUsers: n, belowUsers: n })?.value).toBe(99);
-    expect(bojiPercentile(60, { sampleUsers: n, belowUsers: 0 })?.value).toBe(1);
-  });
-
-  it('returns null without a total and falls back to the estimate without a sample', () => {
-    expect(bojiPercentile(null, { sampleUsers: 500, belowUsers: 1 })).toBeNull();
-    expect(bojiPercentile(78, null)).toEqual({ value: 50, basis: 'estimate', sampleUsers: 0 });
+  it('always uses the prior and never real uploads', () => {
+    expect(bojiPercentile(78)).toEqual({ value: 84, basis: 'estimate', sampleUsers: 0 });
+    expect(bojiPercentile(null)).toBeNull();
   });
 });
 

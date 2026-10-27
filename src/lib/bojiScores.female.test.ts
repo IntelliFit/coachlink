@@ -66,10 +66,11 @@ function store(rows: StoredBojiScore[] = []) {
 }
 
 describe('female insights on the server', () => {
-  it('ranks among women and matches the female list', async () => {
+  it('uses the female prior and matches the female list', async () => {
     const { s, inserted } = store();
     const insights = await buildBojiInsights({ analysis: femaleAnalysis(), userId: 'me', store: s });
-    expect(s.rankTotal).toHaveBeenCalledWith(78, 'me', 'female');
+    expect(s.rankTotal).not.toHaveBeenCalled();
+    expect(insights.percentile).toEqual({ value: 93, basis: 'estimate', sampleUsers: 0 });
     expect(inserted[0].snapshot).toMatchObject({ sex: 'female', waistHipRatio: 0.68, absLineIndex: 0.02 });
     expect(insights.lookalike?.groupLabel).toBeTruthy();
     expect(insights.scoreId).toBe('new-1');
