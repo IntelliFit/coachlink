@@ -48,7 +48,7 @@ export default function PricingSection({
             )}
             {renewMode && (
               <View className='pricing-renew-btn pricing-renew-btn-active'>
-                <Text className='pricing-renew-btn-text'>已开启续费</Text>
+                <Text className='pricing-renew-btn-text'>续费中·请选择套餐</Text>
               </View>
             )}
           </View>

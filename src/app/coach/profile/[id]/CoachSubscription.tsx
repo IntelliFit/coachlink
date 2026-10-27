@@ -434,8 +434,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                             />
                         ) : (
                             <Button
-                                label="已开启续费"
-                                icon="pi pi-check"
+                                label="续费中·请选择套餐"
+                                icon="pi pi-arrow-down"
                                 outlined
                                 className="rounded-2xl"
                                 onClick={() => {
