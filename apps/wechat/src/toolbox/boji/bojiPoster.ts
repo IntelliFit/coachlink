@@ -1,6 +1,6 @@
 /**
- * 薄肌检测器的两张分享图（2026-10-26 改版）：
- * - 朋友圈海报 750×1334：成绩 + 四项进度条 + PK 小程序码，保存或用图片菜单直接发朋友圈；
+ * 薄肌检测器的两张分享图（2026-10-26 改版，海报 2026-10-27 重排）：
+ * - 朋友圈海报 750×1334：成绩 + 最像谁 + 四项得分 + PK 小程序码，保存或用图片菜单直接发朋友圈；
  * - 好友卡片 500×400（5:4）：发给微信好友时聊天里显示的封面。
  * 都只画分数和称号，不画照片。
  */
@@ -115,10 +115,36 @@ function prepareCanvas(ctx: CanvasRenderingContext2D, w: number, h: number) {
   return canvas
 }
 
-/** 朋友圈海报：先重置画布再加载小程序码，加载失败就画文字引导 */
+/** 写一行字，超出 maxWidth 时逐步缩小字号（不低于 minSize） */
+function fitText(
+  ctx: CanvasRenderingContext2D,
+  value: string,
+  x: number,
+  y: number,
+  size: number,
+  maxWidth: number,
+  color: string,
+  opts: { weight?: number; align?: CanvasTextAlign; minSize?: number } = {}
+) {
+  let current = size
+  const min = opts.minSize ?? Math.round(size * 0.6)
+  ctx.font = `${opts.weight ?? 400} ${current}px ${FONT}`
+  while (current > min && ctx.measureText(value).width > maxWidth) {
+    current -= 2
+    ctx.font = `${opts.weight ?? 400} ${current}px ${FONT}`
+  }
+  text(ctx, value, x, y, current, color, { weight: opts.weight, align: opts.align })
+}
+
+/**
+ * 朋友圈海报 750×1334（2026-10-27 重排）：
+ * 深色成绩区（综合分环 + 超越比例 + 最像谁横幅）→ 四项得分 → 底部 PK 小程序码卡片。
+ * 先加载小程序码再画；加载失败时底部改成文字引导。
+ */
 export async function drawBojiPoster(ctx: CanvasRenderingContext2D, data: BojiShareImageData): Promise<void> {
   const W = BOJI_POSTER_WIDTH
   const H = BOJI_POSTER_HEIGHT
+  const M = 48
   const canvas = prepareCanvas(ctx, W, H)
 
   let qr: any = null
@@ -135,55 +161,59 @@ export async function drawBojiPoster(ctx: CanvasRenderingContext2D, data: BojiSh
 
   // 深色成绩区
   ctx.fillStyle = INK
-  ctx.fillRect(0, 0, W, 560)
-  text(ctx, '教链 · 薄肌检测器', 48, 84, 26, MUTED_ON_DARK)
-  text(ctx, `${data.nickname} 的检测结果`, W - 48, 84, 24, MUTED_ON_DARK, { align: 'right' })
-  ring(ctx, 184, 320, 108, 22, (data.total ?? 0) / 100)
-  text(ctx, fmt(data.total), 184, 336, 100, PAPER, { weight: 700, align: 'center', baseline: 'middle' })
-  text(ctx, '综合分', 184, 404, 24, MUTED_ON_DARK, { align: 'center' })
+  ctx.fillRect(0, 0, W, 664)
+  text(ctx, '教链 · 薄肌检测器', M, 80, 26, MUTED_ON_DARK)
+  fitText(ctx, data.nickname, W - M, 80, 24, 300, MUTED_ON_DARK, { align: 'right' })
+  text(ctx, '我的薄肌成绩单', M, 164, 52, PAPER, { weight: 900 })
+
+  ring(ctx, 176, 340, 112, 24, (data.total ?? 0) / 100)
+  text(ctx, fmt(data.total), 176, 336, 104, PAPER, { weight: 700, align: 'center', baseline: 'middle' })
+  text(ctx, '综合分', 176, 410, 24, MUTED_ON_DARK, { align: 'center' })
   if (data.percentile !== null) {
-    text(ctx, '超越了约', 360, 262, 30, MUTED_ON_DARK)
-    text(ctx, `${data.percentile}%`, 356, 376, 112, CLAY_LIGHT, { weight: 700 })
-    text(ctx, '的检测者', 360, 428, 30, MUTED_ON_DARK)
+    text(ctx, '超越了约', 352, 272, 30, MUTED_ON_DARK)
+    text(ctx, `${data.percentile}%`, 346, 392, 128, CLAY_LIGHT, { weight: 700 })
+    text(ctx, '的人', 352, 444, 30, MUTED_ON_DARK)
   } else {
-    text(ctx, '我的薄肌', 360, 330, 40, PAPER, { weight: 700 })
+    text(ctx, '测完来比比', 352, 352, 44, PAPER, { weight: 700 })
   }
 
-  // 最像谁
-  let y = 640
+  // 最像谁：横幅
   if (data.lookalikeName) {
-    ctx.fillStyle = CLAY
-    ctx.beginPath()
-    ctx.arc(104, y + 30, 56, 0, Math.PI * 2)
-    ctx.fill()
-    text(ctx, data.lookalikeName.slice(0, 1), 104, y + 32, 48, '#FFFFFF', { weight: 900, align: 'center', baseline: 'middle' })
-    text(ctx, '身材最接近', 184, y + 6, 24, MUTED)
-    const name = data.lookalikeGroup ? `${data.lookalikeName} · ${data.lookalikeGroup}` : data.lookalikeName
-    text(ctx, name, 184, y + 62, 42, INK, { weight: 900 })
-    y += 140
+    fillRounded(ctx, M, 492, W - M * 2, 136, 28, '#2C2925')
+    text(ctx, '身材最接近', M + 32, 540, 24, MUTED_ON_DARK)
+    fitText(ctx, data.lookalikeName, M + 32, 594, 44, 360, PAPER, { weight: 900 })
+    if (data.lookalikeGroup) {
+      ctx.font = `700 24px ${FONT}`
+      const chipW = ctx.measureText(data.lookalikeGroup).width + 40
+      fillRounded(ctx, W - M - 32 - chipW, 536, chipW, 48, 24, CLAY)
+      text(ctx, data.lookalikeGroup, W - M - 32 - chipW / 2, 568, 24, '#FFFFFF', { weight: 700, align: 'center' })
+    }
   }
 
-  // 四项进度条
+  // 四项得分
+  text(ctx, '四项得分', M, 724, 30, INK, { weight: 900 })
+  let y = 756
   for (const key of bojiDisplayKeys(data.sex)) {
     const score = scoreOf(data, key)
-    text(ctx, bojiShortMetricLabel(key, data.sex), 48, y + 26, 28, INK)
-    fillRounded(ctx, 200, y + 6, 420, 20, 10, TRACK)
-    if (score !== null) fillRounded(ctx, 200, y + 6, Math.max(20, (420 * Math.min(100, score)) / 100), 20, 10, CLAY)
-    text(ctx, fmt(score), W - 48, y + 30, 36, INK, { weight: 700, align: 'right' })
-    y += 72
+    text(ctx, bojiShortMetricLabel(key, data.sex), M, y + 32, 28, INK)
+    fillRounded(ctx, 184, y + 14, 420, 22, 11, TRACK)
+    if (score !== null) fillRounded(ctx, 184, y + 14, Math.max(22, (420 * Math.min(100, score)) / 100), 22, 11, CLAY)
+    text(ctx, fmt(score), W - M, y + 38, 38, INK, { weight: 700, align: 'right' })
+    y += 68
   }
 
-  // PK 小程序码
-  const boxY = H - 254
-  fillRounded(ctx, 48, boxY, W - 96, 206, 40, '#FFFFFF')
+  // PK 小程序码卡片
+  const boxH = 236
+  const boxY = H - M - boxH
+  fillRounded(ctx, M, boxY, W - M * 2, boxH, 40, '#FFFFFF')
   if (qr) {
-    ctx.drawImage(qr, 76, boxY + 23, 160, 160)
-    text(ctx, '敢来 PK 吗？', 268, boxY + 84, 40, INK, { weight: 900 })
-    text(ctx, '长按识别小程序码', 268, boxY + 132, 26, MUTED)
-    text(ctx, '测完自动和我逐项比', 268, boxY + 172, 26, MUTED)
+    ctx.drawImage(qr, M + 24, boxY + 18, 200, 200)
+    text(ctx, '敢来 PK 吗？', M + 256, boxY + 92, 44, INK, { weight: 900 })
+    text(ctx, '长按识别小程序码', M + 256, boxY + 146, 26, MUTED)
+    text(ctx, '测完自动和我逐项比输赢', M + 256, boxY + 186, 26, MUTED)
   } else {
-    text(ctx, '敢来 PK 吗？', 84, boxY + 84, 40, INK, { weight: 900 })
-    text(ctx, '微信搜「教链」小程序 → 工具箱 → 薄肌检测器', 84, boxY + 140, 26, MUTED)
+    text(ctx, '敢来 PK 吗？', W / 2, boxY + 104, 44, INK, { weight: 900, align: 'center' })
+    text(ctx, '微信搜「教链」小程序 → 工具箱 → 薄肌检测器', W / 2, boxY + 160, 26, MUTED, { align: 'center' })
   }
 }
 

@@ -92,7 +92,10 @@ export async function resolveCanvasImageSrc(src: string): Promise<string> {
         const fs = Taro.getFileSystemManager()
         const userDataPath = (Taro as any).env?.USER_DATA_PATH
         if (userDataPath) {
-          const ext = networkUrl.split('.').pop()?.split('?')[0] || 'png'
+          // 只从路径最后一段取扩展名：接口地址（如 /api/.../boji-challenge?id=）没有扩展名，
+          // 旧写法会把域名后缀连同路径当成扩展名，写入带斜杠的路径而失败
+          const lastSegment = networkUrl.split(/[?#]/)[0].split('/').pop() || ''
+          const ext = /\.([a-z0-9]{2,5})$/i.exec(lastSegment)?.[1] || 'png'
           const tmpPath = `${userDataPath}/cv_fb_${Date.now()}.${ext}`
           fs.writeFileSync(tmpPath, requestRes.data as ArrayBuffer, 'binary')
           return tmpPath
