@@ -17,6 +17,7 @@ import MapLocationPicker from "@/components/MapLocationPicker";
 import CityPicker from "@/components/CityPicker";
 import TianDiTuLocationsMap from "@/components/TianDiTuLocationsMap";
 import { useToastContext } from "@/context/ToastContext";
+import { toTianDiTuCoordinates, wgs84ToGcj02, type LocationCoordinateSystem } from "@coachlink/core";
 import { streetliftingIndexService } from "@/app/service/streetliftingIndexService";
 import { AERO_CARD, AERO_CONTAINER_6XL, AERO_SUBTITLE, AERO_TITLE } from "@/components/streetlifting-index/aero";
 import { StreetliftingLocationOverview } from "@/components/streetlifting-index/StreetliftingLocationOverview";
@@ -27,42 +28,13 @@ import type { StreetliftingLocationOverviewStats } from "@/app/api/streetlifting
 
 const MAX_IMAGES = 4;
 
-/**
- * WGS-84 → BD-09 Mercator，用于构造百度地图 URL 中的坐标段（@mcX,mcY,zoom）。
- * 步骤：WGS-84 → GCJ-02 → BD-09 → BD-09 Mercator
- */
-function wgs84ToBd09mc(wgsLon: number, wgsLat: number): [number, number] {
-    const a = 6378245.0;
-    const ee = 0.00669342162296594323;
-
-    const txLat = (x: number, y: number) => {
-        let r = -100 + 2 * x + 3 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
-        r += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
-        r += (20 * Math.sin(y * Math.PI) + 40 * Math.sin(y / 3 * Math.PI)) * 2 / 3;
-        r += (160 * Math.sin(y / 12 * Math.PI) + 320 * Math.sin(y * Math.PI / 30)) * 2 / 3;
-        return r;
-    };
-    const txLon = (x: number, y: number) => {
-        let r = 300 + x + 2 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
-        r += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
-        r += (20 * Math.sin(x * Math.PI) + 40 * Math.sin(x / 3 * Math.PI)) * 2 / 3;
-        r += (150 * Math.sin(x / 12 * Math.PI) + 300 * Math.sin(x / 30 * Math.PI)) * 2 / 3;
-        return r;
-    };
-
-    let dlat = txLat(wgsLon - 105, wgsLat - 35);
-    let dlng = txLon(wgsLon - 105, wgsLat - 35);
-    const radlat = wgsLat / 180 * Math.PI;
-    let magic = Math.sin(radlat);
-    magic = 1 - ee * magic * magic;
-    const sqrtMagic = Math.sqrt(magic);
-    dlat = (dlat * 180) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI);
-    dlng = (dlng * 180) / (a / sqrtMagic * Math.cos(radlat) * Math.PI);
-    const gcjLat = wgsLat + dlat;
-    const gcjLon = wgsLon + dlng;
-
-    const z = Math.sqrt(gcjLon * gcjLon + gcjLat * gcjLat) + 0.00002 * Math.sin(gcjLat * Math.PI * 3000 / 180);
-    const theta = Math.atan2(gcjLat, gcjLon) + 0.000003 * Math.cos(gcjLon * Math.PI * 3000 / 180);
+/** Stored point → Baidu BD-09 Mercator for the map.baidu.com URL (@mcX,mcY,zoom).
+ * GCJ-02 (mini-program) points skip the WGS84 step; untagged points keep the web's
+ * historical WGS84 assumption. */
+function toBd09mc(loc: Pick<StreetliftingLocation, "coordinate_system"> & { latitude: number; longitude: number }): [number, number] {
+    const gcj = loc.coordinate_system === "gcj02" ? loc : wgs84ToGcj02(loc);
+    const z = Math.sqrt(gcj.longitude * gcj.longitude + gcj.latitude * gcj.latitude) + 0.00002 * Math.sin(gcj.latitude * Math.PI * 3000 / 180);
+    const theta = Math.atan2(gcj.latitude, gcj.longitude) + 0.000003 * Math.cos(gcj.longitude * Math.PI * 3000 / 180);
     const bdLon = z * Math.cos(theta) + 0.0065;
     const bdLat = z * Math.sin(theta) + 0.006;
 
@@ -70,6 +42,29 @@ function wgs84ToBd09mc(wgsLon: number, wgsLat: number): [number, number] {
     let mcY = Math.log(Math.tan((90 + bdLat) * Math.PI / 360)) / (Math.PI / 180);
     mcY = mcY * 20037508.34 / 180;
     return [mcX, mcY];
+}
+
+/** Position shown in the Tianditu (WGS84) picker for a stored point. */
+function toPickerPosition(loc: StreetliftingLocation): { latitude: number | null; longitude: number | null } {
+    if (loc.latitude == null || loc.longitude == null) return { latitude: null, longitude: null };
+    const shown = toTianDiTuCoordinates({ ...loc, latitude: loc.latitude, longitude: loc.longitude });
+    return { latitude: shown.latitude, longitude: shown.longitude };
+}
+
+/** What to save: a point the user did not move keeps its stored coordinates and tag;
+ * a point picked on Tianditu is WGS84. */
+function toSavedPosition(
+    form: { latitude: number | null; longitude: number | null },
+    original: StreetliftingLocation | null,
+): { latitude: number | null; longitude: number | null; coordinate_system: LocationCoordinateSystem | null } {
+    if (form.latitude == null || form.longitude == null) return { latitude: null, longitude: null, coordinate_system: null };
+    if (original?.latitude != null && original.longitude != null) {
+        const shown = toPickerPosition(original);
+        if (shown.latitude === form.latitude && shown.longitude === form.longitude) {
+            return { latitude: original.latitude, longitude: original.longitude, coordinate_system: original.coordinate_system ?? null };
+        }
+    }
+    return { latitude: form.latitude, longitude: form.longitude, coordinate_system: "wgs84" };
 }
 
 function getLocationImages(loc: StreetliftingLocation): string[] {
@@ -255,8 +250,7 @@ export default function StreetliftingLocationsPage() {
             city: loc.city || "",
             province: loc.province || "",
             county: loc.county || "",
-            latitude: loc.latitude,
-            longitude: loc.longitude,
+            ...toPickerPosition(loc),
         });
         setImageUrls(imgs);
         setImagePreviews(imgs);
@@ -308,6 +302,7 @@ export default function StreetliftingLocationsPage() {
             if (!form.province) throw new Error("请选择省份");
             if (!form.city) throw new Error("请选择城市");
             if (!form.county) throw new Error("请选择区/县");
+            const savedPosition = toSavedPosition(form, editing);
 
                     if (editing) {
                 await streetliftingIndexService.updateLocation({
@@ -318,8 +313,7 @@ export default function StreetliftingLocationsPage() {
                     city: form.city || null,
                     province: form.province || null,
                     county: form.county || null,
-                    latitude: form.latitude,
-                    longitude: form.longitude,
+                    ...savedPosition,
                     image_urls: imageUrls.length ? imageUrls : null,
                 });
                 showToast({ severity: "success", summary: "保存成功", detail: "地点已更新" });
@@ -331,8 +325,7 @@ export default function StreetliftingLocationsPage() {
                     city: form.city || null,
                     province: form.province || null,
                     county: form.county || null,
-                    latitude: form.latitude,
-                    longitude: form.longitude,
+                    ...savedPosition,
                     image_urls: imageUrls.length ? imageUrls : null,
                 });
                 showToast({ severity: "success", summary: "提交成功", detail: "感谢你的分享" });
@@ -366,7 +359,7 @@ export default function StreetliftingLocationsPage() {
         const encodedAddress = encodeURIComponent(addressPart);
         let url: string;
         if (loc.latitude != null && loc.longitude != null) {
-            const [mcX, mcY] = wgs84ToBd09mc(loc.longitude, loc.latitude);
+            const [mcX, mcY] = toBd09mc({ ...loc, latitude: loc.latitude, longitude: loc.longitude });
             url = `https://map.baidu.com/search/${encodedAddress}/@${mcX.toFixed(2)},${mcY.toFixed(2)},15z?querytype=s&da_src=shareurl&wd=${encodedAddress}&src=0&pn=0&sug=0&from=webmap`;
         } else {
             url = `https://map.baidu.com/search/${encodedAddress}/?querytype=s&da_src=shareurl&wd=${encodedAddress}&src=0&pn=0&sug=0&from=webmap`;

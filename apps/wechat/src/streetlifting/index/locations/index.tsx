@@ -617,19 +617,11 @@ export default function StreetliftingLocations() {
     if (!userId) { requireLoginForLocationsAction('登录后可选择并分享单杠位置。'); return }
     writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
     setOpeningPicker(true)
-    let nearby: UserLocation | null = null
     try {
-      if (!hasSelectedPosition) {
-        try {
-          nearby = await requestPickerNearby()
-          writeLocationCache(`last-user-location:${userId}`, { ...nearby, locatedAt: Date.now() })
-        } catch {
-          const answer = await Taro.showModal({ title: '暂时无法定位到你附近', content: '可以继续打开地图搜索地点，也可以取消后重试定位。', confirmText: '搜索地点', cancelText: '取消' })
-          if (!answer.confirm) return
-        }
-      }
-      if (authService.getCurrentUser()?.id !== userId) return
-      const initial = getPickerStart(hasSelectedPosition ? form : null, nearby)
+      // New points open without a start position so WeChat centres on the user's
+      // real location. The fuzzy location is deliberately km-level and made every
+      // picked point start (and often end) off-target.
+      const initial = getPickerStart(hasSelectedPosition ? form : null, null)
       // Local DevTools diagnosis: retain the real callback and Promise payloads
       // separately. Production builds do not record this trace.
       const nativeTrace: Record<string, unknown> = { startedAt: Date.now(), initial }
@@ -669,7 +661,7 @@ export default function StreetliftingLocations() {
           showCancel: false,
           confirmText: '继续选点'
         })
-        await openMapPicker(nearby)
+        await openMapPicker()
       }
     } finally { setOpeningPicker(false) }
   }
@@ -1779,9 +1771,9 @@ export default function StreetliftingLocations() {
               </View>}
               <View className='location-selection-summary'>
                 <Text className='location-start-title'>{hasSelectedPosition ? '已选地图位置' : '选择单杠位置'}</Text>
-                <Text className='location-selected-address'>{hasSelectedPosition ? form.address || '位置已记录，地图未返回详细地址，请在下面补充。' : '默认打开你附近的位置。搜索公园或地址，确认单杠位置后自动带回名称和地址。'}</Text>
+                <Text className='location-selected-address'>{hasSelectedPosition ? form.address || '位置已记录，地图未返回详细地址，请在下面补充。' : '地图会打开在你当前的位置。不在单杠旁边也能上传：搜索公园、小区或地址，把地图拖到单杠所在处再确认，名称和地址会自动带回。'}</Text>
                 <Button className='map-picker-entry location-primary' onClick={chooseLocation} disabled={openingPicker}>{openingPicker ? '正在定位 / 打开地图…' : hasSelectedPosition ? '重新选择位置' : '搜索地点 / 选择位置'}</Button>
-                {hasSelectedPosition && <Text className='location-form-help'>请核对下面的名称和地址；不准确的直接修改，如何找到单杠可另外补充。</Text>}
+                {hasSelectedPosition && <Text className='location-form-help'>请核对下面的名称和地址是否就是单杠所在处；位置不对请点“重新选择位置”，文字不准确直接修改。</Text>}
                 {!hasSelectedPosition && !manualDetailsOpen && <Button className='location-secondary manual-location-entry' onClick={() => setManualDetailsOpen(true)}>地图不可用？手动填写</Button>}
                 {manualDetailsOpen && !hasSelectedPosition && <Text className='location-form-help'>可以先保存文字信息。未选择地图位置时，只在列表显示，暂不能地图导航。</Text>}
               </View>

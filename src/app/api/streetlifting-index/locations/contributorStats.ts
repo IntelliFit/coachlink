@@ -145,45 +145,55 @@ export function aggregateStreetliftingLocationContributors(
     });
 }
 
-export async function rebuildStreetliftingLocationContributorStats(): Promise<void> {
-    const { data: locations, error } = await serviceRoleSupabase
-        .from("streetlifting_locations")
-        .select("id, created_at, user_contact, contributor_user_id, contributor_name_snapshot, description, address, province, city, county, latitude, longitude, image_url, image_urls");
+const LOCATION_READ_BATCH_SIZE = 500;
 
-    if (error) {
-        throw new Error(error.message || "读取单杠点位失败");
+// PostgREST caps an unranged select at 1000 rows; page by id so every point counts.
+export async function readAllStreetliftingLocationsForContributors(): Promise<StreetliftingLocationAggregateSourceRow[]> {
+    const locations: StreetliftingLocationAggregateSourceRow[] = [];
+    for (let from = 0; ; from += LOCATION_READ_BATCH_SIZE) {
+        const { data, error } = await serviceRoleSupabase
+            .from("streetlifting_locations")
+            .select("id, created_at, user_contact, contributor_user_id, contributor_name_snapshot, description, address, province, city, county, latitude, longitude, image_url, image_urls")
+            .order("id", { ascending: true })
+            .range(from, from + LOCATION_READ_BATCH_SIZE - 1);
+
+        if (error) {
+            throw new Error(error.message || "读取单杠点位失败");
+        }
+
+        const rows = (data || []) as StreetliftingLocationAggregateSourceRow[];
+        locations.push(...rows);
+        if (rows.length < LOCATION_READ_BATCH_SIZE) return locations;
     }
+}
 
-    const rawRows = aggregateStreetliftingLocationContributors(
-        (locations || []) as StreetliftingLocationAggregateSourceRow[],
-    );
+export async function rebuildStreetliftingLocationContributorStats(): Promise<void> {
+    const locations = await readAllStreetliftingLocationsForContributors();
+    const rawRows = aggregateStreetliftingLocationContributors(locations);
     const contributorUserIds = Array.from(new Set(
         rawRows
             .map((row) => normalizeText(row.contributor_user_id))
             .filter(Boolean),
     ));
 
-    let profileNameMap = new Map<string, string>();
-    if (contributorUserIds.length > 0) {
+    const profileNameMap = new Map<string, string>();
+    // Keep the IN filter URL small now that every contributor is included.
+    const profileBatchSize = 100;
+    for (let from = 0; from < contributorUserIds.length; from += profileBatchSize) {
         const { data: profiles, error: profileError } = await serviceRoleSupabase
             .from("user_profiles")
             .select("user_id, nickname, full_name")
-            .in("user_id", contributorUserIds);
+            .in("user_id", contributorUserIds.slice(from, from + profileBatchSize));
 
         if (profileError) {
             throw new Error(profileError.message || "读取贡献者昵称失败");
         }
 
-        profileNameMap = new Map(
-            ((profiles || []) as UserProfileNameRow[])
-                .map((profile) => {
-                    const userId = normalizeText(profile.user_id);
-                    const displayName = normalizeText(profile.nickname) || normalizeText(profile.full_name);
-                    if (!userId || !displayName) return null;
-                    return [userId, displayName] as const;
-                })
-                .filter(Boolean) as Array<readonly [string, string]>,
-        );
+        for (const profile of (profiles || []) as UserProfileNameRow[]) {
+            const userId = normalizeText(profile.user_id);
+            const displayName = normalizeText(profile.nickname) || normalizeText(profile.full_name);
+            if (userId && displayName) profileNameMap.set(userId, displayName);
+        }
     }
 
     const rows = rawRows.map((row) => ({

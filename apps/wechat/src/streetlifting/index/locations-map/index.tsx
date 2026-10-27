@@ -66,6 +66,8 @@ const DEFAULT_CENTER = {
 const DEFAULT_SCALE = DEFAULT_LOCATION_MAP_VIEW.scale
 const MAX_CLUSTER_LABEL_COUNT = 99
 const CLUSTER_ID_BASE = 100000
+// getFuzzyLocation is km-level: open the picker at neighbourhood zoom so nobody mistakes it for an exact spot.
+const FUZZY_PICK_SCALE = 14
 
 function getClusterCellSize(scale: number): number {
   if (scale <= 4) return 5.5
@@ -284,7 +286,7 @@ export default function StreetliftingLocationsMapPage() {
         moveMap({ ...position, scale: 16 }, false)
       } else {
         const nearby = draft && request?.nearby
-        if (nearby && isValidLocationCoordinates(nearby.latitude, nearby.longitude)) moveMap({ ...nearby, scale: 16 }, false)
+        if (nearby && isValidLocationCoordinates(nearby.latitude, nearby.longitude)) moveMap({ ...nearby, scale: FUZZY_PICK_SCALE }, false)
         else {
           moveMap(DEFAULT_LOCATION_MAP_VIEW, false)
           setHint('未能定位到你附近。可点击“定位我附近”重试，或搜索城市、公园和地址继续选点。')
@@ -349,7 +351,7 @@ export default function StreetliftingLocationsMapPage() {
         writeLocationCache(locationCacheKey, { latitude: res.latitude, longitude: res.longitude, locatedAt: Date.now() })
         const request = pickMode ? readLocationCache<{ initial: LocationDraft }>(decodeParam(params.selectionKey)) : null
         const hasInitialPoint = isValidLocationCoordinates(request?.initial?.latitude, request?.initial?.longitude)
-        if (!touchedViewRef.current && params.latitude === undefined && !hasInitialPoint) moveMap({ latitude: res.latitude, longitude: res.longitude, scale: pickMode ? 16 : 13 }, false)
+        if (!touchedViewRef.current && params.latitude === undefined && !hasInitialPoint) moveMap({ latitude: res.latitude, longitude: res.longitude, scale: 13 }, false)
       } catch { /* No permission or provider failure: use populated regions. */ }
     })()
     return () => { cancelled = true }
@@ -415,8 +417,8 @@ export default function StreetliftingLocationsMapPage() {
       if (!isValidLocationCoordinates(res.latitude, res.longitude)) throw new Error('未能获取有效位置')
       writeLocationCache(locationCacheKey, { ...res, locatedAt: Date.now() })
       if (version !== cameraVersionRef.current) return
-      moveMap({ ...res, scale: pickMode ? 16 : 13 })
-      setHint(pickMode ? '已到你附近。请点到单杠的具体位置，再确认。' : '已定位到你附近。点击数字可展开周边单杠。')
+      moveMap({ ...res, scale: pickMode ? FUZZY_PICK_SCALE : 13 })
+      setHint(pickMode ? '已到你大致附近（微信只提供模糊定位）。请拖动地图找到单杠，点到具体位置再确认。' : '已定位到你附近。点击数字可展开周边单杠。')
     } catch (e) {
       Taro.showToast({ title: (e as Error)?.message || '定位失败', icon: 'none' })
     } finally {

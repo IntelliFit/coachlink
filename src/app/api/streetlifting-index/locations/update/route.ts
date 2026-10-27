@@ -2,7 +2,7 @@ import { after, NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { rebuildStreetliftingLocationContributorStats } from "../contributorStats";
-import { validateLocationInput } from '../locationInput';
+import { resolveCoordinateSystem, validateLocationInput } from '../locationInput';
 import { normalizeLocationEquipment, withLocationEquipment } from '@coachlink/core';
 
 import type { ApiData } from "@/types/api";
@@ -22,6 +22,15 @@ export async function POST(req: Request) {
                 message: "缺少地点ID",
                 data: null,
             }, { status: 400 });
+        }
+
+        // Any signed-in user may correct a point; anonymous callers must not move it.
+        if (!session?.user?.id) {
+            return NextResponse.json<ApiData<StreetliftingUpdateLocationResponseDto>>({
+                success: false,
+                message: "请先登录后再修改地点",
+                data: null,
+            }, { status: 401 });
         }
 
         const db = serviceRoleSupabase;
@@ -65,20 +74,22 @@ export async function POST(req: Request) {
             ? (String(existingLocation.user_contact || "").trim() || contributorNameSnapshot)
             : (String(body.user_contact || fallbackNameSnapshot || "").trim() || null);
 
+        const coordinateSystem = resolveCoordinateSystem(req, body);
         const { data, error } = await db
             .from("streetlifting_locations")
             .update({
                 name: body.name,
                 ...(body.equipment_types !== undefined ? { equipment_types: body.equipment_types === null ? null : normalizeLocationEquipment(body.equipment_types) } : {}),
                 ...(body.country !== undefined ? { country: body.country?.trim() || null } : {}),
-                ...(body.coordinate_system !== undefined ? { coordinate_system: body.coordinate_system } : {}),
+                ...(coordinateSystem !== undefined ? { coordinate_system: coordinateSystem } : {}),
                 description: body.description ?? null,
                 address: body.address ?? null,
                 city: body.city ?? null,
                 province: body.province ?? null,
                 county: body.county ?? null,
-                latitude: body.latitude ?? null,
-                longitude: body.longitude ?? null,
+                // Clients that do not send coordinates must not wipe them.
+                ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
+                ...(body.longitude !== undefined ? { longitude: body.longitude } : {}),
                 image_urls: body.image_urls?.length ? body.image_urls : null,
                 user_contact: contributorContact,
                 contributor_user_id: contributorUserId,

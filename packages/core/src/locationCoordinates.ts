@@ -15,12 +15,40 @@ export function isValidLocationCoordinates(latitude: unknown, longitude: unknown
     && typeof longitude === 'number' && Number.isFinite(longitude) && Math.abs(longitude) <= 180
 }
 
-/** Keep legacy/native coordinates as-is; convert explicitly imported GPS coordinates for WeChat. */
-export function toWeChatCoordinates<T extends LocationCoordinates & { coordinate_system?: LocationCoordinateSystem | null; country?: string | null }>(location: T): Omit<T, 'coordinate_system'> & { coordinate_system?: LocationCoordinateSystem | null } {
+type CoordinateTagged = LocationCoordinates & { coordinate_system?: LocationCoordinateSystem | null; country?: string | null }
+
+/** GCJ-02 only differs from WGS84 inside China; elsewhere both are identical. */
+function usesChinaOffset(location: CoordinateTagged): boolean {
   const { latitude: lat, longitude: lon } = location
   // A country explicitly outside mainland China wins over the rough bounding box.
-  if (location.country && !['中国', '中国大陆', 'China', 'CN'].includes(location.country.trim())) return location
-  if (location.coordinate_system !== 'wgs84' || lon < 72.004 || lon > 137.8347 || lat < 0.8293 || lat > 55.8271) return location
+  if (location.country && !['中国', '中国大陆', 'China', 'CN'].includes(location.country.trim())) return false
+  return lon >= 72.004 && lon <= 137.8347 && lat >= 0.8293 && lat <= 55.8271
+}
+
+/** Keep legacy/native coordinates as-is; convert explicitly imported GPS coordinates for WeChat. */
+export function toWeChatCoordinates<T extends CoordinateTagged>(location: T): Omit<T, 'coordinate_system'> & { coordinate_system?: LocationCoordinateSystem | null } {
+  if (location.coordinate_system !== 'wgs84' || !usesChinaOffset(location)) return location
+  return { ...location, ...wgs84ToGcj02(location), coordinate_system: 'gcj02' }
+}
+
+/** Tianditu (CGCS2000 ≈ WGS84) needs WeChat/GCJ-02 points converted back; untagged legacy
+ * points keep the web's historical WGS84 assumption. */
+export function toTianDiTuCoordinates<T extends CoordinateTagged>(location: T): Omit<T, 'coordinate_system'> & { coordinate_system?: LocationCoordinateSystem | null } {
+  if (location.coordinate_system !== 'gcj02' || !usesChinaOffset(location)) return location
+  return { ...location, ...gcj02ToWgs84(location), coordinate_system: 'wgs84' }
+}
+
+/** Inverse of wgs84ToGcj02 by fixed-point iteration (sub-centimetre after a few rounds). */
+export function gcj02ToWgs84({ latitude, longitude }: LocationCoordinates): LocationCoordinates {
+  let wgs = { latitude, longitude }
+  for (let i = 0; i < 5; i++) {
+    const gcj = wgs84ToGcj02(wgs)
+    wgs = { latitude: wgs.latitude - (gcj.latitude - latitude), longitude: wgs.longitude - (gcj.longitude - longitude) }
+  }
+  return wgs
+}
+
+export function wgs84ToGcj02({ latitude: lat, longitude: lon }: LocationCoordinates): LocationCoordinates {
   const x = lon - 105, y = lat - 35
   const pi = Math.PI
   let dlat = -100 + 2 * x + 3 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x))
@@ -36,5 +64,5 @@ export function toWeChatCoordinates<T extends LocationCoordinates & { coordinate
   const sqrtMagic = Math.sqrt(magic)
   dlat = dlat * 180 / ((6378245 * (1 - 0.00669342162296594323)) / (magic * sqrtMagic) * pi)
   dlon = dlon * 180 / (6378245 / sqrtMagic * Math.cos(radlat) * pi)
-  return { ...location, latitude: lat + dlat, longitude: lon + dlon, coordinate_system: 'gcj02' }
+  return { latitude: lat + dlat, longitude: lon + dlon }
 }

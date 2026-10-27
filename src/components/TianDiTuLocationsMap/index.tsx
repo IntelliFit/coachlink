@@ -8,12 +8,15 @@ import {
     createClusterIcon,
 } from '@/lib/tianDiTuService';
 import { ProgressSpinner } from 'primereact/progressspinner';
+import { toTianDiTuCoordinates, type LocationCoordinateSystem } from '@coachlink/core';
 
 interface MapPin {
     id: string;
     name: string;
     latitude: number;
     longitude: number;
+    country?: string | null;
+    coordinate_system?: LocationCoordinateSystem | null;
 }
 
 interface Props {
@@ -86,7 +89,8 @@ export default function TianDiTuLocationsMap({ className }: Props) {
                 const json = await res.json();
                 if (ac.signal.aborted) return;
 
-                const pins: MapPin[] = json?.data ?? [];
+                // Mini-program points are stored in WeChat GCJ-02; Tianditu draws WGS84.
+                const pins: MapPin[] = ((json?.data ?? []) as MapPin[]).map(toTianDiTuCoordinates);
                 setPinCount(pins.length);
 
                 if (pins.length === 0) { setStatus('ready'); return; }

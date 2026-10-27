@@ -2,7 +2,7 @@ import { after, NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { rebuildStreetliftingLocationContributorStats } from "../contributorStats";
-import { validateLocationInput } from '../locationInput';
+import { resolveCoordinateSystem, validateLocationInput } from '../locationInput';
 import { normalizeLocationEquipment, withLocationEquipment } from '@coachlink/core';
 
 import type { ApiData } from "@/types/api";
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
                 name: body.name.trim(),
                 ...(body.equipment_types !== undefined ? { equipment_types: body.equipment_types === null ? null : normalizeLocationEquipment(body.equipment_types) } : {}),
                 ...(body.country !== undefined ? { country: body.country?.trim() || null } : {}),
-                ...(body.coordinate_system !== undefined ? { coordinate_system: body.coordinate_system } : {}),
+                coordinate_system: resolveCoordinateSystem(req, { ...body, latitude: body.latitude ?? null, longitude: body.longitude ?? null }) ?? null,
                 description: body.description || null,
                 address: body.address || null,
                 city: body.city || null,

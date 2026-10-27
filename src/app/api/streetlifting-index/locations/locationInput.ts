@@ -19,3 +19,24 @@ export function validateLocationInput(body: {
     }
     return validateLocationEquipment(body.equipment_types);
 }
+
+/** WeChat sets this Referer on every mini-program request; pages cannot forge it. */
+function isWeChatMiniProgramRequest(req: Request): boolean {
+    return /^https:\/\/servicewechat\.com\//.test(req.headers.get('referer') || '');
+}
+
+/**
+ * The coordinate system to store with new coordinates. An explicit client value wins;
+ * WeChat (chooseLocation) always returns GCJ-02; anything else stays unknown (null)
+ * rather than keeping a tag that no longer matches the new coordinates.
+ * Returns undefined when the request does not touch coordinates.
+ */
+export function resolveCoordinateSystem(
+    req: Request,
+    body: { coordinate_system?: LocationCoordinateSystem | null; latitude?: number | null; longitude?: number | null },
+): LocationCoordinateSystem | null | undefined {
+    if (body.latitude === undefined && body.longitude === undefined) return body.coordinate_system;
+    if (body.latitude == null || body.longitude == null) return null;
+    if (body.coordinate_system !== undefined) return body.coordinate_system;
+    return isWeChatMiniProgramRequest(req) ? 'gcj02' : null;
+}
