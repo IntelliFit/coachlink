@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { WECHAT_COACH_PURCHASE_PAUSED, WECHAT_PURCHASE_PAUSED_MESSAGE } from '@coachlink/core'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
@@ -248,6 +248,9 @@ export default function CoachProfile() {
     return true
   }, [])
 
+  // One payment at a time: repeated taps used to create several pending orders.
+  const paymentStartingRef = useRef(false)
+
   const startCoachWechatPayment = useCallback(async (params: {
     subscriptionId: string
     amount?: number
@@ -262,38 +265,44 @@ export default function CoachProfile() {
       Taro.showToast({ title: WECHAT_PURCHASE_PAUSED_MESSAGE, icon: 'none' })
       return
     }
-    if (params.packageSwitch && params.productId && params.months) {
-      await previewCoachPackageSwitch({ coachId, subscriptionId: params.subscriptionId, productId: params.productId, months: params.months })
-    }
-    const ok = await ensureWechatOpenid()
-    if (!ok) return
+    if (paymentStartingRef.current) return
+    paymentStartingRef.current = true
+    try {
+      if (params.packageSwitch && params.productId && params.months) {
+        await previewCoachPackageSwitch({ coachId, subscriptionId: params.subscriptionId, productId: params.productId, months: params.months })
+      }
+      const ok = await ensureWechatOpenid()
+      if (!ok) return
 
-    const payment = await createCoachWechatPayment({
-      coachId,
-      subscriptionId: params.subscriptionId,
-      amount: params.amount,
-      renew: params.renew,
-      renewAdditionalWeeks: params.renewAdditionalWeeks,
-      testAmountFen: params.testAmountFen,
-      productId: params.productId,
-      months: params.months,
-      subject: `订阅教练 ${coachDisplayName}`.trim()
-    })
+      const payment = await createCoachWechatPayment({
+        coachId,
+        subscriptionId: params.subscriptionId,
+        amount: params.amount,
+        renew: params.renew,
+        renewAdditionalWeeks: params.renewAdditionalWeeks,
+        testAmountFen: params.testAmountFen,
+        productId: params.productId,
+        months: params.months,
+        subject: `订阅教练 ${coachDisplayName}`.trim()
+      })
 
-    if (!payment || !('orderId' in payment)) {
-      Taro.showToast({ title: (payment as any)?.message || '创建支付单失败，请稍后重试', icon: 'none' })
-      return
-    }
+      if (!payment || !('orderId' in payment)) {
+        Taro.showToast({ title: (payment as any)?.message || '创建支付单失败，请稍后重试', icon: 'none' })
+        return
+      }
 
-    if (params.packageSwitch && payment.packageSwitchPolicy !== 'after_current') {
-      throw new Error('支付服务尚未支持接续套餐，请稍后重试')
+      if (params.packageSwitch && payment.packageSwitchPolicy !== 'after_current') {
+        throw new Error('支付服务尚未支持接续套餐，请稍后重试')
+      }
+      const paymentResult = await requestCoachWechatPayment(payment.paymentParams)
+      navigateToPaymentWaiting({
+        orderId: payment.orderId,
+        amount: payment.amount,
+        initialStatus: paymentResult.status === 'success' ? undefined : paymentResult.status
+      })
+    } finally {
+      paymentStartingRef.current = false
     }
-    const paymentResult = await requestCoachWechatPayment(payment.paymentParams)
-    navigateToPaymentWaiting({
-      orderId: payment.orderId,
-      amount: payment.amount,
-      initialStatus: paymentResult.status === 'success' ? undefined : paymentResult.status
-    })
   }, [coachDisplayName, coachId, navigateToPaymentWaiting, ensureWechatOpenid])
 
   const handleSubscribe = () => {

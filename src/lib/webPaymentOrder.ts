@@ -173,6 +173,13 @@ export async function createWebPaymentOrder(req: Request, channel: "alipay" | "w
             { status: 400 },
         );
     }
+    // Renewal price and weeks must come from a server-priced subscription order.
+    if (orderType === "subscription_renew" && !subscriptionOrderId) {
+        return NextResponse.json(
+            { success: false, message: "续费需要先选择套餐，请刷新页面后重试", data: null },
+            { status: 400 },
+        );
+    }
 
     let subjectText = String(subject || "");
     let resolvedTotalAmount = Number(totalAmount);
@@ -222,16 +229,19 @@ export async function createWebPaymentOrder(req: Request, channel: "alipay" | "w
                 );
             }
 
+            const expectedType = orderType === "subscription_renew" ? "renew" : "subscribe";
+            // Alipay keeps its old allowance for orders already submitted for offline confirmation.
+            const payableStatuses = isWechat ? ["pending_payment"] : ["pending_payment", "pending_confirmation"];
+            if (!payableStatuses.includes(subscriptionOrder.status) || subscriptionOrder.order_type !== expectedType) {
+                return NextResponse.json(
+                    { success: false, message: "订阅订单已支付、已取消或支付类型不匹配", data: null },
+                    { status: 400 },
+                );
+            }
+            // Never keep client-sent weeks; the subscription order is the source of truth.
+            od.renewAdditionalWeeks = expectedType === "renew" ? subscriptionOrder.purchased_weeks : undefined;
             if (isWechat) {
-                const expectedType = orderType === "subscription_renew" ? "renew" : "subscribe";
-                if (subscriptionOrder.status !== "pending_payment" || subscriptionOrder.order_type !== expectedType) {
-                    return NextResponse.json(
-                        { success: false, message: "订阅订单已支付、已取消或支付类型不匹配", data: null },
-                        { status: 400 },
-                    );
-                }
                 subjectText = ((expectedType === "renew" ? "续费" : "订阅") + "教练 " + (subscriptionOrder.product_name || "")).trim();
-                od.renewAdditionalWeeks = expectedType === "renew" ? subscriptionOrder.purchased_weeks : undefined;
             }
 
             resolvedTotalAmount = Number(subscriptionOrder.amount_fen || 0);

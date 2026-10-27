@@ -3,8 +3,15 @@ import { rejectWechatCoachPurchase } from '@/lib/wechatFreeRelease';
 import type { ApiData } from "@/types/api";
 import { getApiUserId } from "@/lib/getApiUserId";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
-import { fenToYuan, formatYuan, yuanToFen } from "@/lib/moneyUtils";
+import { fenToYuan, formatYuan } from "@/lib/moneyUtils";
 import { assertPackageQueueAvailable, getPackagePurchase, PACKAGE_SWITCH_POLICY } from '@/lib/subscriptionPackageQueue';
+import {
+    PAYMENT_DUPLICATE_MESSAGE,
+    PAYMENT_DUPLICATE_WINDOW_MS,
+    getRenewPurchaseMismatch,
+    getRenewRequestError,
+    isRecentPendingOrder,
+} from '@/lib/coachRenewalCheckout';
 import {
     createHuifuMiniProgramOrder,
     formatHuifuReqDate,
@@ -64,6 +71,7 @@ export async function POST(request: NextRequest) {
         const renew = body.renew === true;
         const renewAdditionalWeeks = Number(body.renewAdditionalWeeks || 0);
         const testAmountFen = Math.round(Number(body.testAmountFen || 0));
+        const isTestPayment = testPricingEnabled && testAmountFen > 0;
 
         if (!coachId || !subscriptionId) {
             return NextResponse.json<ApiData<null>>(
@@ -119,9 +127,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (renew && renewAdditionalWeeks <= 0) {
+        const renewRequestError = getRenewRequestError({
+            renew,
+            productId: body.productId,
+            renewAdditionalWeeks,
+            isTestPayment,
+        });
+        if (renewRequestError) {
             return NextResponse.json<ApiData<null>>(
-                { success: false, message: "续费周数无效", data: null },
+                { success: false, message: renewRequestError, data: null },
                 { status: 400 },
             );
         }
@@ -133,13 +147,26 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const purchase = renew && body.productId
-            ? await getPackagePurchase(coachId, body.productId, Number(body.months ?? renewAdditionalWeeks / 4))
-            : null;
-        const isPackageSwitch = Boolean(purchase && purchase.productId !== subscription.product_id);
-        if (purchase && (purchase.purchasedWeeks !== renewAdditionalWeeks || purchase.amountFen !== yuanToFen(body.amount))) {
-            throw new Error('套餐价格或时长已变更，请刷新后重新选择');
+        // Renewal price and weeks always come from the coach's package list, never the client.
+        let purchase: Awaited<ReturnType<typeof getPackagePurchase>> | null = null;
+        if (renew && body.productId) {
+            try {
+                purchase = await getPackagePurchase(coachId, body.productId, Number(body.months ?? renewAdditionalWeeks / 4));
+            } catch (error: any) {
+                return NextResponse.json<ApiData<null>>(
+                    { success: false, message: error?.message || "无法核对套餐价格，请刷新后重试", data: null },
+                    { status: 400 },
+                );
+            }
+            const mismatch = getRenewPurchaseMismatch(purchase, { renewAdditionalWeeks, amountYuan: body.amount });
+            if (mismatch) {
+                return NextResponse.json<ApiData<null>>(
+                    { success: false, message: mismatch, data: null },
+                    { status: 400 },
+                );
+            }
         }
+        const isPackageSwitch = Boolean(purchase && purchase.productId !== subscription.product_id);
         if (isPackageSwitch) await assertPackageQueueAvailable();
 
         // 教练订阅必须保留汇付真实分账闭环。
@@ -172,11 +199,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const totalAmountFen = testPricingEnabled && testAmountFen > 0
+        const totalAmountFen = isTestPayment
             ? testAmountFen
-            : purchase ? purchase.amountFen : renew
-                ? yuanToFen(body.amount)
-                : Math.round(Number(subscription.monthly_price || 0));
+            : purchase
+                ? purchase.amountFen
+                : renew
+                    ? 0
+                    : Math.round(Number(subscription.monthly_price || 0));
 
         if (!Number.isFinite(totalAmountFen) || totalAmountFen <= 0) {
             return NextResponse.json<ApiData<null>>(
@@ -218,6 +247,23 @@ export async function POST(request: NextRequest) {
             is_test_payment: testPricingEnabled && testAmountFen > 0,
         };
 
+        // Best-effort guard against double taps; the client also locks while a payment is starting.
+        const { data: recentOrders } = await (serviceRoleSupabase
+            .from("alipay_orders") as any)
+            .select("id, created_at")
+            .eq("user_id", userId)
+            .eq("order_type", orderType)
+            .eq("status", "pending")
+            .eq("order_data->>subscriptionId", subscriptionId)
+            .gte("created_at", new Date(Date.now() - PAYMENT_DUPLICATE_WINDOW_MS).toISOString())
+            .limit(1);
+        if ((recentOrders || []).some((row: { created_at: string }) => isRecentPendingOrder(row.created_at))) {
+            return NextResponse.json<ApiData<null>>(
+                { success: false, message: PAYMENT_DUPLICATE_MESSAGE, data: null },
+                { status: 409 },
+            );
+        }
+
         const { data: order, error: orderError } = await (serviceRoleSupabase
             .from("alipay_orders") as any)
             .insert({
@@ -240,7 +286,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (!isPackageSwitch) {
+        // Renewals record their order on the subscription only once paid (fulfillPaidOrder);
+        // binding an unpaid renewal here would point the live subscription at a pending/failed order.
+        if (!renew) {
             await serviceRoleSupabase
                 .from("coach_subscriptions")
                 .update({ order_id: order.id, payment_method: "platform_wechat" })
