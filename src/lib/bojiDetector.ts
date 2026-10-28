@@ -137,18 +137,28 @@ function isAnalysis(value: unknown): value is BojiAnalysisDto {
     && !!v.messages && typeof v.messages === 'object';
 }
 
-/** sex：female 用女性档打分（引擎 0.2 起）；旧引擎会忽略这个参数，按男性档返回 */
+/** 检测服务返回值；abdomen_crop 是给视觉模型复核用的腹部裁图（base64 JPEG），不回传给前端 */
+export type BojiServiceResult = BojiAnalysisDto & { abdomen_crop?: string | null };
+
+/**
+ * sex：female 用女性档打分（引擎 0.2 起）；旧引擎会忽略这个参数，按男性档返回。
+ * abdomenCrop：同时要腹部裁图；不支持的旧引擎会忽略这个参数，不返回裁图。
+ */
 export async function analyzeWithBojiService(
   photo: Uint8Array,
   config: BojiConfig = getBojiConfig(),
   fetchImpl: typeof fetch = fetch,
   sex: BojiSex = 'male',
-): Promise<BojiAnalysisDto> {
+  options: { abdomenCrop?: boolean } = {},
+): Promise<BojiServiceResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.timeoutMs);
   let response: Response;
   try {
-    const query = sex === 'female' ? '?sex=female' : '';
+    const params = new URLSearchParams();
+    if (sex === 'female') params.set('sex', 'female');
+    if (options.abdomenCrop) params.set('abdomen_crop', 'true');
+    const query = params.toString() ? `?${params.toString()}` : '';
     response = await fetchImpl(`${config.serviceUrl}/v1/analyze${query}`, {
       method: 'POST',
       body: photo,
