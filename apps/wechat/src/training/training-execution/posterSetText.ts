@@ -59,3 +59,14 @@ export function fitPosterChipText(
   }
   return { text: `${current}…`, fontSize }
 }
+
+/**
+ * Set chip text on the training page. Same compact form as the poster, except a set with no
+ * recorded load shows its reps ("5次") instead of the poster's "—×5".
+ */
+export function formatSetChipText(set: any, action?: any): string {
+  const weight = finiteNumber(set?.actual_weight ?? set?.actualWeight)
+  if (isTimedTrainingSet(set, action) || weight !== null) return formatPosterSetText(set, action)
+  const reps = finiteNumber(set?.actual_reps ?? set?.actualReps)
+  return reps === null ? '已完成' : `${reps}次`
+}

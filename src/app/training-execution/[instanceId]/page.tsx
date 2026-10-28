@@ -2,6 +2,7 @@
 import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, formatRecordedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
 import RecordCompletionButton from '@/app/today-training/components/RecordCompletionButton';
 import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type TrainingIntent } from '@coachlink/core/src/trainingAccess';
+import { resolveImpromptuTitle } from '@coachlink/core/src/impromptuTitle';
 import { buildPlanExecutionPreview } from '@coachlink/core/src/planExecutionPreview';
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
@@ -703,7 +704,7 @@ function TrainingExecutionContent() {
                     : { success: false, data: null, message: "无法加载即兴执行记录" };
                 setPlanInstance({
                     id: "impromptu",
-                    name: "即兴锻炼",
+                    name: resolveImpromptuTitle(impromptuExecution?.title),
                     description: "即兴训练模式（可临时加组/加动作）",
                     source: "impromptu",
                 });

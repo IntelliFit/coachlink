@@ -1563,3 +1563,4 @@
 - 后续方向（用户提出，暂不做）：详细报告里把对称拆成肩高、腰线、臂粗、腹肌块、骨盆倾斜等分项。
 - `2026-10-27`: 单杠点位坐标统一带 `coordinate_system`：微信选点存 `gcj02`，网页天地图存 `wgs84`，服务端用 `resolveCoordinateSystem` 兜底（显式值优先；带微信 Referer 的请求补 `gcj02`；其他未知为 null；没动坐标不动标签）。显示时按地图换算（天地图 `toTianDiTuCoordinates`、微信 `toWeChatCoordinates`）。null 只代表历史未知数据，不再新写入。改历史数据的坐标系标签属于线上写操作，需用户逐批确认并保留回滚 id 清单。
 - `2026-10-27`: 小程序新增点位时 `chooseLocation` 不再传模糊定位作为起点（模糊定位有公里级偏差），让微信自己定位到用户真实位置；编辑已有点位仍从原位置打开。单杠编辑接口要求登录。
+- `2026-10-27`: 小程序训练执行页提供「列表 / 卡片」两种模式（设计稿「训练执行 v3」https://claude.ai/artifact/TK5ukQQrZr5ycHg6ToNrBa）。默认列表；选择按设备记在本地存储（`apps/wechat/src/utils/trainingViewMode.ts`，规则在 `packages/core/src/trainingViewMode.ts`），所有训练共用。两种模式共用同一套执行状态与处理函数，当前组编辑区是同一个组件 `SetEditor.tsx`，逐组能力不得只在一种模式里有。RPE 改为 6–10 一键选择（再点一次取消）。组间休息：列表模式用底部悬浮条，卡片模式用深色弹层（可收起成悬浮条）。即兴训练可给每次训练自定义名称（`impromptu_executions.title`，20 字，空 = 默认「即兴锻炼」）。Web 与 APP 执行页暂未跟进卡片模式。

@@ -58,6 +58,18 @@ class ImpromptuService {
     return null
   }
 
+  /** 修改本次即兴训练名称；传空字符串恢复默认名称。失败时抛出带服务端提示的错误。 */
+  async rename(executionId: string, title: string): Promise<{ id: string; title: string | null }> {
+    const res = await request<{ id: string; title: string | null }>({
+      url: `${this.baseUrl}/rename`,
+      method: 'POST',
+      data: { executionId, title },
+      showErrorToast: false
+    })
+    if (res.success && res.data) return res.data
+    throw new Error(res.message || '保存训练名称失败')
+  }
+
   /** 获取当前仍在进行中的即兴训练；没有时返回 null。 */
   async getCurrent(): Promise<StartImpromptuResponseDto | null> {
     const res = await request<StartImpromptuResponseDto | null>({

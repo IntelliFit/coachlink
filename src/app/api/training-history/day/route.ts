@@ -8,6 +8,7 @@ import type {
     GetTrainingDayHistoryResponseDto,
     TrainingDayHistoryItem,
 } from "./entity";
+import { resolveImpromptuTitle } from "@coachlink/core/src/impromptuTitle";
 
 export async function POST(req: Request) {
     try {
@@ -37,6 +38,16 @@ export async function POST(req: Request) {
         dayEndDate.setUTCDate(dayEndDate.getUTCDate() + 1);
         const dayEnd = dayEndDate.toISOString();
 
+        const queryImpromptuExecs = (withTitle: boolean) => supabase
+            .from("impromptu_executions")
+            .select(
+                `id, status, started_at, completed_at, total_sets, completed_sets, action_executions${withTitle ? ", title" : ""}`,
+            )
+            .eq("student_id", userId)
+            .gte("started_at", dayStart)
+            .lt("started_at", dayEnd)
+            .order("started_at", { ascending: false });
+
         const [{ data: planExecs, error: planError }, {
             data: impromptuExecs,
             error: impromptuError,
@@ -50,15 +61,10 @@ export async function POST(req: Request) {
                 .gte("started_at", dayStart)
                 .lt("started_at", dayEnd)
                 .order("started_at", { ascending: false }),
-            supabase
-                .from("impromptu_executions")
-                .select(
-                    "id, status, started_at, completed_at, total_sets, completed_sets, action_executions",
-                )
-                .eq("student_id", userId)
-                .gte("started_at", dayStart)
-                .lt("started_at", dayEnd)
-                .order("started_at", { ascending: false }),
+            queryImpromptuExecs(true).then((result) =>
+                // 兼容 title 列迁移前的库：缺列时退回旧字段集
+                result.error?.code === "42703" ? queryImpromptuExecs(false) : result
+            ),
         ]);
 
         if (planError || impromptuError) {
@@ -113,7 +119,7 @@ export async function POST(req: Request) {
                 completedAt: item.completed_at || null,
                 totalSets: item.total_sets || 0,
                 completedSets: item.completed_sets || 0,
-                title: "即兴训练",
+                title: resolveImpromptuTitle((item as any).title),
                 actionSummaries: summarizeActions((item as any).action_executions),
             });
         }

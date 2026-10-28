@@ -6,13 +6,18 @@ import React from 'react'
 import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type TrainingIntent } from '@coachlink/core/src/trainingAccess'
 import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation'
 import { resolveActionLoadMode, type ActionLoadMode } from '@coachlink/core/src/actionLoadMode'
+import { IMPROMPTU_TITLE_MAX_LENGTH, resolveImpromptuTitle } from '@coachlink/core/src/impromptuTitle'
+import { Edit } from '@nutui/icons-react-taro'
 import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, getTrainingSetVolume, formatRecordedTrainingSet, inheritedTimedSetDefaults } from '@coachlink/core/src/trainingSetMetrics'
 import RecordCompletionButton from '@/components/RecordCompletionButton'
-import { formatPosterSetText } from './posterSetText'
+import { formatPosterSetText, formatSetChipText } from './posterSetText'
 import { previousCompletedSetWithWeight } from './setDefaults'
+import SetEditor, { type SetEditorPanel } from './SetEditor'
+import { toggleQuickRpe, type TrainingViewMode } from '@coachlink/core/src/trainingViewMode'
+import { readTrainingViewMode, saveTrainingViewMode } from '@/utils/trainingViewMode'
 import { fromKg, getSetDisplayWeight, inheritedPlannedWeightUnit, toKg, weightUnitLabel, type SetWeightUnit } from '@coachlink/core/src/weightUnit'
 import { resolveWeappImageThumbnailUrl } from '@/utils/mediaUrl'
-import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas, Swiper, SwiperItem } from '@tarojs/components'
 import { ClButton, ClTag } from '@/components/ui'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { trainingService } from '@/services/trainingService'
@@ -48,6 +53,7 @@ import posterBackLegs from '@/assets/body-map/poster/back-legs.png'
 import posterBackShoulders from '@/assets/body-map/poster/back-shoulders.png'
 import './index.scss'
 import './workoutSummary.scss'
+import './executionV3.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { useSharePoster } from '@/hooks/useSharePoster'
 import {
@@ -455,6 +461,13 @@ function TrainingExecution() {
   const [restTimer, setRestTimer] = React.useState(0)
   const [isResting, setIsResting] = React.useState(false)
   const [restTimerMinimized, setRestTimerMinimized] = React.useState(false)
+  const [viewMode, setViewMode] = React.useState<TrainingViewMode>(() => readTrainingViewMode())
+  const [setEditorPanel, setSetEditorPanel] = React.useState<SetEditorPanel>(null)
+  /** 卡片 Swiper 自己的位置：滑动被忙碌状态拦下时用它把卡片弹回当前动作。 */
+  const [cardSwiperIndex, setCardSwiperIndex] = React.useState(0)
+  React.useEffect(() => {
+    setCardSwiperIndex(expandedAction)
+  }, [expandedAction])
   const [elapsedTrainingSeconds, setElapsedTrainingSeconds] = React.useState(0)
   
   // 当前组的输入状态
@@ -468,6 +481,7 @@ function TrainingExecution() {
   const [videoUrl, setVideoUrl] = React.useState('')
   const [setDrafts, setSetDrafts] = React.useState<Record<string, SetRecordDraft>>({})
   const [uploadingVideo, setUploadingVideo] = React.useState(false)
+  const [renamingImpromptu, setRenamingImpromptu] = React.useState(false)
 
   // 非力量项目（饮食/有氧/习惯）表单状态
   const [itemStates, setItemStates] = React.useState<Record<number, { dietContent?: string; cardioDistance?: number | null; cardioDuration?: number | null }>>({})
@@ -1366,6 +1380,35 @@ function TrainingExecution() {
           } finally {
             setUploadingVideo(false)
           }
+        }
+      }
+    })
+  }
+
+  const handleRenameImpromptu = () => {
+    const current = executionRef.current
+    if (!isImpromptuMode || !cloudExecutionReady || !current?.id || renamingImpromptu) return
+    Taro.showModal({
+      title: '训练名称',
+      editable: true,
+      content: String(current.title || ''),
+      placeholderText: `给这次训练起个名字（最多${IMPROMPTU_TITLE_MAX_LENGTH}字）`,
+      success: async (res) => {
+        if (!res.confirm) return
+        setRenamingImpromptu(true)
+        try {
+          const saved = await impromptuService.rename(current.id, String(res.content ?? ''))
+          const latest = executionRef.current
+          if (!latest || latest.id !== saved.id) return
+          const updatedExecution = { ...latest, title: saved.title }
+          executionRef.current = updatedExecution
+          setExecution(updatedExecution)
+          syncExecutionToCaches(updatedExecution)
+          Taro.showToast({ title: saved.title ? '已改名' : '已恢复默认名称', icon: 'success' })
+        } catch (error: any) {
+          Taro.showToast({ title: error?.message || '保存训练名称失败', icon: 'none' })
+        } finally {
+          setRenamingImpromptu(false)
         }
       }
     })
@@ -2327,6 +2370,7 @@ function TrainingExecution() {
     setExpandedSetKey(targetKey)
     setEditingSetKey(targetKey)
     setOpenSetMoreKey(set.notes || set.video_url ? targetKey : null)
+    setSetEditorPanel(set.notes ? 'note' : set.video_url ? 'video' : null)
     hydrateSetInputs(set, { allowCompleted: true, action: actionExecutions[actionIdx] })
   }
 
@@ -2334,8 +2378,11 @@ function TrainingExecution() {
     if (uploadingVideo || completing || cancelling) return
     setEditingSetKey(null)
     setOpenSetMoreKey(null)
-    const current = actionExecutions?.[expandedAction]?.sets?.[currentSetIndex]
-    hydrateSetInputs(current, { action: actionExecutions?.[expandedAction] })
+    const actionSets: SetData[] = actionExecutions?.[expandedAction]?.sets || []
+    const pendingIdx = actionSets.findIndex((s: SetData) => s.status === 'pending')
+    const nextIdx = pendingIdx >= 0 ? pendingIdx : currentSetIndex
+    setCurrentSetIndex(nextIdx)
+    hydrateSetInputs(actionSets[nextIdx], { action: actionExecutions?.[expandedAction] })
   }
 
   const handleSkipRest = () => {
@@ -2426,20 +2473,25 @@ function TrainingExecution() {
   const completedActions = actionExecutions.reduce((sum: number, a: ActionExecution) => {
     return sum + ((a.completed_sets || 0) >= (a.total_sets || 0) ? 1 : 0)
   }, 0)
-  const planTitle = String(planInstance?.name || (isImpromptuMode ? '即兴锻炼' : '训练执行')).trim()
+  const planTitle = isImpromptuMode
+    ? resolveImpromptuTitle(execution?.title)
+    : String(planInstance?.name || '训练执行').trim()
+  const canRenameImpromptu = isImpromptuMode && !!execution?.id && cloudExecutionReady
   const heroTimerValue = formatTimerValue(elapsedTrainingSeconds)
   const heroTimerLabel = execution?.completed_at
     ? '本次用时'
     : isTimedOutExecution
       ? '已记录时长'
       : '训练总时长'
-  const currentActualSummary = currentSet && isTimedTrainingSet(currentSet, currentAction) ? formatRecordedTrainingSet(currentSet, currentAction) : currentSet
-    ? [
-        currentSet.actual_weight !== null && currentSet.actual_weight !== undefined ? (lbsWeightText(currentSet) ?? `${currentSet.actual_weight}kg`) : null,
-        currentSet.actual_reps !== null && currentSet.actual_reps !== undefined ? `${currentSet.actual_reps}次` : null,
-        currentSet.rpe ? `RPE ${currentSet.rpe}` : null
+  /** 组的实际记录文案；顶部摘要和组行共用，0kg 统一写成「自重」 */
+  const formatActualSetText = (set: SetData, action?: ActionExecution) => isTimedTrainingSet(set, action)
+    ? formatRecordedTrainingSet(set, action)
+    : [
+        set.actual_weight !== null && set.actual_weight !== undefined ? (Number(set.actual_weight) === 0 ? '自重' : (lbsWeightText(set) ?? `${set.actual_weight}kg`)) : null,
+        set.actual_reps !== null && set.actual_reps !== undefined ? `${set.actual_reps}次` : null,
+        set.rpe ? `RPE ${set.rpe}` : null
       ].filter(Boolean).join(' · ')
-    : ''
+  const currentActualSummary = currentSet ? formatActualSetText(currentSet, currentAction) : ''
   const workoutSummary = (() => {
     let totalVolume = 0
     let completedSetTotal = 0
@@ -2810,6 +2862,725 @@ function TrainingExecution() {
     )
   }
 
+  const handleChangeViewMode = (mode: TrainingViewMode) => {
+    if (mode === viewMode) return
+    setViewMode(mode)
+    saveTrainingViewMode(mode)
+  }
+
+  const handleToggleSetPanel = (setKey: string, panel: Exclude<SetEditorPanel, null>) => {
+    const isOpen = openSetMoreKey === setKey && setEditorPanel === panel
+    setSetEditorPanel(panel)
+    setOpenSetMoreKey(isOpen ? null : setKey)
+  }
+
+  /** 两种模式共用的单组展示信息：摘要、状态、是否显示编辑区。 */
+  const describeSet = (action: ActionExecution, actionIdx: number, set: SetData, setIdx: number) => {
+    const loadMode = getActionLoadMode(action, actionIdx)
+    const setKey = setKeyOf(actionIdx, setIdx)
+    const isCurrentSet = actionIdx === expandedAction && setIdx === currentSetIndex
+    const isCompletedSet = set.status === 'completed'
+    const isEditingThisSet = editingSetKey === setKey
+    const showSetForm = isCurrentSet && (
+      (!isReadOnly && (!isCompletedSet || isEditingThisSet)) ||
+      (canCorrectCompletedSets && isCompletedSet && isEditingThisSet)
+    )
+    const setDraft = setDrafts[setKey]
+    const timedSet = isTimedTrainingSet(set, action)
+    const bodyweightSet = !timedSet && loadMode.mode === 'bodyweight'
+    const plannedWeightText = lbsWeightText(set, 'planned') ?? String(set.planned_weight || '').trim()
+    const plannedSummary = [
+      !timedSet ? plannedWeightText || null : null,
+      formatPlannedRepsText(set) || null,
+      set.planned_intensity || null
+    ].filter(Boolean).join(' · ')
+    const actualSummary = formatActualSetText(set, action)
+    const draftSummary = timedSet && setDraft ? (setDraft.reps ? `保持 ${setDraft.reps} 秒` : '') : setDraft
+      ? [
+          bodyweightSet ? '自重' : setDraft.weight !== null && setDraft.weight !== undefined ? (setDraft.weightUnit === 'lbs' ? `${setDraft.weight}${weightUnitLabel('lbs')}` : `${formatKgValueForGym(setDraft.weight)}kg`) : null,
+          setDraft.reps !== null && setDraft.reps !== undefined ? `${setDraft.reps}次` : null,
+          setDraft.rpe ? `RPE ${setDraft.rpe}` : null
+        ].filter(Boolean).join(' · ')
+      : ''
+    const mainSummary = isCompletedSet
+      ? actualSummary || '已完成'
+      : draftSummary || plannedSummary || (isCurrentSet ? '填写本组' : '未填写')
+    const activeVideoUrl = (isCurrentSet ? videoUrl : '') || setDraft?.videoUrl || set.video_url || ''
+    return {
+      loadMode,
+      setKey,
+      isCurrentSet,
+      isCompletedSet,
+      isEditingThisSet,
+      isExpandedSet: expandedSetKey === setKey,
+      showSetForm,
+      timedSet,
+      bodyweightSet,
+      plannedSummary,
+      actualSummary,
+      mainSummary,
+      chipLabel: isCompletedSet ? formatSetChipText(set, action) : plannedSummary || `第 ${set.set_number} 组`,
+      activeVideoUrl,
+      hasAttachedVideo: !!activeVideoUrl
+    }
+  }
+  type SetInfo = ReturnType<typeof describeSet>
+
+  const renderSetEditor = (actionIdx: number, set: SetData, info: SetInfo, size: 'regular' | 'large') => (
+    <SetEditor
+      size={size}
+      setNumber={set.set_number}
+      editing={info.isEditingThisSet}
+      timed={info.timedSet}
+      bodyweight={info.bodyweightSet}
+      weightLabel={info.loadMode.weightLabel}
+      weightUnit={weightUnit}
+      weightInput={weightInput}
+      weightPlaceholder={isConcreteWeightValue(set.planned_weight) ? String(getSetDisplayWeight(set, 'planned')?.value ?? parseFirstNumber(set.planned_weight)) : '—'}
+      reps={reps}
+      repsPlaceholder={String(set.planned_reps || '0')}
+      rpe={rpe}
+      markAsPR={markAsPR}
+      notes={setNotes}
+      panel={openSetMoreKey === info.setKey ? (setEditorPanel ?? (setNotes ? 'note' : 'video')) : null}
+      hasVideo={info.hasAttachedVideo}
+      uploadingVideo={uploadingVideo}
+      completing={completing}
+      plannedHint={info.plannedSummary ? `计划 ${info.plannedSummary}` : ''}
+      loadModeLabel={info.timedSet ? null : info.bodyweightSet ? '+ 加负重' : '改为自重'}
+      showCompleteButton={size === 'regular'}
+      onUnitChange={(unit) => switchWeightUnit(info.setKey, unit)}
+      onWeightInput={(raw) => {
+        const parsed = parseInputNumber(raw, 'float')
+        setWeightInput(raw)
+        setWeight(parsed)
+        updateSetDraft(info.setKey, { weightInput: raw, weight: parsed })
+      }}
+      onWeightStep={(direction) => adjustWeightValue(set, direction)}
+      onRepsInput={(raw) => {
+        const parsed = parseInputNumber(raw, 'int')
+        const nextReps = parsed === null ? null : Math.max(0, Math.floor(parsed))
+        setReps(nextReps)
+        updateSetDraft(info.setKey, { reps: nextReps })
+      }}
+      onRepsStep={(direction) => adjustRepsValue(set, direction * REPS_STEP)}
+      onRpePick={(value) => {
+        const nextRpe = toggleQuickRpe(rpe, value)
+        setRpe(nextRpe)
+        updateSetDraft(info.setKey, { rpe: nextRpe })
+      }}
+      onTogglePR={() => {
+        const next = !markAsPR
+        setMarkAsPR(next)
+        updateSetDraft(info.setKey, { markAsPR: next })
+      }}
+      onTogglePanel={(panel) => handleToggleSetPanel(info.setKey, panel)}
+      onNotesInput={(value) => {
+        setSetNotes(value)
+        updateSetDraft(info.setKey, { notes: value })
+      }}
+      onChooseVideo={handleChooseVideo}
+      onPasteVideoLink={handlePasteVideoLink}
+      onPreviewVideo={() => void handlePreviewSetVideo(info.activeVideoUrl)}
+      onToggleLoadMode={() => switchActionLoadMode(actionIdx, info.setKey, info.bodyweightSet ? 'weighted' : 'bodyweight')}
+      onComplete={() => handleCompleteSet()}
+      onCancelEdit={info.isEditingThisSet ? handleCancelEditCompletedSet : undefined}
+    />
+  )
+
+  const renderSetDetails = (actionIdx: number, setIdx: number, set: SetData, info: SetInfo, withDelete = false) => (
+    <View className="txv3-details" onClick={(e) => e.stopPropagation()}>
+      <View className="txv3-details__grid">
+        <View className="txv3-details__cell">
+          <Text className="txv3-details__label">本组记录</Text>
+          <Text className="txv3-details__value cl-num">{info.actualSummary || '未填写'}</Text>
+        </View>
+        <View className="txv3-details__cell">
+          <Text className="txv3-details__label">休息</Text>
+          <Text className="txv3-details__value">{formatRestSummary(set.planned_rest_seconds)}</Text>
+        </View>
+        <View className="txv3-details__cell">
+          <Text className="txv3-details__label">e1RM</Text>
+          <Text className="txv3-details__value cl-num">{set.e1rm !== null && set.e1rm !== undefined ? `${set.e1rm}kg` : '未生成'}</Text>
+        </View>
+      </View>
+      {!!set.notes && <Text className="txv3-details__note">备注：{set.notes}</Text>}
+      <View className="txv3-details__actions">
+        {!!set.video_url && (
+          <Text className="txv3-link-chip" onClick={() => void handlePreviewSetVideo(set.video_url)}>预览本组视频</Text>
+        )}
+        {(!isReadOnly || canCorrectCompletedSets) && (
+          <Text className="txv3-link-chip" onClick={() => handleEditCompletedSet(actionIdx, setIdx, set)}>修改本组</Text>
+        )}
+        {withDelete && !isReadOnly && set.source === 'student_extra' && (
+          <Text className="txv3-link-chip is-danger" onClick={() => handleDeleteExtraSet(actionIdx, setIdx)}>删除这组</Text>
+        )}
+      </View>
+    </View>
+  )
+
+  const renderNonStrength = (action: ActionExecution, actionIdx: number, actionType: string, actionMeta: { label: string }, showButton: boolean) => (
+    <View className="txv3-item">
+      {action.completed_sets > 0 ? (
+        <View className="txv3-item__done">
+          <Text className="txv3-item__done-title">已打卡完成</Text>
+          {action.sets?.[0]?.diet_content && <Text className="txv3-item__line">内容：{action.sets[0].diet_content}</Text>}
+          {action.sets?.[0]?.actual_distance && <Text className="txv3-item__line">距离：{(action.sets[0].actual_distance / 1000).toFixed(1)} km</Text>}
+          {action.sets?.[0]?.actual_duration && <Text className="txv3-item__line">时长：{Math.round((action.sets[0].actual_duration || 0) / 60)} 分钟</Text>}
+        </View>
+      ) : isReadOnly ? (
+        <Text className="txv3-item__line">该项目暂无完成记录（只读模式）</Text>
+      ) : (
+        <View className="txv3-item__form">
+          <Text className="txv3-item__title">{actionMeta.label}打卡</Text>
+          {actionType === 'DIET' && (
+            <Input
+              className="txv3-note"
+              value={itemStates[actionIdx]?.dietContent || ''}
+              placeholder="吃了什么、补了什么"
+              onInput={(e) => setItemStates((prev) => ({ ...prev, [actionIdx]: { ...prev[actionIdx], dietContent: e.detail.value } }))}
+            />
+          )}
+          {actionType === 'CARDIO' && (
+            <View className="txv3-steppers">
+              <View className="txv3-stepper">
+                <Text className="txv3-stepper__label">距离（km）</Text>
+                <Input
+                  type="digit"
+                  className="txv3-stepper__input txv3-stepper__input--boxed"
+                  value={itemStates[actionIdx]?.cardioDistance?.toString() || ''}
+                  placeholder="0"
+                  onInput={(e) => {
+                    const parsed = parseInputNumber(e.detail.value, 'float')
+                    setItemStates((prev) => ({ ...prev, [actionIdx]: { ...prev[actionIdx], cardioDistance: parsed === null ? null : Math.max(0, parsed) } }))
+                  }}
+                />
+              </View>
+              <View className="txv3-stepper">
+                <Text className="txv3-stepper__label">时长（分钟）</Text>
+                <Input
+                  type="number"
+                  className="txv3-stepper__input txv3-stepper__input--boxed"
+                  value={itemStates[actionIdx]?.cardioDuration?.toString() || ''}
+                  placeholder="0"
+                  onInput={(e) => {
+                    const parsed = parseInputNumber(e.detail.value, 'int')
+                    setItemStates((prev) => ({ ...prev, [actionIdx]: { ...prev[actionIdx], cardioDuration: parsed === null ? null : Math.max(0, Math.floor(parsed)) } }))
+                  }}
+                />
+              </View>
+            </View>
+          )}
+          {showButton && (
+            <Button className="txv3-primary" onClick={() => handleCompleteItem(actionIdx)} loading={completing}>完成打卡</Button>
+          )}
+        </View>
+      )}
+    </View>
+  )
+
+  const describeAction = (action: ActionExecution, actionIdx: number) => {
+    const actionDetail = actions[action.action_id]
+    const actionType = String(actionDetail?.type || 'STRENGTH').toUpperCase()
+    const actionMeta = getActionTypeMeta(actionType)
+    const isStrength = actionType === 'STRENGTH'
+    const firstSet = action.sets?.[0]
+    const summary = isStrength
+      ? [
+          `${action.total_sets} 组`,
+          formatPlannedRepsText(firstSet) || null,
+          (lbsWeightText(firstSet, 'planned') ?? firstSet?.planned_weight) || null,
+          firstSet?.planned_rest_seconds ? formatRestSummary(firstSet.planned_rest_seconds) : null
+        ].filter(Boolean).join(' · ')
+      : actionMeta.cue
+    return {
+      actionDetail,
+      actionType,
+      actionMeta,
+      isStrength,
+      isCompleted: action.total_sets > 0 && action.completed_sets >= action.total_sets,
+      name: action.action_name || actionDetail?.name || '未知动作',
+      imageUrl: String(actionDetail?.reference_image_url || ''),
+      summary,
+      planNote: getPlanActionNote(planInstance, dayIndex, action, actionIdx),
+      isExtra: action.source === 'student_extra'
+    }
+  }
+
+  const renderActionLinks = (action: ActionExecution, actionIdx: number, info: ReturnType<typeof describeAction>) => (
+    <View className="txv3-links">
+      <Text className="txv3-link-chip" onClick={(e) => {
+        e.stopPropagation()
+        handleOpenActionDetail(action, info.actionDetail, actionIdx)
+      }}>动作讲解</Text>
+      {!isReadOnly && info.isExtra && (
+        <Text className="txv3-link-chip is-danger" onClick={(e) => {
+          e.stopPropagation()
+          handleDeleteExtraExercise(actionIdx)
+        }}>删除动作</Text>
+      )}
+    </View>
+  )
+
+  const renderCoachNote = (note: string) => note ? (
+    <View className="txv3-coach">
+      <Text className="txv3-coach__label">教练</Text>
+      <Text className="txv3-coach__text">{note}</Text>
+    </View>
+  ) : null
+
+  const totalVolumeLabel = Math.round(workoutSummary.totalVolume).toLocaleString('en-US')
+  const heroKicker = isImpromptuMode
+    ? '即兴训练'
+    : `${intent === 'preview' ? '计划预览 · ' : isCompletedExecution ? '训练记录 · ' : isTimedOutExecution ? '待处理训练 · ' : !cloudExecutionReady ? '尚未开始 · ' : ''}第${dayIndex}天`
+
+  /** 偏好是卡片但还没有动作时（空的即兴训练、预览）退回列表布局。 */
+  const layout: TrainingViewMode = viewMode === 'card' && actionExecutions.length > 0 ? 'card' : 'list'
+
+  const renderHero = () => (
+    <View className="txv3-hero">
+      <View className="txv3-hero__top">
+        <Text className="txv3-hero__kicker">{heroKicker}</Text>
+        <View className="txv3-mode">
+          {(['list', 'card'] as TrainingViewMode[]).map((mode) => (
+            <Text
+              key={mode}
+              className={`txv3-mode__option ${viewMode === mode ? 'is-active' : ''}`}
+              onClick={() => handleChangeViewMode(mode)}
+            >
+              {mode === 'list' ? '列表' : '卡片'}
+            </Text>
+          ))}
+        </View>
+      </View>
+      <View className="txv3-hero__row">
+        {canRenameImpromptu ? (
+          <View className="txv3-hero__title-row" onClick={handleRenameImpromptu}>
+            <Text className="txv3-hero__title">{planTitle}</Text>
+            <Edit size={16} className="txv3-hero__title-edit" />
+          </View>
+        ) : (
+          <Text className="txv3-hero__title">{planTitle || '训练执行'}</Text>
+        )}
+        <View className="txv3-hero__timer">
+          <Text className="txv3-hero__clock cl-num">{heroTimerValue}</Text>
+          <Text className="txv3-hero__clock-label cl-num">{layout === 'card' ? `${completedSets} / ${totalSets} 组` : heroTimerLabel}</Text>
+        </View>
+      </View>
+      {layout === 'list' && actionExecutions.length > 0 && (
+        <View className="txv3-hero__segments">
+          {actionExecutions.map((item: ActionExecution, index: number) => {
+            const pct = item.total_sets > 0 ? Math.min(100, Math.round((item.completed_sets / item.total_sets) * 100)) : 0
+            return (
+              <View key={index} className="txv3-hero__segment">
+                <View className={`txv3-hero__segment-fill ${pct >= 100 ? 'is-done' : ''}`} style={{ width: `${pct}%` }} />
+              </View>
+            )
+          })}
+        </View>
+      )}
+      {layout === 'list' && <View className="txv3-hero__meta cl-num">
+        <Text className="txv3-hero__stat"><Text className="txv3-hero__stat-strong">{completedSets}</Text> / {totalSets} 组</Text>
+        <Text className="txv3-hero__stat">动作 <Text className="txv3-hero__stat-strong">{completedActions}</Text> / {actionExecutions.length}</Text>
+        {workoutSummary.totalVolume > 0 ? (
+          <Text className="txv3-hero__stat">容量 <Text className="txv3-hero__stat-strong">{totalVolumeLabel}</Text> kg</Text>
+        ) : null}
+        {lightweightProgress.pending > 0 ? <Text className="txv3-hero__stat">轻任务待完成 {lightweightProgress.pending}</Text> : null}
+        {currentActualSummary ? <Text className="txv3-hero__chip is-done">{currentActualSummary}</Text> : null}
+        {isTimedOutExecution ? <Text className="txv3-hero__chip">已超过5小时</Text> : null}
+      </View>}
+      {layout === 'card' && isTimedOutExecution ? <Text className="txv3-hero__chip">已超过5小时</Text> : null}
+    </View>
+  )
+
+  const renderListMode = () => (
+    <View className="txv3-list">
+      {actionExecutions.map((action: ActionExecution, actionIdx: number) => {
+        const info = describeAction(action, actionIdx)
+        const isExpanded = expandedAction === actionIdx
+        const status = info.isCompleted ? 'done' : isExpanded ? 'current' : 'todo'
+        const completedSetList = (action.sets || []).filter((set: SetData) => set.status === 'completed')
+        return (
+          <View key={actionIdx} className={`txv3-action is-${status} ${isExpanded ? 'is-open' : ''}`}>
+            <View className="txv3-action__head" onClick={() => handleExpandAction(actionIdx)}>
+              <View className="txv3-thumb">
+                {info.imageUrl ? (
+                  <Image className="txv3-thumb__img" src={resolveWeappImageThumbnailUrl(info.imageUrl, 240)} mode="aspectFit" lazyLoad />
+                ) : (
+                  <Text className="txv3-thumb__no cl-num">{actionIdx + 1}</Text>
+                )}
+              </View>
+              <View className="txv3-action__copy">
+                {status === 'current' && <Text className="txv3-action__kicker">进行中 · 动作 {actionIdx + 1}</Text>}
+                <Text className="txv3-action__name">{info.name}</Text>
+                <Text className="txv3-action__meta cl-num">
+                  {info.isCompleted && info.isStrength ? `${completedSetList.length} 组完成` : info.summary}
+                </Text>
+              </View>
+              {info.isCompleted ? (
+                <View className="txv3-done-mark"><Text className="txv3-done-mark__icon">✓</Text></View>
+              ) : (
+                <Text className="txv3-action__count cl-num">{action.completed_sets}/{action.total_sets}</Text>
+              )}
+            </View>
+
+            {info.isCompleted && !isExpanded && info.isStrength && completedSetList.length > 0 && (
+              <View className="txv3-chips">
+                {completedSetList.map((set: SetData) => (
+                  <View key={set.set_number} className="txv3-chip is-done">
+                    <Text className="txv3-chip__no cl-num">{set.set_number}</Text>
+                    <Text className="txv3-chip__text cl-num">{formatSetChipText(set, action)}{set.is_auto_pr ? ' 新纪录' : ''}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {isExpanded && (
+              <View className="txv3-action__body">
+                {renderActionLinks(action, actionIdx, info)}
+                {renderCoachNote(info.planNote)}
+                {info.isStrength ? (
+                  <View className="txv3-sets">
+                    {(action.sets || []).map((set: SetData, setIdx: number) => {
+                      const setInfo = describeSet(action, actionIdx, set, setIdx)
+                      if (setInfo.showSetForm) {
+                        return <View key={setIdx} className="txv3-sets__editor">{renderSetEditor(actionIdx, set, setInfo, 'regular')}</View>
+                      }
+                      return (
+                        <View key={setIdx}>
+                          <View
+                            className={`txv3-set ${setInfo.isCompletedSet ? 'is-done' : setInfo.isCurrentSet ? 'is-current' : ''}`}
+                            onClick={() => handlePressSet(actionIdx, setIdx)}
+                          >
+                            <Text className="txv3-set__no cl-num">{set.set_number}</Text>
+                            <Text className="txv3-set__summary cl-num">{setInfo.mainSummary}</Text>
+                            <View className="txv3-set__tags">
+                              {set.is_pr && <Text className="txv3-tag is-clay">进步</Text>}
+                              {set.is_auto_pr && !setInfo.timedSet && <Text className="txv3-tag is-solid">新纪录</Text>}
+                              {set.video_url && <Text className="txv3-tag">视频</Text>}
+                              {set.notes && <Text className="txv3-tag">备注</Text>}
+                            </View>
+                            {!isReadOnly && set.source === 'student_extra' && (
+                              <Text className="txv3-set__delete" onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteExtraSet(actionIdx, setIdx)
+                              }}>删除</Text>
+                            )}
+                            <View className={`txv3-set__box ${setInfo.isCompletedSet ? 'is-done' : ''}`}>
+                              {setInfo.isCompletedSet ? <Text className="txv3-set__check">✓</Text> : null}
+                            </View>
+                          </View>
+                          {setInfo.isCurrentSet && !setInfo.isCompletedSet && isReadOnly && (
+                            <Text className="txv3-readonly">该组暂无执行记录（只读模式）</Text>
+                          )}
+                          {setInfo.isCompletedSet && setInfo.isExpandedSet && renderSetDetails(actionIdx, setIdx, set, setInfo)}
+                        </View>
+                      )
+                    })}
+                    {!isReadOnly && (
+                      <View className="txv3-dashed" onClick={() => { if (!addingExtraSet) void handleAddExtraSet(actionIdx) }}>
+                        <Text className="txv3-dashed__text">{addingExtraSet ? '添加中...' : '+ 加一组'}</Text>
+                      </View>
+                    )}
+                  </View>
+                ) : renderNonStrength(action, actionIdx, info.actionType, info.actionMeta, true)}
+              </View>
+            )}
+          </View>
+        )
+      })}
+      {!isReadOnly && (
+        <View className="txv3-dashed txv3-dashed--action" onClick={() => { if (!addingExtraAction) handleOpenActionLibrary() }}>
+          <Text className="txv3-dashed__text">{addingExtraAction ? '添加中...' : '+ 添加动作'}</Text>
+        </View>
+      )}
+    </View>
+  )
+
+  const finishButtonLabel = !canFinishWholeDay && !isImpromptuMode
+    ? '返回今日安排继续轻任务'
+    : shouldShowQuickFinishButton
+      ? '一键完成训练'
+      : '完成训练'
+  const handleFinishButton = !canFinishWholeDay && !isImpromptuMode
+    ? handleBackToTodayTraining
+    : shouldShowQuickFinishButton
+      ? handleQuickFinishTraining
+      : handleFinishTraining
+  const showFinishButton = !isReadOnly && !canLateCompleteTimedOut
+
+  /** 超时补记、轻任务提示、取消训练：两种模式都放在内容末尾，不进底栏。 */
+  const renderFooterExtras = () => {
+    if (!canLateCompleteTimedOut && !canCancelTraining && (canFinishWholeDay || isImpromptuMode || isReadOnly)) return null
+    return (
+      <View className="footer-section txv3-footer">
+        {canLateCompleteTimedOut && (
+          <Text className="finish-hint">这次训练已自动结束；可按已记录内容补记完成，或重新训练这一天</Text>
+        )}
+        {!isReadOnly && !canFinishWholeDay && !isImpromptuMode && (
+          <Text className="finish-hint">仍有 {lightweightProgress.pending} 个轻任务待完成</Text>
+        )}
+        {canLateCompleteTimedOut && cloudExecutionReady && (
+          <RecordCompletionButton instanceId={instanceId} dayIndex={dayIndex} execution={execution}
+            earliestDate={planInstance?.start_date || planInstance?.created_at}
+            onSaved={(saved) => { setExecution(saved); syncExecutionToCaches(saved); handleBackToTodayTraining() }} />
+        )}
+        {canLateCompleteTimedOut && (
+          <View className="cancel-training-wrap">
+            <Button
+              className="cancel-training-btn"
+              loading={restartingTimedOut}
+              disabled={completing || restartingTimedOut || !cloudExecutionReady}
+              onClick={handleRestartTimedOutTraining}
+            >
+              重新训练这一天
+            </Button>
+          </View>
+        )}
+        {canCancelTraining && (
+          <View className="cancel-training-wrap">
+            <Text className="cancel-training-hint">误点进入且尚未完成任何内容时，可恢复为未开始</Text>
+            <Button
+              className="cancel-training-btn"
+              loading={cancelling}
+              disabled={completing || cancelling || uploadingVideo}
+              onClick={handleCancelTraining}
+            >
+              取消本次训练
+            </Button>
+          </View>
+        )}
+      </View>
+    )
+  }
+
+  const focusedActionIdx = Math.min(expandedAction, Math.max(0, actionExecutions.length - 1))
+
+  const renderCardMode = () => (
+    <View className="txv3-cards">
+      <ScrollView scrollX className="txv3-strip" showScrollbar={false} enhanced scrollIntoView={`txv3-tile-${focusedActionIdx}`} scrollWithAnimation>
+        <View className="txv3-strip__row">
+          {actionExecutions.map((action: ActionExecution, actionIdx: number) => {
+            const info = describeAction(action, actionIdx)
+            const isFocused = actionIdx === focusedActionIdx
+            return (
+              <View
+                key={actionIdx}
+                id={`txv3-tile-${actionIdx}`}
+                className={`txv3-tile ${isFocused ? 'is-focused' : ''} ${info.isCompleted ? 'is-done' : ''}`}
+                onClick={() => handleExpandAction(actionIdx)}
+              >
+                {info.imageUrl ? (
+                  <Image className="txv3-tile__img" src={resolveWeappImageThumbnailUrl(info.imageUrl, 160)} mode="aspectFit" lazyLoad />
+                ) : (
+                  <Text className="txv3-tile__no cl-num">{actionIdx + 1}</Text>
+                )}
+                {info.isCompleted && <View className="txv3-tile__badge"><Text className="txv3-tile__badge-icon">✓</Text></View>}
+              </View>
+            )
+          })}
+        </View>
+      </ScrollView>
+
+      <Swiper
+        className="txv3-swiper"
+        current={Math.min(cardSwiperIndex, Math.max(0, actionExecutions.length - 1))}
+        previousMargin="16rpx"
+        nextMargin="48rpx"
+        onChange={(e) => {
+          const next = Number(e.detail.current)
+          setCardSwiperIndex(next)
+          if (next === expandedAction) return
+          if (uploadingVideo || completing || cancelling) {
+            Taro.showToast({ title: '正在保存，稍后再切换动作', icon: 'none' })
+            setTimeout(() => setCardSwiperIndex(expandedAction), 0)
+            return
+          }
+          handleExpandAction(next)
+        }}
+      >
+        {actionExecutions.map((action: ActionExecution, actionIdx: number) => {
+          const info = describeAction(action, actionIdx)
+          const isFocused = actionIdx === focusedActionIdx
+          const sets = action.sets || []
+          const setInfos = sets.map((set: SetData, setIdx: number) => describeSet(action, actionIdx, set, setIdx))
+          const editorIdx = isFocused ? setInfos.findIndex((item) => item.showSetForm) : -1
+          const expandedDoneIdx = isFocused ? setInfos.findIndex((item) => item.isCompletedSet && item.isExpandedSet) : -1
+          return (
+            <SwiperItem key={actionIdx} className="txv3-swiper__item">
+              <View className={`txv3-card ${isFocused ? 'is-focused' : ''}`}>
+                <ScrollView scrollY className="txv3-card__scroll" showScrollbar={false} enhanced>
+                  <View className={`txv3-card__media ${info.imageUrl ? '' : 'is-empty'}`}>
+                    {info.imageUrl ? (
+                      <Image className="txv3-card__img" src={resolveWeappImageThumbnailUrl(info.imageUrl, 600)} mode="aspectFit" lazyLoad />
+                    ) : (
+                      <Text className="txv3-card__no cl-num">{actionIdx + 1}</Text>
+                    )}
+                    <View className="txv3-card__media-actions">
+                      <Text className="txv3-card__media-chip" onClick={(e) => {
+                        e.stopPropagation()
+                        handleOpenActionDetail(action, info.actionDetail, actionIdx)
+                      }}>动作讲解</Text>
+                    </View>
+                  </View>
+                  <View className="txv3-card__body">
+                    <View className="txv3-card__status">
+                      <Text className={`txv3-card__badge is-${info.isCompleted ? 'done' : isFocused ? 'current' : 'todo'}`}>
+                        {info.isCompleted ? '已完成' : action.completed_sets > 0 ? '进行中' : '未开始'}
+                      </Text>
+                      <Text className="txv3-card__pos cl-num">动作 {actionIdx + 1} / {actionExecutions.length}</Text>
+                      {!isReadOnly && info.isExtra && isFocused && (
+                        <Text className="txv3-card__delete" onClick={() => handleDeleteExtraExercise(actionIdx)}>删除动作</Text>
+                      )}
+                    </View>
+                    <Text className="txv3-card__name">{info.name}</Text>
+                    <Text className="txv3-card__meta cl-num">{info.summary}</Text>
+                    {renderCoachNote(info.planNote)}
+
+                    {info.isStrength ? (
+                      <>
+                        <View className="txv3-chips">
+                          {sets.map((set: SetData, setIdx: number) => {
+                            const setInfo = setInfos[setIdx]
+                            const tone = setInfo.isCompletedSet ? 'is-done' : setInfo.isCurrentSet ? 'is-current' : ''
+                            return (
+                              <View key={setIdx} className={`txv3-chip ${tone}`} onClick={() => handlePressSet(actionIdx, setIdx)}>
+                                <Text className="txv3-chip__no cl-num">{set.set_number}</Text>
+                                <Text className="txv3-chip__text cl-num">
+                                  {setInfo.isCurrentSet && !setInfo.isCompletedSet ? `第 ${set.set_number} 组` : setInfo.chipLabel}
+                                  {set.is_auto_pr ? ' 新纪录' : set.is_pr ? ' 进步' : ''}
+                                </Text>
+                              </View>
+                            )
+                          })}
+                          {!isReadOnly && isFocused && (
+                            <View className="txv3-chip is-add" onClick={() => { if (!addingExtraSet) void handleAddExtraSet(actionIdx) }}>
+                              <Text className="txv3-chip__text">{addingExtraSet ? '添加中' : '+ 加一组'}</Text>
+                            </View>
+                          )}
+                          {!isReadOnly && isFocused && sets[currentSetIndex]?.source === 'student_extra' && sets[currentSetIndex]?.status !== 'completed' && (
+                            <View className="txv3-chip is-add is-danger" onClick={() => handleDeleteExtraSet(actionIdx, currentSetIndex)}>
+                              <Text className="txv3-chip__text">删除第 {sets[currentSetIndex].set_number} 组</Text>
+                            </View>
+                          )}
+                        </View>
+                        {expandedDoneIdx >= 0 && renderSetDetails(actionIdx, expandedDoneIdx, sets[expandedDoneIdx], setInfos[expandedDoneIdx], true)}
+                        {editorIdx >= 0 && renderSetEditor(actionIdx, sets[editorIdx], setInfos[editorIdx], 'large')}
+                        {isFocused && isReadOnly && sets[currentSetIndex] && sets[currentSetIndex].status !== 'completed' && (
+                          <Text className="txv3-readonly">该组暂无执行记录（只读模式）</Text>
+                        )}
+                        {isFocused && editorIdx < 0 && info.isCompleted && (
+                          <View className="txv3-card__done">
+                            <Text className="txv3-card__done-title">{info.name} {action.completed_sets} 组完成</Text>
+                            <Text className="txv3-card__done-hint">{isReadOnly && !canCorrectCompletedSets ? '点上面的组可以查看详情' : '点上面的组可以查看或修改'}</Text>
+                          </View>
+                        )}
+                      </>
+                    ) : isFocused ? renderNonStrength(action, actionIdx, info.actionType, info.actionMeta, false) : null}
+                  </View>
+                </ScrollView>
+              </View>
+            </SwiperItem>
+          )
+        })}
+      </Swiper>
+    </View>
+  )
+
+  const focusedAction = actionExecutions[focusedActionIdx] as ActionExecution | undefined
+  const focusedInfo = focusedAction ? describeAction(focusedAction, focusedActionIdx) : null
+  const focusedEditorSet = focusedAction?.sets?.[currentSetIndex]
+  const focusedEditorInfo = focusedAction && focusedEditorSet
+    ? describeSet(focusedAction, focusedActionIdx, focusedEditorSet, currentSetIndex)
+    : null
+  const nextOpenActionIdx = actionExecutions.findIndex((action: ActionExecution, idx: number) =>
+    idx !== focusedActionIdx && action.completed_sets < action.total_sets)
+
+  /** 卡片模式底部主按钮：跟着当前卡片变成「完成第 N 组 / 完成打卡 / 下一个动作 / 完成训练」。 */
+  const cardPrimary = (() => {
+    if (focusedInfo?.isStrength && focusedEditorInfo?.showSetForm && focusedEditorSet) {
+      return {
+        label: focusedEditorInfo.isEditingThisSet ? '保存修改' : `完成第 ${focusedEditorSet.set_number} 组`,
+        hint: focusedEditorInfo.isEditingThisSet ? '' : `完成后${formatRestSummary(focusedEditorSet.planned_rest_seconds)}`,
+        disabled: false,
+        onClick: () => void handleCompleteSet()
+      }
+    }
+    if (focusedInfo && !focusedInfo.isStrength && !focusedInfo.isCompleted && !isReadOnly) {
+      return { label: '完成打卡', hint: '', disabled: false, onClick: () => void handleCompleteItem(focusedActionIdx) }
+    }
+    if (nextOpenActionIdx >= 0 && !isReadOnly) {
+      const nextAction = actionExecutions[nextOpenActionIdx]
+      return {
+        label: `下一个动作：${nextAction.action_name || '下一个'}`,
+        hint: `还剩 ${pendingSetsCount} 组`,
+        disabled: false,
+        onClick: () => handleExpandAction(nextOpenActionIdx)
+      }
+    }
+    if (showFinishButton) {
+      return { label: finishButtonLabel, hint: '', disabled: !cloudExecutionReady || restartingTimedOut, onClick: () => void handleFinishButton() }
+    }
+    return null
+  })()
+
+  const handleOpenCardMoreMenu = () => {
+    const items: Array<{ label: string; run: () => void }> = []
+    if (!isReadOnly) items.push({ label: '添加动作', run: handleOpenActionLibrary })
+    if (!isReadOnly && focusedInfo?.isStrength) items.push({ label: '这个动作加一组', run: () => void handleAddExtraSet(focusedActionIdx) })
+    if (showFinishButton && cardPrimary?.label !== finishButtonLabel) items.push({ label: finishButtonLabel, run: () => void handleFinishButton() })
+    if (canCancelTraining) items.push({ label: '取消本次训练', run: handleCancelTraining })
+    items.push({ label: '切换到列表模式', run: () => handleChangeViewMode('list') })
+    Taro.showActionSheet({
+      itemList: items.map((item) => item.label),
+      success: (res) => items[res.tapIndex]?.run()
+    }).catch(() => undefined)
+  }
+
+  const renderCardBottomBar = () => (
+    <View className="txv3-card-bottom">
+      <View className="txv3-dots">
+        {actionExecutions.map((_: ActionExecution, idx: number) => (
+          <View key={idx} className={`txv3-dots__dot ${idx === focusedActionIdx ? 'is-active' : ''}`} />
+        ))}
+      </View>
+      {cardPrimary?.hint ? <Text className="txv3-card-bottom__hint cl-num">{cardPrimary.hint}</Text> : null}
+      <View className="txv3-card-bottom__row">
+        <View className="txv3-more-btn" onClick={handleOpenCardMoreMenu}>
+          <Text className="txv3-more-btn__dots">···</Text>
+        </View>
+        {cardPrimary ? (
+          <Button
+            className="txv3-primary txv3-primary--flex"
+            loading={completing}
+            disabled={cardPrimary.disabled}
+            onClick={cardPrimary.onClick}
+          >
+            {cardPrimary.label}
+          </Button>
+        ) : null}
+      </View>
+    </View>
+  )
+
+  const showRestSheet = isResting && layout === 'card' && !restTimerMinimized
+  const showRestBar = isResting && !showRestSheet
+
+  const completionEntry = isWorkoutCompleted && (
+        <View className="workout-complete-entry">
+          <Text className="workout-complete-title">本次训练已完成</Text>
+          <Text className="workout-complete-hint">
+            {canOpenWorkoutSummary ? '生成打卡图，分享这次训练。' : '训练已记录，暂无可生成打卡图的完成组。'}
+          </Text>
+          {canOpenWorkoutSummary && (
+            <Button className="workout-checkin-button" loading={workoutPosterGenerating}
+              disabled={workoutPosterGenerating} onClick={handleGenerateWorkoutPoster}>
+              生成打卡图
+            </Button>
+          )}
+        </View>
+      )
+
   return (
     <View className={`training-execution-page tx-v1 theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
       {process.env.NODE_ENV === 'development' ? <LocalDebugBanner /> : null}
@@ -2829,741 +3600,168 @@ function TrainingExecution() {
             : <Button className='error-secondary-btn' onClick={() => void requestStartTraining({ force: true })}>刷新训练资格</Button>}
         </View>
       ) : null}
-      <View className="execution-scroll">
-        <View className="execution-shell">
-          {isWorkoutCompleted && (
-            <View className="workout-complete-entry">
-              <Text className="workout-complete-title">本次训练已完成</Text>
-              <Text className="workout-complete-hint">
-                {canOpenWorkoutSummary ? '生成打卡图，分享这次训练。' : '训练已记录，暂无可生成打卡图的完成组。'}
-              </Text>
-              {canOpenWorkoutSummary && (
-                <Button className="workout-checkin-button" loading={workoutPosterGenerating}
-                  disabled={workoutPosterGenerating} onClick={handleGenerateWorkoutPoster}>
-                  生成打卡图
-                </Button>
-              )}
-            </View>
-          )}
-          <View className="hero-section">
-            <View className="hero-compact">
-              <View className="hero-compact__row">
-                <View className="hero-compact__copy">
-                  {!isImpromptuMode && (
-                    <Text className="hero-compact__kicker">{`${intent === 'preview' ? '计划预览 · ' : isCompletedExecution ? '训练记录 · ' : isTimedOutExecution ? '待处理训练 · ' : !cloudExecutionReady ? '尚未开始 · ' : ''}第${dayIndex}天`}</Text>
-                  )}
-                  <Text className="hero-compact__title">{planTitle || '训练执行'}</Text>
-                </View>
-                <View className="hero-compact__timer">
-                  <Text className="hero-compact__timer-value cl-num">{heroTimerValue}</Text>
-                  <Text className="hero-compact__timer-label">{heroTimerLabel}</Text>
-                </View>
-              </View>
-              {actionExecutions.length > 0 && (
-                <View className="hero-compact__segments">
-                  {actionExecutions.map((item: ActionExecution, index: number) => (
-                    <View
-                      key={index}
-                      className={`hero-compact__segment ${item.completed_sets >= item.total_sets ? 'hero-compact__segment--done' : index === expandedAction ? 'hero-compact__segment--current' : ''}`}
-                    />
-                  ))}
-                </View>
-              )}
-              <View className="hero-compact__meta-row">
-                <Text className="hero-compact__meta cl-num">
-                  {`${actionExecutions.length}个动作 · ${completedSets}/${totalSets}组 · 完成${completedActions}个`}
-                  {lightweightProgress.pending > 0 ? ` · 轻任务待完成${lightweightProgress.pending}` : ''}
-                </Text>
-                {currentActualSummary ? <Text className="hero-chip success">{currentActualSummary}</Text> : null}
-                {isTimedOutExecution ? <Text className="hero-chip warning">已超过5小时</Text> : null}
-              </View>
-            </View>
-          </View>
-
-          <View className="actions-section">
-            {actionExecutions.map((action: ActionExecution, actionIdx: number) => {
-              const actionDetail = actions[action.action_id]
-              const actionType = String(actionDetail?.type || 'STRENGTH').toUpperCase()
-              const actionMeta = getActionTypeMeta(actionType)
-              const isStrength = actionType === 'STRENGTH'
-              const isExpanded = expandedAction === actionIdx
-              const isCompleted = action.completed_sets >= action.total_sets
-              const firstSet = action.sets?.[0]
-              const actionSummary = isStrength
-                ? [
-                    firstSet?.planned_weight || null,
-                    formatPlannedRepsText(firstSet) || null,
-                    firstSet?.planned_intensity || null,
-                    formatRestSummary(firstSet?.planned_rest_seconds)
-                  ].filter(Boolean).join(' · ')
-                : actionMeta.cue
-              const planActionNote = getPlanActionNote(planInstance, dayIndex, action, actionIdx)
-
-              return (
-                <View
-                  key={actionIdx}
-                  className={`action-card action-tone-${actionType.toLowerCase()} ${isExpanded ? 'expanded' : ''} ${isCompleted ? 'completed' : ''}`}
-                >
-                  <View className="action-header" onClick={() => handleExpandAction(actionIdx)}>
-                    <View className="action-info">
-                      {actionDetail?.reference_image_url ? (
-                        <Image
-                          className="action-thumb"
-                          src={resolveWeappImageThumbnailUrl(actionDetail.reference_image_url, 240)}
-                          mode="aspectFit"
-                          lazyLoad
-                        />
-                      ) : (
-                        <Text className="action-number">{actionIdx + 1}</Text>
-                      )}
-                      <View className="action-copy">
-                        <Text className="action-name">{action.action_name || actionDetail?.name || '未知动作'}</Text>
-                        <View className="action-meta-row">
-                          <Text className="action-type-pill">{actionMeta.label}</Text>
-                          {actionSummary ? <Text className="action-summary">{actionSummary}</Text> : null}
-                        </View>
-                        <View className="action-reference-row">
-                          <Text className="action-reference-chip" onClick={(e) => {
-                            e.stopPropagation()
-                            handleOpenActionDetail(action, actionDetail, actionIdx)
-                          }}>动作讲解</Text>
-                        </View>
-                      </View>
-                    </View>
-                    <View className="action-progress">
-                      <Text className={`action-progress-pill ${isCompleted ? 'done' : ''}`}>{action.completed_sets}/{action.total_sets}组</Text>
-                      {!isReadOnly && action.source === 'student_extra' && (
-                        <Text
-                          className="action-delete-btn"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteExtraExercise(actionIdx)
-                          }}
-                        >
-                          删除
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-
-                {isExpanded && (
-                  <View className="action-content">
-                    {planActionNote && (
-                      <View className="coach-plan-note">
-                        <Text className="coach-plan-note-label">教练备注</Text>
-                        <Text className="coach-plan-note-text">{planActionNote}</Text>
-                      </View>
-                    )}
-                    {isStrength ? (
-                      <>
-                        <View className="sets-list">
-                          {action.sets?.map((set: SetData, setIdx: number) => {
-                            const loadMode = getActionLoadMode(action, actionIdx)
-                            const isCurrentSet = setIdx === currentSetIndex
-                            const isCompletedSet = set.status === 'completed'
-                            const setKey = setKeyOf(actionIdx, setIdx)
-                            const isExpandedSet = expandedSetKey === setKey
-                            const isEditingThisSet = editingSetKey === setKey
-                            const showSetForm = isCurrentSet && (
-                              (!isReadOnly && (!isCompletedSet || isEditingThisSet)) ||
-                              (canCorrectCompletedSets && isCompletedSet && isEditingThisSet)
-                            )
-                            const setDraft = setDrafts[setKey]
-                            const timedSet = isTimedTrainingSet(set, action)
-                            const bodyweightSet = !timedSet && loadMode.mode === 'bodyweight'
-                            const plannedWeightText = lbsWeightText(set, 'planned') ?? String(set.planned_weight || '').trim()
-                            const plannedRepsText = formatPlannedRepsText(set)
-                            const plannedSummary = [
-                              !timedSet ? plannedWeightText || null : null,
-                              plannedRepsText || null,
-                              set.planned_intensity || null
-                            ].filter(Boolean).join(' · ')
-                            const actualSummary = timedSet ? formatRecordedTrainingSet(set, action) : [
-                              set.actual_weight !== null && set.actual_weight !== undefined ? (Number(set.actual_weight) === 0 ? '自重' : (lbsWeightText(set) ?? `${set.actual_weight}kg`)) : null,
-                              set.actual_reps !== null && set.actual_reps !== undefined ? `${set.actual_reps}次` : null,
-                              set.rpe ? `RPE ${set.rpe}` : null
-                            ].filter(Boolean).join(' · ')
-                            const draftSummary = timedSet && setDraft ? (setDraft.reps ? `保持 ${setDraft.reps} 秒` : '') : setDraft
-                              ? [
-                                  bodyweightSet ? '自重' : setDraft.weight !== null && setDraft.weight !== undefined ? (setDraft.weightUnit === 'lbs' ? `${setDraft.weight}${weightUnitLabel('lbs')}` : `${formatKgValueForGym(setDraft.weight)}kg`) : null,
-                                  setDraft.reps !== null && setDraft.reps !== undefined ? `${setDraft.reps}次` : null,
-                                  setDraft.rpe ? `RPE ${setDraft.rpe}` : null
-                                ].filter(Boolean).join(' · ')
-                              : ''
-                            const mainSummary = isCompletedSet
-                              ? actualSummary || '已完成'
-                              : draftSummary || plannedSummary || (isCurrentSet ? '填写本组' : '未填写')
-                            const stateText = isEditingThisSet
-                              ? '编辑中'
-                              : isCompletedSet
-                                ? '已完成'
-                                : isCurrentSet
-                                  ? '当前组'
-                                  : '待完成'
-                            const isMoreOpen = openSetMoreKey === setKey
-                            const draftVideoUrl = setDraft?.videoUrl || ''
-                            const activeVideoUrl = (isCurrentSet ? videoUrl : '') || draftVideoUrl || set.video_url || ''
-                            const hasAttachedVideo = !!activeVideoUrl
-                            const moreSummary = [
-                              (isCurrentSet ? setNotes : '') || setDraft?.notes || set.notes ? '有备注' : null,
-                              hasAttachedVideo ? '有视频' : null
-                            ].filter(Boolean).join(' · ')
-
-                            return (
-                              <View
-                                key={setIdx}
-                                className={`set-item ${isCurrentSet ? 'current' : ''} ${isCompletedSet ? 'completed' : ''} ${isExpandedSet ? 'expanded-details' : ''}`}
-                              >
-                                <View className="set-header" onClick={() => handlePressSet(actionIdx, setIdx)}>
-                                  <View className="set-index-pill">
-                                    <Text className="set-index-number">{set.set_number}</Text>
-                                    <Text className="set-index-label">组</Text>
-                                  </View>
-                                  <View className="set-header-main">
-                                    <View className="set-header-top">
-                                      <Text className="set-main-summary">{mainSummary}</Text>
-                                      <Text className={`set-state-pill ${isCompletedSet ? 'done' : isCurrentSet ? 'active' : ''}`}>{stateText}</Text>
-                                    </View>
-                                    <View className="set-header-bottom">
-                                      <Text className="set-subline">{formatRestSummary(set.planned_rest_seconds)}</Text>
-                                      {set.is_pr && <Text className="set-tag pr">PR</Text>}
-                                      {set.is_auto_pr && !timedSet && <Text className="set-tag auto">新纪录</Text>}
-                                      {set.video_url && <Text className="set-tag">视频</Text>}
-                                      {set.notes && <Text className="set-tag">备注</Text>}
-                                    </View>
-                                  </View>
-                                  {!isReadOnly && set.source === 'student_extra' && (
-                                    <Text
-                                      className="set-delete-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleDeleteExtraSet(actionIdx, setIdx)
-                                      }}
-                                    >
-                                      删除
-                                    </Text>
-                                  )}
-                                </View>
-
-                                {showSetForm && (
-                                  <View className="set-record-form">
-                                    <View className={`record-inline-row ${timedSet ? 'timed' : ''} ${bodyweightSet ? 'bodyweight' : ''}`}>
-                                      {!timedSet && !bodyweightSet && <View className="record-input-cell weight">
-                                        <View className="record-input-label-row">
-                                          <Text className="record-input-label">{loadMode.weightLabel}（{weightUnitLabel(weightUnit)}）</Text>
-                                          <View className="record-unit-toggle">
-                                            {(['kg', 'lbs'] as SetWeightUnit[]).map((unit) => (
-                                              <Text
-                                                key={unit}
-                                                className={`record-unit-option ${weightUnit === unit ? 'active' : ''}`}
-                                                onClick={(e) => {
-                                                  e.stopPropagation()
-                                                  switchWeightUnit(setKey, unit)
-                                                }}
-                                              >
-                                                {weightUnitLabel(unit)}
-                                              </Text>
-                                            ))}
-                                          </View>
-                                        </View>
-                                        <View className="record-adjust-input">
-                                          <View className="record-value-wrap">
-                                            <Input
-                                              type="digit"
-                                              className="record-inline-input"
-                                              value={weightInput}
-                                              placeholder={isConcreteWeightValue(set.planned_weight) ? String(getSetDisplayWeight(set, 'planned')?.value ?? parseFirstNumber(set.planned_weight)) : '—'}
-                                              placeholderClass="record-input-placeholder"
-                                              onInput={(e) => {
-                                                const rawValue = e.detail.value
-                                                const parsed = parseInputNumber(rawValue, 'float')
-                                                setWeightInput(rawValue)
-                                                setWeight(parsed)
-                                                updateSetDraft(setKey, { weightInput: rawValue, weight: parsed })
-                                              }}
-                                            />
-                                          </View>
-                                          <View className="record-stepper">
-                                            <Text className="record-stepper-hit" onClick={(e) => {
-                                              e.stopPropagation()
-                                              adjustWeightValue(set, 1)
-                                            }}>+</Text>
-                                            <Text className="record-stepper-divider" />
-                                            <Text className="record-stepper-hit" onClick={(e) => {
-                                              e.stopPropagation()
-                                              adjustWeightValue(set, -1)
-                                            }}>-</Text>
-                                          </View>
-                                        </View>
-                                      </View>}
-                                      <View className="record-input-cell reps">
-                                        <Text className="record-input-label">{timedSet ? '保持时长' : bodyweightSet ? '次数 · 自重' : '次数'}</Text>
-                                        <View className="record-adjust-input">
-                                          <View className="record-value-wrap">
-                                            <Input
-                                              type="number"
-                                              className="record-inline-input"
-                                              value={reps !== null && reps !== undefined ? String(reps) : ''}
-                                              placeholder={String(set.planned_reps || '0')}
-                                              onInput={(e) => {
-                                                const parsed = parseInputNumber(e.detail.value, 'int')
-                                                const nextReps = parsed === null ? null : Math.max(0, Math.floor(parsed))
-                                                setReps(nextReps)
-                                                updateSetDraft(setKey, { reps: nextReps })
-                                              }}
-                                            />
-                                            <Text className="record-unit">{timedSet ? '秒' : '次'}</Text>
-                                          </View>
-                                          <View className="record-stepper">
-                                            <Text className="record-stepper-hit" onClick={(e) => {
-                                              e.stopPropagation()
-                                              adjustRepsValue(set, REPS_STEP)
-                                            }}>+</Text>
-                                            <Text className="record-stepper-divider" />
-                                            <Text className="record-stepper-hit" onClick={(e) => {
-                                              e.stopPropagation()
-                                              adjustRepsValue(set, -REPS_STEP)
-                                            }}>-</Text>
-                                          </View>
-                                        </View>
-                                      </View>
-                                      <View className="record-input-cell rpe">
-                                        <Text className="record-input-label">RPE</Text>
-                                        <Input
-                                          type="number"
-                                          className="record-rpe-input"
-                                          value={rpe?.toString() || ''}
-                                          placeholder="1-10"
-                                          onInput={(e) => {
-                                            const parsed = parseInputNumber(e.detail.value, 'int')
-                                            const nextRpe = parsed === null ? null : Math.min(10, Math.max(1, Math.floor(parsed)))
-                                            setRpe(nextRpe)
-                                            updateSetDraft(setKey, { rpe: nextRpe })
-                                          }}
-                                        />
-                                      </View>
-                                      <Button
-                                        className="record-complete-btn"
-                                        onClick={() => handleCompleteSet()}
-                                        loading={completing}
-                                      >
-                                        {isEditingThisSet ? '保存' : '完成'}
-                                      </Button>
-                                    </View>
-
-                                    <View className="set-secondary-row">
-                                      {!timedSet && (
-                                        <Text
-                                          className="set-chip"
-                                          onClick={() => switchActionLoadMode(actionIdx, setKey, bodyweightSet ? 'weighted' : 'bodyweight')}
-                                        >
-                                          {bodyweightSet ? '+ 加负重' : '改为自重'}
-                                        </Text>
-                                      )}
-                                      <Text
-                                        className={`set-chip ${markAsPR ? 'active' : ''}`}
-                                        onClick={() => {
-                                          const next = !markAsPR
-                                          setMarkAsPR(next)
-                                          updateSetDraft(setKey, { markAsPR: next })
-                                        }}
-                                      >
-                                        {markAsPR ? '✓ 进步组' : '标记进步组'}
-                                      </Text>
-                                      <Text
-                                        className={`set-chip ${isMoreOpen || moreSummary ? 'active' : ''}`}
-                                        onClick={() => setOpenSetMoreKey(isMoreOpen ? null : setKey)}
-                                      >
-                                        {moreSummary ? `备注/视频 · ${moreSummary}` : '备注/视频'}
-                                      </Text>
-                                    </View>
-
-                                    {isMoreOpen && (
-                                      <View className="set-more-panel">
-                                        <Input
-                                          className="compact-note-input"
-                                          value={setNotes}
-                                          placeholder="备注：手感、节奏或动作问题"
-                                          onInput={(e) => {
-                                            setSetNotes(e.detail.value)
-                                            updateSetDraft(setKey, { notes: e.detail.value })
-                                          }}
-                                        />
-                                        <View className="set-more-actions">
-                                          <Button size="mini" className="ghost-tool-btn" onClick={handleChooseVideo} loading={uploadingVideo}>
-                                            {hasAttachedVideo ? '换视频' : '选视频'}
-                                          </Button>
-                                          <Button size="mini" className="ghost-tool-btn" onClick={handlePasteVideoLink}>
-                                            贴链接
-                                          </Button>
-                                          {hasAttachedVideo && (
-                                            <Text className="video-attached-chip" onClick={() => void handlePreviewSetVideo(activeVideoUrl)}>
-                                              预览视频
-                                            </Text>
-                                          )}
-                                        </View>
-                                      </View>
-                                    )}
-                                  </View>
-                                )}
-
-
-                                {isCurrentSet && !isCompletedSet && isReadOnly && (
-                                  <View className="readonly-set-tip">
-                                    <Text className="readonly-set-tip-text">该组暂无执行记录（只读模式）</Text>
-                                  </View>
-                                )}
-
-                                {isCompletedSet && isExpandedSet && (
-                                  <View className="set-details">
-                                    <View className="detail-grid">
-                                      <View className="detail-cell">
-                                        <Text className="detail-label">本组记录</Text>
-                                        <Text className="detail-value">{actualSummary || '未填写'}</Text>
-                                      </View>
-                                      <View className="detail-cell">
-                                        <Text className="detail-label">休息</Text>
-                                        <Text className="detail-value">{formatRestSummary(set.planned_rest_seconds)}</Text>
-                                      </View>
-                                      <View className="detail-cell">
-                                        <Text className="detail-label">e1RM</Text>
-                                        <Text className="detail-value">
-                                          {set.e1rm !== null && set.e1rm !== undefined ? `${set.e1rm}kg` : '未生成'}
-                                        </Text>
-                                      </View>
-                                    </View>
-
-                                    {!!set.notes && (
-                                      <View className="detail-note">
-                                        <Text className="detail-label">备注</Text>
-                                        <Text className="detail-note-text">{set.notes}</Text>
-                                      </View>
-                                    )}
-
-                                    {!!set.video_url && (
-                                      <View className="detail-note">
-                                        <Text className="detail-label">视频</Text>
-                                        <Text className="detail-link" onClick={() => void handlePreviewSetVideo(set.video_url)}>
-                                          预览本组视频
-                                        </Text>
-                                      </View>
-                                    )}
-
-                                    {(!isReadOnly || canCorrectCompletedSets) && (
-                                      <View className="detail-actions">
-                                        <Button size="mini" className="ghost-tool-btn" onClick={() => handleEditCompletedSet(actionIdx, setIdx, set)}>
-                                          编辑本组
-                                        </Button>
-                                        {isEditingThisSet && (
-                                          <Button size="mini" className="ghost-tool-btn" onClick={handleCancelEditCompletedSet}>
-                                            取消编辑
-                                          </Button>
-                                        )}
-                                      </View>
-                                    )}
-                                  </View>
-                                )}
-                              </View>
-                            )
-                          })}
-                        </View>
-                        {!isReadOnly && (
-                          <View className="extra-set-btn-wrap">
-                            <Button
-                              size="mini"
-                              className="add-extra-set-btn"
-                              onClick={() => handleAddExtraSet(actionIdx)}
-                              disabled={addingExtraSet}
-                            >
-                              {addingExtraSet ? '添加中...' : '+ 新增一组'}
-                            </Button>
-                          </View>
-                        )}
-                      </>
-                    ) : (
-                      <View className="non-strength-card">
-                        {action.completed_sets > 0 ? (
-                          <View className="item-completed">
-                            <Text className="item-done-text">已打卡完成</Text>
-                            {action.sets?.[0]?.diet_content && <Text className="item-detail">内容：{action.sets[0].diet_content}</Text>}
-                            {action.sets?.[0]?.actual_distance && <Text className="item-detail">距离：{(action.sets[0].actual_distance / 1000).toFixed(1)} km</Text>}
-                            {action.sets?.[0]?.actual_duration && <Text className="item-detail">时长：{Math.round((action.sets[0].actual_duration || 0) / 60)} 分钟</Text>}
-                          </View>
-                        ) : isReadOnly ? (
-                          <View className="item-readonly">
-                            <Text className="item-readonly-text">该项目暂无完成记录（只读模式）</Text>
-                          </View>
-                        ) : (
-                          <View className="item-form">
-                            <Text className="item-form-title">{actionMeta.label}打卡</Text>
-                            {actionType === 'DIET' && (
-                              <View className="compact-note-row">
-                                <Text className="compact-input-label">内容</Text>
-                                <Input
-                                  className="compact-note-input"
-                                  value={itemStates[actionIdx]?.dietContent || ''}
-                                  placeholder="吃了什么、补了什么"
-                                  onInput={(e) => setItemStates((prev) => ({ ...prev, [actionIdx]: { ...prev[actionIdx], dietContent: e.detail.value } }))}
-                                />
-                              </View>
-                            )}
-                            {actionType === 'CARDIO' && (
-                              <View className="compact-input-grid two-cols">
-                                <View className="compact-input-card">
-                                  <Text className="compact-input-label">距离</Text>
-                                  <Input
-                                    type="digit"
-                                    className="compact-input-field"
-                                    value={itemStates[actionIdx]?.cardioDistance?.toString() || ''}
-                                    placeholder="0"
-                                    onInput={(e) => {
-                                      const parsed = parseInputNumber(e.detail.value, 'float')
-                                      setItemStates((prev) => ({
-                                        ...prev,
-                                        [actionIdx]: {
-                                          ...prev[actionIdx],
-                                          cardioDistance: parsed === null ? null : Math.max(0, parsed)
-                                        }
-                                      }))
-                                    }}
-                                  />
-                                </View>
-                                <View className="compact-input-card">
-                                  <Text className="compact-input-label">时长</Text>
-                                  <Input
-                                    type="number"
-                                    className="compact-input-field"
-                                    value={itemStates[actionIdx]?.cardioDuration?.toString() || ''}
-                                    placeholder="0"
-                                    onInput={(e) => {
-                                      const parsed = parseInputNumber(e.detail.value, 'int')
-                                      setItemStates((prev) => ({
-                                        ...prev,
-                                        [actionIdx]: {
-                                          ...prev[actionIdx],
-                                          cardioDuration: parsed === null ? null : Math.max(0, Math.floor(parsed))
-                                        }
-                                      }))
-                                    }}
-                                  />
-                                </View>
-                              </View>
-                            )}
-                            <Button className="complete-btn" onClick={() => handleCompleteItem(actionIdx)} loading={completing}>
-                              完成打卡
-                            </Button>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-            )
-          })}
+      {layout === 'card' ? (
+        <View className="txv3-card-page">
+          {completionEntry}
+          {renderHero()}
+          {renderCardMode()}
+          {canLateCompleteTimedOut ? renderFooterExtras() : null}
+          {renderCardBottomBar()}
         </View>
-
-        {!isReadOnly && (
-          <View className="add-action-wrap">
-            <Button
-              size="mini"
-              className="add-action-btn"
-              onClick={handleOpenActionLibrary}
-              disabled={addingExtraAction}
-            >
-              {addingExtraAction ? '添加中...' : '+ 添加动作'}
-            </Button>
+      ) : (
+        <View className="execution-scroll">
+          <View className={`execution-shell ${showFinishButton ? 'txv3-has-bar' : ''} ${showRestBar ? 'txv3-resting' : ''}`}>
+            {completionEntry}
+            {renderHero()}
+            {renderListMode()}
+            {renderFooterExtras()}
           </View>
-        )}
-        {/* 动作选择弹层 */}
-        {showActionPicker && (
-          <View className="action-picker-mask" onClick={() => setShowActionPicker(false)}>
-            <View className="action-picker-panel" onClick={(e) => e.stopPropagation()}>
-              <View className="picker-header">
-                <View>
-                  <Text className="picker-title">添加动作</Text>
-                  <Text className="picker-subtitle">按肌群和器械快速多选</Text>
-                </View>
-                <Text className="picker-close" onClick={() => setShowActionPicker(false)}>关闭</Text>
-              </View>
-              <Input
-                className="picker-search-input"
-                value={actionKeyword}
-                placeholder="输入动作名字搜索"
-                onInput={(e) => setActionKeyword(e.detail.value)}
-              />
-
-              <ScrollView scrollX className="picker-equipment-scroll" showScrollbar={false}>
-                <View className="picker-equipment-list">
-                  {ACTION_PICKER_EQUIPMENT_FILTERS.map((item) => (
-                    <Text
-                      key={item.key}
-                      className={`picker-equipment-chip ${pickerEquipment === item.key ? 'active' : ''}`}
-                      onClick={() => setPickerEquipment(item.key)}
-                    >
-                      {item.label}
-                    </Text>
-                  ))}
-                </View>
-              </ScrollView>
-
-              <View className="picker-body">
-                <ScrollView scrollY className="picker-muscle-rail">
-                  {ACTION_PICKER_MUSCLE_FILTERS.map((item) => (
-                    <Text
-                      key={item.key}
-                      className={`picker-muscle-item ${pickerMuscle === item.key ? 'active' : ''}`}
-                      onClick={() => setPickerMuscle(item.key)}
-                    >
-                      {item.label}
-                    </Text>
-                  ))}
-                </ScrollView>
-                <ScrollView scrollY className="picker-card-list">
-                  <View className="picker-action-list">
-                    {filteredActionPickerList.map((a) => {
-                      const isSelected = pickerSelectedActionIds.includes(a.id)
-                      const meta = [
-                        ...(Array.isArray(a.positions) ? a.positions : []),
-                        ...(Array.isArray(a.attrs) ? a.attrs : [])
-                      ].filter(Boolean).slice(0, 3)
-                      return (
-                        <View
-                          key={a.id}
-                          className={`picker-action-row ${isSelected ? 'selected' : ''}`}
-                          onClick={() => handleTogglePickerAction(a.id)}
-                        >
-                          <View className="picker-action-main">
-                            <View className="picker-action-title-line">
-                              <Text className="picker-action-name">{a.name || '未命名动作'}</Text>
-                              <Text className={`picker-action-source ${a.source === 'public' ? 'public' : ''}`}>
-                                {a.source === 'public' ? '公共' : '我的'}
-                              </Text>
-                            </View>
-                            <Text className="picker-action-meta">{meta.length > 0 ? meta.join(' · ') : '力量动作'}</Text>
-                          </View>
-                          <Text className="picker-action-check">{isSelected ? '已选' : '+'}</Text>
-                        </View>
-                      )
-                    })}
-                  </View>
-                  {filteredActionPickerList.length === 0 && <Text className="picker-empty">暂无匹配动作</Text>}
-                </ScrollView>
-              </View>
-
-              <View className="picker-bottom-bar">
-                <Text className="picker-selected-count">已选 {pickerSelectedActionIds.length} 个</Text>
-                <View className="picker-bottom-actions">
-                  <Button size="mini" className="picker-secondary-btn" onClick={() => setPickerSelectedActionIds([])}>
-                    清空
-                  </Button>
-                  <Button
-                    size="mini"
-                    className="picker-primary-btn"
-                    loading={addingExtraAction}
-                    disabled={pickerSelectedActionIds.length === 0}
-                    onClick={handleAddSelectedPickerActions}
-                  >
-                    加入训练
-                  </Button>
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* 完成训练按钮 */}
-        {(!isReadOnly || canLateCompleteTimedOut) && (
-          <View className="footer-section">
-            {canLateCompleteTimedOut && (
-              <Text className="finish-hint">这次训练已自动结束；可按已记录内容补记完成，或重新训练这一天</Text>
-            )}
-            {!canFinishWholeDay && !isImpromptuMode && (
-              <Text className="finish-hint">仍有 {lightweightProgress.pending} 个轻任务待完成</Text>
-            )}
-            {canLateCompleteTimedOut && cloudExecutionReady && (
-              <RecordCompletionButton instanceId={instanceId} dayIndex={dayIndex} execution={execution}
-                earliestDate={planInstance?.start_date || planInstance?.created_at}
-                onSaved={(saved) => { setExecution(saved); syncExecutionToCaches(saved); handleBackToTodayTraining() }} />
-            )}
-            {!canLateCompleteTimedOut && <Button
-              className={`finish-btn ${!canFinishWholeDay && !isImpromptuMode ? 'warning' : ''}`}
-              onClick={
-                canLateCompleteTimedOut
-                  ? handleFinishTraining
-                  : !canFinishWholeDay && !isImpromptuMode
-                  ? handleBackToTodayTraining
-                  : shouldShowQuickFinishButton
-                    ? handleQuickFinishTraining
-                    : handleFinishTraining
-              }
-                                  loading={completing}
-              disabled={!cloudExecutionReady || restartingTimedOut}
-            >
-              {canLateCompleteTimedOut
-                ? '按已记录内容补记完成'
-                : !canFinishWholeDay && !isImpromptuMode
-                ? '返回今日安排继续轻任务'
-                : shouldShowQuickFinishButton
-                  ? '一键完成训练'
-                  : '完成训练'}
-            </Button>}
-            {canLateCompleteTimedOut && (
-              <View className="cancel-training-wrap">
-                <Button
-                  className="cancel-training-btn"
-                  loading={restartingTimedOut}
-                  disabled={completing || restartingTimedOut || !cloudExecutionReady}
-                  onClick={handleRestartTimedOutTraining}
-                >
-                  重新训练这一天
-                </Button>
-              </View>
-            )}
-            {canCancelTraining && (
-              <View className="cancel-training-wrap">
-                <Text className="cancel-training-hint">误点进入且尚未完成任何内容时，可恢复为未开始</Text>
-                <Button
-                  className="cancel-training-btn"
-                  loading={cancelling}
-                  disabled={completing || cancelling || uploadingVideo}
-                  onClick={handleCancelTraining}
-                >
-                  取消本次训练
-                </Button>
-              </View>
-            )}
-          </View>
-        )}
-        </View>
-      </View>
-
-      {isResting && restTimerMinimized && (
-        <View className="rest-timer-bubble" onClick={() => setRestTimerMinimized(false)}>
-          <Text className="rest-bubble-label">休息</Text>
-          <Text className="rest-bubble-value">{formatTimerValue(restTimer)}</Text>
         </View>
       )}
 
-      {isResting && !restTimerMinimized && (
-        <View className="rest-timer-mask" onClick={handleMinimizeRestTimer}>
-          <View className="rest-timer-panel" onClick={(e) => e.stopPropagation()}>
-            <Text className="rest-timer-emoji">休</Text>
-            <Text className="rest-timer-value">{formatTimerValue(restTimer)}</Text>
-            <Text className="rest-timer-label">组间休息</Text>
-            <View className="rest-timer-actions">
-              <Button size="mini" className="rest-action-btn" onClick={() => handleAddRestTime(-10)}>
-                -10秒
-              </Button>
-              <Button size="mini" className="rest-action-btn" onClick={() => handleAddRestTime(10)}>
-                +10秒
-              </Button>
-              <Button size="mini" className="rest-action-btn primary" onClick={handleSkipRest}>
-                完成
-              </Button>
-              <Button size="mini" className="rest-action-btn" onClick={handleMinimizeRestTimer}>
-                最小化
-              </Button>
+      {layout === 'list' && showFinishButton && (
+        <View className="txv3-list-bottom">
+          <View className="txv3-list-bottom__copy">
+            <Text className="txv3-list-bottom__title cl-num">已完成 {completedSets} / {totalSets} 组</Text>
+            {shouldShowQuickFinishButton ? <Text className="txv3-list-bottom__hint">剩余的组会按计划记录</Text> : null}
+          </View>
+          <Button
+            className="txv3-outline-btn"
+            loading={completing}
+            disabled={!cloudExecutionReady || restartingTimedOut}
+            onClick={() => void handleFinishButton()}
+          >
+            {finishButtonLabel}
+          </Button>
+        </View>
+      )}
+
+      {/* 动作选择弹层 */}
+      {showActionPicker && (
+        <View className="action-picker-mask" onClick={() => setShowActionPicker(false)}>
+          <View className="action-picker-panel" onClick={(e) => e.stopPropagation()}>
+            <View className="picker-header">
+              <View>
+                <Text className="picker-title">添加动作</Text>
+                <Text className="picker-subtitle">按肌群和器械快速多选</Text>
+              </View>
+              <Text className="picker-close" onClick={() => setShowActionPicker(false)}>关闭</Text>
+            </View>
+            <Input
+              className="picker-search-input"
+              value={actionKeyword}
+              placeholder="输入动作名字搜索"
+              onInput={(e) => setActionKeyword(e.detail.value)}
+            />
+
+            <ScrollView scrollX className="picker-equipment-scroll" showScrollbar={false}>
+              <View className="picker-equipment-list">
+                {ACTION_PICKER_EQUIPMENT_FILTERS.map((item) => (
+                  <Text
+                    key={item.key}
+                    className={`picker-equipment-chip ${pickerEquipment === item.key ? 'active' : ''}`}
+                    onClick={() => setPickerEquipment(item.key)}
+                  >
+                    {item.label}
+                  </Text>
+                ))}
+              </View>
+            </ScrollView>
+
+            <View className="picker-body">
+              <ScrollView scrollY className="picker-muscle-rail">
+                {ACTION_PICKER_MUSCLE_FILTERS.map((item) => (
+                  <Text
+                    key={item.key}
+                    className={`picker-muscle-item ${pickerMuscle === item.key ? 'active' : ''}`}
+                    onClick={() => setPickerMuscle(item.key)}
+                  >
+                    {item.label}
+                  </Text>
+                ))}
+              </ScrollView>
+              <ScrollView scrollY className="picker-card-list">
+                <View className="picker-action-list">
+                  {filteredActionPickerList.map((a) => {
+                    const isSelected = pickerSelectedActionIds.includes(a.id)
+                    const meta = [
+                      ...(Array.isArray(a.positions) ? a.positions : []),
+                      ...(Array.isArray(a.attrs) ? a.attrs : [])
+                    ].filter(Boolean).slice(0, 3)
+                    return (
+                      <View
+                        key={a.id}
+                        className={`picker-action-row ${isSelected ? 'selected' : ''}`}
+                        onClick={() => handleTogglePickerAction(a.id)}
+                      >
+                        <View className="picker-action-main">
+                          <View className="picker-action-title-line">
+                            <Text className="picker-action-name">{a.name || '未命名动作'}</Text>
+                            <Text className={`picker-action-source ${a.source === 'public' ? 'public' : ''}`}>
+                              {a.source === 'public' ? '公共' : '我的'}
+                            </Text>
+                          </View>
+                          <Text className="picker-action-meta">{meta.length > 0 ? meta.join(' · ') : '力量动作'}</Text>
+                        </View>
+                        <Text className="picker-action-check">{isSelected ? '已选' : '+'}</Text>
+                      </View>
+                    )
+                  })}
+                </View>
+                {filteredActionPickerList.length === 0 && <Text className="picker-empty">暂无匹配动作</Text>}
+              </ScrollView>
+            </View>
+
+            <View className="picker-bottom-bar">
+              <Text className="picker-selected-count">已选 {pickerSelectedActionIds.length} 个</Text>
+              <View className="picker-bottom-actions">
+                <Button size="mini" className="picker-secondary-btn" onClick={() => setPickerSelectedActionIds([])}>
+                  清空
+                </Button>
+                <Button
+                  size="mini"
+                  className="picker-primary-btn"
+                  loading={addingExtraAction}
+                  disabled={pickerSelectedActionIds.length === 0}
+                  onClick={handleAddSelectedPickerActions}
+                >
+                  加入训练
+                </Button>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+
+      {showRestBar && (
+        <View
+          className={`txv3-rest-bar ${layout === 'card' ? 'is-card' : showFinishButton ? 'has-bar' : ''}`}
+          onClick={() => { if (layout === 'card') setRestTimerMinimized(false) }}
+        >
+          <View className="txv3-rest-bar__pulse" />
+          <View className="txv3-rest-bar__copy">
+            <Text className="txv3-rest-bar__label">组间休息</Text>
+            <Text className="txv3-rest-bar__time cl-num">{formatTimerValue(restTimer)}</Text>
+          </View>
+          <Text className="txv3-rest-bar__btn cl-num" onClick={(e) => { e.stopPropagation(); handleAddRestTime(-15) }}>−15s</Text>
+          <Text className="txv3-rest-bar__btn cl-num" onClick={(e) => { e.stopPropagation(); handleAddRestTime(15) }}>+15s</Text>
+          <Text className="txv3-rest-bar__btn is-light" onClick={(e) => { e.stopPropagation(); handleSkipRest() }}>跳过</Text>
+        </View>
+      )}
+
+      {showRestSheet && (
+        <View className="txv3-rest-mask" onClick={handleMinimizeRestTimer}>
+          <View className="txv3-rest-sheet" onClick={(e) => e.stopPropagation()}>
+            <View className="txv3-rest-sheet__head">
+              <Text className="txv3-rest-sheet__label">组间休息</Text>
+              <Text className="txv3-rest-sheet__min" onClick={handleMinimizeRestTimer}>收起</Text>
+            </View>
+            <Text className="txv3-rest-sheet__time cl-num">{formatTimerValue(restTimer)}</Text>
+            <View className="txv3-rest-sheet__actions">
+              <Text className="txv3-rest-sheet__btn cl-num" onClick={() => handleAddRestTime(-15)}>−15s</Text>
+              <Text className="txv3-rest-sheet__btn cl-num" onClick={() => handleAddRestTime(15)}>+15s</Text>
+              <Text className="txv3-rest-sheet__btn is-light" onClick={handleSkipRest}>开始下一组</Text>
             </View>
           </View>
         </View>

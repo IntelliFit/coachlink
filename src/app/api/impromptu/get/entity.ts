@@ -10,6 +10,7 @@ export interface GetImpromptuExecutionResponseDto {
     total_sets: number;
     completed_sets: number;
     session_notes?: string | null;
+    title?: string | null;
     started_at: string;
     completed_at?: string | null;
 }
