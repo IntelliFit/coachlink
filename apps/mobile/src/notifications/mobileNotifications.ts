@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
 import { apiClient } from '../api'
 import { APP_VERSION } from '../config'
+import { rootNavigationRef } from '../navigation/navigationRef'
 
 const INSTALLATION_ID_KEY = 'coachlink_mobile_push_installation_id_v1'
 // This is only a registration marker. Expo tokens are credentials-like values
@@ -19,13 +20,24 @@ export type MobilePushState = {
   message: string
 }
 
+/** 正在看的会话又来新消息时，聊天页自己会轮询刷新，不再弹横幅打断。 */
+function isViewingChatRoom(data: Record<string, unknown> | undefined) {
+  if (!data || data.kind !== 'chat_message' || typeof data.roomId !== 'string') return false
+  if (!rootNavigationRef.isReady()) return false
+  const route = rootNavigationRef.getCurrentRoute()
+  return route?.name === 'Chat' && (route.params as { roomId?: string } | undefined)?.roomId === data.roomId
+}
+
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const quiet = isViewingChatRoom(notification.request.content.data)
+    return {
+      shouldPlaySound: !quiet,
+      shouldSetBadge: true,
+      shouldShowBanner: !quiet,
+      shouldShowList: !quiet,
+    }
+  },
 })
 
 function makeInstallationId() {

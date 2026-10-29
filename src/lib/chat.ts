@@ -73,10 +73,17 @@ export async function sendSystemMessage(
 
     const createdAt = new Date().toISOString();
 
+    // system_notice 标记这是平台自动通知：移动推送只对带标记的消息在锁屏展示正文，
+    // 管理员账号本人发的私聊不会被当成系统通知（见 src/lib/mobileNotificationContent.ts）。
+    const existingMetadata = message.content_metadata && typeof message.content_metadata === 'object' && !Array.isArray(message.content_metadata)
+        ? message.content_metadata
+        : {};
+
     const { data: messageInsert, error: messageInsertError } = await supabase
         .from('chat_messages')
         .insert({
             ...message,
+            content_metadata: { ...existingMetadata, system_notice: true },
             room_id: systemChatroom.id,
             sender_id: admin.user_id,
             message_type: 'text',

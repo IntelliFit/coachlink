@@ -1,3 +1,4 @@
+import { formatRestMinutes } from '@coachlink/core/src/restDisplay'
 import { buildPlannedSetPreviews } from '@/utils/planSetPrescriptions'
 
 export interface PlanDetailActionRow {
@@ -19,10 +20,8 @@ export interface PlanDetailDay {
 const DAYS_PER_WEEK = 7
 
 function formatRest(seconds?: number | null) {
-  if (!seconds || seconds <= 0) return ''
-  if (seconds % 60 === 0) return `休息 ${seconds / 60} 分钟`
-  if (seconds > 120) return `休息 ${(seconds / 60).toFixed(1)} 分钟`
-  return `休息 ${seconds} 秒`
+  const minutes = formatRestMinutes(seconds)
+  return minutes ? `休息 ${minutes}` : ''
 }
 
 function uniqueText(values: Array<string | null | undefined>) {

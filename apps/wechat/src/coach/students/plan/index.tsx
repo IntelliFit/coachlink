@@ -23,6 +23,7 @@ import {
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
+import { formatRestMinutes, restMinutesToSeconds, restSecondsToMinutes } from '@coachlink/core/src/restDisplay'
 
 const FITNESS_LEVEL_LABEL_MAP: Record<string, string> = {
   beginner: '零基础',
@@ -1723,7 +1724,8 @@ function CoachStudentPlan() {
         control.value
           ? `${control.value}${control.mode === 'rm' ? 'RM' : control.mode === 'percentage' ? '%' : 'kg'}`
           : '',
-        params?.['休息时间'] ? `${params['休息时间']}min` : ''
+        // 存的是秒，显示分钟
+        formatRestMinutes(params?.['休息时间'] ?? params?.rest_seconds ?? (set as any)?.rest_seconds)
       ].filter(Boolean).join(' · ') || '补充组数、次数和强度'
     }
 
@@ -1976,17 +1978,24 @@ function CoachStudentPlan() {
                 <Input
                   className='param-input'
                   type='digit'
-                  value={params?.['休息时间'] === undefined || params?.['休息时间'] === null ? '' : String(params['休息时间'])}
+                  value={(() => {
+                    // 「休息时间」按秒存储（执行端按秒读），这里按分钟显示和输入
+                    const minutes = restSecondsToMinutes(params?.['休息时间'] ?? params?.rest_seconds)
+                    return minutes === null ? '' : String(minutes)
+                  })()}
                   onInput={(e) => {
                     const parsedRest = parseInputNumber(e.detail.value, 'float')
+                    const restSeconds = parsedRest === null ? null : restMinutesToSeconds(parsedRest)
                     updateSelectedDayActionSet(path, (current) => {
                       const nextParams = {
                         ...(current.params || {})
                       } as any
-                      if (parsedRest === null) {
+                      if (restSeconds === null) {
                         delete nextParams['休息时间']
+                        delete nextParams.rest_seconds
                       } else {
-                        nextParams['休息时间'] = parsedRest
+                        nextParams['休息时间'] = restSeconds
+                        nextParams.rest_seconds = restSeconds
                       }
                       return {
                         ...current,

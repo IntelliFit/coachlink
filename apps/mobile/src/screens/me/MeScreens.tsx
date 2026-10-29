@@ -18,14 +18,12 @@ import { apiClient, fetchWithTimeout, getStoredToken, persistSession } from '../
 import { IconFont, type IconFontName } from '../../components/IconFont'
 import { useAuth } from '../../providers/AuthProvider'
 import { useMessageCenter } from '../../providers/MessageCenterProvider'
-import {
-  getChatMessagesCache,
-  mergeOlderMessages,
-  mergeServerLatestPage,
-  setChatMessagesCache,
-  type CachedChatMessage,
-} from '../messages/chatMessageCache'
 import { colors, radius, spacing } from '../../theme'
+import { PlanDaysEditor } from '../plan/PlanDaysEditor'
+import { createDefaultPlanDays } from '../plan/model/planEditor'
+import { finalizeDays, findUnpickedStrength } from '../plan/model/planDayOps'
+import { ensureSetUids } from '../plan/model/planSetFields'
+import type { PlanActionOption, PlanTrainingDay } from '../plan/model/planTypes'
 import type { RootStackParamList } from '../../navigation/types'
 import {
   AnyRecord,
@@ -261,7 +259,6 @@ type CoachAggregatedInfo = {
   } | null
 }
 type CoachStatusKey = 'active' | 'preparing' | 'not_started' | 'expired' | 'expiring' | 'waiting' | 'inactive'
-type ChatMessage = CachedChatMessage
 type FriendItem = {
   userId: string
   nickname?: string | null
@@ -867,17 +864,6 @@ function sourceLabel(sourceType?: string) {
   return '教练计划'
 }
 
-function messageTypeLabel(type?: string) {
-  const labels: Record<string, string> = {
-    image: '[图片]',
-    video: '[视频]',
-    voice: '[语音]',
-    file: '[文件]',
-    video_reference: '[视频引用]',
-  }
-  return labels[String(type || '')] || '[消息]'
-}
-
 function formatTime(value?: string) {
   if (!value) return '-'
   const date = new Date(value)
@@ -1293,11 +1279,12 @@ function useRouteAny<T extends keyof RootStackParamList>() {
 export function ProfileScreen() {
   const navigation = useNavigationAny()
   const { user, isAuthenticated, logout, refreshUser, switchRole } = useAuth()
-  const { unreadCount } = useMessageCenter()
+  const { unreadCount, announcementUnreadCount } = useMessageCenter()
   const { open } = useProtectedNavigation(navigation)
   const [stats, setStats] = useState({ actions: 0, plans: 0, trainingActions: 0 })
   const [membership, setMembership] = useState<any>(null)
   const [profileMissingCount, setProfileMissingCount] = useState(0)
+  const [monthStats, setMonthStats] = useState<{ days: number; sets: number } | null>(null)
   const [roleSwitching, setRoleSwitching] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [betaGroupVisible, setBetaGroupVisible] = useState(false)
@@ -1309,8 +1296,13 @@ export function ProfileScreen() {
       setStats({ actions: 0, plans: 0, trainingActions: 0 })
       setMembership(null)
       setProfileMissingCount(0)
+      setMonthStats(null)
       return
     }
+    // 与小程序「我的」一致：本月训练天数和组数，失败时退回通用描述。
+    void requestMaybe<{ trainingDays?: number; totalSets?: number }>('/api/training-history/month-share', { body: { month: getMonthKey(new Date()) } })
+      .then((data) => setMonthStats({ days: Number(data?.trainingDays || 0), sets: Number(data?.totalSets || 0) }))
+      .catch(() => setMonthStats(null))
     const [actions, plans, history, membershipStatus, profileStatus] = await Promise.allSettled([
       requestMaybe<any>('/api/student/action-lib/list-actions', { body: { page: 1, limit: 1, search: '' } }),
       requestMaybe<any>('/api/student/plan-lib/list-favorites', { body: { page: 1, limit: 1, search: '' } }),
@@ -1397,7 +1389,10 @@ export function ProfileScreen() {
     >
       <Card style={local.profileCard}>
         <View style={local.profileTop}>
-          <InlineAvatar uri={user?.avatar_url || user?.avatar} label={displayName} size={72} />
+          {/* 与小程序一致：点头像进入健身档案详情 */}
+          <Pressable accessibilityRole="button" accessibilityLabel={isAuthenticated ? '查看健身档案' : '前往登录'} onPress={() => open('ProfileDetail')}>
+            <InlineAvatar uri={user?.avatar_url || user?.avatar} label={displayName} size={72} />
+          </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={local.profileName}>{displayName}</Text>
             <Text style={local.profileSubtitle}>{subtitle}</Text>
@@ -1433,11 +1428,19 @@ export function ProfileScreen() {
           badge={profileMissingCount > 0 ? `待完善 ${profileMissingCount}` : undefined}
           onPress={() => open('FitnessCard')}
         />
+        <MenuRow
+          label="训练数据"
+          desc={monthStats === null ? '训练日历、每月统计和力量变化' : monthStats.days > 0 ? `本月 ${monthStats.days} 天 · ${monthStats.sets} 组` : '本月还没有训练记录'}
+          icon="icon-training_history"
+          iconBg="#5C8DFF"
+          onPress={() => open('TrainingHistory')}
+        />
         <MenuRow label="全部计划" icon="icon-a-Trainingplan" iconBg="#29C3A3" onPress={() => open('PlanHistory')} />
         <MenuRow label="排行榜" icon="icon-ranking" iconBg="#CF6D4E" onPress={() => open('Ranking')} />
         <MenuRow label="我的教练" icon="icon-coachline_line" iconBg="#5C8DFF" onPress={() => open('MyCoaches')} />
         <MenuRow label="我的会员" desc={membership?.membership?.name || membership?.level || '查看会员状态'} icon="icon-vips" iconBg="#FFA940" onPress={() => open('Membership')} />
         <MenuRow label="消息中心" icon="icon-messages" iconBg="#26A69A" badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : undefined} onPress={() => open('Messages')} />
+        <MenuRow label="平台通知" icon="icon-pinglun" iconBg="#FFA940" badge={announcementUnreadCount > 0 ? (announcementUnreadCount > 99 ? '99+' : String(announcementUnreadCount)) : undefined} onPress={() => open('Announcements')} />
         <MenuRow label="我的主页" icon="icon-user" iconBg="#8FD3FE" onPress={() => open('UserHome')} />
         <MenuRow label="购买记录" icon="icon-goumaijilu" iconBg="#722ed1" onPress={() => open('PurchaseHistory')} />
         <MenuRow label="购物车" icon="icon-goumaijilu" iconBg="#B37FEB" onPress={() => open('Cart')} />
@@ -1492,91 +1495,6 @@ export function ProfileScreen() {
           </View>
         </View>
       </Modal>
-    </ScreenShell>
-  )
-}
-
-export function ProfileDetailScreen() {
-  const navigation = useNavigationAny()
-  const { user } = useAuth()
-  return (
-    <ScreenShell title="个人资料" subtitle="账号基础信息和训练身份。" onBack={navigation.goBack}>
-      <Card>
-        <View style={local.center}>
-          <InlineAvatar uri={user?.avatar_url || user?.avatar} label={user?.nickname || user?.phone} size={96} />
-          <Text style={local.profileName}>{asText(user?.nickname || user?.name || user?.phone, 'CoachLink 学员')}</Text>
-          <Text style={local.profileSubtitle}>{asText(user?.phone || user?.email, '未绑定联系方式')}</Text>
-        </View>
-        <InfoLine label="身份" value={user?.primary_role === 'coach' ? '教练' : '学员'} />
-        <InfoLine label="用户 ID" value={user?.id || '-'} />
-      </Card>
-    </ScreenShell>
-  )
-}
-
-export function ProfileEditScreen() {
-  const navigation = useNavigationAny()
-  const { user, setLocalUser } = useAuth()
-  const [nickname, setNickname] = useState(asText(user?.nickname || user?.name, ''))
-  const [age, setAge] = useState('')
-  const [height, setHeight] = useState('')
-  const [weight, setWeight] = useState('')
-  const [fitnessGoal, setFitnessGoal] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  async function save() {
-    setLoading(true)
-    try {
-      const data = await safeRequest<any>('/api/user/update-profile', {
-        body: {
-          nickname: nickname.trim(),
-          age: age ? Number(age) : undefined,
-          height: height ? Number(height) : undefined,
-          weight: weight ? Number(weight) : undefined,
-          fitness_goal: fitnessGoal.trim() || undefined,
-        },
-      })
-      const nextUser = { ...(user || {}), nickname: nickname.trim() || user?.nickname }
-      const token = await getStoredToken()
-      if (user?.id && token) await persistSession({ user: nextUser as any, token })
-      setLocalUser(nextUser as any)
-      Alert.alert('已保存', data?.message || '个人资料已更新')
-    } catch (error) {
-      Alert.alert('保存失败', errorMessage(error))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function uploadAvatar() {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.82 })
-    if (result.canceled || !result.assets[0]?.uri) return
-    const token = await getStoredToken()
-    const form = new FormData()
-    form.append('file', { uri: result.assets[0].uri, name: 'avatar.jpg', type: 'image/jpeg' } as any)
-    const response = await fetchWithTimeout(`${API_BASE_URL}/api/upload/avatar`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: form })
-    const json = await response.json()
-    if (!response.ok || !json?.success || !json?.data?.url) throw new Error(json?.message || '头像上传失败')
-    await safeRequest('/api/user/update-profile', { body: { avatar_url: json.data.url } })
-    const nextUser = { ...(user || {}), avatar_url: json.data.url }
-    if (user?.id && token) await persistSession({ user: nextUser as any, token })
-    setLocalUser(nextUser as any)
-  }
-
-  return (
-    <ScreenShell title="编辑资料" subtitle="与小程序资料编辑保持同一账号资料。" onBack={navigation.goBack}>
-      <Card>
-        <Pressable style={local.center} onPress={() => void uploadAvatar().catch((e) => Alert.alert('头像上传失败', errorMessage(e)))}>
-          <InlineAvatar uri={user?.avatar_url || user?.avatar} label={nickname || user?.phone} size={88} />
-          <Text style={local.profileLink}>更换头像</Text>
-        </Pressable>
-        <FormField label="昵称" value={nickname} onChangeText={setNickname} />
-        <FormField label="年龄" value={age} onChangeText={setAge} keyboardType="numeric" />
-        <FormField label="身高 cm" value={height} onChangeText={setHeight} keyboardType="numeric" />
-        <FormField label="体重 kg" value={weight} onChangeText={setWeight} keyboardType="numeric" />
-        <FormField label="训练目标" value={fitnessGoal} onChangeText={setFitnessGoal} multiline />
-        <SolidButton label="保存资料" loading={loading} onPress={save} />
-      </Card>
     </ScreenShell>
   )
 }
@@ -1943,6 +1861,34 @@ export function ActionLibraryScreen() {
     setPositionFilter('all')
   }
 
+  async function viewReferences(action: ActionLibraryItem) {
+    try {
+      const data = await safeRequest<{ instances?: Array<{ name?: string | null; status?: string | null; matchCount?: number }> }>('/api/student/action-lib/action-references', { body: { actionIds: [action.id] } })
+      const instances = data?.instances || []
+      if (instances.length === 0) {
+        Alert.alert(`${actionName(action)} 的引用`, '暂无训练计划引用这个动作。')
+        return
+      }
+      const lines = instances.map((item) => `· ${item.name || '未命名计划'}（${item.matchCount || 1} 处${item.status === 'active' ? '，进行中' : ''}）`)
+      Alert.alert(`${actionName(action)} 被引用`, lines.join('\n'))
+    } catch (err) {
+      Alert.alert('查询失败', errorMessage(err))
+    }
+  }
+
+  function deleteAction(action: ActionLibraryItem) {
+    confirm('删除动作', `确定删除「${actionName(action)}」吗？已被训练计划引用的动作需要先替换引用。`, () => {
+      void (async () => {
+        try {
+          await safeRequest('/api/student/action-lib/delete-action', { body: { id: action.id } })
+          setMineActions((prev) => prev.filter((item) => item.id !== action.id))
+        } catch (err) {
+          Alert.alert('删除失败', errorMessage(err))
+        }
+      })()
+    })
+  }
+
   async function addToMine(action: ActionLibraryItem) {
     if (addingId || action.isAdded || action.is_added || source === 'mine') return
     setAddingId(action.id)
@@ -2103,9 +2049,17 @@ export function ActionLibraryScreen() {
                     {source === 'mine' ? '个人动作' : source === 'coach' ? '来自订阅教练' : '来自公共动作库'}
                   </Text>
                   {source === 'mine' ? (
-                    <Pressable accessibilityRole="button" onPress={() => navigation.navigate('ActionEdit', { id: item.id, action: item })} style={local.actionLibrarySecondaryAction}>
-                      <Text style={local.actionLibrarySecondaryActionText}>编辑</Text>
-                    </Pressable>
+                    <View style={local.actionLibraryFooterActions}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`查看${actionName(item)}被哪些计划引用`} onPress={() => void viewReferences(item)} style={local.actionLibraryCompactAction}>
+                        <Text style={local.actionLibrarySecondaryActionText}>引用</Text>
+                      </Pressable>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`删除${actionName(item)}`} onPress={() => deleteAction(item)} style={[local.actionLibraryCompactAction, local.actionLibraryDangerAction]}>
+                        <Text style={local.actionLibraryDangerActionText}>删除</Text>
+                      </Pressable>
+                      <Pressable accessibilityRole="button" onPress={() => navigation.navigate('ActionEdit', { id: item.id, action: item })} style={local.actionLibraryCompactAction}>
+                        <Text style={local.actionLibrarySecondaryActionText}>编辑</Text>
+                      </Pressable>
+                    </View>
                   ) : (
                     <Pressable
                       accessibilityRole="button"
@@ -2716,7 +2670,9 @@ export function PlanEditScreen() {
   const [description, setDescription] = useState('')
   const [tagsText, setTagsText] = useState('')
   const [suitableFor, setSuitableFor] = useState('beginner')
-  const [days, setDays] = useState<PlanTrainingDayDetail[]>([])
+  const [days, setDaysState] = useState<PlanTrainingDayDetail[]>(() => createDefaultPlanDays(1, 'student') as unknown as PlanTrainingDayDetail[])
+  // 进入编辑器的训练日统一补稳定键（见 ensureSetUids），避免移动/删除后输入状态串卡片。
+  const setDays = (next: PlanTrainingDayDetail[]) => setDaysState(ensureSetUids(next as unknown as PlanTrainingDay[]) as unknown as PlanTrainingDayDetail[])
   const [importText, setImportText] = useState('')
   const [loading, setLoading] = useState(false)
   const [bootLoading, setBootLoading] = useState(Boolean(id))
@@ -2799,15 +2755,12 @@ export function PlanEditScreen() {
     }
   }
 
-  function addTrainingDay(type: 'training' | 'rest' = 'training') {
-    setDays((prev) => [...prev, { dayIndex: prev.length + 1, type, note: type === 'rest' ? '休息与恢复' : '', actionSets: [] }])
-  }
-
-  function removeTrainingDay(index: number) {
-    setDays((prev) => prev.filter((_, i) => i !== index).map((day, dayIndex) => ({ ...day, dayIndex: dayIndex + 1 })))
-  }
-
   async function save() {
+    const unpicked = findUnpickedStrength(days as unknown as PlanTrainingDay[])
+    if (unpicked) {
+      Alert.alert('还有动作未选择', `第 ${unpicked.dayIndex} 天的第 ${unpicked.setIndex + 1} 个力量项还没选动作。`)
+      return
+    }
     setLoading(true)
     try {
       const payload = {
@@ -2815,11 +2768,7 @@ export function PlanEditScreen() {
         description: description || null,
         tags: tagsText.split(/[、,，\s]+/).map((item) => item.trim()).filter(Boolean),
         suitable_for: suitableFor,
-        training_days: days.map((day, index) => ({
-          ...day,
-          dayIndex: getPlanDayIndex(day, index),
-          actionSetsCount: Array.isArray(day.actionSets) ? day.actionSets.length : 0,
-        })),
+        training_days: finalizeDays(days as unknown as PlanTrainingDay[]),
       }
       await safeRequest(id ? '/api/student/plan-lib/update-favorite' : '/api/student/plan-lib/save-favorite', { body: id ? { id, ...payload } : payload })
       Alert.alert('已保存', '计划库已同步')
@@ -2849,34 +2798,14 @@ export function PlanEditScreen() {
         </View>
       </Card>
       <Card>
-        <View style={local.planDayHeader}>
-          <Text style={local.sectionTitle}>训练日</Text>
-          <View style={local.rowActions}>
-            <SolidButton label="训练日" variant="secondary" onPress={() => addTrainingDay('training')} />
-            <SolidButton label="休息日" variant="secondary" onPress={() => addTrainingDay('rest')} />
-          </View>
-        </View>
-        {days.length === 0 ? <Text style={local.emptyInline}>暂无训练日，可添加训练日或使用智能导入。</Text> : null}
-        {days.map((day, index) => {
-          const actionSets = Array.isArray(day.actionSets) ? day.actionSets : []
-          return (
-            <View key={`${index}-${day.type}`} style={local.planLibEditDay}>
-              <View style={local.planDayHeader}>
-                <Text style={local.planDayTitle}>第 {getPlanDayIndex(day, index)} 天 · {day.type === 'rest' ? '休息' : '训练'}</Text>
-                <Pressable onPress={() => removeTrainingDay(index)}><Text style={local.expiringLink}>删除</Text></Pressable>
-              </View>
-              <Text style={local.itemMeta}>{day.note || (day.type === 'rest' ? '休息与恢复' : '按计划执行')}</Text>
-              <Text style={local.itemMeta}>{actionSets.length} 个动作</Text>
-              {actionSets.slice(0, 4).map((set, actionIndex) => (
-                <View key={`${index}-${actionIndex}`} style={local.planActionRow}>
-                  <IconFont name="icon-dumbbell" color={colors.textMuted} size={16} />
-                  <Text style={local.planActionName}>{(set as any).actionName || (set as any).setName || (set as any).name || `动作 ${actionIndex + 1}`}</Text>
-                  <Text style={local.planActionMeta}>{(set as any).itemType || 'STRENGTH'}</Text>
-                </View>
-              ))}
-            </View>
-          )
-        })}
+        <Text style={local.sectionTitle}>训练日</Text>
+        <Text style={local.itemMeta}>按周安排训练日和休息日，点某一天编辑动作、组数和强度。</Text>
+        <PlanDaysEditor
+          days={days as unknown as PlanTrainingDay[]}
+          onChange={(next) => setDays(next as unknown as PlanTrainingDayDetail[])}
+          actions={actions as unknown as PlanActionOption[]}
+          mode="student"
+        />
         <SolidButton label={id ? '保存更新' : '保存计划'} loading={loading} disabled={!name.trim() || days.length === 0} onPress={save} />
       </Card>
     </ScreenShell>
@@ -4355,258 +4284,6 @@ export function MessagesScreen() {
   )
 }
 
-export function ChatScreen() {
-  const route = useRouteAny<'Chat'>()
-  const navigation = useNavigationAny()
-  const { user } = useAuth()
-  const { refreshUnreadCount } = useMessageCenter()
-  const [message, setMessage] = useState('')
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(false)
-  const [error, setError] = useState('')
-  const [sending, setSending] = useState(false)
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [cacheReadyRoomId, setCacheReadyRoomId] = useState('')
-  const loadingRef = useRef(false)
-  const roomId = route.params?.roomId
-  const peerName = route.params?.peerName || '聊天'
-
-  const loadMessages = useCallback(async (silent = false) => {
-    if (!roomId) {
-      setLoading(false)
-      setMessages([])
-      setError('缺少会话 ID')
-      return
-    }
-    if (loadingRef.current) {
-      setRefreshing(false)
-      return
-    }
-    loadingRef.current = true
-    if (!silent) setLoading(true)
-    try {
-      const data = await apiClient.request<{ messages?: ChatMessage[]; has_more?: boolean }>('/api/chat/list-messages', {
-        method: 'POST',
-        body: { roomId, limit: 50 },
-        timeoutMs: 12000,
-      })
-      setMessages((current) => mergeServerLatestPage(current, data.messages || []))
-      setHasMore(Boolean(data.has_more))
-      setError('')
-      await apiClient.request('/api/chat/mark-as-read', {
-        method: 'POST',
-        body: { roomId },
-        timeoutMs: 8000,
-      }).catch(() => undefined)
-      void refreshUnreadCount()
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-      loadingRef.current = false
-    }
-  }, [refreshUnreadCount, roomId])
-
-  useFocusEffect(useCallback(() => {
-    let active = true
-    setCacheReadyRoomId('')
-    void (async () => {
-      const cached = user?.id && roomId ? await getChatMessagesCache(user.id, roomId) : null
-      if (!active) return
-      if (cached) {
-        setMessages(cached.messages)
-        setHasMore(cached.hasMore)
-        setLoading(false)
-      } else {
-        setMessages([])
-        setHasMore(false)
-      }
-      setCacheReadyRoomId(roomId || '')
-      await loadMessages(Boolean(cached))
-    })()
-    const timer = setInterval(() => {
-      if (AppState.currentState === 'active') void loadMessages(true)
-    }, 3_000)
-    return () => {
-      active = false
-      clearInterval(timer)
-    }
-  }, [loadMessages, roomId, user?.id]))
-
-  useEffect(() => {
-    if (!user?.id || !roomId || cacheReadyRoomId !== roomId) return
-    void setChatMessagesCache(user.id, roomId, { messages, hasMore })
-  }, [cacheReadyRoomId, hasMore, messages, roomId, user?.id])
-
-  const loadMore = useCallback(async () => {
-    if (!roomId || loadingMore || !hasMore) return
-    const firstStable = messages.find((item) => !String(item.id).startsWith('temp-'))
-    if (!firstStable) return
-    setLoadingMore(true)
-    try {
-      const data = await apiClient.request<{ messages?: ChatMessage[]; has_more?: boolean }>('/api/chat/list-messages', {
-        method: 'POST',
-        body: { roomId, limit: 50, beforeId: firstStable.id },
-        timeoutMs: 12000,
-      })
-      setMessages((current) => mergeOlderMessages(current, data.messages || []))
-      setHasMore(Boolean(data.has_more))
-    } catch (err) {
-      Alert.alert('加载失败', errorMessage(err))
-    } finally {
-      setLoadingMore(false)
-    }
-  }, [hasMore, loadingMore, messages, roomId])
-
-  async function send() {
-    if (!roomId || !message.trim()) return
-    const content = message.trim()
-    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    const optimistic: ChatMessage = {
-      id: tempId,
-      messageType: 'text',
-      content,
-      createdAt: new Date().toISOString(),
-      isMine: true,
-      pending: true,
-    }
-    setMessages((current) => [...current, optimistic])
-    setMessage('')
-    setSending(true)
-    try {
-      const data = await apiClient.request<{ messageId?: string; createdAt?: string }>('/api/chat/send-message', {
-        method: 'POST',
-        body: { roomId, messageType: 'text', content },
-        timeoutMs: 12000,
-      })
-      setMessages((current) => current.map((item) => item.id === tempId ? {
-        ...item,
-        id: data.messageId || item.id,
-        createdAt: data.createdAt || item.createdAt,
-        pending: false,
-      } : item))
-      void loadMessages(true)
-    } catch (error) {
-      setMessages((current) => current.map((item) => item.id === tempId ? { ...item, pending: false, failed: true } : item))
-      Alert.alert('发送失败', errorMessage(error))
-    } finally {
-      setSending(false)
-    }
-  }
-
-  async function sendImage() {
-    if (!roomId || uploadingImage) return
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (!permission.granted) {
-      Alert.alert('需要相册权限', '请允许 CoachLink 访问相册后再发送图片。')
-      return
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.82 })
-    const asset = result.canceled ? null : result.assets[0]
-    if (!asset?.uri) return
-
-    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    setMessages((current) => [...current, {
-      id: tempId,
-      messageType: 'image',
-      content: '[图片]',
-      mediaUrl: asset.uri,
-      createdAt: new Date().toISOString(),
-      isMine: true,
-      pending: true,
-    }])
-    setUploadingImage(true)
-    try {
-      const token = await getStoredToken()
-      const form = new FormData()
-      form.append('file', {
-        uri: asset.uri,
-        name: asset.fileName || `chat-${Date.now()}.jpg`,
-        type: asset.mimeType || 'image/jpeg',
-      } as any)
-      const uploadResponse = await fetchWithTimeout(`${API_BASE_URL}/api/upload/chat-image`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: form,
-      })
-      const uploadJson = await uploadResponse.json()
-      if (!uploadResponse.ok || !uploadJson?.success || !uploadJson?.data?.url) {
-        throw new Error(uploadJson?.message || '图片上传失败')
-      }
-      const sent = await apiClient.request<{ messageId?: string; createdAt?: string }>('/api/chat/send-message', {
-        method: 'POST',
-        body: { roomId, messageType: 'image', mediaUrl: uploadJson.data.url, content: '' },
-        timeoutMs: 12_000,
-      })
-      setMessages((current) => current.map((item) => item.id === tempId ? {
-        ...item,
-        id: sent.messageId || item.id,
-        createdAt: sent.createdAt || item.createdAt,
-        mediaUrl: uploadJson.data.url,
-        pending: false,
-      } : item))
-      void loadMessages(true)
-    } catch (imageError) {
-      setMessages((current) => current.map((item) => item.id === tempId ? { ...item, pending: false, failed: true } : item))
-      Alert.alert('图片发送失败', errorMessage(imageError))
-    } finally {
-      setUploadingImage(false)
-    }
-  }
-
-  return (
-    <ScreenShell
-      title={peerName}
-      subtitle="消息会在本机保留最近 60 天，并与云端同步。"
-      onBack={navigation.goBack}
-      refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.brand} colors={[colors.brand]} onRefresh={() => { setRefreshing(true); void loadMessages(true) }} />}
-    >
-      {loading ? <LoadingState /> : null}
-      {!loading && error && messages.length === 0 ? (
-        <>
-          <EmptyState title="加载失败" desc={error} icon="icon-messages" />
-          <SolidButton label="重试" variant="secondary" onPress={() => void loadMessages(false)} />
-        </>
-      ) : null}
-      {!loading && error && messages.length > 0 ? <Text style={local.inlineWarning}>同步失败：{error}</Text> : null}
-      {!loading && messages.length === 0 && !error ? <EmptyState title="暂无消息" desc="发送第一条消息，与教练保持同步。" icon="icon-messages" /> : null}
-      {!loading && messages.length > 0 ? (
-        <Card style={local.chatListCard}>
-          {hasMore ? <SolidButton label="加载更早消息" variant="secondary" loading={loadingMore} onPress={() => void loadMore()} /> : null}
-          {messages.map((item) => (
-            <View key={item.id} style={[local.chatBubbleRow, item.isMine && local.chatBubbleRowMine]}>
-              <View style={[local.chatBubble, item.isMine && local.chatBubbleMine]}>
-                {!item.isMine ? <Text style={local.chatSender}>{item.chatUserProfile?.name || '对方'}</Text> : null}
-                {item.messageType === 'image' && item.mediaUrl ? (
-                  <Image source={{ uri: item.mediaUrl }} style={local.chatImage} resizeMode="cover" />
-                ) : (
-                  <Text style={[local.chatContent, item.isMine && local.chatContentMine]}>{item.content || messageTypeLabel(item.messageType)}</Text>
-                )}
-                <Text style={[local.chatTime, item.isMine && local.chatTimeMine, item.failed && local.chatFailed]}>{item.failed ? '发送失败' : item.pending ? '发送中…' : formatTime(item.createdAt)}</Text>
-              </View>
-            </View>
-          ))}
-        </Card>
-      ) : null}
-      <Card>
-        <FormField label="发送消息" value={message} onChangeText={setMessage} multiline />
-        <View style={local.chatComposerActions}>
-          <View style={local.chatComposerSecondary}>
-            <SolidButton label="发送图片" variant="secondary" loading={uploadingImage} disabled={!roomId || sending} onPress={() => void sendImage()} />
-          </View>
-          <View style={local.chatComposerPrimary}>
-            <SolidButton label="发送" loading={sending} onPress={send} disabled={!roomId || !message.trim() || uploadingImage} />
-          </View>
-        </View>
-      </Card>
-    </ScreenShell>
-  )
-}
-
 export function MyCoachesScreen() {
   const navigation = useNavigationAny()
   const { user, isAuthenticated } = useAuth()
@@ -4977,7 +4654,14 @@ export function RankingDetailScreen() {
           <RankingMeta label="发起" value={leaderboard.initiator || '教链'} />
         </View>
         {leaderboard.needReview ? <Text style={local.rankingReviewBadge}>提交后需审核</Text> : <Text style={local.rankingReviewBadge}>提交后立即入榜</Text>}
-        <SolidButton label="提交挑战成绩" onPress={() => setDialogOpen(true)} />
+        {/* 与小程序一致：功率分析、体感游戏榜单由工具自动上榜，不能手动提交成绩；APP 暂无体感游戏。 */}
+        {String((leaderboard as any).type || '').startsWith('power_analysis_') ? (
+          <SolidButton label="上传视频挑战" onPress={() => navigation.navigate('PowerAnalysis')} />
+        ) : String((leaderboard as any).type || '').startsWith('motion_game_') ? (
+          <SolidButton label="体感挑战请在小程序参与" variant="secondary" disabled onPress={() => undefined} />
+        ) : (
+          <SolidButton label="提交挑战成绩" onPress={() => setDialogOpen(true)} />
+        )}
       </View>
 
       <Card style={local.rankingSection}>
@@ -5574,6 +5258,35 @@ export function UserHomeScreen() {
   const [loading, setLoading] = useState(true)
   const [openingChat, setOpeningChat] = useState(false)
   const [error, setError] = useState('')
+  const [friendStatus, setFriendStatus] = useState<'friends' | 'incoming' | 'outgoing' | 'none' | 'unknown'>('unknown')
+  const [sendingRequest, setSendingRequest] = useState(false)
+
+  async function loadFriendStatus() {
+    if (isSelf || !targetUserId) return 'friends' as const
+    const [friendsResult, pendingResult] = await Promise.allSettled([
+      apiClient.request<{ friends?: Array<{ userId?: string }> }>('/api/user/friends', { method: 'GET', timeoutMs: 12000 }),
+      apiClient.request<{ requests?: Array<{ userId?: string; requester?: { userId?: string } }> }>('/api/user/friends/pending', { method: 'GET', timeoutMs: 12000 }),
+    ])
+    if (friendsResult.status === 'rejected') return 'unknown' as const
+    if ((friendsResult.value.friends || []).some((friend) => friend.userId === targetUserId)) return 'friends' as const
+    const incoming = pendingResult.status === 'fulfilled'
+      && (pendingResult.value.requests || []).some((item) => (item.requester?.userId || item.userId) === targetUserId)
+    return incoming ? 'incoming' as const : 'none' as const
+  }
+
+  async function sendFriendRequest() {
+    if (!targetUserId || sendingRequest) return
+    setSendingRequest(true)
+    try {
+      const data = await apiClient.request<{ status?: string }>('/api/user/friends/request', { method: 'POST', body: { targetUserId }, timeoutMs: 12000 })
+      setFriendStatus(data?.status === 'accepted' || data?.status === 'already_friends' ? 'friends' : 'outgoing')
+      if (data?.status === 'accepted') void load()
+    } catch (err) {
+      Alert.alert('发送失败', errorMessage(err))
+    } finally {
+      setSendingRequest(false)
+    }
+  }
 
   async function load() {
     if (!targetUserId) {
@@ -5584,7 +5297,7 @@ export function UserHomeScreen() {
     setLoading(true)
     setError('')
     try {
-      const [profileResult, recordsResult] = await Promise.allSettled([
+      const [profileResult, recordsResult, statusResult] = await Promise.allSettled([
         apiClient.request<{ profile?: FitnessProfile | null; questionnaire?: { answers?: FitnessAnswers } | null }>('/api/user/get-student-profile', {
           method: 'POST',
           body: { userId: targetUserId },
@@ -5596,7 +5309,10 @@ export function UserHomeScreen() {
               method: 'GET',
               timeoutMs: 12000,
             }),
+        loadFriendStatus(),
       ])
+      const status = statusResult.status === 'fulfilled' ? statusResult.value : 'unknown'
+      setFriendStatus(status)
 
       if (profileResult.status === 'fulfilled') {
         setProfileData({
@@ -5609,7 +5325,8 @@ export function UserHomeScreen() {
       setRecordsData(recordsResult.status === 'fulfilled' ? recordsResult.value : null)
 
       if (profileResult.status === 'rejected') throw profileResult.reason
-      if (!isSelf && recordsResult.status === 'rejected') throw recordsResult.reason
+      // 训练记录只对好友可见；还不是好友时不当作加载失败。
+      if (!isSelf && status === 'friends' && recordsResult.status === 'rejected') throw recordsResult.reason
     } catch (err) {
       setError(errorMessage(err, '主页加载失败，请稍后重试'))
     } finally {
@@ -5649,8 +5366,8 @@ export function UserHomeScreen() {
 
   return (
     <ScreenShell
-      title={isSelf ? '我的主页' : '好友主页'}
-      subtitle={isSelf ? '你的个人资料和训练档案。' : '好友公开资料与可见训练记录。'}
+      title={isSelf ? '我的主页' : friendStatus === 'friends' ? '好友主页' : '用户主页'}
+      subtitle={isSelf ? '你的个人资料和训练档案。' : friendStatus === 'friends' ? '好友公开资料与可见训练记录。' : '公开资料；成为好友后可查看训练记录。'}
       onBack={navigation.goBack}
     >
       {loading ? <LoadingState title="正在加载主页" /> : null}
@@ -5667,7 +5384,7 @@ export function UserHomeScreen() {
               <InlineAvatar uri={avatarUrl} label={displayName} size={96} />
               <Text style={local.profileName}>{displayName}</Text>
               <View style={local.userHomeBadge}>
-                <Text style={local.userHomeBadgeText}>{isSelf ? '我的公开主页' : '已是好友'}</Text>
+                <Text style={local.userHomeBadgeText}>{isSelf ? '我的公开主页' : friendStatus === 'friends' ? '已是好友' : friendStatus === 'incoming' ? '对方请求加你为好友' : friendStatus === 'outgoing' ? '等待对方确认' : '还不是好友'}</Text>
               </View>
               <Text style={local.userHomeIntro}>{goals.length ? '训练目标：' + goals.join('、') : '坚持训练，记录每一次进步。'}</Text>
             </View>
@@ -5677,7 +5394,12 @@ export function UserHomeScreen() {
                 <SolidButton label="查看完整健身档案" variant="secondary" onPress={() => navigation.navigate('FitnessCard')} />
               </>
             ) : (
-              <SolidButton label="发消息" loading={openingChat} onPress={() => void openChat()} />
+              <>
+                {friendStatus === 'none' ? <SolidButton label="加好友" loading={sendingRequest} onPress={() => void sendFriendRequest()} /> : null}
+                {friendStatus === 'incoming' ? <SolidButton label="去处理好友申请" onPress={() => navigation.navigate('Friends', { tab: 'requests' })} /> : null}
+                {friendStatus === 'outgoing' ? <SolidButton label="等待对方确认" variant="secondary" disabled onPress={() => undefined} /> : null}
+                <SolidButton label="发消息" variant={friendStatus === 'friends' ? 'primary' : 'secondary'} loading={openingChat} onPress={() => void openChat()} />
+              </>
             )}
           </Card>
 
@@ -6097,7 +5819,7 @@ const local = StyleSheet.create({
   profileName: {
     color: colors.text,
     fontSize: 23,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   profileSubtitle: {
     color: colors.textSecondary,
@@ -6107,7 +5829,7 @@ const local = StyleSheet.create({
   profileLink: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     marginTop: 4,
   },
   betaGroupMask: {
@@ -6135,7 +5857,7 @@ const local = StyleSheet.create({
   betaGroupTitle: {
     color: colors.text,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     textAlign: 'center',
   },
   betaGroupDesc: {
@@ -6180,7 +5902,7 @@ const local = StyleSheet.create({
   statValue: {
     color: colors.text,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   statLabel: {
     color: colors.textSecondary,
@@ -6188,13 +5910,13 @@ const local = StyleSheet.create({
     fontWeight: '700',
   },
   statUnit: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 11,
   },
   noticeTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   noticeDesc: {
     color: colors.textSecondary,
@@ -6204,7 +5926,7 @@ const local = StyleSheet.create({
   settingsSectionTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   settingsSummary: {
     minHeight: 72,
@@ -6231,7 +5953,7 @@ const local = StyleSheet.create({
   settingsSummaryTitle: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   settingsHelp: {
     color: colors.textSecondary,
@@ -6248,7 +5970,7 @@ const local = StyleSheet.create({
   settingsRoleBadgeText: {
     color: colors.brandDark,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   settingsFeedback: {
     color: colors.success,
@@ -6262,7 +5984,7 @@ const local = StyleSheet.create({
   dangerTitle: {
     color: colors.danger,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   dangerText: {
     color: '#8C4744',
@@ -6277,7 +5999,7 @@ const local = StyleSheet.create({
     color: colors.danger,
     backgroundColor: '#FDECEC',
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   logoutRow: {
     minHeight: 56,
@@ -6289,7 +6011,7 @@ const local = StyleSheet.create({
   logoutText: {
     color: colors.danger,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   itemBlock: {
     paddingVertical: spacing.sm,
@@ -6299,7 +6021,7 @@ const local = StyleSheet.create({
   itemTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   itemMeta: {
     color: colors.textSecondary,
@@ -6327,14 +6049,14 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 30,
   },
   actionCardName: {
     flex: 1,
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   detailSection: {
@@ -6348,7 +6070,7 @@ const local = StyleSheet.create({
     backgroundColor: colors.brandSoft,
     color: colors.brand,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   tagWrap: {
     flexDirection: 'row',
@@ -6363,7 +6085,7 @@ const local = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   videoUrl: {
     color: colors.brand,
@@ -6398,7 +6120,7 @@ const local = StyleSheet.create({
   actionLibrarySourceText: {
     color: colors.textSecondary,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   actionLibrarySourceTextActive: {
     color: colors.surface,
@@ -6453,13 +6175,13 @@ const local = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   actionLibraryFilterChipActive: {
-    borderColor: colors.brand,
-    backgroundColor: colors.brand,
+    borderColor: colors.selected,
+    backgroundColor: colors.selected,
   },
   actionLibraryFilterText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   actionLibraryFilterTextActive: {
     color: colors.surface,
@@ -6475,16 +6197,16 @@ const local = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   actionLibraryPositionChipActive: {
-    borderColor: colors.brand,
-    backgroundColor: colors.brandSoft,
+    borderColor: colors.selected,
+    backgroundColor: colors.selected,
   },
   actionLibraryPositionText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   actionLibraryPositionTextActive: {
-    color: colors.brandDark,
+    color: colors.selectedText,
   },
   actionLibrarySummaryRow: {
     minHeight: 48,
@@ -6497,10 +6219,10 @@ const local = StyleSheet.create({
   actionLibrarySummaryTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   actionLibrarySummaryMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     lineHeight: 20,
   },
@@ -6517,7 +6239,7 @@ const local = StyleSheet.create({
   actionLibraryAddActionText: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   actionLibraryWarning: {
     color: colors.warning,
@@ -6551,7 +6273,7 @@ const local = StyleSheet.create({
   actionLibraryInitialText: {
     color: colors.brandDark,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   actionLibraryItemMain: {
     flex: 1,
@@ -6566,7 +6288,7 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   actionLibraryItemDetail: {
     color: colors.textSecondary,
@@ -6575,7 +6297,7 @@ const local = StyleSheet.create({
     marginTop: spacing.xs,
   },
   actionLibraryPublicMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     lineHeight: 20,
   },
@@ -6591,7 +6313,7 @@ const local = StyleSheet.create({
   },
   actionLibraryFooterHint: {
     flex: 1,
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   actionLibraryPrimaryAction: {
@@ -6608,7 +6330,30 @@ const local = StyleSheet.create({
   actionLibraryPrimaryActionText: {
     color: colors.surface,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
+  },
+  actionLibraryFooterActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  actionLibraryCompactAction: {
+    minWidth: 56,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    backgroundColor: colors.surface,
+  },
+  actionLibraryDangerAction: {
+    borderColor: colors.danger,
+  },
+  actionLibraryDangerActionText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '600',
   },
   actionLibrarySecondaryAction: {
     minWidth: 80,
@@ -6624,7 +6369,7 @@ const local = StyleSheet.create({
   actionLibrarySecondaryActionText: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   actionLibraryActionDisabled: {
     opacity: 0.5,
@@ -6632,7 +6377,7 @@ const local = StyleSheet.create({
   actionEditSectionTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   actionEditHint: {
     color: colors.textSecondary,
@@ -6662,7 +6407,7 @@ const local = StyleSheet.create({
   actionEditOptionText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   actionEditOptionTextActive: {
     color: colors.surface,
@@ -6670,7 +6415,7 @@ const local = StyleSheet.create({
   sectionTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     marginBottom: spacing.sm,
   },
   flexOne: {
@@ -6678,7 +6423,7 @@ const local = StyleSheet.create({
     minWidth: 0,
   },
   emptyInline: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 14,
     textAlign: 'center',
     paddingVertical: spacing.lg,
@@ -6686,12 +6431,12 @@ const local = StyleSheet.create({
   metricLabel: {
     color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   metricValue: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 4,
   },
   fitnessPreview: {
@@ -6715,7 +6460,7 @@ const local = StyleSheet.create({
   fitnessPreviewTitle: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   fitnessCompletionBadge: {
     borderRadius: radius.pill,
@@ -6729,7 +6474,7 @@ const local = StyleSheet.create({
   fitnessCompletionBadgeText: {
     color: colors.brand,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   fitnessCompletionBadgeTextDone: {
     color: '#2F7D68',
@@ -6769,18 +6514,18 @@ const local = StyleSheet.create({
     gap: 4,
   },
   fitnessFieldLabel: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   fitnessFieldValue: {
     color: colors.text,
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   fitnessFieldEmpty: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontWeight: '700',
   },
   modalMask: {
@@ -6798,7 +6543,7 @@ const local = StyleSheet.create({
   modalTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   modalHint: {
     color: colors.textSecondary,
@@ -6828,13 +6573,13 @@ const local = StyleSheet.create({
     borderColor: colors.border,
   },
   modalChipActive: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.selected,
+    borderColor: colors.selected,
   },
   modalChipText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   modalChipTextActive: {
     color: '#FFFFFF',
@@ -6865,7 +6610,7 @@ const local = StyleSheet.create({
   e1rmActionText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   e1rmActionTextActive: {
     color: '#1677C8',
@@ -6896,7 +6641,7 @@ const local = StyleSheet.create({
   e1rmBarValue: {
     color: colors.textSecondary,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     marginBottom: 4,
   },
   e1rmBar: {
@@ -6909,7 +6654,7 @@ const local = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   e1rmBarDate: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 10,
     marginTop: 4,
   },
@@ -6929,12 +6674,12 @@ const local = StyleSheet.create({
   prAction: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   prValue: {
     color: '#1677C8',
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   trainingHistoryHead: {
     alignItems: 'flex-end',
@@ -6950,7 +6695,7 @@ const local = StyleSheet.create({
   calendarMonth: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   calendarNavButtons: {
     flexDirection: 'row',
@@ -6967,7 +6712,7 @@ const local = StyleSheet.create({
   calendarNavText: {
     color: '#1677C8',
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -6977,9 +6722,9 @@ const local = StyleSheet.create({
   weekdayCell: {
     width: '13.2%',
     textAlign: 'center',
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   dayCell: {
     width: '13.2%',
@@ -7002,12 +6747,12 @@ const local = StyleSheet.create({
   dayNum: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   daySessions: {
     color: '#1677C8',
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 2,
   },
   historyStatsCard: {
@@ -7039,7 +6784,7 @@ const local = StyleSheet.create({
   historyItemTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   historyTags: {
     alignItems: 'flex-end',
@@ -7053,7 +6798,7 @@ const local = StyleSheet.create({
     color: '#1677C8',
     backgroundColor: '#EAF3FF',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   historyTagSets: {
     overflow: 'hidden',
@@ -7063,7 +6808,7 @@ const local = StyleSheet.create({
     color: colors.textSecondary,
     backgroundColor: '#F5F5F5',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   historyExpand: {
     gap: spacing.xs,
@@ -7082,7 +6827,7 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   center: {
     alignItems: 'center',
@@ -7105,7 +6850,7 @@ const local = StyleSheet.create({
     textAlign: 'right',
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   docText: {
     color: colors.text,
@@ -7119,7 +6864,7 @@ const local = StyleSheet.create({
   membershipTier: {
     color: colors.text,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   membershipHero: {
     gap: spacing.sm,
@@ -7133,7 +6878,7 @@ const local = StyleSheet.create({
   membershipHeroTitle: {
     color: colors.text,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   membershipHeroSub: {
     color: colors.textSecondary,
@@ -7149,7 +6894,7 @@ const local = StyleSheet.create({
   },
   membershipMarkText: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   membershipStateRow: {
     flexDirection: 'row',
@@ -7163,7 +6908,7 @@ const local = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   tierToneNeutral: {
     color: '#6D6258',
@@ -7205,7 +6950,7 @@ const local = StyleSheet.create({
   quotaTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   quotaBadge: {
     overflow: 'hidden',
@@ -7215,7 +6960,7 @@ const local = StyleSheet.create({
     color: colors.textSecondary,
     backgroundColor: '#F1EDE8',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   quotaValueRow: {
     flexDirection: 'row',
@@ -7225,12 +6970,12 @@ const local = StyleSheet.create({
   quotaValue: {
     color: colors.text,
     fontSize: 36,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   quotaUnit: {
     color: colors.textSecondary,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   progressTrack: {
     height: 8,
@@ -7250,7 +6995,7 @@ const local = StyleSheet.create({
   referralTitle: {
     color: '#7C4327',
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   referralText: {
     color: '#9B674A',
@@ -7264,7 +7009,7 @@ const local = StyleSheet.create({
   referralCodeLabel: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   referralCodeBox: {
     borderRadius: radius.md,
@@ -7275,7 +7020,7 @@ const local = StyleSheet.create({
   referralCodeText: {
     color: '#FFFFFF',
     fontSize: 30,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: 2,
   },
   inviteLinkBox: {
@@ -7286,7 +7031,7 @@ const local = StyleSheet.create({
   inviteLinkLabel: {
     color: 'rgba(255,255,255,0.85)',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     marginBottom: 4,
   },
   inviteLinkText: {
@@ -7301,7 +7046,7 @@ const local = StyleSheet.create({
   rewardTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rewardItem: {
     flexDirection: 'row',
@@ -7322,7 +7067,7 @@ const local = StyleSheet.create({
   rewardValue: {
     color: '#F97316',
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 4,
   },
   referralStatsGrid: {
@@ -7339,7 +7084,7 @@ const local = StyleSheet.create({
   referralStatValue: {
     color: colors.text,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   referralStatLabel: {
     color: colors.textSecondary,
@@ -7369,7 +7114,7 @@ const local = StyleSheet.create({
   segmentText: {
     color: colors.textSecondary,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   segmentTextActive: {
     color: colors.brand,
@@ -7391,7 +7136,7 @@ const local = StyleSheet.create({
   planName: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planBadge: {
     overflow: 'hidden',
@@ -7401,10 +7146,10 @@ const local = StyleSheet.create({
     color: '#FFFFFF',
     backgroundColor: colors.brand,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     marginTop: 4,
   },
@@ -7415,17 +7160,17 @@ const local = StyleSheet.create({
   priceSymbol: {
     color: colors.brand,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   priceAmount: {
     color: colors.brand,
     fontSize: 32,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   priceUnit: {
     color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   featureList: {
     gap: spacing.xs,
@@ -7456,7 +7201,7 @@ const local = StyleSheet.create({
   roleNoticeTitle: {
     color: '#9A3412',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   roleNoticeDesc: {
     color: '#7C2D12',
@@ -7475,7 +7220,7 @@ const local = StyleSheet.create({
     color: '#3B82F6',
     backgroundColor: '#DBEAFE',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   priceLine: {
     flexDirection: 'row',
@@ -7486,12 +7231,12 @@ const local = StyleSheet.create({
   priceLabel: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   priceValue: {
     color: colors.brand,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rowActions: {
     flexDirection: 'row',
@@ -7509,7 +7254,7 @@ const local = StyleSheet.create({
   summaryTotal: {
     color: colors.brand,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   refreshLink: {
     minHeight: 48,
@@ -7529,7 +7274,7 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planStatusBadge: {
     overflow: 'hidden',
@@ -7537,15 +7282,15 @@ const local = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     paddingVertical: 4,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   timeText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 11,
     marginTop: spacing.xs,
   },
   loadedAll: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     textAlign: 'center',
     paddingVertical: spacing.sm,
@@ -7565,7 +7310,7 @@ const local = StyleSheet.create({
   myCoachHeaderTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   myCoachHeaderSub: {
     color: colors.textSecondary,
@@ -7585,73 +7330,7 @@ const local = StyleSheet.create({
   discoveryButtonText: {
     color: '#F97316',
     fontSize: 13,
-    fontWeight: '900',
-  },
-  chatListCard: {
-    gap: spacing.xs,
-  },
-  chatBubbleRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-  },
-  chatBubbleRowMine: {
-    justifyContent: 'flex-end',
-  },
-  chatBubble: {
-    maxWidth: '82%',
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    backgroundColor: '#F7F3EE',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chatBubbleMine: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
-  },
-  chatSender: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  chatContent: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  chatContentMine: {
-    color: '#FFFFFF',
-  },
-  chatTime: {
-    color: colors.textMuted,
-    fontSize: 10,
-    marginTop: 4,
-  },
-  chatTimeMine: {
-    color: 'rgba(255,255,255,0.72)',
-  },
-  chatFailed: {
-    color: '#FFF1A8',
-    fontWeight: '900',
-  },
-  chatImage: {
-    width: 224,
-    height: 224,
-    maxWidth: '100%',
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceMuted,
-  },
-  chatComposerActions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  chatComposerSecondary: {
-    flex: 1,
-  },
-  chatComposerPrimary: {
-    flex: 2,
+    fontWeight: '700',
   },
   inlineWarning: {
     minHeight: 48,
@@ -7731,7 +7410,7 @@ const local = StyleSheet.create({
   coachCardName: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   coachCardTitle: {
     color: colors.textSecondary,
@@ -7749,15 +7428,15 @@ const local = StyleSheet.create({
   },
   coachStatusText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   coachStatusSmall: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   coachStatusDays: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 2,
   },
   coachMetrics: {
@@ -7776,14 +7455,14 @@ const local = StyleSheet.create({
     borderRightColor: colors.surfaceMuted,
   },
   coachMetricLabel: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   coachMetricValue: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 2,
   },
   coachMetricRating: {
@@ -7802,7 +7481,7 @@ const local = StyleSheet.create({
     color: colors.textSecondary,
     backgroundColor: colors.surfaceMuted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   coachBio: {
     color: colors.textSecondary,
@@ -7837,7 +7516,7 @@ const local = StyleSheet.create({
   coachDetailText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   expiringTip: {
     flexDirection: 'row',
@@ -7858,7 +7537,7 @@ const local = StyleSheet.create({
   expiringLink: {
     color: '#F97316',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planFilterBar: {
     flexDirection: 'row',
@@ -7877,12 +7556,12 @@ const local = StyleSheet.create({
     borderRadius: radius.sm,
   },
   planFilterItemActive: {
-    backgroundColor: colors.brand,
+    backgroundColor: colors.selected,
   },
   planFilterText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   planFilterTextActive: {
     color: colors.surface,
@@ -7899,7 +7578,7 @@ const local = StyleSheet.create({
   planHistoryName: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   planBadgeRow: {
@@ -7915,7 +7594,7 @@ const local = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     color: colors.textSecondary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   statusActive: {
     backgroundColor: '#DCFCE7',
@@ -7935,9 +7614,9 @@ const local = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     backgroundColor: colors.surfaceMuted,
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planHistoryInfo: {
     gap: spacing.xs,
@@ -7966,7 +7645,7 @@ const local = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   planHistoryDesc: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     lineHeight: 18,
   },
@@ -7984,7 +7663,7 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   onermInputWrap: {
     width: 112,
@@ -8002,7 +7681,7 @@ const local = StyleSheet.create({
     borderColor: colors.border,
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   planLibEditDay: {
     gap: spacing.xs,
@@ -8011,7 +7690,7 @@ const local = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   loadMoreText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     textAlign: 'center',
     paddingVertical: spacing.sm,
@@ -8035,7 +7714,7 @@ const local = StyleSheet.create({
   planDetailName: {
     color: colors.text,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planDetailDesc: {
     color: colors.textSecondary,
@@ -8081,7 +7760,7 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planDayBadge: {
     overflow: 'hidden',
@@ -8091,7 +7770,7 @@ const local = StyleSheet.create({
     color: colors.brand,
     backgroundColor: '#FFF7ED',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planDayNote: {
     color: colors.textSecondary,
@@ -8111,16 +7790,16 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   planActionMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   planDayMore: {
     color: colors.brand,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankingHero: {
     minHeight: 192,
@@ -8142,18 +7821,18 @@ const local = StyleSheet.create({
   rankingHeroBadgeText: {
     color: '#F7B267',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankingHeroTitle: {
     color: '#FFFFFF',
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: spacing.xs,
   },
   rankingHeroAccent: {
     color: '#F7B267',
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankingHeroDesc: {
     color: 'rgba(255,255,255,0.78)',
@@ -8204,12 +7883,12 @@ const local = StyleSheet.create({
   rankingStatsText: {
     color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   rankingCardTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankingCardDesc: {
     color: colors.textSecondary,
@@ -8228,10 +7907,10 @@ const local = StyleSheet.create({
   rankingCta: {
     color: colors.brand,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankingFootnote: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     textAlign: 'center',
     paddingBottom: spacing.sm,
@@ -8245,12 +7924,12 @@ const local = StyleSheet.create({
   rankingDetailEyebrow: {
     color: 'rgba(255,255,255,0.78)',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankingDetailTitle: {
     color: '#FFFFFF',
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankingDetailDesc: {
     color: 'rgba(255,255,255,0.86)',
@@ -8272,7 +7951,7 @@ const local = StyleSheet.create({
   rankingMetaValue: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankingMetaLabel: {
     color: 'rgba(255,255,255,0.72)',
@@ -8288,7 +7967,7 @@ const local = StyleSheet.create({
     color: '#FFFFFF',
     backgroundColor: 'rgba(255,255,255,0.18)',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankingSection: {
     gap: spacing.sm,
@@ -8304,7 +7983,7 @@ const local = StyleSheet.create({
     lineHeight: 20,
   },
   rankingMuted: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 13,
     lineHeight: 20,
   },
@@ -8323,7 +8002,7 @@ const local = StyleSheet.create({
     color: '#FFFFFF',
     backgroundColor: colors.brand,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   ruleText: {
     flex: 1,
@@ -8360,7 +8039,7 @@ const local = StyleSheet.create({
   entryRankText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   entryBody: {
     flex: 1,
@@ -8376,12 +8055,12 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   entryScore: {
     color: colors.brand,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   entryMetaWrap: {
     flexDirection: 'row',
@@ -8395,7 +8074,7 @@ const local = StyleSheet.create({
     fontWeight: '700',
   },
   entryTime: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 10,
     marginTop: 3,
   },
@@ -8417,7 +8096,7 @@ const local = StyleSheet.create({
   submitLabel: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   submitInput: {
     minHeight: 48,
@@ -8451,7 +8130,7 @@ const local = StyleSheet.create({
   submitOptionText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   submitOptionTextActive: {
     color: colors.brand,
@@ -8470,7 +8149,7 @@ const local = StyleSheet.create({
   userHomeBadgeText: {
     color: colors.brand,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   userHomeIntro: {
     color: colors.textSecondary,
@@ -8491,7 +8170,7 @@ const local = StyleSheet.create({
     gap: 4,
   },
   userHomeSectionHint: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   userHomeWorkout: {
@@ -8511,10 +8190,10 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   userHomeWorkoutDate: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   userHomeWorkoutMeta: {
@@ -8548,7 +8227,7 @@ const local = StyleSheet.create({
   resultTitle: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   friendTabs: {
     minHeight: 48,
@@ -8572,7 +8251,7 @@ const local = StyleSheet.create({
   friendTabText: {
     color: colors.textSecondary,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   friendTabTextActive: {
     color: '#FFFFFF',
@@ -8617,7 +8296,7 @@ const local = StyleSheet.create({
   friendAvatarText: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   friendRow: {
     minHeight: 64,
@@ -8635,10 +8314,10 @@ const local = StyleSheet.create({
   friendName: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   friendMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     marginTop: 4,
   },
@@ -8653,7 +8332,7 @@ const local = StyleSheet.create({
   addFriendText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   removeFriendButton: {
     minHeight: 48,
@@ -8666,7 +8345,7 @@ const local = StyleSheet.create({
   removeFriendText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   requestActions: {
     flexDirection: 'row',
@@ -8683,7 +8362,7 @@ const local = StyleSheet.create({
   acceptText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rejectButton: {
     minHeight: 48,
@@ -8696,7 +8375,7 @@ const local = StyleSheet.create({
   rejectText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   activityList: {
     gap: spacing.sm,
@@ -8743,17 +8422,17 @@ const local = StyleSheet.create({
   activityStatValue: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   activityStatLabel: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 11,
     marginTop: 2,
   },
   activityHighlight: {
     color: colors.brand,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   messagesFriendsEntry: {
     minHeight: 72,
@@ -8774,7 +8453,7 @@ const local = StyleSheet.create({
   messagesFriendsTitle: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   messagesBadge: {
     minWidth: 20,
@@ -8788,7 +8467,7 @@ const local = StyleSheet.create({
   messagesBadgeText: {
     color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   messagesFriendsHint: {
     flex: 1,
@@ -8825,7 +8504,7 @@ const local = StyleSheet.create({
   listSectionTagText: {
     color: colors.brand,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   chatroomList: {
     gap: spacing.sm,
@@ -8855,10 +8534,10 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   chatroomTime: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 11,
   },
   chatroomFooter: {
@@ -8892,15 +8571,15 @@ const local = StyleSheet.create({
   unreadText: {
     color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   applicationStatusCard: {
     gap: spacing.xs,
   },
   applicationStatusLabel: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   applicationStatusValue: {
     alignSelf: 'flex-start',
@@ -8909,7 +8588,7 @@ const local = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     paddingVertical: 4,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   applicationReviewNotes: {
     color: colors.textSecondary,
@@ -8948,7 +8627,7 @@ const local = StyleSheet.create({
   policyCheckMark: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   policyConsentText: {
     flex: 1,
@@ -8979,7 +8658,7 @@ const local = StyleSheet.create({
   trackTitle: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   trackDesc: {
     color: colors.textSecondary,
@@ -8992,7 +8671,7 @@ const local = StyleSheet.create({
   formLabel: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   choiceChipList: {
     flexDirection: 'row',
@@ -9010,13 +8689,13 @@ const local = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   choiceChipActive: {
-    borderColor: colors.brand,
-    backgroundColor: colors.brand,
+    borderColor: colors.selected,
+    backgroundColor: colors.selected,
   },
   choiceChipText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   choiceChipTextActive: {
     color: '#FFFFFF',
@@ -9053,12 +8732,12 @@ const local = StyleSheet.create({
   removableChipText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   removableChipRemove: {
     color: colors.danger,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   inlineAddRow: {
     flexDirection: 'row',
@@ -9098,7 +8777,7 @@ const local = StyleSheet.create({
   inlineAddText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   materialTypeRow: {
     flexDirection: 'row',
@@ -9118,7 +8797,7 @@ const local = StyleSheet.create({
   materialTypeText: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   materialEmpty: {
     color: colors.textSecondary,
@@ -9153,7 +8832,7 @@ const local = StyleSheet.create({
     color: colors.brand,
     backgroundColor: '#FFF7ED',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   materialPublic: {
     overflow: 'hidden',
@@ -9161,7 +8840,7 @@ const local = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     paddingVertical: 4,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   materialPublicOn: {
     color: colors.success,
@@ -9174,7 +8853,7 @@ const local = StyleSheet.create({
   materialTitle: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   materialSummary: {
     color: colors.textSecondary,
@@ -9182,7 +8861,7 @@ const local = StyleSheet.create({
     lineHeight: 20,
   },
   materialMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   materialActions: {
@@ -9192,12 +8871,12 @@ const local = StyleSheet.create({
   materialActionText: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   materialDeleteText: {
     color: colors.danger,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   materialEditor: {
     borderWidth: 1,
@@ -9220,7 +8899,7 @@ const local = StyleSheet.create({
   publicToggleText: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   publicTogglePill: {
     overflow: 'hidden',
@@ -9230,7 +8909,7 @@ const local = StyleSheet.create({
     color: colors.textSecondary,
     backgroundColor: colors.surfaceMuted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   publicTogglePillOn: {
     color: '#FFFFFF',
@@ -9256,7 +8935,7 @@ const local = StyleSheet.create({
   feedbackSectionTitle: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   feedbackChipGrid: {
     flexDirection: 'row',
@@ -9273,13 +8952,13 @@ const local = StyleSheet.create({
     borderColor: colors.border,
   },
   feedbackChipActive: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.selected,
+    borderColor: colors.selected,
   },
   feedbackChipText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   feedbackChipTextActive: {
     color: '#FFFFFF',
@@ -9307,7 +8986,7 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   feedbackFaqTextActive: {
     color: colors.brandDark,
@@ -9326,12 +9005,12 @@ const local = StyleSheet.create({
     flex: 1,
     color: colors.brandDark,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   feedbackClearText: {
     color: colors.brand,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   feedbackInput: {
     minHeight: 160,
@@ -9346,7 +9025,7 @@ const local = StyleSheet.create({
   },
   feedbackCounter: {
     alignSelf: 'flex-end',
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   feedbackContactInput: {
@@ -9369,10 +9048,10 @@ const local = StyleSheet.create({
   feedbackAttachmentCount: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   feedbackHelper: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     lineHeight: 18,
   },
@@ -9406,6 +9085,6 @@ const local = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     lineHeight: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 })

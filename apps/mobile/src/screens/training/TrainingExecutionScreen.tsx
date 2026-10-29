@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, formatRecordedTrainingSet } from '@coachlink/core/src/trainingSetMetrics'
 import { buildPlannedSetPreviews } from '@coachlink/core/src/planSetPrescriptions'
 import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type TrainingIntent } from '@coachlink/core/src/trainingAccess'
+import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation'
+import { formatRestMinutes } from '@coachlink/core/src/restDisplay'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import * as ImagePicker from 'expo-image-picker'
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
@@ -14,7 +16,9 @@ import { colors, radius, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
 import { openExternalUrl } from '../../externalLinks'
 import { useAuth } from '../../providers/AuthProvider'
-import { executionSnapshotKey, readExecutionSnapshot, syncTrainingExecutionToCache } from './trainingCache'
+import { executionSnapshotKey, readExecutionSnapshot, removeExecutionSnapshot, syncTrainingExecutionToCache } from './trainingCache'
+import { removeExecutionFromTodayTrainingCache } from './todayTrainingCache'
+import { RecordCompletionSheet } from './RecordCompletionSheet'
 import {
   displayLoad,
   normalizeExecution,
@@ -121,6 +125,9 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   const [pickerActions, setPickerActions] = useState<PickerAction[]>([])
   const [expandedSetKey, setExpandedSetKey] = useState('')
   const [uploadingVideoKey, setUploadingVideoKey] = useState('')
+  const [recordCompletionOpen, setRecordCompletionOpen] = useState(false)
+  const [planStartDate, setPlanStartDate] = useState('')
+  const [cancelling, setCancelling] = useState(false)
 
   const cacheKey = useMemo(() => {
     if ((params as any).impromptuId) return executionSnapshotKey({ mode: 'impromptu', id: (params as any).impromptuId })
@@ -178,6 +185,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         const planData = pickData(planRes) || {}
         if (!isCurrent()) return
         setPlanActions(planData.actions || {})
+        setPlanStartDate(String(planData.instance?.start_date || planData.instance?.created_at || ''))
         setCanStartPreview(canStartPlanDay({ trainingDays: planData.instance?.training_days || [],
           progressDayIndex: Number(planData.recommendedDayIndex || 1), targetDayIndex: Number(params.dayIndex || 1),
           executionsByDayIndex: planData.executionsByDayIndex }))
@@ -726,11 +734,75 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     }
   }
 
-  async function finish() {
+  function pendingCounts() {
+    const actions: any[] = execution?.action_executions || []
+    const pendingSets = Math.max(0, Number(execution?.total_sets || 0) - Number(execution?.completed_sets || 0))
+    const pendingLightTasks = isImpromptu
+      ? 0
+      : actions.filter((action) => getActionItemType(action) !== 'STRENGTH' && !(action.status === 'completed' || action.completed)).length
+    return { pendingSets, pendingLightTasks }
+  }
+
+  /** 与小程序一致：轻任务未打卡不能结束；还有未完成组时先确认。quick 模式按计划默认值补齐。 */
+  function confirmFinish(mode?: 'quick') {
+    if (!execution?.id || operationDisabled) return
+    const { pendingSets, pendingLightTasks } = pendingCounts()
+    if (pendingLightTasks > 0) {
+      Alert.alert('轻任务未完成', `还有 ${pendingLightTasks} 个轻任务待打卡，请先完成后再结束训练。`, [
+        { text: '继续训练', style: 'cancel' },
+        { text: '返回今日安排', onPress: () => navigation.goBack() },
+      ])
+      return
+    }
+    if (mode === 'quick') {
+      if (pendingSets <= 0) {
+        confirmFinish()
+        return
+      }
+      Alert.alert('确认一键完成训练', `还有 ${pendingSets} 组未完成，将按计划默认值自动补齐后完成训练，是否继续？`, [
+        { text: '取消', style: 'cancel' },
+        { text: '一键完成', onPress: () => void finish('quick') },
+      ])
+      return
+    }
+    Alert.alert('完成训练', pendingSets > 0 ? `还有 ${pendingSets} 组未完成，确认现在结束训练吗？` : '确定要完成本次训练吗？', [
+      { text: '继续训练', style: 'cancel' },
+      { text: '完成训练', onPress: () => void finish() },
+    ])
+  }
+
+  function confirmCancel() {
+    if (!execution?.id || cancelling) return
+    Alert.alert('取消本次训练？', '仅取消尚无已保存记录的本次训练，恢复为未开始。未保存的输入也会丢弃。已有记录的训练请保留并返回。', [
+      { text: '继续训练', style: 'cancel' },
+      { text: '确认取消', style: 'destructive', onPress: () => void cancelTraining() },
+    ])
+  }
+
+  async function cancelTraining() {
+    if (!execution?.id || cancelling) return
+    setCancelling(true)
+    try {
+      await apiClient.request('/api/execution/cancel', { method: 'POST', body: { executionId: execution.id }, timeoutMs: 15000 })
+      skipRestTimer()
+      const dayIndex = Number(params.dayIndex || execution.day_index || 1)
+      await Promise.all([
+        removeExecutionSnapshot(userId, cacheKey),
+        params.instanceId ? removeExecutionFromTodayTrainingCache(userId, String(params.instanceId), dayIndex) : Promise.resolve(),
+      ]).catch((cacheError) => console.warn('[mobile-training] failed to clear cancelled execution cache', cacheError))
+      navigation.goBack()
+    } catch (error) {
+      Alert.alert('取消失败', error instanceof Error ? `${error.message}，记录已保留` : '取消失败，记录已保留')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  async function finish(mode?: 'quick') {
     if (!execution?.id || operationDisabled) return
     setSyncing(true)
     try {
-      const res = await apiClient.request(isImpromptu ? '/api/impromptu/finish' : '/api/execution/finish', { method: 'POST', body: { executionId: execution.id }, timeoutMs: 15000 })
+      const res = await apiClient.request(isImpromptu ? '/api/impromptu/finish' : '/api/execution/finish', { method: 'POST', body: { executionId: execution.id, ...(mode ? { mode } : {}) }, timeoutMs: 15000 })
       const data = pickData(res) || {}
       const next = normalizeExecution({
         ...execution,
@@ -814,6 +886,11 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         </Pressable>
       </SectionCard> : null}
       {capabilities.canRecover ? <SectionCard title="上次训练已超时" description="已有记录仍保留。如果实际已经练完，请按实际日期补记完成；否则可以重新训练这一天。">
+        {!isImpromptu && params.instanceId ? (
+          <Pressable disabled={syncing} onPress={() => setRecordCompletionOpen(true)} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>补记完成</Text>
+          </Pressable>
+        ) : null}
         <Pressable disabled={syncing} onPress={() => Alert.alert('重新训练', '保留原记录并重新开始这一天？', [
           { text: '取消', style: 'cancel' }, { text: '重新开始', onPress: () => { void hydrateFromCloud('execute', true) } },
         ])} style={styles.primaryButton}><Text style={styles.primaryButtonText}>重新训练这一天</Text></Pressable>
@@ -940,7 +1017,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                       <Text style={[styles.deleteText, operationDisabled && styles.disabledText]}>删除</Text>
                     </Pressable>
                   </View>
-                  <Text style={styles.setPlan}>计划 {isTimedTrainingSet(set, action) ? `保持 ${getPlannedDurationSeconds(set, action) ?? '-'} 秒` : displayLoad(set.plannedWeight, set.plannedReps)}{set.plannedRestSeconds ? ` · 休息 ${set.plannedRestSeconds} 秒` : ''}</Text>
+                  <Text style={styles.setPlan}>计划 {isTimedTrainingSet(set, action) ? `保持 ${getPlannedDurationSeconds(set, action) ?? '-'} 秒` : displayLoad(set.plannedWeight, set.plannedReps)}{formatRestMinutes(set.plannedRestSeconds) ? ` · 休息 ${formatRestMinutes(set.plannedRestSeconds)}` : ''}</Text>
                   {completed && <Text style={styles.setPlan}>{formatRecordedTrainingSet(set, action)}</Text>}
                   <View style={styles.inputs}>
                     {!isTimedTrainingSet(set, action) && <TextInput accessibilityLabel={`第 ${set.setNumber} 组外加重量`} value={draft.weight} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { weight: value })} keyboardType="decimal-pad" placeholder="外加重量 kg" placeholderTextColor={colors.textMuted} style={styles.input} />}
@@ -1023,9 +1100,19 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         <Text style={styles.addExerciseButtonText}>添加动作</Text>
       </Pressable>
 
-      <Pressable accessibilityRole="button" accessibilityLabel={readOnly ? '只读查看' : isCompleted ? '训练已完成' : '完成训练'} accessibilityState={{ disabled: operationDisabled, busy: syncing }} disabled={operationDisabled} onPress={finish} style={[styles.finishButton, operationDisabled && styles.finishDisabled]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={readOnly ? '只读查看' : isCompleted ? '训练已完成' : '完成训练'} accessibilityState={{ disabled: operationDisabled, busy: syncing }} disabled={operationDisabled} onPress={() => confirmFinish()} style={[styles.finishButton, operationDisabled && styles.finishDisabled]}>
         <Text style={styles.finishButtonText}>{readOnly ? '只读查看' : isCompleted ? '训练已完成' : '完成训练'}</Text>
       </Pressable>
+      {!isImpromptu && !readOnly && !isCompleted && !capabilities.canRecover && !operationDisabled && pendingCounts().pendingSets > 0 && pendingCounts().pendingLightTasks === 0 ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="一键完成训练" onPress={() => confirmFinish('quick')} style={styles.addExerciseButton}>
+          <Text style={styles.addExerciseButtonText}>一键完成（按计划默认值补齐）</Text>
+        </Pressable>
+      ) : null}
+      {!isImpromptu && !readOnly && cloudReady && canCancelEmptyPlanExecution(execution) ? (
+        <Pressable accessibilityRole="button" accessibilityLabel="取消本次训练" accessibilityState={{ busy: cancelling }} disabled={cancelling || syncing} onPress={confirmCancel} style={[styles.deleteButton, (cancelling || syncing) && styles.finishDisabled]}>
+          <Text style={styles.deleteButtonText}>{cancelling ? '取消中…' : '取消本次训练'}</Text>
+        </Pressable>
+      ) : null}
 
       {isCompleted ? (
         <SectionCard title="训练反馈" description="难度与文字反馈会同步给教练，并用于后续计划调整。">
@@ -1114,6 +1201,21 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
           </Pressable>
         </Pressable>
       </Modal>
+      {!isImpromptu && params.instanceId ? (
+        <RecordCompletionSheet
+          visible={recordCompletionOpen}
+          instanceId={String(params.instanceId)}
+          dayIndex={Number(params.dayIndex || execution.day_index || 1)}
+          execution={execution}
+          earliestDate={planStartDate || null}
+          onClose={() => setRecordCompletionOpen(false)}
+          onSaved={async (saved) => {
+            // 先落本地快照和今日训练缓存，再向云端核对。
+            if (saved && typeof saved === 'object') await syncExecution(normalizeExecution({ ...execution, ...saved })).catch(() => undefined)
+            await hydrateFromCloud()
+          }}
+        />
+      ) : null}
     </Page>
   )
 }
@@ -1121,109 +1223,109 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   hero: { minHeight: 132, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.xl, padding: spacing.md, backgroundColor: '#1F1F1F' },
   heroLabel: { color: 'rgba(255,255,255,0.72)', fontSize: 13, fontWeight: '700' },
-  heroTitle: { marginTop: spacing.xs, color: '#FFFFFF', fontSize: 36, fontWeight: '900' },
+  heroTitle: { marginTop: spacing.xs, color: '#FFFFFF', fontSize: 36, fontWeight: '700' },
   heroSub: { color: 'rgba(255,255,255,0.72)', fontSize: 13 },
   heroIcon: { width: 56, height: 56, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   readOnlyBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: '#EBC0B3' },
   readOnlyMain: { flex: 1, gap: 4 },
-  readOnlyTitle: { color: colors.brand, fontSize: 14, fontWeight: '900' },
+  readOnlyTitle: { color: colors.brand, fontSize: 14, fontWeight: '700' },
   readOnlyText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   restBubble: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: '#1F1F1F' },
   restBubbleLabel: { color: 'rgba(255,255,255,0.78)', fontSize: 13, fontWeight: '700' },
-  restBubbleValue: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  restBubbleValue: { color: '#FFFFFF', fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
   setRow: { gap: spacing.xs, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
   setCompleted: { borderRadius: radius.md, paddingHorizontal: spacing.xs, backgroundColor: '#F8F8F8' },
   setHead: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.xs },
   setTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.xs },
-  setTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  prTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#9A3412', backgroundColor: '#FFEDD5', fontSize: 10, fontWeight: '900' },
-  autoPrTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#087A63', backgroundColor: '#E9F8F3', fontSize: 10, fontWeight: '900' },
-  videoTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#2563EB', backgroundColor: '#EFF6FF', fontSize: 10, fontWeight: '900' },
-  noteTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: colors.textSecondary, backgroundColor: colors.surfaceMuted, fontSize: 10, fontWeight: '900' },
+  setTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  prTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#9A3412', backgroundColor: '#FFEDD5', fontSize: 10, fontWeight: '700' },
+  autoPrTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#087A63', backgroundColor: '#E9F8F3', fontSize: 10, fontWeight: '700' },
+  videoTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#2563EB', backgroundColor: '#EFF6FF', fontSize: 10, fontWeight: '700' },
+  noteTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: colors.textSecondary, backgroundColor: colors.surfaceMuted, fontSize: 10, fontWeight: '700' },
   setPlan: { color: colors.textSecondary, fontSize: 12 },
   deleteSetButton: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  deleteText: { color: colors.danger, fontSize: 12, fontWeight: '800' },
-  disabledText: { color: colors.textMuted },
+  deleteText: { color: colors.danger, fontSize: 12, fontWeight: '600' },
+  disabledText: { color: colors.textTertiary },
   inputs: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   input: { flex: 1, minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.xs, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14 },
   doneButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
   doneButtonDisabled: { backgroundColor: colors.textMuted },
-  doneButtonText: { color: '#FFFFFF', fontWeight: '900' },
+  doneButtonText: { color: '#FFFFFF', fontWeight: '700' },
   setMoreButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brandSoft },
-  setMoreText: { color: colors.brand, fontSize: 12, fontWeight: '900' },
+  setMoreText: { color: colors.brand, fontSize: 12, fontWeight: '700' },
   setMorePanel: { gap: spacing.xs, borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   setNotesInput: { minHeight: 80, borderRadius: radius.md, padding: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 13, lineHeight: 20 },
-  setNotesCount: { alignSelf: 'flex-end', color: colors.textMuted, fontSize: 11 },
+  setNotesCount: { alignSelf: 'flex-end', color: colors.textTertiary, fontSize: 11 },
   prToggle: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: '#EBC0B3' },
   prToggleActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   prToggleMain: { flex: 1, gap: 3 },
-  prToggleTitle: { color: colors.brand, fontSize: 13, fontWeight: '900' },
+  prToggleTitle: { color: colors.brand, fontSize: 13, fontWeight: '700' },
   prToggleTitleActive: { color: '#FFFFFF' },
   prToggleHint: { color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
   prToggleHintActive: { color: 'rgba(255,255,255,0.82)' },
   videoActionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   videoActionButton: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
-  videoActionText: { color: colors.brand, fontSize: 12, fontWeight: '900' },
+  videoActionText: { color: colors.brand, fontSize: 12, fontWeight: '700' },
   videoPreviewButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.surfaceMuted },
-  videoPreviewText: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  videoPreviewText: { color: colors.text, fontSize: 12, fontWeight: '700' },
   videoUrlInput: { minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 12 },
-  setHelper: { color: colors.textMuted, fontSize: 11, lineHeight: 17 },
+  setHelper: { color: colors.textTertiary, fontSize: 11, lineHeight: 17 },
   editCompletedHint: { borderRadius: radius.md, padding: spacing.xs, color: colors.brandDark, backgroundColor: colors.brandSoft, fontSize: 11, lineHeight: 17 },
   itemInputRow: { flexDirection: 'row', gap: spacing.xs },
   itemInput: { flex: 1, minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14 },
   itemTextarea: { minHeight: 88, borderRadius: radius.md, padding: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14, textAlignVertical: 'top' },
   itemDoneButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
   addButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.brand, backgroundColor: colors.surface },
-  addButtonText: { color: colors.brand, fontWeight: '900' },
+  addButtonText: { color: colors.brand, fontWeight: '700' },
   deleteButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  deleteButtonText: { color: colors.danger, fontWeight: '800' },
+  deleteButtonText: { color: colors.danger, fontWeight: '600' },
   addExerciseButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.brand, backgroundColor: colors.surface },
-  addExerciseButtonText: { color: colors.brand, fontSize: 15, fontWeight: '900' },
+  addExerciseButtonText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
   finishButton: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
   finishDisabled: { opacity: 0.5 },
-  finishButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
+  finishButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   feedbackSuccess: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.lg, backgroundColor: '#E9F8F3' },
-  feedbackSuccessText: { color: '#087A63', fontSize: 14, fontWeight: '900' },
-  feedbackLabel: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  feedbackSuccessText: { color: '#087A63', fontSize: 14, fontWeight: '700' },
+  feedbackLabel: { color: colors.text, fontSize: 14, fontWeight: '600' },
   difficultyRow: { flexDirection: 'row', gap: spacing.xs },
   difficultyChip: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   difficultyChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  difficultyText: { color: colors.textSecondary, fontSize: 15, fontWeight: '900' },
+  difficultyText: { color: colors.textSecondary, fontSize: 15, fontWeight: '700' },
   difficultyTextActive: { color: '#FFFFFF' },
-  difficultyHint: { color: colors.brand, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  difficultyHint: { color: colors.brand, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   feedbackInput: { minHeight: 104, padding: spacing.sm, borderRadius: radius.lg, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14, lineHeight: 20, textAlignVertical: 'top' },
-  feedbackCount: { color: colors.textMuted, fontSize: 11, textAlign: 'right' },
+  feedbackCount: { color: colors.textTertiary, fontSize: 11, textAlign: 'right' },
   feedbackButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
-  feedbackButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  feedbackButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   shareButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
-  shareButtonText: { color: colors.brand, fontSize: 15, fontWeight: '900' },
+  shareButtonText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
   primaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
-  primaryButtonText: { color: '#FFFFFF', fontWeight: '900' },
+  primaryButtonText: { color: '#FFFFFF', fontWeight: '700' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.36)' },
   modalPanel: { maxHeight: '82%', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.sm, gap: spacing.sm, backgroundColor: colors.background },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  modalTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  modalTitle: { color: colors.text, fontSize: 20, fontWeight: '700' },
   modalCloseButton: { minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  modalClose: { color: colors.brand, fontSize: 14, fontWeight: '900' },
+  modalClose: { color: colors.brand, fontSize: 14, fontWeight: '700' },
   pickerSearch: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.lg, paddingHorizontal: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   pickerInput: { flex: 1, color: colors.text, fontSize: 15 },
   pickerSearchButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
-  pickerSearchText: { color: '#FFFFFF', fontWeight: '800' },
+  pickerSearchText: { color: '#FFFFFF', fontWeight: '600' },
   pickerList: { maxHeight: 440 },
   pickerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   pickerRowMain: { flex: 1, gap: 4 },
-  pickerName: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  pickerName: { color: colors.text, fontSize: 16, fontWeight: '600' },
   pickerMeta: { color: colors.textSecondary, fontSize: 12 },
   restBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.md, backgroundColor: 'rgba(0,0,0,0.52)' },
   restPanel: { width: '100%', maxWidth: 360, alignItems: 'center', gap: spacing.sm, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface },
-  restEmoji: { width: 56, height: 56, textAlign: 'center', textAlignVertical: 'center', borderRadius: radius.pill, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 24, fontWeight: '900', lineHeight: 56 },
-  restTime: { color: colors.text, fontSize: 52, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  restEmoji: { width: 56, height: 56, textAlign: 'center', textAlignVertical: 'center', borderRadius: radius.pill, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 24, fontWeight: '700', lineHeight: 56 },
+  restTime: { color: colors.text, fontSize: 52, fontWeight: '700', fontVariant: ['tabular-nums'] },
   restLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
   restActions: { flexDirection: 'row', gap: spacing.sm },
   restAction: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
-  restActionText: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  restActionText: { color: colors.text, fontSize: 13, fontWeight: '600' },
   restPrimary: { width: '100%', minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
-  restPrimaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  restPrimaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   restMinimize: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.md },
   restMinimizeText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
 })

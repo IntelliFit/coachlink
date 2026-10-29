@@ -1,4 +1,5 @@
 import { serviceRoleSupabase } from '@/lib/supabaseClient'
+import { loadPushContent } from '@/lib/mobileNotificationContent'
 
 const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
 const EXPO_RECEIPTS_ENDPOINT = 'https://exp.host/--/api/v2/push/getReceipts'
@@ -124,6 +125,12 @@ function safeNotificationData(row: OutboxRow) {
             ...(roomId ? { roomId } : {}),
             ...(messageId ? { messageId } : {}),
         }
+    }
+    if (row.kind === 'announcement') {
+        const announcementId = typeof row.payload?.announcementId === 'string' && UUID_PATTERN.test(row.payload.announcementId)
+            ? row.payload.announcementId
+            : undefined
+        return { kind: 'announcement', ...(announcementId ? { announcementId } : {}) }
     }
     // Do not forward arbitrary database JSON to a lock-screen notification.
     return { kind: row.kind.slice(0, 64) }
@@ -296,6 +303,7 @@ async function processSendRow(row: OutboxRow, dependencies: ProcessorDependencie
     let terminalTicketErrorCount = 0
     let lastError: string | null = null
 
+    const content = await loadPushContent(db, row)
     const installationBatches = chunks(validInstallations, SEND_BATCH_SIZE)
     for (let batchIndex = 0; batchIndex < installationBatches.length; batchIndex += 1) {
         const batch = installationBatches[batchIndex]
@@ -307,8 +315,8 @@ async function processSendRow(row: OutboxRow, dependencies: ProcessorDependencie
                     to: installation.push_token,
                     sound: 'default',
                     priority: 'high',
-                    title: 'CoachLink',
-                    body: row.kind === 'chat_message' ? '你有一条新消息' : '你有一条新通知',
+                    title: content.title,
+                    body: content.body,
                     data: safeNotificationData(row),
                     channelId: 'messages',
                 }))),

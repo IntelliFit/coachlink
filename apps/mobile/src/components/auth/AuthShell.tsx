@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   heroBrand: {
     color: colors.surface,
     fontSize: 30,
-    fontWeight: '900',
+    fontWeight: '700',
     marginBottom: spacing.xs,
   },
   heroSlogan: {
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: '#0F172A',
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: spacing.lg,
   },

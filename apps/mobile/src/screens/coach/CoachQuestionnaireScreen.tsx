@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Text
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiClient } from '../../api'
 import { IconFont } from '../../components/IconFont'
-import { colors, radius, shadow, spacing } from '../../theme'
+import { colors, floatShadow, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
 import { createCoachPaymentWaitingParams } from './coachPayment'
 
@@ -310,31 +310,31 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.sm, paddingBottom: 128, gap: spacing.sm },
   hero: { borderRadius: radius.xl, padding: spacing.md, gap: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
-  badge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 12, fontWeight: '900' },
-  title: { color: colors.text, fontSize: 24, fontWeight: '900', lineHeight: 32 },
+  badge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 12, fontWeight: '700' },
+  title: { color: colors.text, fontSize: 24, fontWeight: '700', lineHeight: 32 },
   subtitle: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
   productPill: { marginTop: spacing.xs, borderRadius: radius.lg, padding: spacing.sm, gap: 4, backgroundColor: colors.surfaceMuted },
-  productText: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  productText: { color: colors.text, fontSize: 14, fontWeight: '600' },
   emptyCard: { borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  emptyTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  emptyTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
   form: { gap: spacing.sm },
   questionCard: { borderRadius: radius.lg, padding: spacing.sm, gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  questionLabel: { color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: '900' },
+  questionLabel: { color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: '700' },
   optionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   optionChip: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   optionChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  optionText: { color: colors.textSecondary, fontSize: 14, fontWeight: '800' },
+  optionText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   optionTextActive: { color: '#FFFFFF' },
   textInput: { minHeight: 48, flex: 1, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   rmWrap: { gap: spacing.xs },
   hint: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
   rmRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  rmLabel: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '800' },
+  rmLabel: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
   rmInput: { width: 112, minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
-  footer: { position: 'absolute', left: spacing.sm, right: spacing.sm, bottom: spacing.sm, flexDirection: 'row', gap: spacing.sm, borderRadius: radius.xl, padding: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
+  footer: { position: 'absolute', left: spacing.sm, right: spacing.sm, bottom: spacing.sm, flexDirection: 'row', gap: spacing.sm, borderRadius: radius.xl, padding: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...floatShadow },
   secondaryButton: { minHeight: 48, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: '700' },
   primaryButton: { minHeight: 48, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.48 },
 })

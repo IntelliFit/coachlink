@@ -8,13 +8,22 @@ import {
   syncExistingMobilePush,
   type MobilePushState,
 } from '../notifications/mobileNotifications'
-import { flushPendingNotificationChat, queueNotificationChat } from '../navigation/navigationRef'
+import { flushPendingNotificationTarget, queueNotificationTarget } from '../navigation/navigationRef'
+import { announcementFeed, useAnnouncementFeed } from '../notifications/announcementFeed'
+import { notificationRefreshesAnnouncements, parseNotificationTarget } from '../notifications/notificationTargets'
 import { useAuth } from './AuthProvider'
 
 const MESSAGE_POLL_INTERVAL_MS = 12_000
+/** 公告变化不频繁：回到前台或超过这个时间才重新拉。 */
+const ANNOUNCEMENT_MAX_AGE_MS = 5 * 60_000
 
 type MessageCenterContextValue = {
+  /** 聊天未读条数。 */
   unreadCount: number
+  /** 平台公告未读条数。 */
+  announcementUnreadCount: number
+  /** 「我的」Tab 和桌面角标显示的总数：聊天未读 + 公告未读。 */
+  totalUnreadCount: number
   refreshUnreadCount: () => Promise<number>
   setUnreadCount: (count: number) => void
   pushState: MobilePushState | null
@@ -31,6 +40,9 @@ export function MessageCenterProvider({ children }: PropsWithChildren) {
   const [enablingPush, setEnablingPush] = useState(false)
   const inFlightRef = useRef<Promise<number> | null>(null)
   const unreadRef = useRef(0)
+  const announcementUserRef = useRef('')
+  const { unreadCount: announcementUnreadCount } = useAnnouncementFeed()
+  const totalUnreadCount = unreadCount + (isAuthenticated ? announcementUnreadCount : 0)
 
   const setUnreadCount = useCallback((count: number) => {
     const next = Math.max(0, Math.floor(Number(count) || 0))
@@ -83,16 +95,29 @@ export function MessageCenterProvider({ children }: PropsWithChildren) {
       unreadRef.current = 0
       setUnreadCountState(0)
       setPushState(null)
+      if (announcementUserRef.current) {
+        announcementUserRef.current = ''
+        announcementFeed.reset()
+      }
       return undefined
+    }
+    if (announcementUserRef.current !== user.id) {
+      // 切换账号：清掉上一个账号的公告和已弹记录，再按新账号拉取。
+      if (announcementUserRef.current) announcementFeed.reset()
+      announcementUserRef.current = user.id
     }
 
     const refreshWhenActive = () => {
-      if (AppState.currentState === 'active') void refreshUnreadCount()
+      if (AppState.currentState !== 'active') return
+      void refreshUnreadCount()
+      void announcementFeed.load(ANNOUNCEMENT_MAX_AGE_MS)
     }
     refreshWhenActive()
     const interval = setInterval(refreshWhenActive, MESSAGE_POLL_INTERVAL_MS)
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void refreshUnreadCount()
+      if (state !== 'active') return
+      void refreshUnreadCount()
+      void announcementFeed.load()
     })
     return () => {
       clearInterval(interval)
@@ -114,24 +139,27 @@ export function MessageCenterProvider({ children }: PropsWithChildren) {
   }, [isAuthenticated, user?.id])
 
   useEffect(() => {
-    void setApplicationBadge(isAuthenticated ? unreadCount : 0)
-  }, [isAuthenticated, unreadCount])
+    void setApplicationBadge(isAuthenticated ? totalUnreadCount : 0)
+  }, [isAuthenticated, totalUnreadCount])
 
   useEffect(() => {
     const handleResponse = (data: Record<string, unknown> | undefined) => {
-      if (!data) return
-      const roomId = typeof data.roomId === 'string' ? data.roomId : ''
-      if (data.kind !== 'chat_message' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(roomId)) return
-      queueNotificationChat(roomId)
-      flushPendingNotificationChat(isAuthenticated)
+      const target = parseNotificationTarget(data)
+      if (!target) return
+      queueNotificationTarget(target)
+      flushPendingNotificationTarget(isAuthenticated)
+    }
+    const refreshFor = (data: Record<string, unknown> | undefined) => {
+      void refreshUnreadCount()
+      if (isAuthenticated && notificationRefreshesAnnouncements(data)) void announcementFeed.load()
     }
 
-    const received = Notifications.addNotificationReceivedListener(() => {
-      void refreshUnreadCount()
+    const received = Notifications.addNotificationReceivedListener((notification) => {
+      refreshFor(notification.request.content.data)
     })
     const responded = Notifications.addNotificationResponseReceivedListener((response) => {
       handleResponse(response.notification.request.content.data)
-      void refreshUnreadCount()
+      refreshFor(response.notification.request.content.data)
     })
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) return
@@ -146,12 +174,14 @@ export function MessageCenterProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<MessageCenterContextValue>(() => ({
     unreadCount,
+    announcementUnreadCount: isAuthenticated ? announcementUnreadCount : 0,
+    totalUnreadCount,
     refreshUnreadCount,
     setUnreadCount,
     pushState,
     enablingPush,
     enableNotifications,
-  }), [enableNotifications, enablingPush, pushState, refreshUnreadCount, setUnreadCount, unreadCount])
+  }), [announcementUnreadCount, enableNotifications, enablingPush, isAuthenticated, pushState, refreshUnreadCount, setUnreadCount, totalUnreadCount, unreadCount])
 
   return <MessageCenterContext.Provider value={value}>{children}</MessageCenterContext.Provider>
 }

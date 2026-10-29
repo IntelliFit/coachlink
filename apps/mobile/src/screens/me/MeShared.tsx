@@ -252,7 +252,7 @@ export const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   subtitle: {
     color: colors.textSecondary,
@@ -260,7 +260,7 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   card: {
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -275,7 +275,7 @@ export const styles = StyleSheet.create({
   emptyTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   emptyDesc: {
     color: colors.textSecondary,
@@ -315,10 +315,10 @@ export const styles = StyleSheet.create({
   menuLabel: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   menuDesc: {
-    color: colors.textSecondary,
+    color: colors.textTertiary,
     fontSize: 13,
   },
   badge: {
@@ -330,7 +330,7 @@ export const styles = StyleSheet.create({
   badgeText: {
     color: colors.surface,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   field: {
     gap: spacing.xs,
@@ -338,13 +338,13 @@ export const styles = StyleSheet.create({
   fieldLabel: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   input: {
     minHeight: 48,
-    borderRadius: radius.md,
+    borderRadius: radius.input,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.controlBorder,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.sm,
     color: colors.text,
@@ -357,19 +357,19 @@ export const styles = StyleSheet.create({
   },
   button: {
     minHeight: 48,
-    borderRadius: radius.md,
+    borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
     borderWidth: 1,
   },
   primaryButton: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.brandStrong,
+    borderColor: colors.brandStrong,
   },
   secondaryButton: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: colors.controlBorder,
   },
   dangerButton: {
     backgroundColor: colors.danger,
@@ -378,10 +378,10 @@ export const styles = StyleSheet.create({
   buttonText: {
     color: colors.surface,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   secondaryButtonText: {
-    color: colors.brand,
+    color: colors.text,
   },
   pressed: {
     opacity: 0.82,
@@ -396,7 +396,7 @@ export const styles = StyleSheet.create({
   },
   avatarText: {
     color: colors.textSecondary,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 })
 

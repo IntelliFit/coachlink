@@ -261,10 +261,10 @@ const styles = StyleSheet.create({
   monthTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   monthDesc: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -297,12 +297,12 @@ const styles = StyleSheet.create({
   summaryLabel: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   summaryValue: {
     color: colors.text,
     fontSize: 30,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   splitGrid: {
     flexDirection: 'row',
@@ -323,12 +323,12 @@ const styles = StyleSheet.create({
   metricLabel: {
     color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   metricValue: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -339,12 +339,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   sectionMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   list: {
     gap: spacing.sm,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   itemTitle: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   itemDesc: {
     color: colors.textSecondary,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   itemAmount: {
     color: colors.success,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   disabled: {
     opacity: 0.45,

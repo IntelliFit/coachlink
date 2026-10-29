@@ -6,6 +6,8 @@ import { IconFont, type IconFontName } from '../../components/IconFont'
 import type { RootStackParamList } from '../../navigation/types'
 import { colors, radius, shadow, spacing } from '../../theme'
 import { Card, EmptyState, LoadingState, ScreenShell, SolidButton, safeRequest } from '../me/MeShared'
+import { HomeAnnouncements } from '../../components/announcements/HomeAnnouncements'
+import { CoachPaymentBanner } from './CoachPaymentsScreen'
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>
 
@@ -265,6 +267,8 @@ export function CoachDashboardScreen() {
           <Text style={styles.heroDesc}>统一管理学员、教学资产、计划与经营数据。</Text>
         </View>
       </View>
+      <HomeAnnouncements enabled={isTopLevelTab} />
+      <CoachPaymentBanner />
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>业务概览</Text>
@@ -385,7 +389,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     color: colors.text,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: 0,
   },
   heroDesc: {
@@ -402,10 +406,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   sectionMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -439,10 +443,10 @@ const styles = StyleSheet.create({
   statValue: {
     color: colors.text,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   statDesc: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     lineHeight: 18,
   },
@@ -452,7 +456,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   rows: {
     gap: spacing.xs,
@@ -479,7 +483,7 @@ const styles = StyleSheet.create({
   rowTitle: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   rowDesc: {
     color: colors.textSecondary,
@@ -498,7 +502,7 @@ const styles = StyleSheet.create({
   valueText: {
     color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   readyText: {
     color: colors.success,

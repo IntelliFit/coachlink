@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
   noticeTitle: {
     color: colors.surface,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   noticeDesc: {
     color: 'rgba(255,255,255,0.86)',
@@ -408,9 +408,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F6EF',
   },
   stepTabText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   stepTabTextActive: {
     color: colors.surface,
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   sectionHint: {
     color: colors.textSecondary,
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   label: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   input: {
     minHeight: 48,
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   segmentText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   segmentTextActive: {
     color: colors.brand,
@@ -504,9 +504,9 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   photoPlaceholder: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   pickerField: {
     minHeight: 48,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   placeholderText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
   },
   codePreview: {
     minHeight: 44,
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   codeText: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   helpCard: {
     gap: 4,
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   helpTitle: {
     color: '#9A3412',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   helpText: {
     color: '#9A3412',
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   closeButton: {
     paddingHorizontal: spacing.xs,
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   closeText: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   optionList: {
     maxHeight: 520,
@@ -603,10 +603,10 @@ const styles = StyleSheet.create({
   optionName: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   optionCode: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   pressed: {

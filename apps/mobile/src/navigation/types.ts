@@ -20,6 +20,7 @@ export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined
   ProfileDetail: undefined
   ProfileEdit: undefined
+  StudentOnboarding: undefined
   FitnessCard: undefined
   E1RMChart: undefined
   ActionLibrary: undefined
@@ -40,10 +41,14 @@ export type RootStackParamList = {
   Friends: { tab?: 'friends' | 'requests' } | undefined
   FriendActivity: undefined
   Messages: undefined
-  Chat: { roomId?: string; peerName?: string } | undefined
+  Chat: { roomId?: string; peerName?: string; draft?: string } | undefined
+  Announcements: undefined
+  AnnouncementDetail: { id: string }
   MyCoaches: undefined
   CoachDashboard: undefined
   CoachStudents: undefined
+  CoachPayments: undefined
+  CoachStudentPlan: { subscriptionId: string; studentName?: string; focusDay?: number }
   CoachStudentDetail: { subscriptionId?: string; studentId?: string } | undefined
   CoachAssignPlan: { subscriptionId: string; studentId?: string; studentName?: string }
   CoachActions: undefined

@@ -14,6 +14,7 @@ import {
   NormalizedDayTask
 } from '../lib/dayModules'
 import './TodayTrainingCard.scss'
+import { formatRestMinutes } from '@coachlink/core/src/restDisplay'
 
 const LIGHTWEIGHT_KIND_LABELS: Record<string, string> = { DIET: '饮食', CARDIO: '有氧', HABIT: '习惯' }
 
@@ -244,7 +245,7 @@ function TodayTrainingCard({
                           {prescriptions.map((set: any) => (
                             <Text key={set.set_number} className='tt-action__set cl-num'>
                               第{set.set_number}组 · {[set.planned_weight, set.planned_reps ? `${set.planned_reps}${/^\d+(?:\.\d+)?$/.test(String(set.planned_reps)) ? set.planned_target_unit || '次' : ''}` : '', set.planned_intensity,
-                                set.planned_rest_seconds ? `休息${set.planned_rest_seconds}秒` : ''].filter(Boolean).join(' · ') || '按动作要求完成'}
+                                formatRestMinutes(set.planned_rest_seconds) ? `休息${formatRestMinutes(set.planned_rest_seconds)}` : ''].filter(Boolean).join(' · ') || '按动作要求完成'}
                             </Text>
                           ))}
                         </View>

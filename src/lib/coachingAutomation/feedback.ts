@@ -142,6 +142,8 @@ export async function onExecutionFeedbackSubmitted(feedbackId: string) {
       if (context.coachUserId) {
         await sendSystemMessage(context.coachUserId, {
           content: `学员训练反馈已生成 AI 调整草稿：${patch.summary} 请前往 [自动化设置](/dashboard/automation) 查看。`,
+          // 摘要可能包含伤病等健康信息，锁屏推送只显示这句概括。
+          content_metadata: { push_preview: "学员训练反馈已生成 AI 调整草稿，请前往自动化设置查看。" },
         });
       }
       await markAutomationJob(job.id, "needs_coach_review", {

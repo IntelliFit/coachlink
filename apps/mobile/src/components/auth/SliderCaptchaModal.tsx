@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   title: {
     color: '#0F172A',
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   tip: {
     marginTop: spacing.xs,
@@ -212,6 +212,6 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     color: '#64748B',
-    fontWeight: '800',
+    fontWeight: '600',
   },
 })

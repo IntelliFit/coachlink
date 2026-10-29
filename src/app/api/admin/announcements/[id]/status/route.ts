@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { setAnnouncementStatus } from '@/lib/announcementStore';
+import { enqueueAnnouncementMobilePush } from '@/lib/enqueueAnnouncementMobilePush';
 import { ANNOUNCEMENT_STATUSES, isUuid, type AnnouncementRow, type AnnouncementStatus } from '@/lib/announcements';
 import type { ApiData } from '@/types/api';
 import { fail, requireAnnouncementAdmin } from '../../adminAuth';
@@ -19,6 +20,12 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     try {
         const item = await setAnnouncementStatus(id, status as AnnouncementStatus);
         if (!item) return fail('公告不存在', 404);
+        if (item.status === 'published') {
+            // 推送入队失败不影响发布本身；用户仍能在通知列表和弹窗里看到公告。
+            await enqueueAnnouncementMobilePush(item).catch((pushError) => {
+                console.error('[admin/announcements] enqueue mobile push failed:', pushError);
+            });
+        }
         return NextResponse.json<ApiData<{ item: AnnouncementRow }>>({ success: true, data: { item } });
     } catch (error) {
         console.error('[admin/announcements] status failed:', error);

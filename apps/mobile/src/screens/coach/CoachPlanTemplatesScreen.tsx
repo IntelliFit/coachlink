@@ -8,6 +8,10 @@ import { IconFont } from '../../components/IconFont'
 import type { RootStackParamList } from '../../navigation/types'
 import { colors, radius, spacing } from '../../theme'
 import { Card, EmptyState, FormField, LoadingState, ScreenShell, SolidButton, safeRequest } from '../me/MeShared'
+import { PlanDaysEditor } from '../plan/PlanDaysEditor'
+import { SUITABLE_FOR_LABELS, createDefaultPlanDays, normalizePlanDays } from '../plan/model/planEditor'
+import { finalizeDays, findUnpickedStrength, prepareDaysForEditor } from '../plan/model/planDayOps'
+import type { PlanActionOption, PlanTrainingDay } from '../plan/model/planTypes'
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>
 type TemplateType = '' | 'beginner' | 'strength'
@@ -18,15 +22,6 @@ const TYPE_OPTIONS: Array<{ label: string; value: TemplateType }> = [
   { label: '力量训练', value: 'strength' },
 ]
 
-const DEFAULT_TRAINING_DAYS = [
-  {
-    dayIndex: 1,
-    type: 'rest',
-    title: '休息日',
-    actionSets: [],
-  },
-]
-
 function dateText(value?: string | null) {
   return value ? String(value).slice(0, 10) : '-'
 }
@@ -35,12 +30,6 @@ function parseTags(text: string) {
   return text.split(/[,\n，、]/).map((item) => item.trim()).filter(Boolean)
 }
 
-function parseJsonDays(text: string) {
-  if (!text.trim()) return DEFAULT_TRAINING_DAYS
-  const parsed = JSON.parse(text)
-  if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('trainingDays 必须是非空数组')
-  return parsed
-}
 
 export function CoachPlanTemplatesScreen() {
   const navigation = useNavigation<Navigation>()
@@ -186,6 +175,10 @@ export function CoachPlanTemplateEditScreen() {
   const isEdit = Boolean(templateId)
   const [loading, setLoading] = useState(Boolean(templateId))
   const [saving, setSaving] = useState(false)
+  const [parsing, setParsing] = useState(false)
+  const [importText, setImportText] = useState('')
+  const [actions, setActions] = useState<PlanActionOption[]>([])
+  const [days, setDays] = useState<PlanTrainingDay[]>(() => createDefaultPlanDays(1, 'coach'))
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -193,10 +186,16 @@ export function CoachPlanTemplateEditScreen() {
     tags: '',
     suitableFor: 'beginner',
     type: 'custom',
-    trainingDaysJson: JSON.stringify(DEFAULT_TRAINING_DAYS, null, 2),
   })
 
   const patch = (next: Partial<typeof form>) => setForm((prev) => ({ ...prev, ...next }))
+
+  useEffect(() => {
+    // 动作选择器用教练动作库；失败时编辑器仍可用，只是不能新选动作。
+    safeRequest<any>('/api/action-lib/list-actions', { body: { page: 1, limit: 500 } })
+      .then((res) => setActions(Array.isArray(res?.actions) ? res.actions : []))
+      .catch(() => setActions([]))
+  }, [])
 
   useEffect(() => {
     if (!templateId) return
@@ -205,7 +204,6 @@ export function CoachPlanTemplateEditScreen() {
         setLoading(true)
         const res = await safeRequest<any>('/api/plan-lib/get-template', { body: { id: templateId } })
         const template = res?.template || {}
-        const days = Array.isArray(res?.days) && res.days.length > 0 ? res.days : DEFAULT_TRAINING_DAYS
         setForm({
           name: template.name || '',
           description: template.description || '',
@@ -213,8 +211,8 @@ export function CoachPlanTemplateEditScreen() {
           tags: Array.isArray(template.tags) ? template.tags.join('、') : '',
           suitableFor: template.suitable_for || template.suitableFor || 'beginner',
           type: template.type || 'custom',
-          trainingDaysJson: JSON.stringify(days, null, 2),
         })
+        if (Array.isArray(res?.days) && res.days.length > 0) setDays(prepareDaysForEditor(res.days))
       } catch (e) {
         Alert.alert('加载失败', e instanceof Error ? e.message : '模板加载失败')
       } finally {
@@ -224,16 +222,40 @@ export function CoachPlanTemplateEditScreen() {
     void load()
   }, [templateId])
 
+  async function parseImportText() {
+    if (!importText.trim()) {
+      Alert.alert('请先粘贴计划文本')
+      return
+    }
+    if (actions.length === 0) {
+      Alert.alert('动作库为空', '解析需要按你的动作库匹配动作，请先添加动作。')
+      return
+    }
+    setParsing(true)
+    try {
+      const data = await safeRequest<any>('/api/plan-lib/parse-template', {
+        body: { text: importText, actions: actions.map((action) => ({ id: action.id, name: action.name, type: action.type || undefined, attrs: action.attrs || undefined })) },
+      })
+      const parsed = Array.isArray(data?.trainingDays) ? prepareDaysForEditor(data.trainingDays) : []
+      if (parsed.length === 0) throw new Error('没有解析出训练日')
+      setDays(parsed)
+      if (data?.globalDescription && !form.description.trim()) patch({ description: String(data.globalDescription) })
+      Alert.alert('已解析', `已生成 ${parsed.length} 天的安排，请检查后保存。`)
+    } catch (e) {
+      Alert.alert('解析失败', e instanceof Error ? e.message : '请调整文本后重试')
+    } finally {
+      setParsing(false)
+    }
+  }
+
   async function save() {
     if (!form.name.trim()) {
       Alert.alert('缺少名称', '请输入模板名称。')
       return
     }
-    let trainingDays: any[]
-    try {
-      trainingDays = parseJsonDays(form.trainingDaysJson)
-    } catch (e) {
-      Alert.alert('训练日 JSON 无效', e instanceof Error ? e.message : '请检查 JSON 格式')
+    const unpicked = findUnpickedStrength(days)
+    if (unpicked) {
+      Alert.alert('还有动作未选择', `第 ${unpicked.dayIndex} 天的第 ${unpicked.setIndex + 1} 个力量项还没选动作。`)
       return
     }
     const payload: Record<string, unknown> = {
@@ -243,7 +265,7 @@ export function CoachPlanTemplateEditScreen() {
       tags: parseTags(form.tags),
       suitableFor: form.suitableFor || 'beginner',
       type: form.type || null,
-      trainingDays,
+      trainingDays: finalizeDays(days),
     }
     if (isEdit) payload.id = templateId
     try {
@@ -266,21 +288,30 @@ export function CoachPlanTemplateEditScreen() {
   }
 
   return (
-    <ScreenShell title={isEdit ? '编辑计划模板' : '新建计划模板'} subtitle="基础信息与训练日结构；完整原生工作台会继续深化。" onBack={() => navigation.goBack()}>
+    <ScreenShell title={isEdit ? '编辑计划模板' : '新建计划模板'} subtitle="基础信息、文本导入和按周训练日编辑。" onBack={() => navigation.goBack()}>
       <Card style={styles.formCard}>
         <FormField label="模板名称" value={form.name} onChangeText={(name) => patch({ name })} />
         <FormField label="详情描述" value={form.description} onChangeText={(description) => patch({ description })} multiline />
         <FormField label="执行须知" value={form.executionNotice} onChangeText={(executionNotice) => patch({ executionNotice })} multiline />
         <FormField label="标签" value={form.tags} onChangeText={(tags) => patch({ tags })} placeholder="增肌、上肢、入门" />
-        <FormField label="适合人群" value={form.suitableFor} onChangeText={(suitableFor) => patch({ suitableFor })} placeholder="beginner / intermediate / advanced" />
-        <FormField label="模板类型" value={form.type} onChangeText={(type) => patch({ type })} placeholder="custom / beginner / strength" />
-        <View style={styles.jsonHintBox}>
-          <Text style={styles.jsonHintTitle}>训练日 JSON</Text>
-          <Text style={styles.jsonHint}>可粘贴小程序/网页导出的 trainingDays 数组。当前默认保留一个休息日，避免空模板写入。</Text>
+        <View style={styles.levelRow}>
+          {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
+            <Pressable key={level} accessibilityRole="tab" accessibilityState={{ selected: form.suitableFor === level }} onPress={() => patch({ suitableFor: level })} style={[styles.levelChip, form.suitableFor === level && styles.levelChipActive]}>
+              <Text style={[styles.levelText, form.suitableFor === level && styles.levelTextActive]}>{SUITABLE_FOR_LABELS[level]}</Text>
+            </Pressable>
+          ))}
         </View>
-        <FormField label="trainingDays" value={form.trainingDaysJson} onChangeText={(trainingDaysJson) => patch({ trainingDaysJson })} multiline />
       </Card>
-      <SolidButton label={isEdit ? '保存模板' : '创建模板'} loading={saving} onPress={save} />
+      <Card style={styles.formCard}>
+        <Text style={styles.sectionTitle}>文本导入</Text>
+        <FormField label="粘贴计划文本" value={importText} onChangeText={setImportText} multiline placeholder="粘贴一段训练安排，系统按你的动作库解析成训练日。" />
+        <SolidButton label="解析文本" variant="secondary" loading={parsing} onPress={() => void parseImportText()} />
+      </Card>
+      <Card style={styles.formCard}>
+        <Text style={styles.sectionTitle}>训练日</Text>
+        <PlanDaysEditor days={days} onChange={setDays} actions={actions} mode="coach" />
+      </Card>
+      <SolidButton label={isEdit ? '保存模板' : '创建模板'} loading={saving} onPress={() => void save()} />
     </ScreenShell>
   )
 }
@@ -288,31 +319,34 @@ export function CoachPlanTemplateEditScreen() {
 const styles = StyleSheet.create({
   hero: { gap: spacing.sm },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-  heroTitle: { color: colors.text, fontSize: 24, fontWeight: '900' },
+  heroTitle: { color: colors.text, fontSize: 24, fontWeight: '700' },
   heroDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 4 },
   createButton: { minHeight: 48, paddingHorizontal: spacing.sm, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
-  createText: { color: colors.surface, fontSize: 14, fontWeight: '900' },
+  createText: { color: colors.surface, fontSize: 14, fontWeight: '700' },
   searchRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   chip: { minHeight: 48, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  chipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
+  chipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   chipTextActive: { color: colors.surface },
   tagChip: { minHeight: 48, paddingHorizontal: spacing.sm, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted },
   tagChipActive: { backgroundColor: colors.brandSoft },
-  tagText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
+  tagText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   tagTextActive: { color: colors.brand },
   templateCard: { gap: spacing.sm },
   templateMain: { gap: spacing.xs },
-  templateTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  templateTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
   templateDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
-  metaText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
-  inlineTag: { paddingHorizontal: spacing.xs, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: colors.brandSoft, color: colors.brand, fontSize: 11, fontWeight: '800' },
+  metaText: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
+  inlineTag: { paddingHorizontal: spacing.xs, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: colors.brandSoft, color: colors.brand, fontSize: 11, fontWeight: '600' },
   actionRow: { flexDirection: 'row', gap: spacing.sm },
   formCard: { gap: spacing.sm },
-  jsonHintBox: { padding: spacing.sm, borderRadius: radius.md, backgroundColor: colors.brandSoft, gap: 4 },
-  jsonHintTitle: { color: colors.brand, fontSize: 14, fontWeight: '900' },
-  jsonHint: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  levelRow: { flexDirection: 'row', gap: spacing.xs },
+  levelChip: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
+  levelChipActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+  levelText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  levelTextActive: { color: colors.brandDark, fontWeight: '700' },
 })

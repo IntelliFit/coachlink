@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   backText: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   hero: {
     minHeight: 152,
@@ -542,12 +542,12 @@ const styles = StyleSheet.create({
   kicker: {
     color: 'rgba(255,255,255,0.72)',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   heroTitle: {
     color: '#FFFFFF',
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   heroSubtitle: {
     color: 'rgba(255,255,255,0.8)',
@@ -579,19 +579,19 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   chipActive: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.selected,
+    borderColor: colors.selected,
   },
   chipLabel: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   chipLabelActive: {
     color: '#FFFFFF',
   },
   chipDesc: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 11,
     marginTop: 2,
   },
@@ -613,12 +613,12 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   fieldSuffix: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   input: {
     minHeight: 48,
@@ -626,13 +626,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     color: colors.text,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.border,
   },
   fieldHelper: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   feedbackRow: {
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   feedbackLabel: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   secondaryButton: {
     flex: 1,
@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.danger,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     marginTop: spacing.sm,
   },
   resultCard: {
@@ -705,19 +705,19 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   resultKicker: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   resultTitle: {
     color: colors.text,
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   score: {
     color: colors.brand,
     fontSize: 36,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   metricGrid: {
     flexDirection: 'row',
@@ -731,14 +731,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   metricLabel: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   metricValue: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 4,
   },
   rankBox: {
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
   rankTitle: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rankText: {
     color: colors.textSecondary,
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveHint: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
     lineHeight: 18,
   },
@@ -777,11 +777,11 @@ const styles = StyleSheet.create({
   rmText: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rmMuted: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
 })

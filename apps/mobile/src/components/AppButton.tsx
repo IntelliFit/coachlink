@@ -42,7 +42,7 @@ export function AppButton({ label, onPress, variant = 'primary', disabled = fals
 const styles = StyleSheet.create({
   button: {
     minHeight: 48,
-    borderRadius: radius.md,
+    borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
@@ -50,12 +50,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   primary: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.brandStrong,
+    borderColor: colors.brandStrong,
   },
   secondary: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: colors.controlBorder,
   },
   disabled: {
     opacity: 0.56,
@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
     color: colors.surface,
   },
   secondaryLabel: {
-    color: colors.brand,
+    // 与小程序 ClButton secondary 一致：白底、描边、正文色文字
+    color: colors.text,
   },
 })

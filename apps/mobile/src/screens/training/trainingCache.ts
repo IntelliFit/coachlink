@@ -126,3 +126,11 @@ export async function syncTrainingExecutionToCache(params: {
       : Promise.resolve(),
   ])
 }
+
+export async function removeExecutionSnapshot(userId: string, key: string) {
+  if (!userId || !key) return
+  const entries = (await readStore(userId))?.entries || {}
+  if (!(key in entries)) return
+  const { [key]: _removed, ...rest } = entries
+  await writeStore(userId, rest)
+}

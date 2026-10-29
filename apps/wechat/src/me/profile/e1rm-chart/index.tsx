@@ -37,10 +37,21 @@ export default function E1RMChartPage() {
 
   const loadE1RMData = useCallback(async () => {
     if (!selectedActionId) return
-    const res = await studentService.getE1RMHistory(selectedActionId)
-    if (res?.history) setE1rmData(res.history)
-    if (res?.prRecords) setPrRecords(res.prRecords)
-  }, [selectedActionId])
+    const res: any = await studentService.getE1RMHistory(selectedActionId)
+    // 接口返回的点是 { date, e1rm, isPR }，没有 value 字段，也不返回 prRecords；
+    // 这里转换成图表需要的 value，并按 isPR 推导 PR 列表（与 APP 的 e1RM 页一致）。
+    const history: any[] = Array.isArray(res?.history) ? res.history : []
+    const points = history
+      .map((point) => ({ ...point, value: Math.round(Number(point?.e1rm ?? point?.value ?? 0)) }))
+      .filter((point) => point.date && point.value > 0)
+    setE1rmData(points)
+    const actionName = actions.find((action) => action.id === selectedActionId)?.name || '动作'
+    setPrRecords(Array.isArray(res?.prRecords)
+      ? res.prRecords
+      : points
+        .filter((point) => point.isPR)
+        .map((point, index) => ({ id: `${point.date}-${index}`, actionName, value: point.value, date: point.date, videoUrl: point.videoUrl })))
+  }, [actions, selectedActionId])
 
   useDidShow(() => { loadActions() })
   useEffect(() => { loadE1RMData() }, [loadE1RMData])

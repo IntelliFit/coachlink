@@ -17,6 +17,7 @@ import { colors, radius, spacing } from '../../theme'
 import { openExternalUrl } from '../../externalLinks'
 import type { RootStackParamList } from '../../navigation/types'
 import { safeRequest } from '../me/MeShared'
+import { formatRestMinutes } from '@coachlink/core/src/restDisplay'
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>
 
@@ -364,7 +365,7 @@ export function CoachVideoReviewScreen({ route, navigation }: NativeStackScreenP
                 <MetricRow label="重量" value={`${exec.actual_weight}kg${exec.planned_weight != null ? ` / ${exec.planned_weight}kg` : ''}`} />
               ) : null}
               {exec.rpe != null ? <MetricRow label="RPE" value={`${exec.rpe}/10`} /> : null}
-              {exec.rest_seconds != null ? <MetricRow label="休息" value={`${exec.rest_seconds}秒`} /> : null}
+              {exec.rest_seconds != null ? <MetricRow label="休息" value={formatRestMinutes(exec.rest_seconds) || '无间歇'} /> : null}
             </View>
           ) : null}
 
@@ -452,13 +453,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   filterPillActive: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.selected,
+    borderColor: colors.selected,
   },
   filterText: {
     color: colors.textSecondary,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   filterTextActive: {
     color: colors.surface,
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     flex: 1,
   },
   cardMeta: {
@@ -492,7 +493,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   cardDate: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   cardActionRow: {
@@ -511,7 +512,7 @@ const styles = StyleSheet.create({
   cardActionText: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     flex: 1,
   },
   statusPill: {
@@ -533,7 +534,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   pendingText: {
     color: colors.warning,
@@ -542,7 +543,7 @@ const styles = StyleSheet.create({
     color: colors.success,
   },
   notRequiredText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
   },
   pager: {
     marginTop: spacing.sm,
@@ -567,17 +568,17 @@ const styles = StyleSheet.create({
   pagerText: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   pagerTextDisabled: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
   },
   pageText: {
     color: colors.textSecondary,
     width: 90,
     textAlign: 'center',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   reviewScroll: {
     flex: 1,
@@ -601,7 +602,7 @@ const styles = StyleSheet.create({
   reviewTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   reviewMeta: {
     color: colors.textSecondary,
@@ -628,7 +629,7 @@ const styles = StyleSheet.create({
   secondaryBtnText: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   metaText: {
     color: colors.textSecondary,
@@ -655,7 +656,7 @@ const styles = StyleSheet.create({
   metricValue: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   notes: {
     color: colors.text,
@@ -678,7 +679,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   starText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 24,
     lineHeight: 26,
   },
@@ -686,7 +687,7 @@ const styles = StyleSheet.create({
     color: '#F8B84A',
   },
   readonlyHint: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   textarea: {
@@ -714,7 +715,7 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     color: colors.surface,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   loadingWrap: {
     flex: 1,

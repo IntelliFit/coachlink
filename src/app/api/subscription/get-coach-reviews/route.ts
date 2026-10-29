@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
 import { getAuthUser } from '@/lib/auth';
+import { resolveReadableReviewSubscriptionIds } from '@/lib/coachReviewAccess';
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
@@ -25,50 +26,34 @@ export async function POST(req: Request) {
         studentId
     } = await req.json() as GetCoachReviewsDto;
 
-    // 构建查询
-    let query = supabase
+    // 先按登录身份核对能看哪些订阅：学员只看自己的，教练只看自己名下的，不传筛选时绝不返回全表。
+    let access;
+    try {
+        access = await resolveReadableReviewSubscriptionIds(supabase, userId, { subscriptionId, studentId });
+    } catch (accessError) {
+        console.error('核对教练记录权限失败:', accessError);
+        return NextResponse.json({ success: false, message: '获取教练评价失败', data: null }, { status: 500 });
+    }
+    if (!access.ok) {
+        return NextResponse.json<ApiData<GetCoachReviewsResponseDto>>({
+            success: false,
+            message: access.message,
+            data: null
+        }, { status: access.status });
+    }
+    if (access.subscriptionIds.length === 0) {
+        return NextResponse.json<ApiData<GetCoachReviewsResponseDto>>({
+            success: true,
+            message: '获取教练评价成功',
+            data: { reviews: [] }
+        });
+    }
+
+    const query = supabase
         .from('coach_reviews')
         .select('*')
+        .in('coach_subscription_id', access.subscriptionIds)
         .order('created_at', { ascending: false }); // 按创建时间倒序排列
-
-    // 如果提供了 subscriptionId，则添加此条件
-    if (subscriptionId) {
-        query = query.eq('coach_subscription_id', subscriptionId);
-    }
-
-    // 如果提供了 studentId，则联合查询
-    if (studentId) {
-        // 先找到该学生的所有订阅
-        const { data: subscriptions, error: subscriptionError } = await supabase
-            .from('coach_subscriptions')
-            .select('id')
-            .eq('student_id', studentId);
-
-        if (subscriptionError) {
-            return NextResponse.json<ApiData<GetCoachReviewsResponseDto>>({
-                success: false,
-                message: '获取订阅信息失败',
-                data: null
-            }, { status: 500 });
-        }
-
-        // 获取订阅ID列表
-        const subscriptionIds = subscriptions?.map(sub => sub.id) || [];
-
-        // 添加订阅ID过滤条件
-        if (subscriptionIds.length > 0) {
-            query = query.in('coach_subscription_id', subscriptionIds);
-        } else {
-            // 如果没有找到订阅，直接返回空结果，避免 UUID 字段比较 "0" 触发 22P02
-            return NextResponse.json<ApiData<GetCoachReviewsResponseDto>>({
-                success: true,
-                message: '获取教练评价成功',
-                data: {
-                    reviews: []
-                }
-            });
-        }
-    }
 
     // 获取教练评价
     const { data, error } = await query;

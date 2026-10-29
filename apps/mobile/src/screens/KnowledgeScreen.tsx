@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   searchBox: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.lg, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
   searchButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
-  searchButtonText: { color: '#FFFFFF', fontWeight: '800' },
+  searchButtonText: { color: '#FFFFFF', fontWeight: '600' },
   chips: { gap: spacing.xs, paddingVertical: spacing.xs },
   chip: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   chipText: { color: colors.textSecondary, fontWeight: '700' },
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   loadNotice: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.lg, padding: spacing.sm, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
   loadNoticeText: { flex: 1, color: '#9A3412', fontSize: 13, lineHeight: 20 },
   retryButton: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#FDBA74' },
-  retryButtonText: { color: '#9A3412', fontSize: 13, fontWeight: '900' },
+  retryButtonText: { color: '#9A3412', fontSize: 13, fontWeight: '700' },
   loginButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
-  loginButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  loginButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 })

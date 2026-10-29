@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   sendCodeText: {
     color: colors.surface,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   devSection: {
     marginTop: 16,

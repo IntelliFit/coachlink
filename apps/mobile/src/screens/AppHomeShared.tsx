@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     color: '#FFFFFF',
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   heroSubtitle: {
     color: 'rgba(255,255,255,0.78)',
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   tileTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   tileSubtitle: {
     color: colors.textSecondary,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   rowTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   rowSubtitle: {
     color: colors.textSecondary,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   imageCardTitle: {
     color: '#FFFFFF',
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   imageCardSubtitle: {
     color: 'rgba(255,255,255,0.84)',

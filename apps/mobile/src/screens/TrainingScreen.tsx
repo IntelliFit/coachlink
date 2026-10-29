@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { trainingEntry } from '@coachlink/core/src/trainingAccess'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import { useFocusEffect } from '@react-navigation/native'
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +18,12 @@ import { SectionCard } from '../components/SectionCard'
 import { colors, radius, spacing } from '../theme'
 import { useAuth } from '../providers/AuthProvider'
 import { ActionGrid, ActionTile, HeroPanel, RowCard } from './AppHomeShared'
+import { HomeAnnouncements } from '../components/announcements/HomeAnnouncements'
+import { RecordCompletionSheet } from './training/RecordCompletionSheet'
+import { LightTaskSheet } from './training/LightTaskSheet'
+import { LIGHT_TASK_LABELS, removeActionAt, studentExtraTasks } from './training/lightTaskModel'
+import { executionSnapshotKey, syncTrainingExecutionToCache } from './training/trainingCache'
+import { plansReadyToComplete } from './training/planCompletion'
 import type { MainTabParamList, RootStackParamList } from '../navigation/types'
 import {
   emptyTodayTrainingPlanBlock,
@@ -83,6 +90,32 @@ export function TrainingScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [cache, setCache] = useState<TodayTrainingCache | null>(null)
+  const [recordCompletionOpen, setRecordCompletionOpen] = useState(false)
+  const [lightTaskOpen, setLightTaskOpen] = useState(false)
+  /** 删除进行中时不接受第二次删除：服务端按下标删除，并发会删错。 */
+  const lightTaskDeletingRef = useRef(false)
+  const [completedPlanName, setCompletedPlanName] = useState('')
+  /** 本次启动已尝试收尾的计划，避免每次回到首页都重复调用。 */
+  const completionAttemptedRef = useRef(new Set<string>())
+
+  const completeFinishedPlans = useCallback(async (snapshot: TodayTrainingCache) => {
+    for (const instance of plansReadyToComplete(snapshot)) {
+      const instanceId = String(instance.id)
+      if (completionAttemptedRef.current.has(instanceId)) continue
+      completionAttemptedRef.current.add(instanceId)
+      try {
+        await apiClient.request('/api/plan-lib/complete-instance', {
+          method: 'POST',
+          body: { instanceId },
+          timeoutMs: 12000,
+        })
+        setCompletedPlanName(String(instance.name || instance.title || '训练计划'))
+      } catch (completeError) {
+        // 下次启动再试；不影响首页展示。
+        console.warn('[mobile-training] complete plan failed', completeError)
+      }
+    }
+  }, [])
 
   const load = useCallback(async (manual = false) => {
     if (!userId) {
@@ -205,6 +238,19 @@ export function TrainingScreen({ navigation }: Props) {
 
       setCache(provisional)
       await persistTodayTrainingCache(provisional)
+      // 只按本次云端成功返回的计划判断收尾；请求失败时用的是本地缓存，可能已过期。
+      const freshCoachBlocks = Object.fromEntries(
+        subscriptions.flatMap((subscription: any, index: number) => (
+          coachResults[index]?.status === 'fulfilled'
+            ? [[String(subscription.id), coachPlanDataBySubId[String(subscription.id)]]]
+            : []
+        )),
+      )
+      void completeFinishedPlans({
+        ...provisional,
+        coachPlanDataBySubId: freshCoachBlocks,
+        selfPlanData: selfResult.status === 'fulfilled' ? selfPlanData : emptyTodayTrainingPlanBlock(),
+      })
     } catch (loadError: any) {
       console.warn('[mobile-training] load failed', loadError)
       setError(cached ? '云端同步失败，当前展示本地缓存。' : '训练数据加载失败，请检查网络后重试。')
@@ -212,7 +258,7 @@ export function TrainingScreen({ navigation }: Props) {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [userId])
+  }, [completeFinishedPlans, userId])
 
   useFocusEffect(
     useCallback(() => {
@@ -306,6 +352,90 @@ export function TrainingScreen({ navigation }: Props) {
     })
   }
 
+  /** 补记成功后先把返回的 execution 写进本地缓存，弱网下重新同步失败也不会显示旧状态。 */
+  const applySavedCompletion = async (saved: any) => {
+    const instanceId = instance?.id ? String(instance.id) : ''
+    if (instanceId && saved && typeof saved === 'object') {
+      const dayIndex = Number(saved.day_index ?? saved.dayIndex ?? selectedDayIndex) || selectedDayIndex
+      await syncTrainingExecutionToCache({
+        userId,
+        key: executionSnapshotKey({ mode: 'plan', instanceId, dayIndex }),
+        isImpromptu: false,
+        instanceId,
+        dayIndex,
+        execution: { ...saved, day_index: dayIndex },
+      }).catch((cacheError) => console.warn('[mobile-training] failed to cache recorded completion', cacheError))
+      const refreshed = await readTodayTrainingCache(userId).catch(() => null)
+      if (refreshed) setCache(refreshed)
+    }
+    await load(true)
+  }
+
+  const writeDayExecution = async (instanceId: string, dayIndex: number, execution: any) => {
+    await syncTrainingExecutionToCache({
+      userId,
+      key: executionSnapshotKey({ mode: 'plan', instanceId, dayIndex }),
+      isImpromptu: false,
+      instanceId,
+      dayIndex,
+      execution,
+    }).catch((cacheError) => console.warn('[mobile-training] failed to cache light task change', cacheError))
+    const refreshed = await readTodayTrainingCache(userId).catch(() => null)
+    if (refreshed) setCache(refreshed)
+  }
+
+  const deleteLightTask = (execution: any, executionIndex: number, title: string) => {
+    if (lightTaskDeletingRef.current) {
+      Alert.alert('正在删除', '上一项还在删除中，请稍候。')
+      return
+    }
+    const instanceId = instance?.id ? String(instance.id) : ''
+    const dayIndex = selectedDayIndex
+    Alert.alert('删除轻任务', `确认删除轻任务「${title}」吗？`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: async () => {
+          const optimistic = removeActionAt(execution, executionIndex)
+          if (!optimistic || !instanceId || lightTaskDeletingRef.current) return
+          lightTaskDeletingRef.current = true
+          // 与小程序一致：先更新本地页面和缓存，服务端失败时完整回滚。
+          await writeDayExecution(instanceId, dayIndex, optimistic)
+          try {
+            await apiClient.request('/api/execution/extra-content/delete-extra-exercise', {
+              method: 'POST',
+              body: { executionId: execution.id, actionIndex: executionIndex },
+              timeoutMs: 12000,
+            })
+          } catch (deleteError: any) {
+            await writeDayExecution(instanceId, dayIndex, execution)
+            Alert.alert('删除失败', deleteError?.message || '请稍后重试')
+          } finally {
+            lightTaskDeletingRef.current = false
+          }
+          await load(true)
+        },
+      },
+    ])
+  }
+
+  const contactCoach = async () => {
+    const coachUserId = String(activeSubscription?.coach?.user_id || '')
+    if (!ensureLogin() || !coachUserId || coachUserId === userId) return
+    try {
+      const data = await apiClient.request<{ chatroom?: { id?: string } | null }>('/api/chat/get-chatroom', {
+        method: 'POST',
+        body: { members: [userId, coachUserId] },
+        timeoutMs: 12000,
+      })
+      if (!data?.chatroom?.id) throw new Error('会话创建失败')
+      rootNav?.navigate('Chat', { roomId: data.chatroom.id, peerName: activeSubscription?.coach?.name || undefined })
+    } catch (chatError: any) {
+      Alert.alert('打开会话失败', chatError?.message || '请稍后重试')
+    }
+  }
+
   const skipDay = (dayIndex: number) => {
     if (!instance?.id) return
     Alert.alert(
@@ -334,12 +464,16 @@ export function TrainingScreen({ navigation }: Props) {
   }
 
   const selectedStatus = selectedDay ? dayStatusLabel(activePlan, selectedDay) : ''
+  // 服务端只允许给「当前可练的训练日」或进行中的执行加任务（未来天 409、空休息日 400）。
+  const canAddLightTask = executionStatus(activePlan, selectedDayIndex) === 'in_progress'
+    || (selectedDay?.type !== 'rest' && entryForDay(activePlan, selectedDayIndex).intent === 'execute')
   const selectedExecutionStatus = executionStatus(activePlan, selectedDayIndex)
   const primaryLabel = entryForDay(activePlan, selectedDayIndex).label
 
   return (
     <Page>
       <HeroPanel title="训练" subtitle="多教练计划、自主计划、补练与即兴训练都集中在这里。" kicker="CoachLink" icon="icon-dumbbell" />
+      <HomeAnnouncements enabled={isAuthenticated} />
 
       <View style={styles.stats}>
         {stats.map((item) => (
@@ -420,6 +554,12 @@ export function TrainingScreen({ navigation }: Props) {
       >
         {loading ? <ActivityIndicator color={colors.brand} /> : null}
 
+        {cache?.planMode === 'coach' && activeSubscription?.coach?.user_id && String(activeSubscription.coach.user_id) !== userId ? (
+          <Pressable accessibilityRole="button" accessibilityLabel={`联系${activeSubscription.coach.name || '教练'}`} onPress={() => void contactCoach()} style={styles.syncButton}>
+            <Text style={styles.syncText}>联系{activeSubscription.coach.name || '教练'}</Text>
+          </Pressable>
+        ) : null}
+
         {activePlan.missingDays.length > 0 ? (
           <View style={styles.missingCard}>
             <Text style={styles.missingTitle}>有 {activePlan.missingDays.length} 个训练日待确认</Text>
@@ -482,6 +622,43 @@ export function TrainingScreen({ navigation }: Props) {
               <Pressable accessibilityRole="button" accessibilityLabel={selectedDay?.type === 'rest' ? '查看恢复安排' : primaryLabel} onPress={() => openTrainingDay()} style={styles.primaryButton}>
                 <Text style={styles.primaryButtonText}>{selectedDay?.type === 'rest' ? '查看恢复安排' : primaryLabel}</Text>
               </Pressable>
+              {(() => {
+                const selectedExecution = activePlan.executionsByDayIndex?.[selectedDayIndex]
+                const executionInProgress = String(selectedExecution?.status || '').toLowerCase() === 'in_progress'
+                const extras = studentExtraTasks(selectedExecution)
+                if (extras.length === 0) return null
+                return (
+                  <View style={styles.lightTasks}>
+                    <Text style={styles.blockLabel}>我加的轻任务</Text>
+                    {extras.map((task) => (
+                      <View key={`${task.executionIndex}-${task.title}`} style={styles.lightTaskRow}>
+                        <Text style={styles.lightTaskTag}>{task.type ? LIGHT_TASK_LABELS[task.type] : '任务'}</Text>
+                        <Text style={styles.lightTaskTitle} numberOfLines={1}>{task.title}{task.completed ? ' · 已完成' : ''}</Text>
+                        {!task.completed && executionInProgress && selectedExecution?.id ? (
+                          <Pressable accessibilityRole="button" accessibilityLabel={`删除${task.title}`} onPress={() => deleteLightTask(selectedExecution, task.executionIndex, task.title)} style={styles.lightTaskDelete}>
+                            <Text style={styles.lightTaskDeleteText}>删除</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                )
+              })()}
+              {instance?.id && selectedDay && canAddLightTask ? (
+                <Pressable accessibilityRole="button" accessibilityLabel="添加轻任务" onPress={() => ensureLogin() && setLightTaskOpen(true)} style={styles.syncButton}>
+                  <Text style={styles.syncText}>+ 添加轻任务（饮食 / 有氧 / 习惯）</Text>
+                </Pressable>
+              ) : null}
+              {instance?.id && selectedDay && selectedDay.type !== 'rest' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={selectedExecutionStatus === 'completed' ? '核对训练日期' : '补记训练'}
+                  onPress={() => ensureLogin() && setRecordCompletionOpen(true)}
+                  style={styles.syncButton}
+                >
+                  <Text style={styles.syncText}>{selectedExecutionStatus === 'completed' ? '核对训练日期' : '补记已练过的这一天'}</Text>
+                </Pressable>
+              ) : null}
             </View>
           </>
         ) : (
@@ -513,6 +690,45 @@ export function TrainingScreen({ navigation }: Props) {
           ))
         )}
       </SectionCard>
+      {instance?.id ? (
+        <RecordCompletionSheet
+          visible={recordCompletionOpen}
+          instanceId={String(instance.id)}
+          dayIndex={selectedDayIndex}
+          execution={activePlan.executionsByDayIndex?.[selectedDayIndex]}
+          earliestDate={instance.start_date || instance.created_at}
+          onClose={() => setRecordCompletionOpen(false)}
+          onSaved={applySavedCompletion}
+        />
+      ) : null}
+      {instance?.id ? (
+        <LightTaskSheet
+          visible={lightTaskOpen}
+          instanceId={String(instance.id)}
+          dayIndex={selectedDayIndex}
+          // 只有进行中的执行记录能加任务；已完成 / 已跳过 / 超时的由服务端新建一次执行（或拒绝）
+          executionId={String(activePlan.executionsByDayIndex?.[selectedDayIndex]?.status || '').toLowerCase() === 'in_progress' ? activePlan.executionsByDayIndex?.[selectedDayIndex]?.id || null : null}
+          onClose={() => setLightTaskOpen(false)}
+          onAdded={() => load(true)}
+        />
+      ) : null}
+      <Modal visible={Boolean(completedPlanName)} transparent animationType="fade" onRequestClose={() => setCompletedPlanName('')}>
+        <View style={styles.completionMask}>
+          <View style={styles.completionCard} accessibilityViewIsModal>
+            <Text style={styles.completionTitle}>计划完成</Text>
+            <Text style={styles.completionDesc}>恭喜完成「{completedPlanName}」的全部训练日。更新一下身体数据，下一阶段计划会更贴合你。</Text>
+            <Pressable accessibilityRole="button" onPress={() => { setCompletedPlanName(''); go('FitnessCard') }} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>更新健身资料卡</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => { setCompletedPlanName(''); go('PlanHistory') }} style={styles.syncButton}>
+              <Text style={styles.syncText}>查看全部计划</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setCompletedPlanName('')} style={styles.syncButton}>
+              <Text style={styles.syncText}>知道了</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Page>
   )
 }
@@ -529,7 +745,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  statValue: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  statValue: { color: colors.text, fontSize: 16, fontWeight: '700' },
   statLabel: { marginTop: 4, color: colors.textSecondary, fontSize: 12 },
   noticeError: {
     padding: spacing.sm,
@@ -541,7 +757,7 @@ const styles = StyleSheet.create({
   },
   noticeErrorText: { color: '#9A3F2B', fontSize: 13, lineHeight: 20 },
   noticeButton: { alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  noticeButtonText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
+  noticeButtonText: { color: colors.brand, fontSize: 13, fontWeight: '600' },
   segment: { flexDirection: 'row', gap: spacing.xs, padding: 4, borderRadius: radius.lg, backgroundColor: colors.background },
   segmentItem: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
   segmentItemActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
@@ -550,39 +766,49 @@ const styles = StyleSheet.create({
   coachList: { gap: spacing.xs, paddingVertical: spacing.xs },
   coachChip: { minWidth: 128, minHeight: 56, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   coachChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  coachChipTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  coachChipTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
   coachChipTitleActive: { color: '#FFFFFF' },
   coachChipMeta: { marginTop: 4, color: colors.textSecondary, fontSize: 11 },
   coachChipMetaActive: { color: 'rgba(255,255,255,0.82)' },
   missingCard: { gap: spacing.xs, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA' },
-  missingTitle: { color: '#9A3412', fontSize: 15, fontWeight: '900' },
+  missingTitle: { color: '#9A3412', fontSize: 15, fontWeight: '700' },
   missingDescription: { color: '#9A3412', fontSize: 12, lineHeight: 18 },
   missingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 48 },
   missingDay: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' },
   primarySmallButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.brand },
-  primarySmallText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  primarySmallText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
   secondarySmallButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
   secondarySmallText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  blockLabel: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  blockLabel: { color: colors.text, fontSize: 15, fontWeight: '700' },
   dayList: { gap: spacing.xs, paddingVertical: spacing.xs },
   dayCard: { minWidth: 88, minHeight: 64, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   dayCardActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  dayNumber: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  dayNumber: { color: colors.text, fontSize: 13, fontWeight: '600' },
   dayNumberActive: { color: '#FFFFFF' },
   dayStatus: { marginTop: 4, color: colors.textSecondary, fontSize: 11 },
   dayStatusActive: { color: 'rgba(255,255,255,0.82)' },
   selectedDayCard: { gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   selectedDayHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
-  selectedDayTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  selectedDayTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
   selectedDayMeta: { marginTop: 4, color: colors.textSecondary, fontSize: 12 },
   statusBadge: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
-  statusBadgeText: { color: colors.brand, fontSize: 11, fontWeight: '800' },
+  statusBadgeText: { color: colors.brand, fontSize: 11, fontWeight: '600' },
   selectedDayDescription: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
   primaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   syncButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  syncText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
+  syncText: { color: colors.brand, fontSize: 13, fontWeight: '600' },
   emptyPlan: { gap: spacing.xs, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background },
-  emptyPlanTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  emptyPlanTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
   empty: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+  lightTasks: { gap: spacing.xs },
+  lightTaskRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.xs, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  lightTaskTag: { color: colors.brandText, backgroundColor: colors.brandSoft, borderRadius: radius.tag, paddingHorizontal: 6, fontSize: 11, fontWeight: '500', overflow: 'hidden' },
+  lightTaskTitle: { flex: 1, color: colors.text, fontSize: 14 },
+  lightTaskDelete: { minHeight: 40, minWidth: 48, alignItems: 'center', justifyContent: 'center' },
+  lightTaskDeleteText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
+  completionMask: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.md, backgroundColor: 'rgba(36,29,26,0.56)' },
+  completionCard: { width: '100%', maxWidth: 400, gap: spacing.xs, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface },
+  completionTitle: { color: colors.text, fontSize: 20, fontWeight: '700' },
+  completionDesc: { color: colors.textSecondary, fontSize: 14, lineHeight: 21, marginBottom: spacing.xs },
 })

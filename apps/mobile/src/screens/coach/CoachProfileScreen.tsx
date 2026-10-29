@@ -6,8 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiClient } from '../../api'
 import { IconFont } from '../../components/IconFont'
 import { SectionCard } from '../../components/SectionCard'
+import { ImagePreviewModal } from '../../components/ImagePreviewModal'
+import { VideoPlayerModal, type VideoPlayerTarget } from '../../components/VideoPlayerModal'
 import { useAuth } from '../../providers/AuthProvider'
-import { colors, radius, shadow, spacing } from '../../theme'
+import { colors, floatShadow, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
 import { createCoachPaymentWaitingParams, subscriptionAmountYuan } from './coachPayment'
 
@@ -524,8 +526,19 @@ function AboutTab({ coach }: { coach: any }) {
   const materials = profileArray(profile, 'applicationMaterials')
   const socialLinks = profile?.socialLinks && typeof profile.socialLinks === 'object' ? profile.socialLinks as Record<string, string> : {}
   const hasContact = Boolean(profile?.contactEmail || profile?.contactPhone)
+  const [videoTarget, setVideoTarget] = useState<VideoPlayerTarget | null>(null)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  // 与小程序一致：教练资料里的视频应用内播放、图片全屏预览；其他链接仍交给系统打开。
+  const openMedia = (media: any, mediaUrl: string) => {
+    if (!mediaUrl) return
+    if (media?.type === 'video') setVideoTarget({ url: mediaUrl, title: String(media?.fileName || media?.file_name || '教练视频') })
+    else if (media?.type === 'image') setPreviewImage(mediaUrl)
+    else void openUrlOrCopy(mediaUrl, '媒体链接已复制')
+  }
   return (
     <>
+      <VideoPlayerModal target={videoTarget} onClose={() => setVideoTarget(null)} />
+      <ImagePreviewModal urls={previewImage ? [previewImage] : []} initialUrl={previewImage} onClose={() => setPreviewImage(null)} />
       <SectionCard title="教学理念 / PHILOSOPHY" description={profile.teachingPhilosophy || '暂无教学理念'} />
       <SectionCard title="成就奖项">
         <SimpleList rows={achievements.map((item: any) => String(item))} empty="无记录" />
@@ -554,7 +567,7 @@ function AboutTab({ coach }: { coach: any }) {
                         key={String(media?.id || `${item.id || index}-media-${mediaIndex}`)}
                         accessibilityRole="link"
                         accessibilityLabel={`查看${media?.type === 'video' ? '视频' : '图片'} ${media?.fileName || media?.file_name || mediaIndex + 1}`}
-                        onPress={() => void openUrlOrCopy(mediaUrl, '媒体链接已复制')}
+                        onPress={() => openMedia(media, mediaUrl)}
                         style={styles.materialMedia}
                       >
                         {previewUrl ? (
@@ -735,105 +748,105 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
   loadingText: { color: colors.textSecondary, fontSize: 14 },
   errorWrap: { flex: 1, justifyContent: 'center', padding: spacing.lg, gap: spacing.sm },
-  errorTitle: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  errorTitle: { color: colors.text, fontSize: 22, fontWeight: '700' },
   errorText: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
   pendingBanner: { minHeight: 48, justifyContent: 'center', borderRadius: radius.lg, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
-  pendingText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  pendingText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   introCard: { borderRadius: radius.xl, padding: spacing.md, gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
   introHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   avatar: { width: 80, height: 80, borderRadius: radius.lg, backgroundColor: colors.surfaceMuted },
   avatarFallback: { width: 80, height: 80, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
-  avatarText: { color: colors.brand, fontSize: 28, fontWeight: '900' },
+  avatarText: { color: colors.brand, fontSize: 28, fontWeight: '700' },
   introMeta: { flex: 1, gap: 6 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  coachName: { flex: 1, color: colors.text, fontSize: 24, fontWeight: '900' },
+  coachName: { flex: 1, color: colors.text, fontSize: 24, fontWeight: '700' },
   featuredBadge: { width: 24, height: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
   coachTitle: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
-  statusPill: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.success, backgroundColor: '#EAF6EE', fontSize: 12, fontWeight: '800' },
+  statusPill: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.success, backgroundColor: '#EAF6EE', fontSize: 12, fontWeight: '600' },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border, paddingVertical: spacing.sm },
   statItem: { flex: 1, alignItems: 'center', gap: 4 },
-  statValue: { color: colors.text, fontSize: 24, fontWeight: '900' },
+  statValue: { color: colors.text, fontSize: 24, fontWeight: '700' },
   statLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  tag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 12, fontWeight: '800' },
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  tag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 12, fontWeight: '600' },
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   bioText: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
   questionnaireButton: { minHeight: 48, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brandSoft },
-  questionnaireButtonText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
+  questionnaireButtonText: { color: colors.brand, fontSize: 13, fontWeight: '700' },
   expRow: { gap: spacing.xs },
   expItem: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, borderRadius: radius.md, padding: spacing.xs, backgroundColor: colors.surfaceMuted },
   expLabel: { color: colors.textSecondary, fontSize: 13 },
-  expValue: { flex: 1, textAlign: 'right', color: colors.text, fontSize: 13, fontWeight: '800' },
+  expValue: { flex: 1, textAlign: 'right', color: colors.text, fontSize: 13, fontWeight: '600' },
   tabBar: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   tabItem: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  tabText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
+  tabText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   tabTextActive: { color: '#FFFFFF' },
   noticeText: { color: colors.success, fontSize: 13, lineHeight: 20, marginBottom: spacing.xs },
   warningText: { color: colors.warning, fontSize: 13, lineHeight: 20, marginBottom: spacing.xs },
   productCard: { borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.xs, backgroundColor: colors.surfaceMuted },
-  productName: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  productName: { color: colors.text, fontSize: 16, fontWeight: '700' },
   productDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 4 },
   durationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
   durationOption: { minHeight: 48, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   durationRecommended: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
-  durationText: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  durationText: { color: colors.text, fontSize: 13, fontWeight: '700' },
   disabled: { opacity: 0.48 },
   emptyText: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
   simpleList: { gap: spacing.xs },
   simpleRow: { color: colors.text, fontSize: 14, lineHeight: 22 },
   materialCard: { borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.xs, backgroundColor: colors.surfaceMuted },
-  materialTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  materialCategory: { alignSelf: 'flex-start', overflow: 'hidden', marginTop: spacing.xs, borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 11, fontWeight: '900' },
+  materialTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  materialCategory: { alignSelf: 'flex-start', overflow: 'hidden', marginTop: spacing.xs, borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 11, fontWeight: '700' },
   materialText: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 4 },
   materialMediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
   materialMedia: { width: 144, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   materialMediaImage: { width: 144, height: 96, backgroundColor: colors.surfaceMuted },
   materialMediaFallback: { width: 144, height: 96, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
   materialMediaMeta: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.xs },
-  materialMediaText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '800' },
+  materialMediaText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '600' },
   materialLinkList: { gap: spacing.xs, marginTop: spacing.xs },
   materialLink: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  materialLinkText: { flex: 1, color: colors.brand, fontSize: 13, fontWeight: '900' },
+  materialLinkText: { flex: 1, color: colors.brand, fontSize: 13, fontWeight: '700' },
   contactItem: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted },
   contactIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
   contactMain: { flex: 1, gap: 4 },
-  contactLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
-  contactValue: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  contactLabel: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
+  contactValue: { color: colors.text, fontSize: 14, fontWeight: '600' },
   socialItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted },
-  socialLabel: { minWidth: 64, color: colors.text, fontSize: 14, fontWeight: '900' },
+  socialLabel: { minWidth: 64, color: colors.text, fontSize: 14, fontWeight: '700' },
   socialValue: { flex: 1, color: colors.textSecondary, fontSize: 13 },
   contentItem: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted, paddingVertical: spacing.xs },
   contentThumb: { width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   contentThumbFallback: { width: 64, height: 64, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
-  contentThumbText: { color: colors.brand, fontSize: 12, fontWeight: '900' },
+  contentThumbText: { color: colors.brand, fontSize: 12, fontWeight: '700' },
   contentMain: { flex: 1, gap: 4 },
-  contentTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  contentTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
   contentMeta: { color: colors.textSecondary, fontSize: 12 },
   reviewsEmpty: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.md },
   inlineRetry: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.brand },
-  inlineRetryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  inlineRetryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   reviewList: { gap: spacing.sm },
   reviewItem: { borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surfaceMuted },
   reviewHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   reviewAvatar: { width: 40, height: 40, borderRadius: radius.pill, backgroundColor: colors.surface },
   reviewAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
-  reviewAvatarText: { color: colors.brand, fontSize: 15, fontWeight: '900' },
+  reviewAvatarText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
   reviewMeta: { flex: 1, gap: 4 },
-  reviewName: { color: colors.text, fontSize: 14, fontWeight: '900' },
-  reviewDate: { color: colors.textMuted, fontSize: 12 },
+  reviewName: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  reviewDate: { color: colors.textTertiary, fontSize: 12 },
   reviewRating: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, backgroundColor: colors.brandSoft },
-  reviewRatingText: { color: colors.brand, fontSize: 12, fontWeight: '900' },
+  reviewRatingText: { color: colors.brand, fontSize: 12, fontWeight: '700' },
   reviewContent: { marginTop: spacing.xs, color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
-  reviewNoComment: { marginTop: spacing.xs, color: colors.textMuted, fontSize: 12 },
-  fixedCta: { position: 'absolute', left: spacing.sm, right: spacing.sm, bottom: spacing.sm, borderRadius: radius.xl, padding: spacing.sm, gap: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
+  reviewNoComment: { marginTop: spacing.xs, color: colors.textTertiary, fontSize: 12 },
+  fixedCta: { position: 'absolute', left: spacing.sm, right: spacing.sm, bottom: spacing.sm, borderRadius: radius.xl, padding: spacing.sm, gap: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...floatShadow },
   aiPlanButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
-  aiPlanButtonText: { color: colors.brand, fontSize: 15, fontWeight: '900' },
+  aiPlanButtonText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
   fixedButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
-  fixedButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
-  fixedHint: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
+  fixedButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  fixedHint: { color: colors.textTertiary, fontSize: 12, textAlign: 'center' },
   primaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   secondaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: '600' },
 })

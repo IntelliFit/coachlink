@@ -21,7 +21,6 @@ import {
   ActionEditScreen,
   ActionLibraryScreen,
   CartScreen,
-  ChatScreen,
   CoachApplicationScreen,
   ContactScreen,
   CopyCoachActionsScreen,
@@ -43,8 +42,6 @@ import {
   PlanLibraryScreen,
   PlatformAgreementScreen,
   PrivacyScreen,
-  ProfileDetailScreen,
-  ProfileEditScreen,
   ProfileScreen,
   ProtectionOfConsumerScreen,
   PurchaseHistoryScreen,
@@ -68,6 +65,8 @@ import { CoachQuestionnaireEditScreen, CoachQuestionnairesScreen } from '../scre
 import { CoachRevenueScreen } from '../screens/coach/CoachRevenueScreen'
 import { CoachStudentDetailScreen, CoachStudentsScreen } from '../screens/coach/CoachStudentsScreen'
 import { CoachAssignPlanScreen } from '../screens/coach/CoachAssignPlanScreen'
+import { CoachPaymentsScreen } from '../screens/coach/CoachPaymentsScreen'
+import { CoachStudentPlanScreen } from '../screens/coach/CoachStudentPlanScreen'
 import { CoachWalletMerchantScreen } from '../screens/coach/CoachWalletMerchantScreen'
 import { CoachInvitationScreen } from '../screens/coach/CoachInvitationScreen'
 import { CoachWalletScreen } from '../screens/coach/CoachWalletScreen'
@@ -98,8 +97,14 @@ import { PowerAnalysisScreen } from '../screens/toolbox/PowerAnalysisScreen'
 import { MotionEffectsScreen } from '../screens/toolbox/MotionEffectsScreen'
 import { OneArmPullUpScreen } from '../screens/toolbox/OneArmPullUpScreen'
 import { ToolboxScenarioScreen } from '../screens/toolbox/ToolboxScenarioScreen'
+import { AnnouncementDetailScreen, AnnouncementsScreen } from '../screens/announcements/AnnouncementScreens'
+import { ChatScreen } from '../screens/messages/ChatScreen'
+import { ProfileEditScreen } from '../screens/me/ProfileEditScreen'
+import { ProfileDetailScreen } from '../screens/me/ProfileDetailScreen'
+import { StudentOnboardingScreen } from '../screens/onboarding/StudentOnboardingScreen'
+import { useOnboardingGate } from '../screens/onboarding/useOnboardingGate'
 import type { MainTabParamList, RootStackParamList } from './types'
-import { flushPendingNotificationChat, rootNavigationRef } from './navigationRef'
+import { flushPendingNotificationTarget, rootNavigationRef } from './navigationRef'
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
 const Stack = createNativeStackNavigator<RootStackParamList>()
@@ -110,6 +115,8 @@ const linking = {
     screens: {
       Messages: 'messages',
       Chat: 'messages/:roomId',
+      Announcements: 'announcements',
+      AnnouncementDetail: 'announcements/:id',
     },
   },
 }
@@ -192,7 +199,7 @@ function MainTabs({ isCoachMode }: { isCoachMode: boolean }) {
             component={CoachesScreen}
             options={{
               title: '教练',
-              tabBarIcon: ({ color, size }) => <IconFont name="icon-discovery" color={color} size={size} />,
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-friends-o" color={color} size={size} />,
             }}
           />
           <Tab.Screen
@@ -230,8 +237,10 @@ export function RootNavigator() {
   const isCoachMode = isAuthenticated && resolveCoachLinkAppRole(user) === 'coach'
 
   useEffect(() => {
-    if (!isBootstrapping) flushPendingNotificationChat(isAuthenticated)
+    if (!isBootstrapping) flushPendingNotificationTarget(isAuthenticated)
   }, [isAuthenticated, isBootstrapping])
+
+  useOnboardingGate({ isAuthenticated, isBootstrapping, user })
 
   if (isBootstrapping) {
     return (
@@ -247,7 +256,7 @@ export function RootNavigator() {
       ref={rootNavigationRef}
       theme={navigationTheme}
       linking={linking}
-      onReady={() => flushPendingNotificationChat(isAuthenticated)}
+      onReady={() => flushPendingNotificationTarget(isAuthenticated)}
     >
       <Stack.Navigator
         key={isAuthenticated ? 'authenticated' : isGuest ? 'guest' : 'auth'}
@@ -261,6 +270,7 @@ export function RootNavigator() {
             <Stack.Screen name="MainTabs" children={() => <MainTabs isCoachMode={isCoachMode} />} />
             <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} />
             <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
+            <Stack.Screen name="StudentOnboarding" component={StudentOnboardingScreen} />
             <Stack.Screen name="FitnessCard" component={FitnessCardScreen} />
             <Stack.Screen name="E1RMChart" component={E1RMChartScreen} />
             <Stack.Screen name="ActionLibrary" component={ActionLibraryScreen} />
@@ -282,10 +292,14 @@ export function RootNavigator() {
             <Stack.Screen name="FriendActivity" component={FriendActivityScreen} />
             <Stack.Screen name="Messages" component={MessagesScreen} />
             <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="Announcements" component={AnnouncementsScreen} />
+            <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} />
             <Stack.Screen name="MyCoaches" component={MyCoachesScreen} />
             <Stack.Screen name="CoachDashboard" component={CoachDashboardScreen} />
             <Stack.Screen name="CoachStudents" component={CoachStudentsScreen} />
             <Stack.Screen name="CoachStudentDetail" component={CoachStudentDetailScreen} />
+            <Stack.Screen name="CoachPayments" component={CoachPaymentsScreen} />
+            <Stack.Screen name="CoachStudentPlan" component={CoachStudentPlanScreen} />
             <Stack.Screen name="CoachAssignPlan" component={CoachAssignPlanScreen} />
             <Stack.Screen name="CoachActions" component={CoachActionsScreen} />
             <Stack.Screen name="CoachActionEdit" component={CoachActionEditScreen} />
@@ -377,7 +391,7 @@ const styles = StyleSheet.create({
   bootText: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   tabLabel: {
     fontSize: 12,

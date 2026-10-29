@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   balanceAmount: {
     color: '#FFFFFF',
     fontSize: 36,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   metricGrid: {
     flexDirection: 'row',
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   metricValue: {
     color: 'rgba(255,255,255,0.92)',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   metricStrong: {
     color: '#FFFFFF',
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   primaryActionText: {
     color: '#047857',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   statusCard: {
     gap: spacing.xs,
@@ -391,11 +391,11 @@ const styles = StyleSheet.create({
   statusTitle: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   statusText: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   opened: {
     color: colors.success,
@@ -432,12 +432,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.text,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   sectionMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   row: {
     flexDirection: 'row',
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radius.sm,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   pendingTag: {
     color: '#D97706',
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   rowTitle: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rowDesc: {
     color: colors.textSecondary,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   rowTime: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   rowWarn: {
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   },
   rowAmount: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   pendingAmount: {
     color: '#D97706',
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   feeText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 11,
     textAlign: 'right',
   },
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     color: colors.text,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   modalDesc: {
     color: colors.textSecondary,

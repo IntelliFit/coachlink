@@ -39,6 +39,7 @@ import {
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { API_BASE_URL } from '@/utils/request'
+import { restSecondsToMinutes } from '@coachlink/core/src/restDisplay'
 
 type PlanEditorMode = 'coach-template' | 'student-favorite'
 type BatchMode = 'replace' | 'delete' | 'append'
@@ -95,11 +96,11 @@ const getStrengthRepsValue = (actionSet?: PlanActionSet | null) => {
 const getStrengthRestMinutesValue = (actionSet?: PlanActionSet | null) => {
   const restSeconds = toFiniteNumber(actionSet?.params?.rest_seconds)
   if (restSeconds !== null && restSeconds >= 0) {
-    return Number((restSeconds / 60).toFixed(1))
+    return restSecondsToMinutes(restSeconds)
   }
   const legacyRest = toFiniteNumber(actionSet?.params?.['休息时间'])
   if (legacyRest !== null && legacyRest >= 0) {
-    return Number((legacyRest / 60).toFixed(1))
+    return restSecondsToMinutes(legacyRest)
   }
   return null
 }

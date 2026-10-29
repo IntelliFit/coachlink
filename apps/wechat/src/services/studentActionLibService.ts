@@ -76,9 +76,17 @@ class StudentActionLibService extends BaseService {
 
   /** 获取动作被哪些计划引用 */
   async getActionReferences(actionId: string) {
-    const res = await this.post<{ references: Array<{ planId: string; planName: string; dayIndex: number }> }>('get-action-references', { actionId })
-    if (res.success && res.data) return res.data
-    return null
+    // 后端路由是 action-references（参数 actionIds），之前请求的 get-action-references 并不存在
+    const res = await this.post<{ instances: Array<{ instanceId: string; name: string; status: string | null; matchCount: number }> }>('action-references', { actionIds: [actionId] })
+    if (!res.success || !res.data) return null
+    return {
+      references: (res.data.instances || []).map((item) => ({
+        planId: item.instanceId,
+        planName: item.name || '未命名计划',
+        matchCount: Number(item.matchCount || 1),
+        status: item.status
+      }))
+    }
   }
 
   /** 批量更新1RM */

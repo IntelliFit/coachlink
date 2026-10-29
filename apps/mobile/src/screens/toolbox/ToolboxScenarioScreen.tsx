@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   backText: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   heroCard: {
     minHeight: 328,
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     color: '#FFFFFF',
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   heroDesc: {
     color: 'rgba(255,255,255,0.88)',
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   heroMeta: {
     color: 'rgba(255,255,255,0.72)',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   primaryButton: {
     minHeight: 48,
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   currentCard: {
     overflow: 'hidden',
@@ -222,12 +222,12 @@ const styles = StyleSheet.create({
   stepMeta: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   currentTitle: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   currentDesc: {
     color: colors.textSecondary,
@@ -277,20 +277,20 @@ const styles = StyleSheet.create({
   stepIndexText: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   stepIndexTextDone: {
     color: '#FFFFFF',
   },
   stepDuration: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   stepTitle: {
     color: colors.text,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   stepDesc: {
     color: colors.textSecondary,
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   doneTitle: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   doneDesc: {
     color: colors.textSecondary,

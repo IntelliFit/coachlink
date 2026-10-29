@@ -555,7 +555,7 @@ export default function ActionLibPage() {
     try {
       const res = await studentActionLibService.getActionReferences(action.id)
       if (res?.references && res.references.length > 0) {
-        const list = res.references.map(r => `· ${r.planName} - 第${r.dayIndex}天`).join('\n')
+        const list = res.references.map(r => `· ${r.planName}（${r.matchCount} 处${r.status === 'active' ? '，进行中' : ''}）`).join('\n')
         Taro.showModal({
           title: `${action.name} 被引用`,
           content: list,

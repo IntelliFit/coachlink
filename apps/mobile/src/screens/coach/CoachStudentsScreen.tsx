@@ -8,6 +8,8 @@ import type { RootStackParamList } from '../../navigation/types'
 import { colors, radius, spacing } from '../../theme'
 import { Card, EmptyState, InlineAvatar, LoadingState, ScreenShell, SolidButton, safeRequest } from '../me/MeShared'
 import { useAuth } from '../../providers/AuthProvider'
+import { CoachPaymentBanner } from './CoachPaymentsScreen'
+import { CoachStudentManagePanel, buildFeedbackDraft } from './CoachStudentManagePanel'
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>
 type SortMode = 'subscription_created_desc' | 'subscription_created_asc' | 'subscription_updated_desc'
@@ -128,6 +130,7 @@ export function CoachStudentsScreen() {
 
   return (
     <ScreenShell title="学员管理" subtitle={`${total} 位学员 · ${noPlanCount} 位待配置计划`} onBack={backAction} tabBarInset={isTopLevelTab}>
+      <CoachPaymentBanner />
       <Card style={styles.toolbar}>
         <View style={styles.searchRow}>
           <IconFont name="icon-search" size={20} color={colors.textMuted} />
@@ -323,7 +326,7 @@ export function CoachStudentDetailScreen() {
     }
   }
 
-  async function openStudentChat() {
+  async function openStudentChat(draft?: string) {
     const studentId = String(route.params?.studentId || student?.student_id || '')
     if (!user?.id || !studentId || studentId === user.id) {
       Alert.alert('暂无法联系', '缺少有效的教练或学员账号信息。')
@@ -335,7 +338,7 @@ export function CoachStudentDetailScreen() {
         body: { members: [user.id, studentId] },
       })
       if (!data.chatroom?.id) throw new Error('会话创建失败')
-      navigation.navigate('Chat', { roomId: data.chatroom.id, peerName: nameOf(student) })
+      navigation.navigate('Chat', { roomId: data.chatroom.id, peerName: nameOf(student), draft: draft || undefined })
     } catch (chatError) {
       Alert.alert('打开会话失败', chatError instanceof Error ? chatError.message : '请稍后重试')
     } finally {
@@ -369,6 +372,22 @@ export function CoachStudentDetailScreen() {
             readOnly: true,
           })}
           onOpenMessages={() => void openStudentChat()}
+          onReplyFeedback={(feedback) => void openStudentChat(buildFeedbackDraft(feedback))}
+          onEditPlan={(focusDay) => navigation.navigate('CoachStudentPlan', {
+            subscriptionId: String(route.params?.subscriptionId || student?.id || ''),
+            studentName: nameOf(student),
+            focusDay,
+          })}
+        />
+      ) : null}
+      {!loading && !error && student ? (
+        <CoachStudentManagePanel
+          subscriptionId={String(route.params?.subscriptionId || student?.id || '')}
+          studentId={String(route.params?.studentId || student?.student_id || '')}
+          coachId={String(student?.coach_id || '')}
+          planInstanceId={planData?.instance?.id ? String(planData.instance.id) : null}
+          planName={planData?.instance?.name}
+          onPlanCleared={() => void load()}
         />
       ) : null}
     </ScreenShell>
@@ -388,6 +407,8 @@ function StudentDetailBody({
   onAssignPlan,
   onOpenDay,
   onOpenMessages,
+  onReplyFeedback,
+  onEditPlan,
 }: {
   student: any
   planData: any
@@ -401,6 +422,8 @@ function StudentDetailBody({
   onAssignPlan: () => void
   onOpenDay: (dayIndex: number) => void
   onOpenMessages: () => void
+  onReplyFeedback: (feedback: any) => void
+  onEditPlan: (focusDay?: number) => void
 }) {
   const profile = student?.profile || {}
   const answers = Array.isArray(student?.subscribe_data)
@@ -428,7 +451,10 @@ function StudentDetailBody({
             <Text style={styles.cardTitle}>当前训练计划</Text>
             <Text style={styles.cardSubtitle}>{planData?.instance ? '查看执行进度，或从模板替换计划。' : '该学员尚未配置训练计划。'}</Text>
           </View>
-          <SolidButton label={planData?.instance ? '替换计划' : '分配计划'} variant="secondary" onPress={onAssignPlan} />
+          <View style={styles.planActions}>
+            {planData?.instance ? <SolidButton label="编辑计划" onPress={() => onEditPlan()} /> : null}
+            <SolidButton label={planData?.instance ? '替换计划' : '分配计划'} variant="secondary" onPress={onAssignPlan} />
+          </View>
         </View>
         {planData?.instance ? (
           <>
@@ -492,6 +518,16 @@ function StudentDetailBody({
             </View>
             <Text style={styles.feedbackContent}>{feedback.content || '（无文字反馈）'}</Text>
             {feedback.difficulty_rating ? <Text style={styles.feedbackRating}>训练难度 {Number(feedback.difficulty_rating)}/5</Text> : null}
+            <View style={styles.feedbackActions}>
+              {planData?.instance && Number(feedback.day_index) > 0 ? (
+                <Pressable accessibilityRole="button" accessibilityLabel={`在计划里查看第 ${Number(feedback.day_index)} 天`} onPress={() => onEditPlan(Number(feedback.day_index))} style={styles.feedbackReply}>
+                  <Text style={styles.feedbackReplyText}>去计划里调整</Text>
+                </Pressable>
+              ) : null}
+              <Pressable accessibilityRole="button" accessibilityLabel={`回复第 ${Number(feedback.day_index || 0)} 天的反馈`} onPress={() => onReplyFeedback(feedback)} style={styles.feedbackReply}>
+                <Text style={styles.feedbackReplyText}>回复反馈</Text>
+              </Pressable>
+            </View>
           </Pressable>
         )) : <Text style={styles.emptyText}>暂无学员训练反馈</Text>}
       </Card>
@@ -532,6 +568,24 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  planActions: {
+    gap: spacing.xs,
+  },
+  feedbackActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.xs,
+  },
+  feedbackReply: {
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  feedbackReplyText: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   toolbar: {
     gap: spacing.sm,
   },
@@ -556,7 +610,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   clearText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 22,
     fontWeight: '700',
   },
@@ -575,13 +629,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   sortPillActive: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    backgroundColor: colors.selected,
+    borderColor: colors.selected,
   },
   sortText: {
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   sortTextActive: {
     color: colors.surface,
@@ -606,7 +660,7 @@ const styles = StyleSheet.create({
   studentName: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   tierChip: {
     paddingHorizontal: spacing.xs,
@@ -617,10 +671,10 @@ const styles = StyleSheet.create({
   tierText: {
     color: colors.brand,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   studentId: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   chipRow: {
@@ -646,7 +700,7 @@ const styles = StyleSheet.create({
   statusText: {
     color: colors.textSecondary,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   brandText: {
     color: colors.brand,
@@ -666,7 +720,7 @@ const styles = StyleSheet.create({
   planName: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planDesc: {
     color: colors.textSecondary,
@@ -690,7 +744,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   metricText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   pager: {
@@ -703,7 +757,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.textSecondary,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   detailTop: {
     flexDirection: 'row',
@@ -717,7 +771,7 @@ const styles = StyleSheet.create({
   detailName: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   detailSub: {
     color: colors.textSecondary,
@@ -729,7 +783,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   cardTitleRow: {
     flexDirection: 'row',
@@ -754,7 +808,7 @@ const styles = StyleSheet.create({
   planDetailName: {
     color: colors.brand,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   planDetailMeta: {
     color: colors.textSecondary,
@@ -781,7 +835,7 @@ const styles = StyleSheet.create({
   executionDayText: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   executionMain: {
     flex: 1,
@@ -790,7 +844,7 @@ const styles = StyleSheet.create({
   executionTitle: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   executionMeta: {
     color: colors.textSecondary,
@@ -811,10 +865,10 @@ const styles = StyleSheet.create({
   feedbackDay: {
     color: colors.brand,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   feedbackTime: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 11,
   },
   feedbackContent: {
@@ -825,7 +879,7 @@ const styles = StyleSheet.create({
   feedbackRating: {
     color: colors.warning,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   oneRmRow: {
     minHeight: 56,
@@ -843,10 +897,10 @@ const styles = StyleSheet.create({
   oneRmName: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   oneRmMeta: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 11,
   },
   oneRmInput: {
@@ -876,7 +930,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     flex: 0.42,
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 13,
     lineHeight: 19,
   },
@@ -889,7 +943,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   emptyText: {
-    color: colors.textMuted,
+    color: colors.textTertiary,
     fontSize: 13,
     lineHeight: 20,
   },

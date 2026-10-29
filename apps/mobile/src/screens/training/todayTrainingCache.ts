@@ -229,3 +229,29 @@ export async function patchExecutionInTodayTrainingCache(
     },
   })
 }
+
+/** 取消空训练后把这一天恢复为未开始，回到今日训练页时不再显示「进行中」。 */
+export async function removeExecutionFromTodayTrainingCache(userId: string, instanceId: string, dayIndex: number) {
+  if (!userId || !instanceId || !Number.isFinite(dayIndex) || dayIndex <= 0) return
+  const current = await readTodayTrainingCache(userId)
+  if (!current) return
+  const without = (block: TodayTrainingPlanBlock): TodayTrainingPlanBlock => {
+    const { [dayIndex]: _removed, ...rest } = block.executionsByDayIndex || {}
+    return projectPlanCacheProgress({ ...block, executionsByDayIndex: rest })
+  }
+
+  if (String(current.selfPlanData.instance?.id || '') === String(instanceId)) {
+    await persistTodayTrainingCache({ ...current, userId, selfPlanData: without(current.selfPlanData) })
+    return
+  }
+  const entry = Object.entries(current.coachPlanDataBySubId).find(
+    ([, block]) => String(block.instance?.id || '') === String(instanceId),
+  )
+  if (!entry) return
+  const [subscriptionId, block] = entry
+  await persistTodayTrainingCache({
+    ...current,
+    userId,
+    coachPlanDataBySubId: { ...current.coachPlanDataBySubId, [subscriptionId]: without(block) },
+  })
+}

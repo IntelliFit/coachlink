@@ -218,7 +218,7 @@ export const authStyles = StyleSheet.create({
   tipLink: {
     color: colors.brand,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   hint: {
     marginTop: spacing.sm,
@@ -230,7 +230,7 @@ export const authStyles = StyleSheet.create({
   link: {
     color: colors.brand,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
 })
 
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   },
   pillLabel: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   pillPrimaryLabel: {
     color: colors.surface,
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   passwordToggleText: {
     color: colors.brand,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   switcher: {
     minHeight: 56,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   switcherTextActive: {
     color: '#0F172A',
-    fontWeight: '900',
+    fontWeight: '700',
   },
   agreementRow: {
     flexDirection: 'row',
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   checkboxMark: {
     color: colors.surface,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   agreementText: {
@@ -398,6 +398,6 @@ const styles = StyleSheet.create({
   },
   agreementLink: {
     color: colors.brand,
-    fontWeight: '800',
+    fontWeight: '600',
   },
 })

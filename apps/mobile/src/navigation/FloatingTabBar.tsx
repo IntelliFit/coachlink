@@ -3,11 +3,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { IconFont } from '../components/IconFont'
 import { useMessageCenter } from '../providers/MessageCenterProvider'
-import { colors, radius, spacing } from '../theme'
+import { colors, controlHeight, radius, typography } from '../theme'
 
 const studentIconByRoute: Record<string, string> = {
   TrainingTab: 'icon-dumbbell',
-  CoachesTab: 'icon-discovery',
+  CoachesTab: 'icon-friends-o',
   KnowledgeTab: 'icon-knowledge',
   ToolboxTab: 'icon-toolbox',
   ProfileTab: 'icon-user',
@@ -26,114 +26,97 @@ function isCoachTab(name: string) {
 }
 
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const { unreadCount } = useMessageCenter()
+  const { totalUnreadCount: unreadCount } = useMessageCenter()
   const insets = useSafeAreaInsets()
+  // 与小程序 2026-10 改版的底部导航一致：白色贴底栏、上边线、图标在上文字在下、当前页陶土色。
   return (
-    <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, spacing.sm) }]}>
-      <View style={styles.bar}>
-        {state.routes.map((route, index) => {
-          const isFocused = state.index === index
-          const options = descriptors[route.key]?.options
-          const label = typeof options?.title === 'string' ? options.title : route.name
-          const iconMap = isCoachTab(route.name) ? coachIconByRoute : studentIconByRoute
-          const iconName = iconMap[route.name] || 'icon-circle'
-          const showsUnread = route.name === 'ProfileTab' || route.name === 'CoachProfileTab'
-          const accessibilityLabel = showsUnread && unreadCount > 0 ? `${label}，${unreadCount} 条未读消息` : label
+    <View style={[styles.bar, { paddingBottom: insets.bottom }]}>
+      {state.routes.map((route, index) => {
+        const isFocused = state.index === index
+        const options = descriptors[route.key]?.options
+        const label = typeof options?.title === 'string' ? options.title : route.name
+        const iconMap = isCoachTab(route.name) ? coachIconByRoute : studentIconByRoute
+        const iconName = iconMap[route.name] || 'icon-circle'
+        const showsUnread = route.name === 'ProfileTab' || route.name === 'CoachProfileTab'
+        const accessibilityLabel = showsUnread && unreadCount > 0 ? `${label}，${unreadCount} 条未读` : label
 
-          const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true })
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name as never)
-            }
+        const onPress = () => {
+          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true })
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name as never)
           }
+        }
 
-          return (
-            <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={accessibilityLabel} accessibilityState={{ selected: isFocused }} onPress={onPress} style={({ pressed }) => [styles.item, isFocused && styles.itemActive, pressed && styles.itemPressed]}>
-              <View>
-                <IconFont name={iconName as any} size={20} color={isFocused ? colors.brand : 'rgba(255,255,255,0.66)'} />
-                {showsUnread && unreadCount > 0 ? (
-                  <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text numberOfLines={1} style={[styles.label, isFocused && styles.labelActive]}>{label}</Text>
-            </Pressable>
-          )
-        })}
-      </View>
+        return (
+          <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={accessibilityLabel} accessibilityState={{ selected: isFocused }} onPress={onPress} style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}>
+            <View>
+              <IconFont name={iconName as any} size={24} color={isFocused ? colors.brand : colors.textTertiary} />
+              {showsUnread && unreadCount > 0 ? (
+                <View style={styles.unreadBadge}>
+                  <Text style={styles.unreadBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text numberOfLines={1} style={[styles.label, isFocused && styles.labelActive]}>{label}</Text>
+          </Pressable>
+        )
+      })}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  wrap: {
+  bar: {
     position: 'absolute',
     left: 0,
     right: 0,
-    alignItems: 'center',
-  },
-  bar: {
-    width: '92%',
-    minHeight: 64,
+    bottom: 0,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
-    backgroundColor: 'rgba(31,31,31,0.80)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-    shadowColor: '#000',
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
+    alignItems: 'stretch',
+    minHeight: controlHeight.tabBar,
+    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   item: {
     flex: 1,
-    minHeight: 48,
-    flexDirection: 'row',
+    minWidth: 0,
+    height: controlHeight.tabBar,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.xs,
-  },
-  itemActive: {
-    backgroundColor: 'rgba(255,255,255,0.98)',
+    gap: 2,
   },
   itemPressed: {
-    opacity: 0.78,
+    opacity: 0.7,
   },
   label: {
-    maxWidth: 54,
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 11,
+    color: colors.textTertiary,
+    fontSize: typography.tag.fontSize,
+    lineHeight: typography.tag.lineHeight,
     fontWeight: '500',
   },
   labelActive: {
-    color: '#111827',
+    color: colors.link,
     fontWeight: '700',
   },
   unreadBadge: {
     position: 'absolute',
-    top: -8,
-    right: -16,
-    minWidth: 24,
-    height: 24,
-    paddingHorizontal: spacing.xs,
+    top: -4,
+    right: -12,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.danger,
-    borderWidth: 2,
-    borderColor: '#1F1F1F',
+    backgroundColor: colors.brand,
+    borderWidth: 1,
+    borderColor: colors.surface,
   },
   unreadBadgeText: {
     color: colors.surface,
     fontSize: 10,
-    fontWeight: '900',
+    lineHeight: 12,
+    fontWeight: '700',
   },
 })

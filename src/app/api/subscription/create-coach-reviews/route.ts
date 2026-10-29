@@ -5,6 +5,7 @@ import supabase from '@/lib/supabaseClient';
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
 import type { CreateCoachReviewsDto, CreateCoachReviewsResponseDto } from './entity';
+import { resolveWritableReviewSubscription } from '@/lib/coachReviewAccess';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -31,19 +32,28 @@ export async function POST(req: Request) {
         subscriptionId,
         reviewText,
         mediaUrls,
-        studentId,
-        coachId
     } = await req.json() as CreateCoachReviewsDto;
+
+    // 订阅必须属于当前教练；写入的教练 / 学员 id 以订阅为准，不信任请求里的 coachId / studentId。
+    let target;
+    try {
+        target = await resolveWritableReviewSubscription(supabase, userId, subscriptionId);
+    } catch {
+        return NextResponse.json({ success: false, message: '读取教练信息失败', data: null }, { status: 500 });
+    }
+    if (!target.ok) {
+        return NextResponse.json({ success: false, message: target.message, data: null }, { status: target.status });
+    }
 
     // 创建教练评价
     const { data, error } = await supabase
         .from('coach_reviews')
         .insert({
-            coach_subscription_id: subscriptionId,
+            coach_subscription_id: target.subscription.id,
             review_text: reviewText,
             media_urls: mediaUrls,
-            student_id: studentId,
-            coach_id: coachId,
+            student_id: target.subscription.student_id,
+            coach_id: target.subscription.coach_id,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
         })

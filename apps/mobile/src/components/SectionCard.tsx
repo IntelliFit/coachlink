@@ -21,7 +21,7 @@ export function SectionCard({ title, description, children }: SectionCardProps) 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.sm,
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   description: {
     color: colors.textSecondary,
