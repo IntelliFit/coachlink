@@ -9,6 +9,8 @@ import {
   normalizeContentType,
 } from '@/lib/bojiDetector';
 import { buildBojiInsights } from '@/lib/bojiScores';
+import { checkAbsWithVision, getAbsCheckConfig } from '@/lib/bojiAbsCheck';
+import { createVisionAbsAsker } from '@/lib/bojiAbsCheckRunner';
 import type { ApiData } from '@/types/api';
 import { isBojiSex, type BojiAnalysisDto } from '@coachlink/core/src/bojiDetector';
 
@@ -24,6 +26,7 @@ function fail(status: number, message: string, headers?: Record<string, string>)
  * application/octet-stream）。网页和小程序共用。照片只转发给分析服务，不保存；
  * 只记录分数（tool_boji_scores），用于「超越 X%」和 PK。
  * 可选查询参数 challenge=<成绩 id>：应战好友发起的 PK；sex=female：女性档（马甲线、腰臀比）。
+ * 男性档在引擎数出较多腹肌块时，把腹部裁图（不含脸）交给视觉模型复核，只纠正数多了的情况。
  */
 export async function POST(request: NextRequest) {
   const userId = await getApiUserId(request);
@@ -51,7 +54,24 @@ export async function POST(request: NextRequest) {
   try {
     const params = new URL(request.url).searchParams;
     const requestedSex = params.get('sex');
-    const analysis = await analyzeWithBojiService(photo, config, fetch, isBojiSex(requestedSex) ? requestedSex : 'male');
+    const sex = isBojiSex(requestedSex) ? requestedSex : 'male';
+    const absCheck = getAbsCheckConfig();
+    const { abdomen_crop: cropBase64, ...engineResult } = await analyzeWithBojiService(photo, config, fetch, sex, {
+      abdomenCrop: absCheck.enabled && sex === 'male',
+    });
+    // 复核只会下调腹肌结果；任何一步失败都保留引擎结果
+    let analysis: BojiAnalysisDto = engineResult;
+    try {
+      analysis = await checkAbsWithVision({
+        analysis: engineResult,
+        cropBase64,
+        sex,
+        ask: createVisionAbsAsker(absCheck),
+        config: absCheck,
+      });
+    } catch (error) {
+      console.error('[boji/ai-abs] check failed:', error instanceof Error ? error.message : 'unknown error');
+    }
     const challengeId = params.get('challenge');
     let data: BojiAnalysisDto = analysis;
     try {

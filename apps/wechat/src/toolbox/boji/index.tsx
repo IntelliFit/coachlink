@@ -237,7 +237,7 @@ export default function BojiDetectorPage() {
   const promptLogin = () => {
     Taro.showModal({
       title: '登录后可用',
-      content: '薄肌检测需要登录。照片只用于这一次检测，不保存；只记录分数，用于排名和 PK。',
+      content: '薄肌检测需要登录。照片只用于这一次检测，不保存；腹部区域可能交给 AI 复核（不含脸）；只记录分数。',
       confirmText: '去登录',
       success: (res) => {
         if (res.confirm) {
@@ -359,7 +359,7 @@ export default function BojiDetectorPage() {
           ) : null}
 
           <View className='boji-footnotes'>
-            <Text className='boji-privacy'>照片只用于这一次检测，不保存；只记录分数，用于排名和 PK。</Text>
+            <Text className='boji-privacy'>照片只用于这一次检测，不保存；腹部区域可能交给 AI 模型复核腹肌（不含脸，也不保存）；只记录分数，用于排名和 PK。</Text>
             {analysis ? (
               <Text className='boji-privacy'>测试版：分数供自测和好友 PK 娱乐，不是医疗诊断。</Text>
             ) : null}

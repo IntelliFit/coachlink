@@ -344,7 +344,7 @@ export default function BojiDetectorPage() {
         <div className="flex flex-col items-center gap-1 text-center text-xs leading-5 text-slate-500 dark:text-[#A0978B]">
           <span className="inline-flex items-center gap-1">
             <ShieldCheck className="h-3.5 w-3.5 text-[#3F7C6B]" />
-            照片只用于这一次检测，不保存；只记录分数，用于排名和 PK。
+            照片只用于这一次检测，不保存；腹部区域可能交给 AI 模型复核腹肌（不含脸，也不保存）；只记录分数，用于排名和 PK。
           </span>
           {analysis && <span>测试版：分数供自测和好友 PK 娱乐，不是医疗诊断。</span>}
           {analysis?.insights?.lookalike?.photoCredit && (
