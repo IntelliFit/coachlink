@@ -38,6 +38,7 @@ import { isValidLocationCoordinates, getLocationCountry, toWeChatCoordinates, in
 import { EquipmentSelector, EquipmentTags } from '@/components/LocationEquipment'
 import { readLocationCache, writeLocationCache, type LocationDraft, type LocationListCache } from '@/utils/streetliftingLocationCache'
 import { getApproxUserLocation } from '@/utils/approxLocation'
+import { rememberBarMapCount } from '@/toolbox/barMapCount'
 import { parseNativeLocation, mergePickedLocation, usableSearchSelection, getPickerStart, type PickerAutoFields } from '@/utils/locationPicker'
 
 const MAX_IMAGES = 4
@@ -411,6 +412,7 @@ export default function StreetliftingLocations() {
     try {
       const data = await streetliftingIndexService.getStats()
       setLocationOverview(data.locationOverview)
+      rememberBarMapCount(Number(data.locationOverview?.totalCount))
     } catch (e) {
       Taro.showToast({ title: (e as Error)?.message || '统计加载失败', icon: 'none' })
     } finally {
