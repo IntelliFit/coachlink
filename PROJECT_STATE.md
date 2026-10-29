@@ -1,3 +1,13 @@
+## 全量发布：APP 对齐 + 我的点位 + 续费定价 + 薄肌 AI 复核 + 视频分析打码/角度门禁（2026-10-29）
+
+- dev/main 0757617f 起：本地 dev 4 个提交（即兴训练命名与列表/卡片模式、单杠排行榜/坐标、教练续费服务端定价、省份与区县搜索）、我的点位 c0b1396d、auto_renew 迁移文件 c3357164（**未执行**，代码不依赖）、APP 对齐会话全部未提交改动 af6eb491（含小程序教练学员计划/e1RM/动作引用/休息显示与服务端推送、公告推送、教练评价权限；会话自述未在真机或模拟器验证）、feat/boji-redesign 百分位修复、fix/boji-poster、feat/boji-ai-abs-check、角度质量门禁 9bd708cf、路人打码 328ef39f、工具箱点位数缓存 10 分钟 0757617f。不含 feat/boji-poster-qr（已决定不用）。DECISIONS.md 三次冲突均两边保留。
+- 门禁：vitest 1310/1311（既有 streetliftingLocationOverview）；typecheck 410 个错误全在本地生成的 .next/dev/types/routes.d.ts（开发服务器生成文件损坏），源码 0 错。
+- 薄肌引擎：boji-detector 分支 feat/abdomen-crop（3f04392）已推 GitHub；服务器以 c786820a 为底只覆盖 boji_detector 包（纯 Python，版本仍 0.2.0），boji doctor 通过 → `coachlink-boji-service@sha256:fd499357…`（标签 crop-3f04392）。boji-service-dev、boji-service-main 均 c786820a → fd499357（main 先停后起，中断 10 秒）。AI 复核默认开启（BOJI_AI_ABS_CHECK=off 可关），用现有万界方舟视觉模型，失败时保留引擎结果。
+- 服务器依赖缓存 coachlink-deps:lock-c5e86f3b6d1b 被清理过；原 Dockerfile 的 npm ci 会因 supabase CLI postinstall 从 GitHub 下载失败（ECONNRESET）。新增 ~/coachlink-deps-c5e86f3b6d1b-v2.Dockerfile：`npm ci --ignore-scripts` 后只 rebuild isolated-vm/esbuild/@swc/core/sharp/@parcel/watcher/protobufjs。
+- Web `coachlink@sha256:aaf401d2…`（标签 f9f7283，服务器 binary diff 还原，2285 文件 blob 一致）：dev、main 均 0e24cf22 → aaf401d2，3/3，healthy/login/boji/功率分析 200，新接口未登录 401，buildTime 2026-10-29T03:54:09Z。main 两分钟内的错误是既有问题：admin_trace_events 收到非 UUID 会话 id（trace 代码本次未改）、MOBILE_PUSH_CRON_SECRET 未配置（9 月起就有）。
+- Worker `coachlink-power-worker@sha256:1d3d7db7…`（标签 power-20261029-f9f7283，镜像内 96 项测试通过）：dev、main 均 013fabff → 1d3d7db7，Kafka 两组各 1 个新成员持有 16 分区。
+- 小程序开发版 **2026.10.29.1142**（2996 模块，总包 10,691,490 / 主包 2,009,002，离 2MB 上限约 88KB），描述 release-0757617-app-parity-locations-boji。
+
 ## 正式发布：薄肌 v2 + 公告 + 功率取消/合理性 + 游戏修复（2026-10-27 凌晨）
 
 - dev/main dfb22152：本地 dev 7 个提交（哑铃弹弹长尾物理、引体/俯卧撑游戏头部校准与 5 秒倒计时、功率分析恢复/取消任务与剔除不可能次数）+ 公告功能 e765c723（原"通知栏功能"会话未提交、未测）+ feat/boji-redesign + feat/power-settings-order。不含：feat/boji-poster-qr（已决定不用）、wonderful-bun 路人打码（未提交）。
