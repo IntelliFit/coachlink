@@ -58,6 +58,9 @@ def check_rom(ctx: RuleContext, motion: gm.GenericMotion) -> Dict[str, Any]:
         low = _median([float(rep["jointMinDeg"]) for rep in joint_reps])
         high = _median([float(rep["jointMaxDeg"]) for rep in joint_reps])
         detail += f"，{gm.JOINT_LABELS_ZH[motion.main_joint]}约 {low:.0f}°～{high:.0f}°"
+    unmeasurable = [gm.ANGLE_LABELS_ZH[name] for name in motion.unmeasurable_angles]
+    if unmeasurable:
+        detail += f"（{'、'.join(unmeasurable)}在这个机位下测不准，未给出角度）"
     if len(ctx.reps) < 3:
         return make_check(code, "动作幅度", "info", detail + "（少于 3 次，不比较每次差异）", value=median, unit="cm")
     short = [rep for rep, rom in zip(ctx.reps, roms) if rom < SHORT_REP_SHARE * median]

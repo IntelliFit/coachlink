@@ -36,6 +36,8 @@ JOINTS: Dict[str, Tuple[str, str, str]] = {
     "knee": ("hip", "knee", "ankle"),
 }
 JOINT_LABELS_ZH = {"elbow": "肘关节", "shoulder": "肩关节", "hip": "髋关节", "knee": "膝关节"}
+TRUNK = "trunk"
+ANGLE_LABELS_ZH = {**JOINT_LABELS_ZH, TRUNK: "躯干倾角"}
 AXIS_LABELS_ZH = {"vertical": "上下", "horizontal": "左右", "diagonal": "斜向"}
 
 MIN_COVERAGE = 0.5
@@ -53,7 +55,15 @@ MIN_REP_S = 0.3
 MIN_PHASE_S = 0.1
 MAX_REP_S = 20.0
 MIN_JOINT_RANGE_DEG = 15.0
-MIN_SEGMENT_SHARE = 0.5
+# A limb drawn shorter than this share of its usual length points more than ~50 degrees out
+# of the image plane (or is mis-detected); its 2D angle at that frame is not reported.
+MIN_SEGMENT_SHARE = 0.6
+# A joint measurable in fewer of the rep frames than this is mostly out of the image plane
+# from this camera position: even the frames that pass are unreliable, so it is not reported.
+MIN_ANGLE_COVERAGE = 0.6
+# Landmarks hidden behind equipment or the body come back with visibility well under this,
+# placed by guesswork; an angle built on them is not reported.
+ANGLE_VISIBILITY = 0.75
 MIN_PLAUSIBLE_DEG = 20.0
 BOTH_SIDES_BONUS = 1.1
 SINGLE_REP_FACTOR = 0.6
@@ -95,6 +105,16 @@ class GenericMotion:
     main_joint: Optional[str] = None
     joint_side: str = "left"
     joint_series: Optional[np.ndarray] = None
+    # Share of rep frames with a reliable angle, per joint and for the trunk.
+    angle_coverage: Dict[str, float] = field(default_factory=dict)
+
+    def measurable(self, name: str) -> bool:
+        return self.angle_coverage.get(name, 0.0) >= MIN_ANGLE_COVERAGE
+
+    @property
+    def unmeasurable_angles(self) -> List[str]:
+        """Angles this camera position cannot measure reliably, in a fixed order."""
+        return [name for name in (*JOINTS, TRUNK) if not self.measurable(name)]
 
 
 def part_points(track: np.ndarray, part: str, side: str, min_visibility: float = VISIBILITY) -> np.ndarray:
@@ -394,19 +414,47 @@ def phase_labels(kind: str, rest: str) -> Tuple[str, str]:
     return ("上升", "下降") if rest == "min" else ("下降", "上升")
 
 
+def _drop_short(values: np.ndarray, length: np.ndarray) -> Optional[np.ndarray]:
+    """NaN where the segment is drawn under MIN_SEGMENT_SHARE of its usual (90th percentile) length."""
+    finite = length[np.isfinite(length)]
+    if finite.size < 5:
+        return None
+    with np.errstate(invalid="ignore"):
+        return np.where(length >= MIN_SEGMENT_SHARE * np.percentile(finite, 90), values, np.nan)
+
+
 def joint_angle(track: np.ndarray, joint: str, side: str) -> np.ndarray:
-    """2D joint angle, NaN where a limb segment is foreshortened (pointing at the camera)
-    or mis-detected: its on-screen length under half of its usual length."""
-    first, middle, last = (pf.side_points(track, side, name) for name in JOINTS[joint])
+    """2D joint angle, NaN where a landmark is hidden (low visibility) or a limb segment is
+    foreshortened (pointing at the camera) or mis-detected: drawn well under its usual length."""
+    first, middle, last = (pf.side_points(track, side, name, ANGLE_VISIBILITY) for name in JOINTS[joint])
     angle = pf.angle_at(first, middle, last)
     for a, b in ((first, middle), (middle, last)):
-        length = np.linalg.norm(a - b, axis=-1)
-        finite = length[np.isfinite(length)]
-        if finite.size < 5:
+        kept = _drop_short(angle, np.linalg.norm(a - b, axis=-1))
+        if kept is None:
             return np.full(angle.shape, np.nan)
-        with np.errstate(invalid="ignore"):
-            angle = np.where(length >= MIN_SEGMENT_SHARE * np.percentile(finite, 90), angle, np.nan)
+        angle = kept
     return angle
+
+
+def trunk_angle(track: np.ndarray) -> np.ndarray:
+    """Trunk lean from vertical (both sides averaged), NaN where the torso is foreshortened:
+    bending toward or away from the camera hides the lean a 2D view can show."""
+    lean = pf.trunk_lean(track, "both")
+    kept = _drop_short(lean, pf.torso_length(track))
+    return np.full(lean.shape, np.nan) if kept is None else kept
+
+
+def rep_coverage(series: np.ndarray, cycles: List[Dict[str, Any]]) -> float:
+    """Share of the frames inside reps that have a value."""
+    chunks = [series[max(0, int(rep["startFrame"])):int(rep["endFrame"]) + 1] for rep in cycles]
+    frames = np.concatenate(chunks) if chunks else np.array([])
+    return float(np.mean(np.isfinite(frames))) if frames.size else 0.0
+
+
+def angle_coverage(track: np.ndarray, cycles: List[Dict[str, Any]], side: str) -> Dict[str, float]:
+    coverage = {joint: rep_coverage(joint_angle(track, joint, side), cycles) for joint in JOINTS}
+    coverage[TRUNK] = rep_coverage(trunk_angle(track), cycles)
+    return {name: round(value, 3) for name, value in coverage.items()}
 
 
 def rep_range(series: np.ndarray, rep: Dict[str, Any]) -> Optional[Tuple[float, float]]:
@@ -418,13 +466,18 @@ def rep_range(series: np.ndarray, rep: Dict[str, Any]) -> Optional[Tuple[float, 
 
 
 def choose_main_joint(
-    track: np.ndarray, cycles: List[Dict[str, Any]], fps: float
+    track: np.ndarray, cycles: List[Dict[str, Any]], fps: float, coverage: Optional[Dict[str, float]] = None
 ) -> Tuple[Optional[str], str, Optional[np.ndarray]]:
-    """Joint with the largest median angle range across reps, on the side facing the camera."""
+    """Joint with the largest median angle range across reps, on the side facing the camera.
+
+    Joints this camera position cannot measure reliably (low coverage) are never chosen.
+    """
     side = pf.choose_side(track)
     window = max(1, int(round(fps * 0.08)))
     best: Tuple[float, Optional[str], Optional[np.ndarray]] = (0.0, None, None)
     for joint in JOINTS:
+        if coverage is not None and coverage.get(joint, 0.0) < MIN_ANGLE_COVERAGE:
+            continue
         series = pf.smooth(joint_angle(track, joint, side), window)
         ranges = [item for item in (rep_range(series, rep) for rep in cycles) if item is not None]
         if not ranges or len(ranges) * 2 < len(cycles):
@@ -444,7 +497,8 @@ def analyze_generic_motion(track: np.ndarray, fps: float, frame_height: int) -> 
     signal = choose_primary_signal(track, fps, frame_height)
     if signal is None:
         return GenericMotion(signal=None, rest="min")
-    joint, joint_side, joint_series = choose_main_joint(track, signal.cycles, fps)
+    coverage = angle_coverage(track, signal.cycles, pf.choose_side(track))
+    joint, joint_side, joint_series = choose_main_joint(track, signal.cycles, fps, coverage)
     return GenericMotion(
         signal=signal,
         rest=signal.rest,
@@ -453,6 +507,7 @@ def analyze_generic_motion(track: np.ndarray, fps: float, frame_height: int) -> 
         main_joint=joint,
         joint_side=joint_side,
         joint_series=joint_series,
+        angle_coverage=coverage,
     )
 
 
@@ -515,4 +570,5 @@ def custom_info(motion: GenericMotion, action_name: str) -> Dict[str, Any]:
         "phaseLabelsZh": list(motion.phase_labels_zh),
         "mainJoint": motion.main_joint,
         "mainJointZh": JOINT_LABELS_ZH.get(motion.main_joint or "") if motion.main_joint else None,
+        "unmeasurableAngles": motion.unmeasurable_angles if signal else [],
     }

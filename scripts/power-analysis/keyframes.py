@@ -30,7 +30,7 @@ MANIFEST_NAME = "keyframes.json"
 MANIFEST_VERSION = 2
 # Besides the main joint, these are labelled whenever the landmarks show them.
 EXTRA_JOINTS = ("knee", "hip", "elbow")
-TRUNK = "trunk"
+TRUNK = gm.TRUNK
 ANGLE_LABELS_ZH = {"elbow": "肘", "shoulder": "肩", "hip": "髋", "knee": "膝", TRUNK: "躯干"}
 SEQUENCE_POINTS = 8
 # A rep's curve is only resampled when most of its frames have a measured angle.
@@ -137,19 +137,21 @@ def angle_series(track: np.ndarray, motion: gm.GenericMotion, fps: float) -> Dic
     """Smoothed angle series to label: the main joint first, then knee/hip/elbow, then trunk lean.
 
     Joints use the side facing the camera, like the main joint; the trunk uses both sides,
-    so it reads the same from the front and from the side.
+    so it reads the same from the front and from the side. Angles this camera position cannot
+    measure reliably are left out entirely.
     """
     window = max(1, int(round(fps * 0.08)))
     series: Dict[str, np.ndarray] = {}
     if motion.main_joint and motion.joint_series is not None:
         series[motion.main_joint] = motion.joint_series
     for joint in EXTRA_JOINTS:
-        if joint not in series:
+        if joint not in series and motion.measurable(joint):
             angle = pf.smooth(gm.joint_angle(track, joint, motion.joint_side), window)
             # Like the main joint choice: an angle this small is a flattened 2D projection.
             with np.errstate(invalid="ignore"):
                 series[joint] = np.where(angle >= gm.MIN_PLAUSIBLE_DEG, angle, np.nan)
-    series[TRUNK] = pf.smooth(pf.trunk_lean(track, "both"), window)
+    if motion.measurable(TRUNK):
+        series[TRUNK] = pf.smooth(gm.trunk_angle(track), window)
     return series
 
 
@@ -339,6 +341,7 @@ def export_keyframes(
         "faceBlurred": True,
         "audio": False,
         "mainJoint": main_joint,
+        "unmeasurable": motion.unmeasurable_angles if motion is not None else [],
         "frames": frames,
         "repAngles": rep_angle_curves(series, reps, main_joint),
     }

@@ -139,6 +139,12 @@ export function parseKeyframeManifest(value: unknown): KeyframeManifest | null {
   return frames.length > 0 ? { faceBlurred: true, audio: false, frames, repAngles: parseRepAngles(raw.repAngles) } : null;
 }
 
+/** Angles the analyzer judged this camera position cannot measure reliably. */
+function unmeasurableAngles(metrics: AnyRecord): AngleKey[] {
+  const listed = asRecord(metrics?.custom)?.unmeasurableAngles;
+  return ANGLE_KEYS.filter((key) => Array.isArray(listed) && listed.includes(key));
+}
+
 function mainAngleKey(metrics: AnyRecord): AngleKey | undefined {
   const custom = asRecord(metrics?.custom) ?? {};
   return (
@@ -147,11 +153,16 @@ function mainAngleKey(metrics: AnyRecord): AngleKey | undefined {
   );
 }
 
-/** Every measured angle, grouped by the joint word the model would write next to it. */
+/**
+ * Every measured angle, grouped by the joint word the model would write next to it. Angles the
+ * analyzer judged unmeasurable from this camera position are left out, so no claim about them survives.
+ */
 export function collectMeasuredAngles(metrics: AnyRecord, manifest?: KeyframeManifest | null): Record<string, number[]> {
   const byWord: Record<string, number[]> = {};
+  const unmeasurable = unmeasurableAngles(metrics);
   const add = (key: AngleKey, value: unknown) => {
     const n = Number(value);
+    if (unmeasurable.includes(key)) return;
     if (value === null || value === undefined || value === "" || !Number.isFinite(n)) return;
     byWord[ANGLE_WORDS[key]] = [...(byWord[ANGLE_WORDS[key]] ?? []), n];
   };
@@ -390,6 +401,7 @@ const SYSTEM_PROMPT = [
   "5. 只输出一个 JSON 对象，不要输出其他任何文字。",
   "6. 关键帧上关节旁的标签（如「肘 95°」）、「关键帧角度」和每次的「…序列」都是系统测得的角度：肘、肩、髋、膝是关节夹角，越接近 180° 越伸直；躯干倾角是躯干与竖直方向的夹角，0° 为直立，90° 为水平。序列是每次从起始到结束均匀取点。",
   "7. 写角度时必须写明是哪个关节，并且只用这个关节自己测得的数；没有测到的关节不要写角度。",
+  "8. 「机位测不准的角度」里的关节或躯干在这个机位下无法可靠测量：不要写它们的角度，也不要从图上估计；需要提到时只说这个机位无法评估。",
 ].join("\n");
 
 const OUTPUT_SCHEMA = [
@@ -422,6 +434,7 @@ export function buildCustomVlmFacts(metrics: AnyRecord, manifest?: KeyframeManif
   const checks: AnyRecord[] = Array.isArray(metrics?.assessment?.checks) ? metrics.assessment.checks : [];
   const curves = new Map((manifest?.repAngles ?? []).map((curve) => [curve.repIndex, curve.anglesDeg]));
   const frameAngles = keyframeAngleFacts(manifest);
+  const unmeasurable = unmeasurableAngles(metrics).map((key) => ANGLE_NAMES_ZH[key]);
   return {
     次数: metrics?.repCount ?? reps.length,
     计次部位: custom.primaryPartZh,
@@ -441,6 +454,7 @@ export function buildCustomVlmFacts(metrics: AnyRecord, manifest?: KeyframeManif
       ...namedAngles(curves.get(Number(rep.repIndex)) ?? {}, "序列"),
     })),
     ...(Object.keys(frameAngles).length > 0 ? { 关键帧角度: frameAngles } : {}),
+    ...(unmeasurable.length > 0 ? { 机位测不准的角度: unmeasurable } : {}),
     测量结论: checks
       .filter((item) => !String(item.code ?? "").startsWith(CUSTOM_VLM_CODE_PREFIX))
       .map((item) => `${item.titleZh}（${item.status}）：${item.detailZh}`),
