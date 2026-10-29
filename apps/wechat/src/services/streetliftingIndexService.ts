@@ -4,7 +4,7 @@
 import Taro from '@tarojs/taro'
 import { API_BASE_URL, BaseService } from '@/utils/request'
 import type { CalcMode, ExerciseType, Gender } from '@/utils/streetliftingCalc'
-import type { LocationSearchResult, LocationEquipmentInput, LocationEquipmentType } from '@coachlink/core'
+import type { LocationSearchResult, LocationEquipmentInput, LocationEquipmentType, LocationGap } from '@coachlink/core'
 
 export interface StreetliftingFormula {
   id: number
@@ -38,6 +38,21 @@ export interface StreetliftingLocation extends LocationEquipmentInput {
   user_contact?: string | null
   contributor_user_id?: string | null
   contributor_name_snapshot?: string | null
+}
+
+export interface StreetliftingMyLocation extends StreetliftingLocation {
+  gaps: LocationGap[]
+}
+
+export interface StreetliftingMyLocationsResult {
+  locations: StreetliftingMyLocation[]
+  summary: {
+    upload_count: number
+    image_count_total: number
+    needs_update_count: number
+    contribution_score: number | null
+    rank: number | null
+  }
 }
 
 export interface StreetliftingLocationMapPin extends LocationEquipmentInput {
@@ -225,6 +240,20 @@ class StreetliftingIndexService extends BaseService {
     const res = await this.post<{ pagination: { total: number } }>('locations/list', { page: 1, limit: 1 }, { showErrorToast: false })
     const total = res.success ? Number(res.data?.pagination?.total) : NaN
     return Number.isFinite(total) && total > 0 ? total : null
+  }
+
+  /** The signed-in user's own uploads (identity from the session), newest first. */
+  async listMyLocations() {
+    const res = await this.post<StreetliftingMyLocationsResult>('locations/mine', {})
+    if (res.success && res.data) return res.data
+    throw new Error((res as any)?.message || '获取我的点位失败')
+  }
+
+  /** Uploader-only; the server rejects other users' and ownerless points. */
+  async deleteLocation(id: string) {
+    const res = await this.post<{ id: string }>('locations/delete', { id }, { showErrorToast: false })
+    if (res.success) return res.data
+    throw new Error((res as any)?.message || '删除失败')
   }
 
   async getLocation(id: string) {

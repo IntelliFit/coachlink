@@ -1611,3 +1611,70 @@ $loc-share-bar-height: 136rpx;
     opacity: 0.85;
   }
 }
+
+// 底部操作：我的点位（次要）+ 分享单杠位置（主要）
+.loc-share-bar {
+  display: flex;
+  gap: 16rpx;
+}
+
+.loc-share-bar__btn {
+  flex: 1;
+}
+
+.loc-share-bar__mine {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 208rpx;
+  height: 104rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--cl-control-line);
+  border-radius: 24rpx;
+  background: var(--cl-card);
+  color: var(--cl-ink);
+  font-size: 30rpx;
+  font-weight: 500;
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+// 贡献榜顶部：我的贡献入口
+.loc-page .contribution-mine-entry {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+  padding: 24rpx 32rpx;
+  border-radius: 24rpx;
+  background: var(--cl-clay-soft);
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.loc-page .contribution-mine-entry__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.loc-page .contribution-mine-entry__title {
+  color: var(--cl-clay-text);
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.loc-page .contribution-mine-entry__desc {
+  color: var(--cl-ink-2);
+  font-size: 24rpx;
+}
+
+.loc-page .contribution-mine-entry__arrow {
+  color: var(--cl-clay-text);
+  font-size: 40rpx;
+}

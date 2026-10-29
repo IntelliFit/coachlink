@@ -291,6 +291,10 @@ export default function StreetliftingLocations() {
   const routerParams = (Taro.getCurrentInstance().router?.params || {}) as Record<string, unknown>
   const sharedLocationId = String(routerParams.locationId || '').trim()
   const openCreateOnLoad = String(routerParams.create || '') === '1'
+  // Opened from 我的点位 (?edit=<id> or ?create=1 with from=mine): finishing or
+  // cancelling the form returns there instead of leaving the user on the full map.
+  const editOnLoadId = String(routerParams.edit || '').trim()
+  const returnToMine = String(routerParams.from || '') === 'mine'
   const sharedLocationPreview = useMemo(() => buildSharedLocationPreviewFromParams(routerParams), [])
   const [loading, setLoading] = useState(true)
   const [locations, setLocations] = useState<StreetliftingLocation[]>([])
@@ -471,6 +475,11 @@ export default function StreetliftingLocations() {
     void loadOverview()
     void loadContributorLeaderboard()
     if (openCreateOnLoad) openCreate()
+    if (editOnLoadId) {
+      void streetliftingIndexService.getLocation(editOnLoadId)
+        .then(openEdit)
+        .catch((error) => Taro.showToast({ title: (error as Error)?.message || '点位加载失败', icon: 'none' }))
+    }
   }, [])
 
   useEffect(() => {
@@ -541,6 +550,20 @@ export default function StreetliftingLocations() {
       setManualDetailsOpen(Boolean(draft.name || draft.address || isValidLocationCoordinates(draft.latitude, draft.longitude)))
     }
     setDialogOpen(true)
+  }
+
+  const closeDialogByUser = () => {
+    setDialogOpen(false)
+    resetForm()
+    if (returnToMine) void Taro.navigateBack()
+  }
+
+  const openMyLocations = () => {
+    if (!authService.isAuthenticated()) {
+      requireLoginForLocationsAction('登录后可以查看和更新你上传过的单杠点位。')
+      return
+    }
+    void Taro.navigateTo({ url: '/streetlifting/index/my-locations' })
   }
 
   const openEdit = (loc: StreetliftingLocation) => {
@@ -756,6 +779,7 @@ export default function StreetliftingLocations() {
       setDialogOpen(false)
       writeLocationCache(draftKey, null)
       resetForm()
+      if (returnToMine) { void Taro.navigateBack(); return }
       void fetchLocations(page, false)
       void loadOverview()
       void loadContributorLeaderboard()
@@ -1529,6 +1553,14 @@ export default function StreetliftingLocations() {
                 <Text className='iconfont icon-ranking contribution-title-icon' />
               </View>
 
+              <View className='contribution-mine-entry' onClick={openMyLocations}>
+                <View className='contribution-mine-entry__main'>
+                  <Text className='contribution-mine-entry__title'>我的贡献</Text>
+                  <Text className='contribution-mine-entry__desc'>查看我上传的点位、排名，补充照片和器材</Text>
+                </View>
+                <Text className='contribution-mine-entry__arrow'>›</Text>
+              </View>
+
               {loadingContributors ? (
                 renderSkeleton()
               ) : contributors.length === 0 ? (
@@ -1753,7 +1785,7 @@ export default function StreetliftingLocations() {
 
       {/* ===== 表单弹窗 ===== */}
       {dialogOpen && (
-        <View className='dialog-mask' onClick={() => { setDialogOpen(false); resetForm() }}>
+        <View className='dialog-mask' onClick={closeDialogByUser}>
           <View className='dialog-box' onClick={(e) => e.stopPropagation()}>
             <Text className='dialog-title'>{editing ? '编辑单杠位置' : '分享单杠位置'}</Text>
             <Text className='location-step'>{hasSelectedPosition || manualDetailsOpen ? '核对地址，补充单杠信息' : '先选地图位置，地址自动带回'}</Text>
@@ -1823,7 +1855,7 @@ export default function StreetliftingLocations() {
               </>}
             </ScrollView>
             <View className='dialog-actions'>
-              <Button className='btn-cancel' onClick={() => { setDialogOpen(false); resetForm() }}>取消</Button>
+              <Button className='btn-cancel' onClick={closeDialogByUser}>取消</Button>
               {(hasSelectedPosition || manualDetailsOpen) && <Button className='btn-ok' onClick={handleSubmit} disabled={submitting || uploading || openingPicker}>{submitting ? '保存中…' : editing ? '保存修改' : '分享单杠'}</Button>}
             </View>
           </View>
@@ -1832,6 +1864,9 @@ export default function StreetliftingLocations() {
 
       {!dialogOpen && (
         <View className='loc-share-bar'>
+          <View className='loc-share-bar__mine' onClick={openMyLocations}>
+            <Text>我的点位</Text>
+          </View>
           <View className='loc-share-bar__btn' onClick={openCreate}>
             <Text className='iconfont icon-location' />
             <Text>分享我的单杠位置</Text>

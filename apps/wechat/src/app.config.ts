@@ -185,6 +185,7 @@ export default {
         'index/location-share',
         'index/locations',
         'index/locations-map',
+        'index/my-locations',
         'index/methodology',
         'index/stories',
         'index/submit',
