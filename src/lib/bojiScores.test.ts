@@ -74,12 +74,12 @@ describe('buildBojiInsights', () => {
     const { store, inserted } = memoryStore();
     const insights = await buildBojiInsights({ analysis: analysis({ abs: 90, v: 85, arms: 70, sym: 80 }, 82), userId: 'me', store });
     expect(insights.scoreId).toBe('new-1');
-    expect(insights.percentile).toMatchObject({ basis: 'estimate', sampleUsers: 3 });
+    expect(insights.percentile).toEqual({ value: estimateBojiPercentile(82), basis: 'estimate', sampleUsers: 0 });
     expect(insights.lookalike?.name).toBeTruthy();
     expect(insights.challenge).toBeNull();
     expect(inserted[0]).toMatchObject({ userId: 'me', challengeScoreId: null, engineVersion: '0.1.1' });
     expect(inserted[0].snapshot.total).toBe(82);
-    expect(store.rankTotal).toHaveBeenCalledWith(82, 'me');
+    expect(store.rankTotal).not.toHaveBeenCalled();
   });
 
   it('does not record a photo where no metric could be measured', async () => {
@@ -125,10 +125,10 @@ describe('buildBojiInsights', () => {
     }
   });
 
-  it('switches to the measured percentile once 100 people have results', async () => {
+  it('ignores real uploads even when many people have results', async () => {
     const { store } = memoryStore([], { sampleUsers: 200, belowUsers: 50 });
     const insights = await buildBojiInsights({ analysis: analysis({ abs: 90, v: 85, arms: 70, sym: 80 }, 82), userId: 'me', store });
-    expect(insights.percentile).toEqual({ value: 25, basis: 'measured', sampleUsers: 200 });
+    expect(insights.percentile).toEqual({ value: estimateBojiPercentile(82), basis: 'estimate', sampleUsers: 0 });
   });
 });
 

@@ -236,17 +236,6 @@ export async function buildBojiInsights({
     }
   }
 
-  let sample: { sampleUsers: number; belowUsers: number } | null = null;
-  if (snapshot.total !== null) {
-    try {
-      sample = snapshot.sex === 'female'
-        ? await store.rankTotal(snapshot.total, userId, 'female')
-        : await store.rankTotal(snapshot.total, userId);
-    } catch (error) {
-      console.error('[boji] rank:', error instanceof Error ? error.message : error);
-    }
-  }
-
   let scoreId: string | null = null;
   try {
     scoreId = await store.insert({
@@ -273,7 +262,8 @@ export async function buildBojiInsights({
 
   return {
     scoreId,
-    percentile: bojiPercentile(snapshot.total, sample, undefined, snapshot.sex),
+    // 超越比例只按预设分布算，不查真实排名（见 bojiInsights.ts）
+    percentile: bojiPercentile(snapshot.total, snapshot.sex),
     lookalike,
     challenge,
   };

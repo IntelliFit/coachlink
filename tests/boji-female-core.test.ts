@@ -133,8 +133,9 @@ describe('female insights', () => {
   });
 
   it('estimates the percentile from the female prior', () => {
-    expect(bojiPercentile(68, null, undefined, 'female')).toEqual({ value: 50, basis: 'estimate', sampleUsers: 0 });
-    expect(bojiPercentile(68, null)?.value).toBeLessThan(50);   // the male prior is centred higher
+    expect(bojiPercentile(54, 'female')).toEqual({ value: 50, basis: 'estimate', sampleUsers: 0 });
+    expect(bojiPercentile(67, 'female')?.value).toBe(79);
+    expect(bojiPercentile(54)?.value).toBeLessThan(50);   // the male prior is centred higher
   });
 });
 

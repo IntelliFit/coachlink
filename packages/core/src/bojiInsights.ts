@@ -103,27 +103,24 @@ export function lookalikeForSnapshot(snapshot: BojiScoreSnapshot): BojiLookalike
 }
 
 // ---------------------------------------------------------------------------
-// 超越比例：真实检测人数不足时用预设分布估算，够了以后换真实分布
+// 超越比例：只用预设分布，不用真实检测数据
 // ---------------------------------------------------------------------------
 
-/**
- * 预设的综合分分布（正态）。2026-10-26 按线上前 114 次检测（均值 78.4、标准差 16.6）
- * 校正；原先的均值 55 让大多数人都显示「超越 95% 以上」。
+/*
+ * 「超越了约 X% 的人」比的是普通人，不是来测的人。主动拍照来测的大多身材好
+ * （线上前 114 次男性检测均值 78.4），按真实数据拟合会让练得不错的人只「超越 50%」。
+ * 所以永远按下面的预设分布算，不随检测数据变化（用户 2026-10-27 决定）。
+ * 均值取普通人水平：男 78 分约超越 84%，女 67 分约超越 79%。
  */
-export const BOJI_PERCENTILE_PRIOR = { mean: 78, sd: 17 };
-/**
- * 女性档的预设分布：暂按引擎 0.2 在 20 张女性健身照上的综合分（均值约 67、标准差约 17）定；
- * 女性真实检测满 100 人后换成真实分布。
- */
-export const BOJI_FEMALE_PERCENTILE_PRIOR = { mean: 68, sd: 17 };
-/** 真实检测人数（按人去重）达到这个数后改用真实分布 */
-export const BOJI_PERCENTILE_MIN_REAL_USERS = 100;
+export const BOJI_PERCENTILE_PRIOR = { mean: 62, sd: 16 };
+export const BOJI_FEMALE_PERCENTILE_PRIOR = { mean: 54, sd: 16 };
 
 export interface BojiPercentile {
   /** 超越的人数比例，1–99 的整数 */
   value: number;
-  basis: 'estimate' | 'measured';
-  sampleUsers: number;
+  /** 一律按预设分布估算；保留字段以兼容已发出的客户端 */
+  basis: 'estimate';
+  sampleUsers: 0;
 }
 
 // Abramowitz–Stegun 7.1.26，误差 < 1.5e-7
@@ -144,23 +141,10 @@ export function estimateBojiPercentile(total: number, prior = BOJI_PERCENTILE_PR
   return clampPercent(0.5 * (1 + erf(z)));
 }
 
-/**
- * sampleUsers / belowUsers：除本人以外、按人取最好成绩后的总人数和低于本次分数的人数。
- */
-export function bojiPercentile(
-  total: number | null,
-  sample: { sampleUsers: number; belowUsers: number } | null,
-  minRealUsers = BOJI_PERCENTILE_MIN_REAL_USERS,
-  sex: BojiSex = 'male',
-): BojiPercentile | null {
+export function bojiPercentile(total: number | null, sex: BojiSex = 'male'): BojiPercentile | null {
   if (total === null || !Number.isFinite(total)) return null;
-  const sampleUsers = Math.max(0, Math.floor(sample?.sampleUsers ?? 0));
-  if (sample && sampleUsers >= minRealUsers) {
-    const below = Math.min(sampleUsers, Math.max(0, Math.floor(sample.belowUsers)));
-    return { value: clampPercent(below / sampleUsers), basis: 'measured', sampleUsers };
-  }
   const prior = sex === 'female' ? BOJI_FEMALE_PERCENTILE_PRIOR : BOJI_PERCENTILE_PRIOR;
-  return { value: estimateBojiPercentile(total, prior), basis: 'estimate', sampleUsers };
+  return { value: estimateBojiPercentile(total, prior), basis: 'estimate', sampleUsers: 0 };
 }
 
 // ---------------------------------------------------------------------------
