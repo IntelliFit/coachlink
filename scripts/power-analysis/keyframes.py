@@ -1,9 +1,11 @@
 """Exports de-identified keyframes of custom-mode reps for the vision model.
 
 Per DECISIONS 2026-08-09 the default cloud tier is derived material only: no
-original video and no audio. Each keyframe has the face pixelated, the pose
-skeleton drawn, and is cropped to the person and shrunk, so the model sees the
-movement rather than the person or the room.
+original video and no audio. Each keyframe has every face pixelated (the lifter's
+from the pose track, anyone else's from a face detector), the pose skeleton
+drawn, and is cropped to the person and shrunk, so the model sees the movement
+rather than the people or the room. Without a working face detector no keyframes
+are written, since bystanders could not be de-identified.
 
 The measured angles are printed next to their joints on each keyframe and also
 written to the manifest (per frame, plus a short resampled curve per rep), so
@@ -11,11 +13,13 @@ the model reads every number off the measurement instead of estimating it.
 """
 import json
 import os
+import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
 
+import face_privacy as fpv
 import generic_motion as gm
 import pose_features as pf
 from hud import ACCENT_BGR, font, pill, render_text
@@ -26,6 +30,8 @@ MAX_LONG_SIDE = 640
 JPEG_QUALITY = 82
 FACE_INDEXES = list(range(0, 11))
 CROP_MARGIN = 0.15
+# Faces are searched a little beyond the crop, so one cut by the crop edge still has context.
+FACE_SEARCH_MARGIN = 0.1
 MANIFEST_NAME = "keyframes.json"
 MANIFEST_VERSION = 2
 # Besides the main joint, these are labelled whenever the landmarks show them.
@@ -88,10 +94,21 @@ def blur_face(frame: np.ndarray, row: np.ndarray) -> bool:
     x1, y1 = int(min(frame.shape[1], cx + half)), int(min(frame.shape[0], cy + half))
     if x1 <= x0 or y1 <= y0:
         return False
-    roi = frame[y0:y1, x0:x1]
-    small = cv2.resize(roi, (6, 6), interpolation=cv2.INTER_AREA)
-    frame[y0:y1, x0:x1] = cv2.resize(small, (x1 - x0, y1 - y0), interpolation=cv2.INTER_NEAREST)
+    fpv.pixelate(frame, (x0, y0, x1, y1))
     return True
+
+
+def blur_every_face(frame: np.ndarray, row: np.ndarray, face_detect: fpv.Detect, region: Tuple[int, int, int, int]) -> bool:
+    """Every face the detector finds around the crop, then the lifter's head from the pose.
+
+    False when either step cannot run, so the frame is skipped instead of half de-identified.
+    """
+    try:
+        fpv.blur_all_faces(frame, face_detect, region)
+    except Exception as exc:  # noqa: BLE001 - a failed search must not export the frame
+        print(f"keyframe skipped: face detection failed ({exc})", file=sys.stderr, flush=True)
+        return False
+    return blur_face(frame, row)
 
 
 def draw_skeleton(frame: np.ndarray, row: np.ndarray) -> None:
@@ -281,10 +298,42 @@ def export_keyframes(
     axis: str,
     rest: str,
     motion: Optional[gm.GenericMotion] = None,
+    face_detect: Optional[fpv.Detect] = None,
 ) -> Optional[Dict[str, Any]]:
     plan = plan_keyframes(reps, phase_labels, axis, rest)
     if not plan:
         return None
+    if face_detect is not None:
+        return _export(video_path, track, reps, out_dir, fps, plan, motion, face_detect)
+    try:
+        detector = fpv.FaceDetector()
+    except Exception as exc:  # noqa: BLE001 - any load failure means bystanders cannot be blurred
+        print(f"keyframes skipped: face detector unavailable ({exc})", file=sys.stderr, flush=True)
+        return None
+    try:
+        return _export(video_path, track, reps, out_dir, fps, plan, motion, detector)
+    finally:
+        detector.close()
+
+
+def face_search_region(boxes: List[Tuple[int, int, int, int]], width: int, height: int) -> Tuple[int, int, int, int]:
+    """Union of the crops cut from one frame, grown by FACE_SEARCH_MARGIN and clipped to it."""
+    x0, y0 = min(box[0] for box in boxes), min(box[1] for box in boxes)
+    x1, y1 = max(box[2] for box in boxes), max(box[3] for box in boxes)
+    margin = int(FACE_SEARCH_MARGIN * max(x1 - x0, y1 - y0))
+    return max(0, x0 - margin), max(0, y0 - margin), min(width, x1 + margin), min(height, y1 + margin)
+
+
+def _export(
+    video_path: str,
+    track: np.ndarray,
+    reps: List[Dict[str, Any]],
+    out_dir: str,
+    fps: float,
+    plan: List[Dict[str, Any]],
+    motion: Optional[gm.GenericMotion],
+    face_detect: fpv.Detect,
+) -> Optional[Dict[str, Any]]:
     wanted: Dict[int, List[Dict[str, Any]]] = {}
     for item in plan:
         wanted.setdefault(item["frame"], []).append(item)
@@ -307,13 +356,15 @@ def export_keyframes(
                 break
             if index in wanted and index < track.shape[0]:
                 row = track[index]
+                crops = [
+                    crop_box(track, int(item["rep"]["startFrame"]), int(item["rep"]["endFrame"]), width, height)
+                    for item in wanted[index]
+                ]
                 # No pose means no known face position: skip rather than send an unblurred person.
-                if np.isfinite(row[0, 0]) and blur_face(frame, row):
+                if np.isfinite(row[0, 0]) and blur_every_face(frame, row, face_detect, face_search_region(crops, width, height)):
                     draw_skeleton(frame, row)
                     angles = frame_angles(series, index)
-                    for item in wanted[index]:
-                        rep = item["rep"]
-                        x0, y0, x1, y1 = crop_box(track, int(rep["startFrame"]), int(rep["endFrame"]), width, height)
+                    for item, (x0, y0, x1, y1) in zip(wanted[index], crops):
                         name = f"rep{item['repIndex']}_{item['phase']}.jpg"
                         image, ratio = _shrink(frame[y0:y1, x0:x1])
                         image = draw_angle_labels(image, row, angles, side, (x0, y0), ratio, main_joint)
