@@ -1474,7 +1474,7 @@ function TodayTrainingScreen() {
               dateLabel={formatPlanDayLabel(new Date())}
               guest
               waitingCoach={false}
-              onQuickStart={handleGuestLogin}
+              onQuickStart={handleQuickStart}
               onFindCoach={handleFindCoach}
               onContactCoach={handleGuestLogin}
               onOpenPlan={handleOpenPublicPlan}

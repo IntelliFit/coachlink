@@ -253,7 +253,10 @@ export default function ActionLibPage() {
       ? 'STREET'
       : 'STRENGTH'
   const requestedTab = String(router.params?.source || router.params?.tab || '').toLowerCase()
-  const initialTab: TabKey = isPlanSelectionMode
+  // 小程序审核要求：未登录用户可先浏览公共动作库，加入/开始训练时再自主选择登录。
+  const [isGuest] = useState(() => !authService.getCurrentUser()?.id)
+  const isGuestPicker = isImpromptuSelectionMode && isGuest
+  const initialTab: TabKey = isPlanSelectionMode || isGuestPicker
     ? 'public'
     : isImpromptuSelectionMode
       ? (requestedTab === 'mine' || requestedTab === 'public' || requestedTab === 'frequent'
@@ -270,7 +273,7 @@ export default function ActionLibPage() {
   const [frequentLoading, setFrequentLoading] = useState(false)
   const [selectedActions, setSelectedActions] = useState<Action[]>([])
   const [startingImpromptu, setStartingImpromptu] = useState(false)
-  const [checkingCurrentImpromptu, setCheckingCurrentImpromptu] = useState(isImpromptuSelectionMode)
+  const [checkingCurrentImpromptu, setCheckingCurrentImpromptu] = useState(isImpromptuSelectionMode && !isGuest)
 
   const [publicSearchTerm, setPublicSearchTerm] = useState('')
   const publicActionType = libraryMode === 'CARDIO' ? 'CARDIO' : 'STRENGTH'
@@ -308,7 +311,7 @@ export default function ActionLibPage() {
   const frequentLoadedRef = useRef(false)
 
   useEffect(() => {
-    if (isPlanSelectionMode) {
+    if (isPlanSelectionMode || isGuestPicker) {
       setActiveTab('public')
     } else if (isImpromptuSelectionMode) {
       setActiveTab(requestedTab === 'mine' || requestedTab === 'public' || requestedTab === 'frequent'
@@ -317,7 +320,24 @@ export default function ActionLibPage() {
     } else if (router.params?.tab === 'public') {
       setActiveTab('public')
     }
-  }, [isImpromptuSelectionMode, isPlanSelectionMode, requestedMode, requestedTab, router.params?.tab])
+  }, [isGuestPicker, isImpromptuSelectionMode, isPlanSelectionMode, requestedMode, requestedTab, router.params?.tab])
+
+  const promptGuestLogin = useCallback(() => {
+    const query = Object.entries(router.params || {})
+      .filter(([key, value]) => !key.startsWith('$') && value != null && value !== '')
+      .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+      .join('&')
+    Taro.showModal({
+      title: '登录后开始训练',
+      content: '登录后可以把动作加入训练并保存训练记录，是否现在登录？',
+      confirmText: '去登录',
+      cancelText: '再看看',
+      success: (res) => {
+        if (!res.confirm) return
+        Taro.navigateTo({ url: authService.buildLoginUrl(`/me/action-lib/index${query ? `?${query}` : ''}`) })
+      }
+    })
+  }, [router.params])
 
   const loadActions = useCallback(async (search = mySearchTermRef.current) => {
     try {
@@ -377,12 +397,7 @@ export default function ActionLibPage() {
     if (!isImpromptuSelectionMode) return
     let cancelled = false
     const user = authService.getCurrentUser()
-    if (!user?.id) {
-      Taro.redirectTo({
-        url: `/auth/login?returnTo=${encodeURIComponent('/me/action-lib/index?mode=impromptu-select')}`
-      })
-      return
-    }
+    if (!user?.id) return
 
     const resume = (execution: any) => {
       if (cancelled || !execution?.id) return false
@@ -524,6 +539,10 @@ export default function ActionLibPage() {
   }
 
   const handleCreate = () => {
+    if (isGuestPicker) {
+      promptGuestLogin()
+      return
+    }
     Taro.navigateTo({ url: '/me/action-lib/edit/index' })
   }
 
@@ -660,6 +679,10 @@ export default function ActionLibPage() {
 
   const handleSelectPublicAction = async (action: PublicActionItemDto) => {
     if (!isSelectionMode || addingPublicId) return
+    if (isGuestPicker) {
+      promptGuestLogin()
+      return
+    }
     if (isImpromptuSelectionMode && isSelectedAction(action)) {
       removeSelectedAction(action)
       return
@@ -737,7 +760,7 @@ export default function ActionLibPage() {
     if (startingImpromptu || selectedActions.length === 0) return
     const user = authService.getCurrentUser()
     if (!user?.id) {
-      Taro.navigateTo({ url: '/auth/login' })
+      promptGuestLogin()
       return
     }
 
@@ -1120,7 +1143,7 @@ export default function ActionLibPage() {
 
   if (isSelectionMode) {
     const searchValue = activeTab === 'public' ? publicSearchTerm : mySearchTerm
-    const sourceTabs: Array<{ key: TabKey; label: string }> = isImpromptuSelectionMode
+    const sourceTabs: Array<{ key: TabKey; label: string }> = isImpromptuSelectionMode && !isGuest
       ? [{ key: 'frequent', label: '常用' }, { key: 'mine', label: '我的' }, { key: 'public', label: '公共动作库' }]
       : []
     const headingPrefix = libraryMode === 'STREET' ? '街健' : libraryMode === 'CARDIO' ? '有氧' : '力量'

@@ -141,7 +141,7 @@ function StarterHome({
       </View>
 
       {guest ? (
-        <Text className='tt-starter__hint'>开始记录训练时需要登录，训练记录会同步保存。</Text>
+        <Text className='tt-starter__hint'>可以先浏览动作，开始记录训练时再登录，训练记录会同步保存。</Text>
       ) : onMore ? (
         <Text className='tt-starter__more' onClick={onMore}>我的计划库 · 训练记录说明</Text>
       ) : null}
