@@ -40,14 +40,14 @@ const RESULT_HOLD_MS = 2200
 const MAX_FRAME_DELTA_MS = 64
 const REPLAY_FRAME_INTERVAL_MS = 1000 / BOUNCE_REPLAY_FPS
 /**
- * 录制上限 10 分钟（真实时间）。1× 下 99% 的局在 5 分钟内结束；更长的局到点后
- * 视频停在这里，游戏照常弹完，建议这种局开快进。
+ * 录制上限 10 分钟（真实时间）。1× 约每秒 1 下，约 3% 的局超过 600 下；这种局到点后
+ * 视频停在这里，游戏照常弹完，建议开快进。
  */
 const REPLAY_MAX_SECONDS = 600
-/** 撞得很密时震动会连成一片，至少间隔这么久才震一次。 */
+/** 快进时撞得很密，手机震动和画面震动会连成一片，至少间隔这么久才震一次。 */
 const HIT_VIBRATE_GAP_MS = 150
 /** 还没开始时哑铃挂在两片上方。 */
-const IDLE_SIM = createSim({ angle: 0, spin: 0, vx: 0, vy: 0, x: 0.5, y: WORLD_HEIGHT * 0.26 })
+const IDLE_SIM = createSim({ angle: 0, spin: 0, vx: 0, vy: 0, x: 0.5, y: WORLD_HEIGHT * 0.26 }, 1)
 
 type BouncePrefs = {
   exerciseKey: string
@@ -101,6 +101,8 @@ export default function DumbbellBouncePage() {
   const [processing, setProcessing] = useState(false)
   const [videoPath, setVideoPath] = useState('')
   const [saving, setSaving] = useState(false)
+  // 每撞一下加 1，奇偶切换两个方向相反的 CSS 动画，既能重播又正好对应左右片子轮流撞。
+  const [joltTick, setJoltTick] = useState(0)
 
   const statusRef = useRef<BounceStatus>('idle')
   const speedRef = useRef<BounceSpeed>(initialPrefs.speed)
@@ -194,13 +196,10 @@ export default function DumbbellBouncePage() {
     } else if (statusRef.current === 'bouncing') {
       const before = simRef.current.hits
       simRef.current = advanceSim(simRef.current, delta, speedRef.current)
-      if (
-        simRef.current.hits > before
-        && speedRef.current === 1
-        && now - lastVibrateAtRef.current >= HIT_VIBRATE_GAP_MS
-      ) {
+      if (simRef.current.hits > before && now - lastVibrateAtRef.current >= HIT_VIBRATE_GAP_MS) {
         lastVibrateAtRef.current = now
-        void Taro.vibrateShort({ type: 'light' }).catch(() => undefined)
+        setJoltTick((tick) => tick + 1)
+        void Taro.vibrateShort({ type: 'medium' }).catch(() => undefined)
       }
       if (simRef.current.ended) finishRound()
     }
@@ -371,26 +370,28 @@ export default function DumbbellBouncePage() {
     <PageThemeRoot>
       <View className='bounce-page'>
         <View className='bounce-stage'>
-          <Camera
-            className='bounce-camera'
-            devicePosition={USER_FACING_CAMERA.devicePosition}
-            flash='off'
-            mode='normal'
-            frameSize={USER_FACING_CAMERA.frameSize}
-            resolution={USER_FACING_CAMERA.resolution}
-            onInitDone={() => {
-              setCameraReady(true)
-              setCameraError('')
-              Taro.nextTick(() => {
-                setupCanvas()
-                startFrameStream()
-              })
-            }}
-            onError={(event: any) => {
-              setCameraReady(false)
-              setCameraError(event?.detail?.errMsg || '相机启动失败，请检查权限')
-            }}
-          />
+          <View className={`bounce-camera-wrap ${joltTick > 0 ? `bounce-camera-wrap--jolt-${joltTick % 2}` : ''}`}>
+            <Camera
+              className='bounce-camera'
+              devicePosition={USER_FACING_CAMERA.devicePosition}
+              flash='off'
+              mode='normal'
+              frameSize={USER_FACING_CAMERA.frameSize}
+              resolution={USER_FACING_CAMERA.resolution}
+              onInitDone={() => {
+                setCameraReady(true)
+                setCameraError('')
+                Taro.nextTick(() => {
+                  setupCanvas()
+                  startFrameStream()
+                })
+              }}
+              onError={(event: any) => {
+                setCameraReady(false)
+                setCameraError(event?.detail?.errMsg || '相机启动失败，请检查权限')
+              }}
+            />
+          </View>
           <Canvas type='2d' id={CANVAS_ID} className='bounce-canvas' />
           {recording ? (
             <View className='bounce-rec'>
@@ -466,7 +467,7 @@ export default function DumbbellBouncePage() {
           <Text className='bounce-hint'>
             {status === 'result'
               ? `今天的任务：${resultReps} 个${exerciseLabelOf(exerciseKey)}。视频免费保存，可以直接发抖音、小红书。`
-              : '每次随机松手，撞一下杠铃片算 1 个，碰巧竖着掉进缝里才结束；弹得久就开 5×、10× 快进。'}
+              : '每次随机松手，撞一下杠铃片算 1 个，掉下去才结束；弹得久可以开 5×、10× 快进。'}
           </Text>
         </View>
       </View>
