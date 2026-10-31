@@ -26,7 +26,7 @@ function fail(status: number, message: string, headers?: Record<string, string>)
  * application/octet-stream）。网页和小程序共用。照片只转发给分析服务，不保存；
  * 只记录分数（tool_boji_scores），用于「超越 X%」和 PK。
  * 可选查询参数 challenge=<成绩 id>：应战好友发起的 PK；sex=female：女性档（马甲线、腰臀比）。
- * 男性档在引擎数出较多腹肌块时，把腹部裁图（不含脸）交给视觉模型复核，只纠正数多了的情况。
+ * 男性档把腹部裁图（不含脸）交给视觉模型复核有没有腹肌和块数。
  */
 export async function POST(request: NextRequest) {
   const userId = await getApiUserId(request);
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         analysis: engineResult,
         cropBase64,
         sex,
-        ask: createVisionAbsAsker(absCheck),
+        ask: createVisionAbsAsker(absCheck.timeoutMs),
         config: absCheck,
       });
     } catch (error) {

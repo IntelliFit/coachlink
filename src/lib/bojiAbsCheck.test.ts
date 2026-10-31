@@ -3,15 +3,18 @@ import type { BojiAnalysisDto, BojiMetric } from '@coachlink/core/src/bojiDetect
 import {
   ABS_CORRECTED_REASON,
   applyAbsCorrection,
+  ABS_COUNT_PROMPT,
+  applyAbsCount,
   checkAbsWithVision,
-  confirmsNoDefinition,
   getAbsCheckConfig,
+  medianPacks,
+  parseAbsCount,
   parseAbsVerdict,
   saysNoDefinition,
   type AbsVerdict,
 } from './bojiAbsCheck';
 
-const CONFIG = { enabled: true, confirmModel: 'gpt-5.4-mini', timeoutMs: 1000, confirmTimeoutMs: 2000 };
+const CONFIG = { enabled: true, confirmModel: 'qwen3.6-flash', timeoutMs: 1000, countVotes: 3 };
 
 function block(side: 'image_left' | 'image_right', index: number, enclosure: number) {
   return { side, index, enclosure, depth: 0.03, outline: [[0, 0], [1, 0], [1, 1], [0, 1]] };
@@ -78,13 +81,6 @@ describe('saysNoDefinition', () => {
     expect(saysNoDefinition(parseAbsVerdict(verdict(0, 'none', 0.9, false)))).toBe(false);
     expect(saysNoDefinition(null)).toBe(false);
   });
-
-  it('lets the confirming model agree with up to two faint rows', () => {
-    expect(confirmsNoDefinition(parseAbsVerdict(verdict(2, 'faint')))).toBe(true);
-    expect(confirmsNoDefinition(parseAbsVerdict(verdict(3, 'faint')))).toBe(false);
-    expect(confirmsNoDefinition(parseAbsVerdict(verdict(2, 'visible')))).toBe(false);
-    expect(confirmsNoDefinition(parseAbsVerdict(verdict(0, 'none', 0.6)))).toBe(false);
-  });
 });
 
 describe('applyAbsCorrection', () => {
@@ -127,26 +123,54 @@ describe('applyAbsCorrection', () => {
   });
 });
 
+describe('counting votes', () => {
+  it('parses rows into packs and caps at eight', () => {
+    expect(parseAbsCount('```json\n{"grooves": [], "rows": 3}\n```')).toBe(6);
+    expect(parseAbsCount('{"rows": 5}')).toBe(8);
+    expect(parseAbsCount('{"rows": 6}')).toBeNull();
+    expect(parseAbsCount('{"rows": 1.5}')).toBeNull();
+    expect(parseAbsCount('sorry')).toBeNull();
+    expect(parseAbsCount(null)).toBeNull();
+  });
+
+  it('takes the median of three and needs two valid votes', () => {
+    expect(medianPacks([8, 6, 6])).toBe(6);
+    expect(medianPacks([4, 8, 6])).toBe(6);
+    expect(medianPacks([8, null, 6])).toBe(6);
+    expect(medianPacks([8, null, null])).toBeNull();
+    expect(medianPacks([])).toBeNull();
+  });
+
+  it('removes extra blocks when lowering and keeps the drawing when raising', () => {
+    const before = analysis();
+    const lowered = applyAbsCount(before, 4).report.metrics.abs;
+    expect(lowered.values).toMatchObject({ pack_count: 4, blocks_image_left: 2, blocks_image_right: 2, engine_pack_count: 6 });
+    expect((lowered.geometry as { blocks: unknown[] }).blocks).toHaveLength(4);
+    expect(lowered.score).toBe(97);
+    expect(lowered.reasons).toEqual(['low_light']);
+    const raised = applyAbsCount(before, 8).report.metrics.abs;
+    expect(raised.values.pack_count).toBe(8);
+    expect((raised.geometry as { blocks: unknown[] }).blocks).toHaveLength(6);
+    expect(before.report.metrics.abs.values.pack_count).toBe(6);
+  });
+});
+
 describe('checkAbsWithVision', () => {
-  const run = (answers: Array<string | null>, patch: Partial<Parameters<typeof checkAbsWithVision>[0]> = {}) => {
-    const ask = vi.fn(async () => answers.shift() ?? null);
+  const count = (rows: number) => JSON.stringify({ grooves: [], rows, definition: 'clear', confidence: 0.9 });
+  const run = (first: Array<string | null>, votes: Array<string | null> = [], patch: Partial<Parameters<typeof checkAbsWithVision>[0]> = {}) => {
+    const ask = vi.fn(async (_crop: string, _model: string | null, prompt?: string) => (prompt ? votes.shift() : first.shift()) ?? null);
     const result = checkAbsWithVision({ analysis: analysis(), cropBase64: 'abc', sex: 'male', ask, config: CONFIG, log: () => {}, ...patch });
     return { ask, result };
   };
 
-  it('corrects only when both models see no clear blocks', async () => {
-    const { ask, result } = run([verdict(1, 'faint'), verdict(2, 'faint')]);
+  it('corrects only when both models see no clear blocks, without counting', async () => {
+    const { ask, result } = run([verdict(1, 'faint'), verdict(1, 'faint')]);
     const out = await result;
     expect(ask).toHaveBeenNthCalledWith(1, 'abc', null);
-    expect(ask).toHaveBeenNthCalledWith(2, 'abc', 'gpt-5.4-mini');
+    expect(ask).toHaveBeenNthCalledWith(2, 'abc', 'qwen3.6-flash');
+    expect(ask).toHaveBeenCalledTimes(2);
     expect(out.report.metrics.abs.values.pack_count).toBe(2);
     expect(out.report.metrics.abs.score).toBe(45);
-  });
-
-  it('does not let the primary model correct on a faint two-row answer', async () => {
-    const { ask, result } = run([verdict(2, 'faint')]);
-    expect((await result).report.metrics.abs.values.pack_count).toBe(6);
-    expect(ask).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the engine result when the confirming model sees abs', async () => {
@@ -155,8 +179,23 @@ describe('checkAbsWithVision', () => {
     expect(ask).toHaveBeenCalledTimes(2);
   });
 
-  it('asks only once when the first model sees clear abs', async () => {
-    const { ask, result } = run([verdict(3, 'clear')]);
+  it('counts three times with the step-by-step prompt when abs are visible', async () => {
+    const { ask, result } = run([verdict(4, 'clear')], [count(4), count(4), count(3)]);
+    const out = await result;
+    expect(out.report.metrics.abs.values).toMatchObject({ pack_count: 8, engine_pack_count: 6 });
+    expect(out.report.metrics.abs.score).toBe(97);
+    expect(ask).toHaveBeenCalledTimes(4);
+    expect(ask).toHaveBeenLastCalledWith('abc', null, ABS_COUNT_PROMPT);
+  });
+
+  it('keeps the engine count when the votes match, fail or say zero', async () => {
+    expect((await run([verdict(3, 'clear')], [count(3), count(3), count(3)]).result).report.metrics.abs.values.engine_pack_count).toBeUndefined();
+    expect((await run([verdict(3, 'clear')], [null, null, count(2)]).result).report.metrics.abs.values.pack_count).toBe(6);
+    expect((await run([verdict(3, 'clear')], [count(0), count(0), count(0)]).result).report.metrics.abs.values.pack_count).toBe(6);
+  });
+
+  it('does not count when votes are disabled', async () => {
+    const { ask, result } = run([verdict(3, 'clear')], [count(4)], { config: { ...CONFIG, countVotes: 0 } });
     expect((await result).report.metrics.abs.values.pack_count).toBe(6);
     expect(ask).toHaveBeenCalledTimes(1);
   });
@@ -166,18 +205,18 @@ describe('checkAbsWithVision', () => {
     expect((await run(['sorry, I cannot help']).result).report.metrics.abs.values.pack_count).toBe(6);
   });
 
-  it('skips the check without a crop, for the female profile, when disabled or with few blocks', async () => {
+  it('skips the check without a crop, for the female profile, when disabled or with fewer than two blocks', async () => {
     for (const patch of [
       { cropBase64: null },
       { sex: 'female' as const },
       { config: { ...CONFIG, enabled: false } },
     ]) {
-      const { ask, result } = run([verdict(0, 'none'), verdict(0, 'none')], patch);
+      const { ask, result } = run([verdict(0, 'none'), verdict(0, 'none')], [], patch);
       expect((await result).report.metrics.abs.values.pack_count).toBe(6);
       expect(ask).not.toHaveBeenCalled();
     }
     const few = analysis();
-    few.report.metrics.abs.values.pack_count = 2;
+    few.report.metrics.abs.values.pack_count = 1;
     const ask = vi.fn(async () => verdict(0, 'none'));
     await checkAbsWithVision({ analysis: few, cropBase64: 'abc', sex: 'male', ask, config: CONFIG, log: () => {} });
     expect(ask).not.toHaveBeenCalled();
@@ -185,10 +224,9 @@ describe('checkAbsWithVision', () => {
 });
 
 describe('getAbsCheckConfig', () => {
-  it('is on by default and can be switched off or tuned', () => {
-    expect(getAbsCheckConfig({})).toEqual({ enabled: true, confirmModel: 'gpt-5.4-mini', timeoutMs: 15000, confirmTimeoutMs: 30000 });
-    expect(getAbsCheckConfig({
-      BOJI_AI_ABS_CHECK: 'OFF', BOJI_AI_ABS_CONFIRM_MODEL: 'm', BOJI_AI_ABS_TIMEOUT_MS: '9000', BOJI_AI_ABS_CONFIRM_TIMEOUT_MS: 'x',
-    })).toEqual({ enabled: false, confirmModel: 'm', timeoutMs: 9000, confirmTimeoutMs: 30000 });
+  it('uses cheap Chinese models by default and can be tuned', () => {
+    expect(getAbsCheckConfig({})).toEqual({ enabled: true, confirmModel: 'qwen3.6-flash', timeoutMs: 15000, countVotes: 3 });
+    expect(getAbsCheckConfig({ BOJI_AI_ABS_CHECK: 'OFF', BOJI_AI_ABS_CONFIRM_MODEL: 'm', BOJI_AI_ABS_TIMEOUT_MS: '9000', BOJI_AI_ABS_COUNT_VOTES: '0' }))
+      .toEqual({ enabled: false, confirmModel: 'm', timeoutMs: 9000, countVotes: 0 });
   });
 });

@@ -3,25 +3,24 @@ import { ABS_CHECK_PROMPT, ABS_CHECK_SYSTEM, type AskAbsModel } from '@/lib/boji
 
 /**
  * 用万界方舟的视觉模型回答腹肌复核问题。model 为空时用 WANJIE_ARK_VISION_MODEL。
- * 通义系列关闭思考（实测约 5 秒，开着要 14 秒）。失败、超时都返回 null，不抛错。
+ * 通义系列关闭思考（实测 2–5 秒，开着要 14 秒）。失败、超时都返回 null，不抛错。
  */
-export function createVisionAbsAsker(timeouts: { timeoutMs: number; confirmTimeoutMs: number }): AskAbsModel {
-  return async (cropBase64, model) => {
-    const timeoutMs = model ? timeouts.confirmTimeoutMs : timeouts.timeoutMs;
+export function createVisionAbsAsker(timeoutMs: number): AskAbsModel {
+  return async (cropBase64, model, prompt = ABS_CHECK_PROMPT) => {
     try {
       const { client, model: visionModel } = getCoachlinkVisionLlm();
       const use = model || visionModel;
       const body = {
         model: use,
         temperature: 0,
-        max_tokens: 300,
+        max_tokens: 800,
         ...(/^qwen/i.test(use) ? { enable_thinking: false } : {}),
         messages: [
           { role: 'system', content: ABS_CHECK_SYSTEM },
           {
             role: 'user',
             content: [
-              { type: 'text', text: ABS_CHECK_PROMPT },
+              { type: 'text', text: prompt },
               { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${cropBase64}` } },
             ],
           },
