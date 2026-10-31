@@ -1,100 +1,122 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceSim,
-  createRelease,
   createRound,
-  createSim,
-  DEFAULT_TUNING,
+  joltOffset,
   MAX_HITS,
   PLATES,
   repsFromScene,
+  rollTargetHits,
   runToEnd,
   seededRandom,
-  simulateRound,
-  WORLD_HEIGHT,
-  type DumbbellBody
+  type BounceSim
 } from '../apps/wechat/src/toolbox/dumbbell-bounce/bounceModel';
 
-const still = (overrides: Partial<DumbbellBody>): DumbbellBody => ({
-  angle: 0,
-  spin: 0,
-  vx: 0,
-  vy: 0,
-  x: 0.5,
-  y: WORLD_HEIGHT * 0.25,
-  ...overrides
-});
+const STEP_MS = 1000 / 240;
 
-describe('dumbbell bounce physics', () => {
-  it('drops straight through the gap when released upright in the middle', () => {
-    const result = simulateRound(still({ angle: Math.PI / 2 }));
-    expect(result.ended).toBe('fell');
-    expect(result.hits).toBe(0);
-  });
+function playRound(seed: number, targetHits: number, onStep: (sim: BounceSim) => void) {
+  let sim = createRound(seededRandom(seed), targetHits);
+  while (!sim.ended) {
+    sim = advanceSim(sim, STEP_MS);
+    onStep(sim);
+  }
+  return sim;
+}
 
-  it('cannot fall through the gap lying flat, so it bounces off the plates', () => {
-    const leftPlate = PLATES.find((plate) => plate.side === 'left')!;
-    const rightPlate = PLATES.find((plate) => plate.side === 'right')!;
-    const gap = (rightPlate.x - rightPlate.radius) - (leftPlate.x + leftPlate.radius);
-    expect(gap).toBeLessThan(0.26);
-
-    let sim = createSim(still({ angle: 0 }), DEFAULT_TUNING, 0);
-    sim = advanceSim(sim, 3000);
-    expect(sim.hits).toBeGreaterThan(0);
-  });
-
-  it('never bounces higher than where it was released (energy is conserved)', () => {
-    const release = createRelease(seededRandom(11));
-    const kinetic = 0.5 * (release.vx ** 2 + release.vy ** 2);
-    // 平动动能全转成高度的上限；转动动能只会让上限更高一点，这里留出余量。
-    const highestPossible = release.y - kinetic / DEFAULT_TUNING.gravity - 0.05;
-    let sim = createSim(release, DEFAULT_TUNING, 0.2);
-    let minY = sim.body.y;
-    for (let i = 0; i < 600 && !sim.ended; i += 1) {
-      sim = advanceSim(sim, 50);
-      minY = Math.min(minY, sim.body.y);
+describe('dumbbell bounce', () => {
+  it('bounces exactly the rolled number of times, then falls out on its own', () => {
+    for (let seed = 1; seed <= 30; seed += 1) {
+      const target = 1 + (seed % 12);
+      const sim = playRound(seed, target, () => undefined);
+      expect(sim.ended).toBe(true);
+      expect(sim.falling).toBe(true);
+      expect(sim.hits).toBe(target);
     }
-    expect(minY).toBeGreaterThan(highestPossible);
   });
 
-  it('spreads results from a handful to hundreds and occasionally thousands', () => {
-    const hits: number[] = [];
-    for (let seed = 1; seed <= 300; seed += 1) {
-      const result = runToEnd(createRound(seededRandom(seed)));
-      expect(['fell', 'stuck', 'timeout']).toContain(result.ended);
-      expect(result.hits).toBeLessThanOrEqual(MAX_HITS);
-      hits.push(result.hits);
+  it('rebounds slowly: about one hit per second at 1x', () => {
+    const gaps: number[] = [];
+    for (let seed = 1; seed <= 20; seed += 1) {
+      let hits = 0;
+      let last = 0;
+      playRound(seed, 30, (sim) => {
+        if (sim.hits > hits) {
+          if (hits > 0) gaps.push(sim.time - last);
+          hits = sim.hits;
+          last = sim.time;
+        }
+      });
     }
-    expect(hits.filter((h) => h < 10).length).toBeGreaterThan(10);
-    expect(hits.filter((h) => h >= 10 && h < 100).length).toBeGreaterThan(60);
-    expect(hits.filter((h) => h >= 100).length).toBeGreaterThan(60);
-    expect(Math.max(...hits)).toBeGreaterThanOrEqual(1000);
+    const sorted = [...gaps].sort((a, b) => a - b);
+    expect(sorted[0]).toBeGreaterThan(0.3);
+    expect(sorted[Math.floor(sorted.length / 2)]).toBeGreaterThan(0.75);
+    expect(sorted[Math.floor(sorted.length / 2)]).toBeLessThan(1.25);
   });
 
-  it('is deterministic for the same release and friction', () => {
-    const release = createRelease(seededRandom(42));
-    expect(simulateRound(release, DEFAULT_TUNING, 0.1)).toEqual(simulateRound(release, DEFAULT_TUNING, 0.1));
+  it('alternates plates and spins the plate it hits', () => {
+    let hits = 0;
+    const sides: string[] = [];
+    const sim = playRound(5, 8, (current) => {
+      if (current.hits > hits) {
+        hits = current.hits;
+        sides.push(current.lastHitAt.left > current.lastHitAt.right ? 'left' : 'right');
+      }
+    });
+    sides.slice(1).forEach((side, index) => expect(side).not.toBe(sides[index]));
+    expect(Math.abs(sim.plateAngle.left) + Math.abs(sim.plateAngle.right)).toBeGreaterThan(0);
   });
 
-  it('speed only fast-forwards time and does not change the physics', () => {
-    const start = createRound(seededRandom(7));
-    const normal = advanceSim(start, 4000, 1);
-    const tenTimes = advanceSim(start, 400, 10);
+  it('never flies through a plate', () => {
+    for (let seed = 1; seed <= 6; seed += 1) {
+      playRound(seed, 12, (sim) => {
+        PLATES.forEach((plate) => {
+          expect(Math.hypot(sim.body.x - plate.x, sim.body.y - plate.y)).toBeGreaterThan(plate.radius);
+        });
+      });
+    }
+  });
+
+  it('rolls a long tail: mostly tens, some hundreds, rarely thousands', () => {
+    const random = seededRandom(1);
+    const hits = Array.from({ length: 20000 }, () => rollTargetHits(random));
+    const share = (min: number, max: number) => hits.filter((h) => h >= min && h < max).length / hits.length;
+    expect(Math.min(...hits)).toBeGreaterThanOrEqual(1);
+    expect(Math.max(...hits)).toBeLessThanOrEqual(MAX_HITS);
+    expect(share(10, 100)).toBeGreaterThan(0.45);
+    expect(share(100, 1000)).toBeGreaterThan(0.12);
+    expect(share(1000, Infinity)).toBeGreaterThan(0.003);
+  });
+
+  it('speed only fast-forwards time and does not change the round', () => {
+    const start = createRound(seededRandom(7), 40);
+    const normal = advanceSim(start, 8000, 1);
+    const tenTimes = advanceSim(start, 800, 10);
     expect(tenTimes.hits).toBe(normal.hits);
     expect(tenTimes.body.x).toBeCloseTo(normal.body.x, 9);
     expect(tenTimes.body.y).toBeCloseTo(normal.body.y, 9);
   });
 
-  it('stops changing once the round has ended', () => {
-    let sim = createSim(still({ angle: Math.PI / 2 }));
+  it('is deterministic for the same seed and stops changing once ended', () => {
+    const first = createRound(seededRandom(42), 6);
+    const second = createRound(seededRandom(42), 6);
+    expect(runToEnd(first)).toEqual(runToEnd(second));
+
+    let sim = first;
     while (!sim.ended) sim = advanceSim(sim, 1000);
     expect(advanceSim(sim, 5000)).toBe(sim);
+  });
+
+  it('jolts the picture right after a hit, away from the plate that was hit, then settles', () => {
+    expect(joltOffset({ left: 0, right: 5 }).x).toBeGreaterThan(0);
+    expect(joltOffset({ left: 5, right: 0 }).x).toBeLessThan(0);
+    expect(joltOffset({ left: 5, right: 5 })).toEqual({ x: 0, y: 0 });
+    expect(joltOffset({ left: Infinity, right: Infinity })).toEqual({ x: 0, y: 0 });
   });
 
   it('only reports reps once the dumbbell has been released', () => {
     expect(repsFromScene({ hits: 0, status: 'idle' })).toBeNull();
     expect(repsFromScene({ hits: 0, status: 'countdown' })).toBeNull();
     expect(repsFromScene({ hits: 3, status: 'bouncing' })).toBe(3);
-    expect(repsFromScene({ hits: 0, status: 'result' })).toBe(0);
+    expect(repsFromScene({ hits: 3, status: 'result' })).toBe(3);
   });
 });

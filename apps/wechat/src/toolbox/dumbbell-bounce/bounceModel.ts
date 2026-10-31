@@ -1,13 +1,13 @@
 /**
- * 哑铃弹弹：小哑铃从随机位置、随机姿态被松手，在重力下落进左右两块
- * 圆形杠铃片之间来回弹，每撞一次片子计 1 次，自己掉出画面就结束。
+ * 哑铃弹弹：小哑铃从随机位置、随机姿态被松手，在小重力下慢悠悠地飞向一块杠铃片，
+ * 撞一下计 1 次、弹向对面那块，撞够本局次数后不再弹回去，从两片中间的缝掉出画面。
  *
- * 这是“游戏物理”：重力、碰撞、摩擦带出的转动都是真的，但碰撞完全弹性且总能量守恒，
- * 哑铃不会越弹越没劲。两片之间的缝比哑铃短、比哑铃粗，只有碰巧竖着经过缝口才会掉出去，
- * 所以大多数局弹几十下，不少局上百，偶尔上千。
+ * 这是“导演过的物理”：飞行是真实的抛物线，碰撞是真实的几何接触，但每次回弹都瞄准
+ * 对面片子，本局撞几下在松手时按长尾分布抽好。纯物理做不到既慢又长：两片间距大、
+ * 重力小的时候，纯物理模拟中位只有 2-6 下、最多约 50 下（2026-10-31 离线实测）。
  *
- * 运动是一个 2D 刚体模拟（胶囊形哑铃 vs 圆形片子，冲量法碰撞 + 摩擦），
- * 坐标系固定为宽 1、高 16/9 的“世界”，实时画布和录制画布只是不同缩放，
+ * 节奏对齐用户给的原视频：前 5 秒约每秒 1 下，哑铃基本保持横向，撞到片子时片子会被
+ * 撞得转动。坐标系固定为宽 1、高 16/9 的“世界”，实时画布和录制画布只是不同缩放，
  * 所以同一局在屏幕上和视频里的轨迹完全一致。这个文件不依赖 Taro，可单测。
  */
 
@@ -19,8 +19,7 @@ export type BounceSpeed = 1 | 2 | 3 | 5 | 10
 export const BOUNCE_SPEEDS: BounceSpeed[] = [1, 2, 3, 5, 10]
 
 export const COUNTDOWN_MS = 3000
-/** 兜底：一局最多模拟这么久（世界时间）或撞这么多下，超过就按当前次数结束。 */
-export const MAX_SIM_MS = 20 * 60 * 1000
+/** 本局次数上限。 */
 export const MAX_HITS = 9999
 
 export const WORLD_WIDTH = 1
@@ -40,80 +39,61 @@ export const BOUNCE_EXERCISES: BounceExercise[] = [
   { key: 'situp', label: '卷腹' }
 ]
 
+export type PlateSide = 'left' | 'right'
+
 export type Plate = {
-  side: 'left' | 'right'
+  side: PlateSide
   x: number
   y: number
   radius: number
 }
 
-/** 两片之间最窄处（片子圆心高度）的缝隙：比哑铃粗细略宽、比哑铃长度窄，只能竖着掉下去。 */
-export type PlateGeometry = {
-  plateRadius: number
-  throatGap: number
-}
-
-// 2026-10-26 离线调参（300 次随机松手，摩擦按局随机）：<10 下 11%、10-99 下 45%、
-// 100-999 下 40%、1000 下以上 4%；中位 82 下，P90 约 530，P99 约 1500，最多约 3700。
-// 1× 下中位一局约 12 秒，P90 约 80 秒。
-export const DEFAULT_GEOMETRY: PlateGeometry = {
-  plateRadius: 0.5,
-  throatGap: 0.16
-}
-
+const PLATE_RADIUS = 0.42
+/** 两片之间最窄处的缝，比哑铃长度宽，收尾时哑铃怎么转都能掉下去。 */
+const THROAT_GAP = 0.36
 const PLATE_Y = WORLD_HEIGHT * 0.6
+const INNER_EDGE = (WORLD_WIDTH - THROAT_GAP) / 2
 
-export function platesFor(geometry: PlateGeometry): Plate[] {
-  const innerEdge = (WORLD_WIDTH - geometry.throatGap) / 2
-  return [
-    { side: 'left', x: innerEdge - geometry.plateRadius, y: PLATE_Y, radius: geometry.plateRadius },
-    { side: 'right', x: WORLD_WIDTH - innerEdge + geometry.plateRadius, y: PLATE_Y, radius: geometry.plateRadius }
-  ]
-}
-
-export const PLATES: Plate[] = platesFor(DEFAULT_GEOMETRY)
+export const PLATES: Plate[] = [
+  { side: 'left', x: INNER_EDGE - PLATE_RADIUS, y: PLATE_Y, radius: PLATE_RADIUS },
+  { side: 'right', x: WORLD_WIDTH - INNER_EDGE + PLATE_RADIUS, y: PLATE_Y, radius: PLATE_RADIUS }
+]
 
 /** 哑铃外形（世界单位）。碰撞体是一根两端圆头的胶囊。 */
-export const DUMBBELL_LENGTH = 0.26
-export const DUMBBELL_HEIGHT = 0.15
+export const DUMBBELL_LENGTH = 0.22
+export const DUMBBELL_HEIGHT = 0.125
 const CAPSULE_RADIUS = DUMBBELL_HEIGHT * 0.45
 const CAPSULE_HALF_SEGMENT = DUMBBELL_LENGTH / 2 - CAPSULE_RADIUS
 
-export type PhysicsTuning = {
-  plates: Plate[]
-  gravity: number
-  restitution: number
-  friction: number
-  /**
-   * 能量守恒：每步把速度和转速按比例校正到“松手时的总能量”。哑铃永远弹不过
-   * 松手的高度，也不会越弹越没劲，只能靠碰巧竖起来从缝里掉出去才结束。
-   */
-  conserveEnergy: boolean
-}
-
-export const DEFAULT_TUNING: PhysicsTuning = {
-  plates: PLATES,
-  gravity: 6,
-  restitution: 1,
-  // 每局实际摩擦由 randomFriction 决定，这里是不指定时的默认值。
-  friction: 0.15,
-  conserveEnergy: true
-}
-
-/** 摩擦越大，撞击越容易把哑铃“搓”着转起来、越难恰好竖着掉下去；按局随机、偏向小值，拉出长尾。 */
-const MAX_FRICTION = 0.35
-
-const MASS = 1
-const INERTIA = MASS * (DUMBBELL_LENGTH * DUMBBELL_LENGTH / 12 + CAPSULE_RADIUS * CAPSULE_RADIUS / 2)
+const GRAVITY = 0.5
 const STEP_SECONDS = 1 / 240
-/** 碰撞法向速度低于这个值不算“撞一下”（贴着滚动、静止压着都不计数）。 */
-const MIN_HIT_SPEED = 0.25
-/** 同一块片子两次计数之间至少分开这么久，防止一次撞击里的抖动被重复计数。 */
-const HIT_COOLDOWN_SECONDS = 0.08
-/** 速度一直很小超过这个时长，认为卡在两片之间，结束本局。 */
-const STUCK_SECONDS = 1.2
-const STUCK_SPEED = 0.06
 const ESCAPE_MARGIN = 0.25
+
+/** 每次飞向对面的速度（世界宽度/秒），约每秒撞 1 下。 */
+const FLIGHT_SPEED_MIN = 0.45
+const FLIGHT_SPEED_MAX = 0.62
+/** 落点在对面片子上半部分，从圆心看的仰角范围（度），哑铃基本是在片子肩上来回。 */
+const CONTACT_ANGLE_MIN = 25
+const CONTACT_ANGLE_MAX = 70
+/** 哑铃到达对面时的倾斜范围（弧度），保持基本横向。 */
+const MAX_ARRIVAL_TILT = 0.35
+
+const PLATE_KICK_MIN = 0.8
+const PLATE_KICK_MAX = 1.8
+/** 片子被撞后转速衰减的时间常数（秒）。 */
+const PLATE_SPIN_DECAY_SECONDS = 1.1
+
+/** 收尾：撞完最后一下往缝的方向飘过去、掉下去。 */
+const FALL_SPEED_MIN = 0.28
+const FALL_SPEED_MAX = 0.4
+const FALL_RESTITUTION = 0.4
+
+/**
+ * 本局次数的对数正态分布（中位 30 下）：约 23% 不到 10 下，56% 10-99 下，
+ * 20% 100-999 下，1% 上千。改这两个数就能调整一局大概多长。
+ */
+const TARGET_HITS_MEDIAN = 30
+const TARGET_HITS_LOG_SIGMA = 1.5
 
 export type DumbbellBody = {
   x: number
@@ -124,25 +104,24 @@ export type DumbbellBody = {
   spin: number
 }
 
-export type BounceEnd = 'fell' | 'stuck' | 'timeout'
-
 export type BounceSim = {
   body: DumbbellBody
-  /** 本局哑铃和片子之间的摩擦系数（相当于这只哑铃的“手感”）。 */
-  friction: number
-  /** 松手时的总机械能（y 轴向下，势能 = -m·g·y），能量守恒模式按它校正。 */
-  energy: number
-  ended: BounceEnd | null
+  ended: boolean
+  /** 已经撞够次数，正在往下掉；掉落中碰到片子不再计数。 */
+  falling: boolean
   hits: number
-  /** 每块片子上一次计数时的模拟时间（秒），用来画撞击闪光。 */
-  lastHitAt: Record<Plate['side'], number>
-  stillFor: number
-  time: number
+  /** 每块片子上一次计数时的模拟时间（秒），用来画撞击闪光和震动。 */
+  lastHitAt: Record<PlateSide, number>
   /** 累积的未消化时间，保证固定步长。 */
   pending: number
+  plateAngle: Record<PlateSide, number>
+  plateSpin: Record<PlateSide, number>
+  randomState: number
+  targetHits: number
+  time: number
 }
 
-/** 可注入的随机数，单测和调参脚本用固定种子复现同一局。 */
+/** 可注入的随机数，单测用固定种子复现同一局。 */
 export type RandomSource = () => number
 
 export function seededRandom(seed: number): RandomSource {
@@ -160,43 +139,90 @@ function between(random: RandomSource, min: number, max: number) {
   return min + (max - min) * random()
 }
 
-/** 随机松手：位置在两片之间的漏斗里，姿态、初速度和自转都随机。 */
-export function createRelease(random: RandomSource = Math.random): DumbbellBody {
+function plateOn(side: PlateSide) {
+  return side === 'left' ? PLATES[0] : PLATES[1]
+}
+
+function otherSide(side: PlateSide): PlateSide {
+  return side === 'left' ? 'right' : 'left'
+}
+
+/** 哑铃两端对称，转半圈算同一姿态，取最短的转动方向。 */
+function shortestTurn(from: number, to: number) {
+  const turn = (to - from) % Math.PI
+  if (turn > Math.PI / 2) return turn - Math.PI
+  if (turn < -Math.PI / 2) return turn + Math.PI
+  return turn
+}
+
+/** 算一条真实抛物线：在重力下从当前位置飞到目标片子肩上的随机一点。 */
+function launchToward(body: DumbbellBody, side: PlateSide, random: RandomSource): DumbbellBody {
+  const plate = plateOn(side)
+  const elevation = (between(random, CONTACT_ANGLE_MIN, CONTACT_ANGLE_MAX) * Math.PI) / 180
+  const reach = plate.radius + CAPSULE_RADIUS
+  const direction = side === 'left' ? 1 : -1
+  const targetX = plate.x + direction * reach * Math.cos(elevation)
+  const targetY = plate.y - reach * Math.sin(elevation)
+  const distance = Math.hypot(targetX - body.x, targetY - body.y)
+  const seconds = distance / between(random, FLIGHT_SPEED_MIN, FLIGHT_SPEED_MAX)
+  const arrivalTilt = between(random, -MAX_ARRIVAL_TILT, MAX_ARRIVAL_TILT)
   return {
-    angle: between(random, 0, Math.PI * 2),
-    spin: between(random, -6, 6),
-    vx: between(random, -0.4, 0.4),
-    vy: between(random, -0.4, 0.2),
-    x: between(random, 0.38, 0.62),
-    y: between(random, 0.6, 0.72)
+    ...body,
+    spin: shortestTurn(body.angle, arrivalTilt) / seconds,
+    vx: (targetX - body.x) / seconds,
+    vy: (targetY - body.y) / seconds - 0.5 * GRAVITY * seconds
   }
 }
 
-export function randomFriction(random: RandomSource = Math.random) {
-  const roll = random()
-  return MAX_FRICTION * roll * roll
+/** 撞完最后一下：不再瞄准对面，朝缝的方向飘出去，打着转掉下去。 */
+function launchToFall(body: DumbbellBody, side: PlateSide, random: RandomSource): DumbbellBody {
+  const direction = side === 'left' ? 1 : -1
+  return {
+    ...body,
+    spin: between(random, 2, 4) * direction,
+    vx: direction * between(random, FALL_SPEED_MIN, FALL_SPEED_MAX),
+    vy: between(random, -0.08, 0)
+  }
 }
 
-function kineticEnergy(body: DumbbellBody) {
-  return 0.5 * MASS * (body.vx * body.vx + body.vy * body.vy) + 0.5 * INERTIA * body.spin * body.spin
+/** 抽本局撞几下：对数正态，大多几十下，少数上百，偶尔上千。 */
+export function rollTargetHits(random: RandomSource = Math.random) {
+  const u = Math.max(1e-9, random())
+  const v = random()
+  const normal = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)
+  const hits = Math.round(TARGET_HITS_MEDIAN * Math.exp(TARGET_HITS_LOG_SIGMA * normal))
+  return Math.min(MAX_HITS, Math.max(1, hits))
 }
 
-export function createSim(
-  body: DumbbellBody,
-  tuning: PhysicsTuning = DEFAULT_TUNING,
-  friction: number = tuning.friction
-): BounceSim {
+export function createSim(body: DumbbellBody, targetHits: number, seed = 1): BounceSim {
   return {
     body: { ...body },
-    friction,
-    energy: kineticEnergy(body) - MASS * tuning.gravity * body.y,
-    ended: null,
+    ended: false,
+    falling: false,
     hits: 0,
     lastHitAt: { left: -Infinity, right: -Infinity },
     pending: 0,
-    stillFor: 0,
+    plateAngle: { left: 0, right: 0 },
+    plateSpin: { left: 0, right: 0 },
+    randomState: seed >>> 0,
+    targetHits,
     time: 0
   }
+}
+
+/** 新开一局：随机位置、随机姿态松手，先慢慢飞向随机一块片子。 */
+export function createRound(random: RandomSource = Math.random, targetHits = rollTargetHits(random)): BounceSim {
+  const held: DumbbellBody = {
+    angle: between(random, 0, Math.PI * 2),
+    spin: 0,
+    vx: 0,
+    vy: 0,
+    x: between(random, 0.3, 0.7),
+    y: between(random, WORLD_HEIGHT * 0.3, WORLD_HEIGHT * 0.38)
+  }
+  const side: PlateSide = random() < 0.5 ? 'left' : 'right'
+  const seed = Math.floor(random() * 4294967296)
+  return createSim(launchToward(held, side, random), targetHits, seed)
 }
 
 function closestPointOnSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
@@ -207,13 +233,8 @@ function closestPointOnSegment(px: number, py: number, ax: number, ay: number, b
   return { x: ax + dx * t, y: ay + dy * t }
 }
 
-type Contact = {
-  hit: boolean
-  body: DumbbellBody
-}
-
-/** 胶囊 vs 圆的碰撞：分离 + 法向冲量（带回弹）+ 库仑摩擦冲量。 */
-function resolvePlate(body: DumbbellBody, plate: Plate, tuning: PhysicsTuning, friction: number): Contact {
+/** 胶囊 vs 圆：有重叠且正在靠近才算接触，返回分离量和法向。 */
+function contactWith(body: DumbbellBody, plate: Plate) {
   const cos = Math.cos(body.angle)
   const sin = Math.sin(body.angle)
   const closest = closestPointOnSegment(
@@ -226,63 +247,13 @@ function resolvePlate(body: DumbbellBody, plate: Plate, tuning: PhysicsTuning, f
   )
   const offsetX = closest.x - plate.x
   const offsetY = closest.y - plate.y
-  const distance = Math.sqrt(offsetX * offsetX + offsetY * offsetY)
+  const distance = Math.hypot(offsetX, offsetY)
   const penetration = plate.radius + CAPSULE_RADIUS - distance
-  if (penetration <= 0 || distance === 0) return { body, hit: false }
-
+  if (penetration <= 0 || distance === 0) return null
   const nx = offsetX / distance
   const ny = offsetY / distance
-  // 接触点在胶囊表面朝向片子的那一侧。
-  const rx = closest.x - nx * CAPSULE_RADIUS - body.x
-  const ry = closest.y - ny * CAPSULE_RADIUS - body.y
-
-  let { vx, vy, spin } = body
-  const relVx = vx - spin * ry
-  const relVy = vy + spin * rx
-  const normalSpeed = relVx * nx + relVy * ny
-  let hit = false
-
-  if (normalSpeed < 0) {
-    const rCrossN = rx * ny - ry * nx
-    const normalImpulse = (-(1 + tuning.restitution) * normalSpeed) / (1 / MASS + (rCrossN * rCrossN) / INERTIA)
-    vx += (normalImpulse * nx) / MASS
-    vy += (normalImpulse * ny) / MASS
-    spin += (rCrossN * normalImpulse) / INERTIA
-
-    const tx = -ny
-    const ty = nx
-    const tangentSpeed = (vx - spin * ry) * tx + (vy + spin * rx) * ty
-    const rCrossT = rx * ty - ry * tx
-    const rawTangentImpulse = -tangentSpeed / (1 / MASS + (rCrossT * rCrossT) / INERTIA)
-    const maxTangentImpulse = friction * normalImpulse
-    const tangentImpulse = Math.max(-maxTangentImpulse, Math.min(maxTangentImpulse, rawTangentImpulse))
-    vx += (tangentImpulse * tx) / MASS
-    vy += (tangentImpulse * ty) / MASS
-    spin += (rCrossT * tangentImpulse) / INERTIA
-
-    hit = -normalSpeed >= MIN_HIT_SPEED
-  }
-
-  return {
-    body: {
-      ...body,
-      spin,
-      vx,
-      vy,
-      x: body.x + nx * penetration,
-      y: body.y + ny * penetration
-    },
-    hit
-  }
-}
-
-/** 把动能（平动 + 转动）按同一比例缩放到“总能量 - 当前势能”，消掉碰撞和积分的能量漂移。 */
-function withEnergy(body: DumbbellBody, energy: number, tuning: PhysicsTuning): DumbbellBody {
-  const current = kineticEnergy(body)
-  const target = Math.max(0, energy + MASS * tuning.gravity * body.y)
-  if (current <= 1e-12) return body
-  const scale = Math.sqrt(target / current)
-  return { ...body, spin: body.spin * scale, vx: body.vx * scale, vy: body.vy * scale }
+  if (body.vx * nx + body.vy * ny >= 0) return null
+  return { nx, ny, penetration }
 }
 
 function hasEscaped(body: DumbbellBody) {
@@ -291,81 +262,110 @@ function hasEscaped(body: DumbbellBody) {
     || body.x > WORLD_WIDTH + ESCAPE_MARGIN
 }
 
-function step(sim: BounceSim, tuning: PhysicsTuning): BounceSim {
+function step(sim: BounceSim): BounceSim {
   const dt = STEP_SECONDS
   const time = sim.time + dt
+  const vy = sim.body.vy + GRAVITY * dt
   let body: DumbbellBody = {
     ...sim.body,
     angle: sim.body.angle + sim.body.spin * dt,
-    vy: sim.body.vy + tuning.gravity * dt,
+    vy,
     x: sim.body.x + sim.body.vx * dt,
-    y: sim.body.y + (sim.body.vy + tuning.gravity * dt) * dt
+    y: sim.body.y + vy * dt
   }
-  let hits = sim.hits
-  let lastHitAt = sim.lastHitAt
+  let { falling, hits, lastHitAt, randomState } = sim
+  const decay = Math.exp(-dt / PLATE_SPIN_DECAY_SECONDS)
+  const plateAngle = {
+    left: sim.plateAngle.left + sim.plateSpin.left * dt,
+    right: sim.plateAngle.right + sim.plateSpin.right * dt
+  }
+  let plateSpin = { left: sim.plateSpin.left * decay, right: sim.plateSpin.right * decay }
 
-  tuning.plates.forEach((plate) => {
-    const contact = resolvePlate(body, plate, tuning, sim.friction)
-    body = contact.body
-    if (contact.hit && time - lastHitAt[plate.side] >= HIT_COOLDOWN_SECONDS) {
-      hits += 1
-      lastHitAt = { ...lastHitAt, [plate.side]: time }
+  PLATES.forEach((plate) => {
+    const contact = contactWith(body, plate)
+    if (!contact) return
+    const separated: DumbbellBody = {
+      ...body,
+      x: body.x + contact.nx * contact.penetration,
+      y: body.y + contact.ny * contact.penetration
+    }
+    if (falling) {
+      const normalSpeed = body.vx * contact.nx + body.vy * contact.ny
+      body = {
+        ...separated,
+        vx: body.vx - (1 + FALL_RESTITUTION) * normalSpeed * contact.nx,
+        vy: body.vy - (1 + FALL_RESTITUTION) * normalSpeed * contact.ny
+      }
+      return
+    }
+
+    // 每次碰撞用独立的随机流，保证同一局不受帧率和倍速影响。
+    const random = seededRandom(randomState)
+    randomState = (randomState + 0x9e3779b1) >>> 0
+    // 片子被哑铃蹭得转起来：转向取决于哑铃沿片子表面滑过的方向。
+    const slide = body.vx * -contact.ny + body.vy * contact.nx
+    const kick = between(random, PLATE_KICK_MIN, PLATE_KICK_MAX) * (slide >= 0 ? 1 : -1)
+    plateSpin = { ...plateSpin, [plate.side]: plateSpin[plate.side] + kick }
+    hits += 1
+    lastHitAt = { ...lastHitAt, [plate.side]: time }
+    if (hits >= sim.targetHits) {
+      falling = true
+      body = launchToFall(separated, plate.side, random)
+    } else {
+      body = launchToward(separated, otherSide(plate.side), random)
     }
   })
 
-  if (tuning.conserveEnergy) {
-    body = withEnergy(body, sim.energy, tuning)
+  return {
+    ...sim,
+    body,
+    ended: hasEscaped(body),
+    falling,
+    hits,
+    lastHitAt,
+    plateAngle,
+    plateSpin,
+    randomState,
+    time
   }
-
-  const speed = Math.sqrt(body.vx * body.vx + body.vy * body.vy)
-  const stillFor = speed < STUCK_SPEED && Math.abs(body.spin) < 0.5 ? sim.stillFor + dt : 0
-  const ended: BounceEnd | null = hasEscaped(body)
-    ? 'fell'
-    : stillFor >= STUCK_SECONDS
-      ? 'stuck'
-      : time * 1000 >= MAX_SIM_MS || hits >= MAX_HITS
-        ? 'timeout'
-        : null
-
-  return { ...sim, body, ended, hits, lastHitAt, stillFor, time }
 }
 
-/** 推进一段真实时间；speed 只是把世界时间按倍数加快，物理本身不变。 */
-export function advanceSim(
-  sim: BounceSim,
-  deltaMs: number,
-  speed: BounceSpeed = 1,
-  tuning: PhysicsTuning = DEFAULT_TUNING
-): BounceSim {
+/** 推进一段真实时间；speed 只是把世界时间按倍数加快，轨迹和次数不变。 */
+export function advanceSim(sim: BounceSim, deltaMs: number, speed: BounceSpeed = 1): BounceSim {
   if (sim.ended) return sim
   let next: BounceSim = { ...sim, pending: sim.pending + (Math.max(0, deltaMs) / 1000) * speed }
   while (next.pending >= STEP_SECONDS && !next.ended) {
-    next = { ...step(next, tuning), pending: next.pending - STEP_SECONDS }
+    next = { ...step(next), pending: next.pending - STEP_SECONDS }
   }
   return next
 }
 
-/** 新开一局：随机松手姿态 + 随机摩擦。 */
-export function createRound(random: RandomSource = Math.random, tuning: PhysicsTuning = DEFAULT_TUNING) {
-  const body = createRelease(random)
-  return createSim(body, tuning, randomFriction(random))
-}
-
-/** 一口气跑完一局，返回撞片次数和结束方式（单测、调参用）。 */
-export function runToEnd(start: BounceSim, tuning: PhysicsTuning = DEFAULT_TUNING) {
+/** 一口气跑完一局，返回撞片次数和用时（单测、调参用）。 */
+export function runToEnd(start: BounceSim) {
   let sim = start
   while (!sim.ended) {
-    sim = advanceSim(sim, 1000, 1, tuning)
+    sim = advanceSim(sim, 1000)
   }
-  return { ended: sim.ended, hits: sim.hits, seconds: sim.time }
+  return { hits: sim.hits, seconds: sim.time }
 }
 
-export function simulateRound(
-  body: DumbbellBody,
-  tuning: PhysicsTuning = DEFAULT_TUNING,
-  friction: number = tuning.friction
-) {
-  return runToEnd(createSim(body, tuning, friction), tuning)
+const JOLT_SECONDS = 0.28
+const JOLT_DAMPING_SECONDS = 0.08
+const JOLT_FREQUENCY = 13
+/** 原视频里撞击时脸部最多顿约 8 像素（画面宽 580），约 1.4% 画面宽。 */
+const JOLT_AMPLITUDE = 0.014
+
+/** 撞击带来的画面震动（世界单位）：朝被撞的反方向猛顿一下，很快衰减。 */
+export function joltOffset(sinceHit: Record<PlateSide, number>) {
+  const fromLeft = sinceHit.left <= sinceHit.right
+  const seconds = fromLeft ? sinceHit.left : sinceHit.right
+  if (seconds < 0 || seconds >= JOLT_SECONDS) return { x: 0, y: 0 }
+  const envelope = JOLT_AMPLITUDE * Math.exp(-seconds / JOLT_DAMPING_SECONDS)
+  const phase = 2 * Math.PI * JOLT_FREQUENCY * seconds
+  return {
+    x: (fromLeft ? 1 : -1) * envelope * Math.cos(phase),
+    y: envelope * 0.5 * Math.sin(phase)
+  }
 }
 
 /** 画面需要的全部状态；实时画布和合成录制都只看这一份快照。 */
@@ -374,8 +374,9 @@ export type BounceScene = {
   countdownMs: number
   exerciseLabel: string
   hits: number
-  /** 距离左右片子上一次撞击过去的秒数，用于闪光和数字放大。 */
-  sinceHit: Record<Plate['side'], number>
+  plateAngle: Record<PlateSide, number>
+  /** 距离左右片子上一次撞击过去的秒数，用于闪光、数字放大和画面震动。 */
+  sinceHit: Record<PlateSide, number>
   resultAgeMs: number
   status: BounceStatus
 }
@@ -388,6 +389,7 @@ export function sceneFromSim(
     ...base,
     body: { angle: sim.body.angle, x: sim.body.x, y: sim.body.y },
     hits: sim.hits,
+    plateAngle: { ...sim.plateAngle },
     sinceHit: {
       left: sim.time - sim.lastHitAt.left,
       right: sim.time - sim.lastHitAt.right

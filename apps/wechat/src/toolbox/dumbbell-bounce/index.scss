@@ -18,6 +18,7 @@ $bounce-chip: rgba(255, 255, 255, 0.1);
   background: #000000;
 }
 
+.bounce-camera-wrap,
 .bounce-camera,
 .bounce-canvas {
   position: absolute;
@@ -25,6 +26,49 @@ $bounce-chip: rgba(255, 255, 255, 0.1);
   top: 0;
   width: 100%;
   height: 100%;
+}
+
+// 固定放大一点，撞击震动时不露边；录制里用同样的放大（BOUNCE_CAMERA_OVERSCAN）。
+.bounce-camera-wrap {
+  transform: scale(1.04);
+}
+
+.bounce-camera-wrap--jolt-0 {
+  animation: bounce-jolt-a 280ms ease-out;
+}
+
+.bounce-camera-wrap--jolt-1 {
+  animation: bounce-jolt-b 280ms ease-out;
+}
+
+@keyframes bounce-jolt-a {
+  0% {
+    transform: scale(1.04) translate3d(1.4%, 0, 0);
+  }
+  25% {
+    transform: scale(1.04) translate3d(-0.7%, 0.4%, 0);
+  }
+  55% {
+    transform: scale(1.04) translate3d(0.3%, -0.2%, 0);
+  }
+  100% {
+    transform: scale(1.04) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes bounce-jolt-b {
+  0% {
+    transform: scale(1.04) translate3d(-1.4%, 0, 0);
+  }
+  25% {
+    transform: scale(1.04) translate3d(0.7%, 0.4%, 0);
+  }
+  55% {
+    transform: scale(1.04) translate3d(-0.3%, -0.2%, 0);
+  }
+  100% {
+    transform: scale(1.04) translate3d(0, 0, 0);
+  }
 }
 
 .bounce-canvas {
