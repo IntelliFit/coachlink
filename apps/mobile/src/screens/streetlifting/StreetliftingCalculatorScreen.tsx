@@ -24,6 +24,8 @@ import {
   type StreetliftingFormulaLike,
 } from './streetliftingCalculator'
 
+import { calcDeltaTexts, formatCalcRecordScore, type CalcSummary } from './calculatorSummary'
+
 type Props = NativeStackScreenProps<RootStackParamList, 'StreetliftingCalculator'>
 
 type StreetliftingFormula = StreetliftingFormulaLike & {
@@ -382,6 +384,8 @@ export function StreetliftingCalculatorScreen({ navigation }: Props) {
   }
 
   const result = lastRun?.result || null
+  const cloudSummary = (lastRun?.cloudSummary as { summary?: CalcSummary | null } | null | undefined)?.summary || null
+  const deltaTexts = cloudSummary && lastRun ? calcDeltaTexts(cloudSummary, lastRun.draft.exerciseType) : null
   const rmRows = result && result.estimated1RMKg > 0 ? generateRMTable(Number(lastRun?.draft.bodyweight || 0), result.estimated1RMKg).slice(0, 8) : []
 
   return (
@@ -405,6 +409,10 @@ export function StreetliftingCalculatorScreen({ navigation }: Props) {
       <SectionCard title="项目">
         <ChipGroup options={EXERCISE_OPTIONS} value={draft.exerciseType} onChange={(exerciseType) => patchDraft({ exerciseType })} />
       </SectionCard>
+
+      <Pressable accessibilityRole="button" accessibilityLabel="查看历史记录" onPress={() => navigation.navigate('StreetliftingCalculatorHistory', { exerciseType: draft.exerciseType })} style={styles.historyLink}>
+        <Text style={styles.historyLinkText}>查看历史记录与趣味排名</Text>
+      </Pressable>
 
       <SectionCard title="计算方式">
         <ChipGroup options={availableModes} value={draft.mode} onChange={(mode) => patchDraft({ mode })} />
@@ -488,11 +496,34 @@ export function StreetliftingCalculatorScreen({ navigation }: Props) {
               <Text style={styles.metricValue}>{result.computedReps ? `${result.computedReps}次` : formatKg(result.computedAddedWeightKg)}</Text>
             </View>
           </View>
+          {cloudSummary && deltaTexts ? (
+            <View style={styles.metricGrid}>
+              <View style={styles.metric}>
+                <Text style={styles.metricLabel}>历史最佳</Text>
+                <Text style={styles.metricValue}>{formatCalcRecordScore(cloudSummary.personalBestRecord, lastRun!.draft.exerciseType)}</Text>
+                <Text style={styles.metricLabel}>{cloudSummary.personalBestRecord ? `${cloudSummary.personalBestRecord.estimated1RMKg.toFixed(1)} kg 估算 1RM` : '还没有历史最佳'}</Text>
+              </View>
+              <View style={styles.metric}>
+                <Text style={styles.metricLabel}>较上次变化</Text>
+                <Text style={styles.metricValue}>{deltaTexts.score}</Text>
+                <Text style={styles.metricLabel}>{deltaTexts.oneRm}</Text>
+              </View>
+            </View>
+          ) : null}
           <View style={styles.rankBox}>
-            <Text style={styles.rankTitle}>{buildStreetliftingRankingBucketTitle({ exerciseType: lastRun!.draft.exerciseType, gender: lastRun!.draft.gender })}</Text>
-            <Text style={styles.rankText}>{result.isRankingEligible ? '正向计算结果会进入趣味榜统计。' : '反推和做组极限估算暂不进入趣味榜。'}</Text>
+            <Text style={styles.rankTitle}>{cloudSummary?.ranking?.bucketTitle || buildStreetliftingRankingBucketTitle({ exerciseType: lastRun!.draft.exerciseType, gender: lastRun!.draft.gender })}</Text>
+            <Text style={styles.rankText}>
+              {cloudSummary?.ranking
+                ? cloudSummary.ranking.eligible
+                  ? `${cloudSummary.ranking.rank ? `第 ${cloudSummary.ranking.rank} 名` : '--'}${cloudSummary.ranking.percentile !== null ? ` · 超过 ${cloudSummary.ranking.percentile}% 的同动作用户` : ''} · 共 ${cloudSummary.ranking.totalParticipants} 人`
+                  : cloudSummary.ranking.notice || '当前模式暂不参与趣味排名'
+                : result.isRankingEligible ? '正向计算结果会进入趣味榜统计。' : '反推和做组极限估算暂不进入趣味榜。'}
+            </Text>
           </View>
           {saveHint ? <Text style={styles.saveHint}>{saveHint}</Text> : null}
+          <Pressable accessibilityRole="button" accessibilityLabel="查看我的历史" onPress={() => navigation.navigate('StreetliftingCalculatorHistory', { exerciseType: lastRun!.draft.exerciseType })} style={styles.historyLink}>
+            <Text style={styles.historyLinkText}>查看我的历史</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -514,6 +545,16 @@ export function StreetliftingCalculatorScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  historyLink: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  historyLinkText: {
+    color: colors.brand,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   backRow: {
     alignSelf: 'flex-start',
     flexDirection: 'row',

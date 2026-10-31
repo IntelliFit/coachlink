@@ -13,8 +13,11 @@ import {
   getAccessibleMotionEffectJob,
   getMotionEffectRequestIdentity,
   hasSignupFreeExport,
+  isPaidMotionRetry,
+  MAX_PAID_MOTION_RETRIES,
   normalizeExportQuality,
   normalizeQueueTier,
+  paidMotionRetryCount,
   releaseSignupFreeExport,
   reserveSignupFreeExport,
 } from "../../../_commerce";
@@ -36,7 +39,15 @@ export async function POST(
     );
   }
   let current = await expireMotionEffectJobIfNeeded(job);
-  if (!["awaiting_upload", "awaiting_payment"].includes(current.status)) {
+  // 已付款但生成失败：用原视频重新排队，不再收费
+  const retryingPaidJob = isPaidMotionRetry(current);
+  if (retryingPaidJob && paidMotionRetryCount(current.metadata) >= MAX_PAID_MOTION_RETRIES) {
+    return NextResponse.json<ApiData<null>>(
+      { success: false, message: "这个任务已重试多次仍然失败，请联系客服处理退款", data: null },
+      { status: 409 },
+    );
+  }
+  if (!retryingPaidJob && !["awaiting_upload", "awaiting_payment"].includes(current.status)) {
     return NextResponse.json<ApiData<MotionEffectJobDto>>({
       success: true,
       message: "任务已入队",
@@ -149,7 +160,11 @@ export async function POST(
   if (info.error || expected <= 0 || actual <= 0 || Math.abs(expected - actual) > 1024) {
     if (reservedSignupFree) await releaseSignupFreeExport(id);
     return NextResponse.json<ApiData<null>>(
-      { success: false, message: "上传视频校验失败，请重新上传", data: null },
+      {
+        success: false,
+        message: retryingPaidJob ? "原视频已不可用，无法重新生成，请联系客服处理退款" : "上传视频校验失败，请重新上传",
+        data: null,
+      },
       { status: 400 },
     );
   }
@@ -167,15 +182,17 @@ export async function POST(
       queue_topic: queue.topic,
       queue_consumer_group: queue.consumerGroup,
       enqueued_at: new Date().toISOString(),
+      ...(retryingPaidJob ? { completed_at: null } : {}),
       metadata: {
         ...metadata,
+        ...(retryingPaidJob ? { paid_retry_count: paidMotionRetryCount(metadata) + 1 } : {}),
         storage_verified_at: new Date().toISOString(),
         storage_verified_size_bytes: actual,
         paid_or_free_verified_at: new Date().toISOString(),
       },
     })
     .eq("id", id)
-    .in("status", ["awaiting_upload", "awaiting_payment"])
+    .in("status", retryingPaidJob ? ["failed"] : ["awaiting_upload", "awaiting_payment"])
     .select("*")
     .single();
   if (error || !data) {

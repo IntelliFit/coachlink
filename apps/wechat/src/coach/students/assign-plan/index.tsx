@@ -94,6 +94,8 @@ export default function AssignPlanPage() {
   const [showOneRMPanel, setShowOneRMPanel] = useState(false)
   const [showScheduleOverview, setShowScheduleOverview] = useState(false)
   const [importMode, setImportMode] = useState<'overwrite' | 'new_instance'>('overwrite')
+  // 读不到当前计划时禁止分配：否则「覆盖」会被当成新建，按替换计费并丢掉已练天
+  const [instanceLoadFailed, setInstanceLoadFailed] = useState(false)
   const [existingInstanceId, setExistingInstanceId] = useState<string | null>(null)
   const [existingInstanceStartDate, setExistingInstanceStartDate] = useState<string | null>(null)
   const [existingExecutionsByDayIndex, setExistingExecutionsByDayIndex] = useState<Record<number, any>>({})
@@ -144,6 +146,8 @@ export default function AssignPlanPage() {
         enableAutoWeightCompute: action.enableAutoWeightCompute ?? action.enable_auto_weight_compute ?? null
       })))
       setStudentData(studentRes?.student || null)
+      // getInstance 成功时总有 data（没有计划时 instance 为 null），null 表示请求失败
+      setInstanceLoadFailed(instanceRes === null)
 
       if (instanceRes?.instance?.id) {
         setExistingInstanceId(instanceRes.instance.id)
@@ -359,6 +363,10 @@ export default function AssignPlanPage() {
     if (assignInFlightRef.current) return
     if (!selectedTemplateId || !subscriptionId) {
       Taro.showToast({ title: '请先选择模板', icon: 'none' })
+      return
+    }
+    if (instanceLoadFailed) {
+      Taro.showToast({ title: '学员当前计划读取失败，请重新进入后再分配', icon: 'none' })
       return
     }
 

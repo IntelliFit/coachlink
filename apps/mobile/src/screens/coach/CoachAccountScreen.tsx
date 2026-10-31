@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, StyleSheet, Text, View } from 'react-native'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { InlineAvatar, Card, MenuRow, ScreenShell, SolidButton } from '../me/MeShared'
+import { InlineAvatar, Card, MenuRow, ScreenShell, SolidButton, safeRequest } from '../me/MeShared'
 import { useAuth } from '../../providers/AuthProvider'
 import { useMessageCenter } from '../../providers/MessageCenterProvider'
 import { colors, radius, spacing } from '../../theme'
@@ -15,6 +15,18 @@ export function CoachAccountScreen({ navigation }: Props) {
   const { user, switchRole } = useAuth()
   const { unreadCount, announcementUnreadCount } = useMessageCenter()
   const [switching, setSwitching] = useState(false)
+  const [coachId, setCoachId] = useState('')
+
+  useEffect(() => {
+    if (!user?.id) return
+    let alive = true
+    safeRequest<{ coach?: { id?: string } }>('/api/coach/get-coach', { body: { userId: user.id } })
+      .then((data) => { if (alive && data?.coach?.id) setCoachId(String(data.coach.id)) })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [user?.id])
   const displayName = String(user?.nickname || user?.name || user?.phone || user?.email || 'CoachLink 教练')
   const contact = String(user?.phone || user?.email || '教练账号')
 
@@ -55,6 +67,11 @@ export function CoachAccountScreen({ navigation }: Props) {
       </Card>
 
       <Card>
+        <MenuRow label="我的主页" desc="查看学员看到的教练主页" icon="icon-user" iconBg="#5C8DFF" onPress={() => coachId ? rootNavigation?.navigate('CoachProfile', { id: coachId }) : Alert.alert('未找到教练资料', '请稍后重试。')} />
+        <MenuRow label="个人设置" desc="编辑教练介绍、专长、案例与联系方式" icon="icon-pencil" iconBg="#6366F1" onPress={() => rootNavigation?.navigate('CoachProfileEdit')} />
+      </Card>
+
+      <Card>
         <MenuRow label="消息中心" desc="联系学员并查看未读消息" icon="icon-messages" iconBg="#26A69A" badge={unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : undefined} onPress={() => rootNavigation?.navigate('Messages')} />
         <MenuRow label="平台通知" desc="版本更新、活动和服务公告" icon="icon-pinglun" iconBg="#FFA940" badge={announcementUnreadCount > 0 ? (announcementUnreadCount > 99 ? '99+' : String(announcementUnreadCount)) : undefined} onPress={() => rootNavigation?.navigate('Announcements')} />
         <MenuRow label="教练工作台" desc="业务概览与待处理事项" icon="icon-dashboard" iconBg="#CF6D4E" onPress={() => rootNavigation?.navigate('CoachDashboard')} />
@@ -67,6 +84,9 @@ export function CoachAccountScreen({ navigation }: Props) {
         <MenuRow label="服务定价" desc="套餐与购买周期" icon="icon-vips" iconBg="#CF6D4E" onPress={() => rootNavigation?.navigate('CoachPricing')} />
         <MenuRow label="内容管理" desc="教练专栏与付费内容" icon="icon-knowledge" iconBg="#722ED1" onPress={() => rootNavigation?.navigate('CoachContents')} />
         <MenuRow label="问卷管理" desc="入组问卷与训练评估" icon="icon-jhk" iconBg="#5C8DFF" onPress={() => rootNavigation?.navigate('CoachQuestionnaires')} />
+        <MenuRow label="邀请学员" desc="邀请码、邀请链接和邀请海报" icon="icon-friends-o" iconBg="#29C3A3" onPress={() => rootNavigation?.navigate('CoachInvitation')} />
+        <MenuRow label="动作库" desc="整理动作演示与教学素材" icon="icon-dumbbell" iconBg="#5C8DFF" onPress={() => rootNavigation?.navigate('CoachActions')} />
+        <MenuRow label="收款账户" desc="开通汇付收款账户并绑定银行卡" icon="icon-goumaijilu" iconBg="#29C3A3" onPress={() => rootNavigation?.navigate('CoachWalletMerchant')} />
         <MenuRow label="账户设置" desc="身份切换、缓存、协议和安全" icon="icon-account-settings-variant" iconBg="#6B7280" onPress={() => rootNavigation?.navigate('Settings')} />
       </Card>
     </ScreenShell>

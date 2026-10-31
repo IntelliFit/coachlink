@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { trainingEntry } from '@coachlink/core/src/trainingAccess'
+import { describePendingTimedOutDay, findPendingTimedOutDay } from '@coachlink/core/src/pendingTimedOutDay'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import { useFocusEffect } from '@react-navigation/native'
 import {
@@ -24,6 +25,12 @@ import { LightTaskSheet } from './training/LightTaskSheet'
 import { LIGHT_TASK_LABELS, removeActionAt, studentExtraTasks } from './training/lightTaskModel'
 import { executionSnapshotKey, syncTrainingExecutionToCache } from './training/trainingCache'
 import { plansReadyToComplete } from './training/planCompletion'
+import { graceRenewalNotice } from './training/todayNotices'
+import { buildTodaySchedule, strengthDaySummary } from './training/todaySchedule'
+import { TrainingCalendarSheet, WeekStrip } from './training/TrainingScheduleViews'
+import { StarterHome } from './training/StarterHome'
+import { formatPlanDayDateLabel, planTrainingProgress } from '@coachlink/core/src/planWeekStrip'
+import { toBeijingDateKey } from '@coachlink/core/src/beijingTime'
 import type { MainTabParamList, RootStackParamList } from '../navigation/types'
 import {
   emptyTodayTrainingPlanBlock,
@@ -95,6 +102,8 @@ export function TrainingScreen({ navigation }: Props) {
   /** 删除进行中时不接受第二次删除：服务端按下标删除，并发会删错。 */
   const lightTaskDeletingRef = useRef(false)
   const [completedPlanName, setCompletedPlanName] = useState('')
+  const [confirmingTimedOut, setConfirmingTimedOut] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   /** 本次启动已尝试收尾的计划，避免每次回到首页都重复调用。 */
   const completionAttemptedRef = useRef(new Set<string>())
 
@@ -277,16 +286,21 @@ export function TrainingScreen({ navigation }: Props) {
   )
   const selectedDayIndex = cache?.selectedDayIndex || activePlan.recommendedDayIndex || 1
   const selectedDay = days.find((day: any) => dayIndexOf(day) === selectedDayIndex)
-  const completedCount = days.filter(
-    (day: any) => executionStatus(activePlan, dayIndexOf(day)) === 'completed',
-  ).length
   const activeSubscription = cache?.coachSubscriptions.find(
     (item: any) => String(item.id) === String(cache.activeCoachSubscriptionId),
+  )
+  const schedule = useMemo(
+    () => buildTodaySchedule({ block: activePlan, planMode: cache?.planMode === 'self' ? 'self' : 'coach', subscription: activeSubscription, selectedDayIndex }),
+    [activePlan, activeSubscription, cache?.planMode, selectedDayIndex],
+  )
+  const planProgress = useMemo(
+    () => planTrainingProgress(schedule.trainingDays, schedule.executionsByDayIndex, schedule.completionDates),
+    [schedule],
   )
 
   const stats = [
     { label: '当前计划', value: instance?.name || instance?.title || '未配置' },
-    { label: '训练进度', value: days.length ? `${completedCount}/${days.length}` : '-' },
+    { label: '训练进度', value: planProgress.total ? `${planProgress.done}/${planProgress.total} 天` : '-' },
     { label: '当前训练日', value: instance ? `第 ${activePlan.recommendedDayIndex} 天` : '-' },
   ]
 
@@ -463,11 +477,44 @@ export function TrainingScreen({ navigation }: Props) {
     )
   }
 
+  // 超过 5 小时没结束的训练会被自动关闭，计划停在那一天；在首页直接处理（与小程序一致）
+  const pendingTimedOut = instance
+    ? findPendingTimedOutDay({ executionsByDayIndex: activePlan.executionsByDayIndex, progressDayIndex: activePlan.recommendedDayIndex })
+    : null
+  const pendingTimedOutCopy = pendingTimedOut ? describePendingTimedOutDay(pendingTimedOut) : null
+  const graceNotice = cache?.planMode === 'coach' ? graceRenewalNotice(activeSubscription) : null
+
+  const confirmTimedOutDay = () => {
+    if (!instance?.id || !pendingTimedOut?.canConfirmRecorded || confirmingTimedOut) return
+    const { dayIndex, executionId, completedSets, totalSets } = pendingTimedOut
+    Alert.alert('补记完成', `第${dayIndex}天将按已记录的 ${completedSets}/${totalSets} 组记为完成，未记录的组不会自动补齐。`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '补记完成',
+        onPress: async () => {
+          setConfirmingTimedOut(true)
+          try {
+            const res = await apiClient.request('/api/execution/finish', { method: 'POST', body: { executionId }, timeoutMs: 15000 })
+            const saved = unwrap(res)
+            const previous = activePlan.executionsByDayIndex?.[dayIndex] || {}
+            await writeDayExecution(String(instance.id), dayIndex, { ...previous, ...(saved && typeof saved === 'object' ? saved : {}), status: 'completed', day_index: dayIndex })
+            await load(true)
+          } catch (finishError: any) {
+            Alert.alert('补记失败', finishError?.message || '请稍后重试')
+          } finally {
+            setConfirmingTimedOut(false)
+          }
+        },
+      },
+    ])
+  }
+
   const selectedStatus = selectedDay ? dayStatusLabel(activePlan, selectedDay) : ''
   // 服务端只允许给「当前可练的训练日」或进行中的执行加任务（未来天 409、空休息日 400）。
   const canAddLightTask = executionStatus(activePlan, selectedDayIndex) === 'in_progress'
     || (selectedDay?.type !== 'rest' && entryForDay(activePlan, selectedDayIndex).intent === 'execute')
   const selectedExecutionStatus = executionStatus(activePlan, selectedDayIndex)
+  const selectedSummary = strengthDaySummary(selectedDay, activePlan.executionsByDayIndex?.[selectedDayIndex], activePlan.actions)
   const primaryLabel = entryForDay(activePlan, selectedDayIndex).label
 
   return (
@@ -560,6 +607,34 @@ export function TrainingScreen({ navigation }: Props) {
           </Pressable>
         ) : null}
 
+        {pendingTimedOut && pendingTimedOutCopy ? (
+          <View style={styles.missingCard}>
+            <Text style={styles.missingTitle}>{pendingTimedOutCopy.title}</Text>
+            <Text style={styles.missingDescription}>{pendingTimedOutCopy.detail}</Text>
+            <View style={styles.missingRow}>
+              {pendingTimedOut.canConfirmRecorded ? (
+                <Pressable accessibilityRole="button" accessibilityLabel={pendingTimedOutCopy.confirmLabel} accessibilityState={{ busy: confirmingTimedOut, disabled: confirmingTimedOut }} disabled={confirmingTimedOut} onPress={confirmTimedOutDay} style={styles.primarySmallButton}>
+                  <Text style={styles.primarySmallText}>{confirmingTimedOut ? '补记中…' : '补记完成'}</Text>
+                </Pressable>
+              ) : null}
+              <Pressable accessibilityRole="button" accessibilityLabel={`${pendingTimedOutCopy.handleLabel}第 ${pendingTimedOut.dayIndex} 天`} onPress={() => openTrainingDay(pendingTimedOut.dayIndex)} style={styles.secondarySmallButton}>
+                <Text style={styles.secondarySmallText}>{pendingTimedOutCopy.handleLabel}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {graceNotice ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`服务宽限期剩余${graceNotice.daysLeft}天，查看续费`}
+            onPress={() => graceNotice.coachId ? go('CoachProfile', { id: graceNotice.coachId }) : navigation.navigate('CoachesTab')}
+            style={styles.missingCard}
+          >
+            <Text style={styles.missingTitle}>服务宽限期剩余{graceNotice.daysLeft}天，查看续费{graceNotice.deadlineLabel ? ` · ${graceNotice.deadlineLabel}` : ''}</Text>
+          </Pressable>
+        ) : null}
+
         {activePlan.missingDays.length > 0 ? (
           <View style={styles.missingCard}>
             <Text style={styles.missingTitle}>有 {activePlan.missingDays.length} 个训练日待确认</Text>
@@ -580,27 +655,20 @@ export function TrainingScreen({ navigation }: Props) {
 
         {days.length > 0 ? (
           <>
-            <Text style={styles.blockLabel}>训练日程</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayList}>
-              {days.map((day: any) => {
-                const dayIndex = dayIndexOf(day)
-                const selected = dayIndex === selectedDayIndex
-                const status = dayStatusLabel(activePlan, day)
-                return (
-                  <Pressable
-                    key={dayIndex}
-                    accessibilityRole="tab"
-                    accessibilityLabel={`第 ${dayIndex} 天，${status}`}
-                    accessibilityState={{ selected }}
-                    onPress={() => void selectDay(dayIndex)}
-                    style={[styles.dayCard, selected && styles.dayCardActive]}
-                  >
-                    <Text style={[styles.dayNumber, selected && styles.dayNumberActive]}>第 {dayIndex} 天</Text>
-                    <Text style={[styles.dayStatus, selected && styles.dayStatusActive]}>{status}</Text>
-                  </Pressable>
-                )
-              })}
-            </ScrollView>
+            <Pressable accessibilityRole="button" accessibilityLabel={`${formatPlanDayDateLabel(schedule.selectedDate)}，打开月历`} onPress={() => setCalendarOpen(true)} style={styles.dateRow}>
+              <Text style={styles.dateRowText}>{formatPlanDayDateLabel(schedule.selectedDate)}</Text>
+              <Text style={styles.monthLink}>月历 ›</Text>
+            </Pressable>
+            <WeekStrip
+              cells={schedule.weekCells}
+              selectedDateKey={toBeijingDateKey(schedule.selectedDate)}
+              onCellPress={(cell) => {
+                if (cell.status === 'locked') { Alert.alert('这一天尚未开放'); return }
+                if (cell.planDayIndexes.length > 1) { setCalendarOpen(true); return }
+                if (cell.planDayIndex) void selectDay(cell.planDayIndex)
+                else Alert.alert('这一天没有计划安排')
+              }}
+            />
 
             <View style={styles.selectedDayCard}>
               <View style={styles.selectedDayHeader}>
@@ -616,7 +684,9 @@ export function TrainingScreen({ navigation }: Props) {
                 <Text style={styles.selectedDayDescription}>今天以恢复为主。若计划包含打卡、拉伸或饮食任务，可进入详情完成。</Text>
               ) : (
                 <Text style={styles.selectedDayDescription}>
-                  {Array.isArray(selectedDay?.actionSets) ? selectedDay.actionSets.length : 0} 个训练模块。历史和未来训练日只读查看，不会误创建 execution。
+                  {selectedExecutionStatus === 'completed'
+                    ? '本次训练已完成'
+                    : `${selectedSummary.actionCount}个动作 · ${selectedSummary.totalSets}组 · ${selectedSummary.completedSets}/${selectedSummary.totalSets}完成`}
                 </Text>
               )}
               <Pressable accessibilityRole="button" accessibilityLabel={selectedDay?.type === 'rest' ? '查看恢复安排' : primaryLabel} onPress={() => openTrainingDay()} style={styles.primaryButton}>
@@ -662,16 +732,23 @@ export function TrainingScreen({ navigation }: Props) {
             </View>
           </>
         ) : (
-          <View style={styles.emptyPlan}>
-            <Text style={styles.emptyPlanTitle}>还没有可执行的计划</Text>
-            <Text style={styles.empty}>{userId ? '可以先去全部计划查看历史，或直接从动作库开始即兴训练。' : '登录后即可同步计划、开始训练并保存记录。'}</Text>
-          </View>
+          <StarterHome
+            dateLabel={formatPlanDayDateLabel(new Date())}
+            guest={!userId || isGuest}
+            waitingCoach={cache?.planMode === 'coach' && !instance && Boolean(activeSubscription?.id)}
+            // 游客也能先看动作，开始训练时再登录（与小程序 9e3f89f9 一致）
+            onQuickStart={(template) => rootNav?.navigate('ImpromptuTraining', template ? { quickStart: template.key } : undefined)}
+            onFindCoach={() => navigation.navigate('CoachesTab')}
+            onContactCoach={() => void contactCoach()}
+            onOpenPlan={(plan) => go('KnowledgePlanDetail', { id: plan.slug || plan.id, fallback: plan })}
+            onAllPlans={() => go('KnowledgePlans')}
+          />
         )}
 
         <Pressable accessibilityRole="button" accessibilityLabel={userId ? '同步最新计划' : '登录后同步计划'} accessibilityState={{ disabled: refreshing, busy: refreshing }} onPress={() => userId ? void load(true) : ensureLogin()} disabled={refreshing} style={styles.syncButton}>
           {refreshing ? <ActivityIndicator size="small" color={colors.brand} /> : <Text style={styles.syncText}>{userId ? '同步最新计划' : '登录后同步计划'}</Text>}
         </Pressable>
-        <RowCard title="即兴锻炼" subtitle="没有计划也能从力量动作库快速开始，未完成训练可继续。" icon="icon-strength" onPress={() => go('ImpromptuTraining')} />
+        {days.length > 0 ? <RowCard title="即兴锻炼" subtitle="没有计划也能从力量动作库快速开始，未完成训练可继续。" icon="icon-strength" onPress={() => go('ImpromptuTraining')} /> : null}
       </SectionCard>
 
       <ActionGrid>
@@ -690,6 +767,25 @@ export function TrainingScreen({ navigation }: Props) {
           ))
         )}
       </SectionCard>
+      {instance?.id ? (
+        <TrainingCalendarSheet
+          visible={calendarOpen}
+          onClose={() => setCalendarOpen(false)}
+          selectedDate={schedule.selectedDate}
+          selectedDayIndex={selectedDayIndex}
+          scheduleModel={schedule.scheduleModel}
+          trainingDays={schedule.trainingDays}
+          executionsByDayIndex={schedule.executionsByDayIndex}
+          completionDates={schedule.completionDates}
+          startExecutionDay={schedule.startExecutionDay}
+          unlockedWeek={schedule.unlockedWeek}
+          progress={planProgress}
+          missingDays={activePlan.missingDays}
+          onSelectDay={(dayIndex) => { setCalendarOpen(false); void selectDay(dayIndex) }}
+          onMakeUpDay={(dayIndex) => { setCalendarOpen(false); openTrainingDay(dayIndex) }}
+          onSkipDay={(dayIndex) => { setCalendarOpen(false); skipDay(dayIndex) }}
+        />
+      ) : null}
       {instance?.id ? (
         <RecordCompletionSheet
           visible={recordCompletionOpen}
@@ -780,13 +876,9 @@ const styles = StyleSheet.create({
   secondarySmallButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
   secondarySmallText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   blockLabel: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  dayList: { gap: spacing.xs, paddingVertical: spacing.xs },
-  dayCard: { minWidth: 88, minHeight: 64, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
-  dayCardActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  dayNumber: { color: colors.text, fontSize: 13, fontWeight: '600' },
-  dayNumberActive: { color: '#FFFFFF' },
-  dayStatus: { marginTop: 4, color: colors.textSecondary, fontSize: 11 },
-  dayStatusActive: { color: 'rgba(255,255,255,0.82)' },
+  dateRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dateRowText: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  monthLink: { color: colors.brand, fontSize: 13, fontWeight: '600' },
   selectedDayCard: { gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   selectedDayHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
   selectedDayTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
@@ -798,8 +890,6 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   syncButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   syncText: { color: colors.brand, fontSize: 13, fontWeight: '600' },
-  emptyPlan: { gap: spacing.xs, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.background },
-  emptyPlanTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
   empty: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
   lightTasks: { gap: spacing.xs },
   lightTaskRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.xs, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },

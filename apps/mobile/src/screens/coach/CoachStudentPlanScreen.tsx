@@ -10,6 +10,7 @@ import { normalizePlanDays } from '../plan/model/planEditor'
 import { finalizeDays, findUnpickedStrength, prepareDaysForEditor } from '../plan/model/planDayOps'
 import { ensureSetUids } from '../plan/model/planSetFields'
 import type { PlanActionOption, PlanTrainingDay } from '../plan/model/planTypes'
+import { AiPlanModifierSheet } from './AiPlanModifierSheet'
 
 /** 与小程序一致：只有进行中或已暂停的计划可以编辑。 */
 function isEditableStatus(status?: string | null) {
@@ -36,6 +37,8 @@ export function CoachStudentPlanScreen() {
   const navigation = useNavigation<RootNav>()
   const route = useRoute<RouteProp<RootStackParamList, 'CoachStudentPlan'>>()
   const subscriptionId = route.params?.subscriptionId || ''
+  // 从计划历史打开的旧计划：只读查看（与小程序 coach/students/plan?instanceId=…&readonly=1 一致）
+  const historyInstanceId = route.params?.instanceId || ''
   const [instance, setInstance] = useState<any>(null)
   const [days, setDays] = useState<PlanTrainingDay[]>([])
   const [lockedThrough, setLockedThrough] = useState(0)
@@ -44,6 +47,7 @@ export function CoachStudentPlanScreen() {
   const [saving, setSaving] = useState(false)
   const [toggling, setToggling] = useState(false)
   const [error, setError] = useState('')
+  const [aiModifierOpen, setAiModifierOpen] = useState(false)
   // 用 state 驱动 usePreventRemove（iOS 侧滑需要提前注册）；ref 给异步回调读最新值。
   const [dirty, setDirtyState] = useState(false)
   const dirtyRef = useRef(false)
@@ -57,7 +61,7 @@ export function CoachStudentPlanScreen() {
     setError('')
     try {
       const [planRes, actionRes] = await Promise.all([
-        safeRequest<any>('/api/plan-lib/get-instance', { body: { subscriptionId } }),
+        safeRequest<any>('/api/plan-lib/get-instance', { body: historyInstanceId ? { id: historyInstanceId } : { subscriptionId } }),
         safeRequest<any>('/api/action-lib/list-actions', { body: { page: 1, limit: 500 } }).catch(() => null),
       ])
       const nextInstance = planRes?.instance || null
@@ -71,11 +75,28 @@ export function CoachStudentPlanScreen() {
     } finally {
       setLoading(false)
     }
-  }, [subscriptionId])
+  }, [historyInstanceId, subscriptionId])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  // 从「导入模板」回来时重新读取，展示覆盖或新阶段后的计划
+  const reloadOnFocusRef = useRef(false)
+  useEffect(() => navigation.addListener('focus', () => {
+    if (!reloadOnFocusRef.current) return
+    reloadOnFocusRef.current = false
+    void load()
+  }), [load, navigation])
+
+  function importTemplate() {
+    if (dirtyRef.current) {
+      Alert.alert('请先保存修改', '计划还有未保存的修改，保存后再导入模板。')
+      return
+    }
+    reloadOnFocusRef.current = true
+    navigation.navigate('CoachAssignPlan', { subscriptionId, studentName: route.params?.studentName })
+  }
 
   // 侧滑返回、Android 返回键、页面内返回都拦截未保存的修改。
   usePreventRemove(dirty, ({ data }) => {
@@ -171,8 +192,10 @@ export function CoachStudentPlanScreen() {
     ])
   }
 
+  const editable = !historyInstanceId && Boolean(instance) && isEditableStatus(instance.status)
+
   return (
-    <ScreenShell title="编辑学员计划" subtitle={route.params?.studentName ? `${route.params.studentName} 的当前计划` : '学员当前计划'} onBack={goBack}>
+    <ScreenShell title={historyInstanceId ? '查看历史计划' : '编辑学员计划'} subtitle={route.params?.studentName ? `${route.params.studentName} 的${historyInstanceId ? '历史' : '当前'}计划` : historyInstanceId ? '学员历史计划' : '学员当前计划'} onBack={goBack}>
       {loading ? <LoadingState title="正在加载计划" /> : null}
       {!loading && error ? (
         <>
@@ -190,11 +213,14 @@ export function CoachStudentPlanScreen() {
             </View>
             <Text style={styles.meta}>
               {days.length} 天安排
-              {!isEditableStatus(instance.status) ? ' · 这份计划已结束，只能查看' : lockedThrough > 0 ? ` · 前 ${lockedThrough} 天已有训练记录，只能改组数、次数、重量和备注` : ''}
+              {historyInstanceId ? ' · 历史计划只能查看' : !isEditableStatus(instance.status) ? ' · 这份计划已结束，只能查看' : lockedThrough > 0 ? ` · 前 ${lockedThrough} 天已有训练记录，只能改组数、次数、重量和备注` : ''}
             </Text>
-            {isEditableStatus(instance.status) ? (
+            {editable ? (
               <SolidButton label={String(instance.status).toLowerCase() === 'paused' ? '恢复计划' : '暂停计划'} variant="secondary" loading={toggling} onPress={() => void togglePause()} />
             ) : null}
+            {/* 与小程序学员计划页「导入模板」一致：可覆盖当前计划（保留已练天）或新建阶段 */}
+            {!historyInstanceId ? <SolidButton label="导入模板" variant="secondary" disabled={saving} onPress={importTemplate} /> : null}
+            {editable ? <SolidButton label="AI 修改器" variant="secondary" disabled={saving} onPress={() => setAiModifierOpen(true)} /> : null}
           </Card>
           <Card>
             <PlanDaysEditor
@@ -208,12 +234,29 @@ export function CoachStudentPlanScreen() {
               lockedThroughDayIndex={lockedThrough}
               initialDayIndex={route.params?.focusDay}
               // 保存请求进行中只读：保存和失败恢复用的是按下保存时的数据，期间的修改会被覆盖。
-              readOnly={!isEditableStatus(instance.status) || saving}
+              readOnly={!editable || saving}
             />
           </Card>
-          {isEditableStatus(instance.status) ? <SolidButton label="保存计划" loading={saving} onPress={() => void save()} /> : null}
+          {editable ? <SolidButton label="保存计划" loading={saving} onPress={() => void save()} /> : null}
         </>
       ) : null}
+      <AiPlanModifierSheet
+        visible={aiModifierOpen}
+        trainingDays={finalizeDays(days, lockedThrough)}
+        subscriptionId={subscriptionId}
+        studentId={instance?.student_id ? String(instance.student_id) : undefined}
+        onClose={() => setAiModifierOpen(false)}
+        onApply={(previewDays) => {
+          // 已练过的天只保留参数修改，结构不变（与小程序一致）；应用后仍需保存
+          const merged = mergeLockedPlanDays({ savedDays: days, nextDays: prepareDaysForEditor(previewDays), lockedThroughDayIndex: lockedThrough })
+          setDays(ensureSetUids(merged.days))
+          setDirty(true)
+          setAiModifierOpen(false)
+          Alert.alert('AI 修改已应用', merged.restoredDayIndexes.length > 0
+            ? `前 ${lockedThrough} 天已有训练记录，结构保持原样；请检查后保存计划。`
+            : '请检查后保存计划。')
+        }}
+      />
     </ScreenShell>
   )
 }

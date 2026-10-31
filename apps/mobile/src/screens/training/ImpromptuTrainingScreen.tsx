@@ -6,6 +6,7 @@ import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
 import { colors, radius, spacing } from '../../theme'
+import { returnHereAfterLogin } from '../../navigation/navigationRef'
 import type { RootStackParamList } from '../../navigation/types'
 import { useAuth } from '../../providers/AuthProvider'
 import {
@@ -14,6 +15,7 @@ import {
   persistExecutionSnapshot,
 } from './trainingCache'
 import { pickArray, pickData } from './trainingModel'
+import { findQuickStartTemplate, matchesQuickStart } from './quickStart'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ImpromptuTraining'>
 
@@ -23,9 +25,13 @@ type ActionRow = {
   type?: string
   attrs?: string[] | null
   source?: 'mine' | 'public'
+  /** 原始动作数据，用于快速开练按部位筛选 */
+  raw?: any
 }
 
-export function ImpromptuTrainingScreen({ navigation }: Props) {
+export function ImpromptuTrainingScreen({ navigation, route }: Props) {
+  // 首页「快速开练」带过来的模板：动作列表按部位或街健预先筛好，可以清除
+  const [template, setTemplate] = useState(() => findQuickStartTemplate(route.params?.quickStart))
   const { user } = useAuth()
   const userId = user?.id ? String(user.id) : ''
   const [query, setQuery] = useState('')
@@ -42,8 +48,11 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
     setError('')
     try {
       const [mineRes, publicRes] = await Promise.allSettled([
-        apiClient.request('/api/student/action-lib/list-actions', { method: 'POST', body: { page: 1, limit: 50, search }, timeoutMs: 10000 }),
-        apiClient.request('/api/public-action-lib/list-actions', { method: 'POST', body: { page: 1, limit: 50, search, status: 'published' }, timeoutMs: 10000 }),
+        // 游客没有个人动作库，只看公共动作
+        userId
+          ? apiClient.request('/api/student/action-lib/list-actions', { method: 'POST', body: { page: 1, limit: 50, search }, timeoutMs: 10000 })
+          : Promise.resolve(null),
+        apiClient.request('/api/public-action-lib/list-actions', { method: 'POST', body: { page: 1, limit: template ? 100 : 50, search, status: 'published' }, timeoutMs: 10000 }),
       ])
       if (mineRes.status === 'rejected' && publicRes.status === 'rejected') {
         throw mineRes.reason || publicRes.reason
@@ -57,13 +66,13 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
         const type = String(row.type || '').toUpperCase()
         if (!name || ['DIET', 'CARDIO', 'HABIT', 'REST'].includes(type)) return
         seen.add(name)
-        merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, attrs: row.attrs, source: 'mine' })
+        merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, attrs: row.attrs, source: 'mine', raw: row })
       })
       pub.forEach((row: any) => {
         const name = String(row.name || row.action_name || '').trim()
         const type = String(row.type || '').toUpperCase()
         if (!name || seen.has(name) || ['DIET', 'CARDIO', 'HABIT', 'REST'].includes(type)) return
-        merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, attrs: row.attrs, source: 'public' })
+        merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, attrs: row.attrs, source: 'public', raw: row })
       })
       setActions(merged)
     } catch (loadError: any) {
@@ -74,6 +83,11 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
   }
 
   async function loadRecovery() {
+    if (!userId) {
+      setRecovery(null)
+      setRecoveryLoading(false)
+      return
+    }
     setRecoveryLoading(true)
     const local = await findLatestInProgressImpromptuSnapshot(userId).catch((cacheError) => {
       console.warn('[mobile-training] failed to read impromptu recovery cache', cacheError)
@@ -113,8 +127,26 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
   }, [userId])
 
   const selectedRows = useMemo(() => Object.values(selected), [selected])
+  const visibleActions = useMemo(() => actions.filter((row) => matchesQuickStart(row.raw, template)), [actions, template])
+
+  function promptLogin() {
+    Alert.alert('登录后开始训练', '登录后可以把动作加入训练并保存训练记录，是否现在登录？', [
+      { text: '再看看', style: 'cancel' },
+      {
+        text: '去登录',
+        onPress: () => {
+          returnHereAfterLogin('ImpromptuTraining', route.params)
+          navigation.navigate('Login')
+        },
+      },
+    ])
+  }
 
   function toggle(row: ActionRow) {
+    if (!userId) {
+      promptLogin()
+      return
+    }
     const key = row.id || row.name
     setSelected((current) => {
       const next = { ...current }
@@ -206,8 +238,16 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
 
       <SectionCard title="动作列表" description="优先展示我的动作；公共动作作为补充，避免空库时不能开始。">
         {loading ? <ActivityIndicator color={colors.brand} /> : null}
-        {!loading && actions.length === 0 ? <Text style={styles.empty}>暂无匹配动作。</Text> : null}
-        {actions.map((row) => {
+        {template ? (
+          <View style={styles.templateRow}>
+            <Text style={styles.templateText}>快速开练：{template.name}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="显示全部动作" onPress={() => setTemplate(null)} style={styles.templateClear}>
+              <Text style={styles.templateClearText}>看全部动作</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {!loading && visibleActions.length === 0 ? <Text style={styles.empty}>暂无匹配动作。</Text> : null}
+        {visibleActions.map((row) => {
           const key = row.id || row.name
           const checked = Boolean(selected[key])
           return (
@@ -226,6 +266,10 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  templateRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radius.md, backgroundColor: colors.brandSoft },
+  templateText: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '600' },
+  templateClear: { minHeight: 48, justifyContent: 'center' },
+  templateClearText: { color: colors.brand, fontSize: 13, fontWeight: '600' },
   recoveryCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.xl, backgroundColor: '#1F1F1F' },
   recoveryIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: '#FFFFFF' },
   recoveryMain: { flex: 1, gap: 4 },

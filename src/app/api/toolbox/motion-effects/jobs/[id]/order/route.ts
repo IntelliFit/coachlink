@@ -46,6 +46,7 @@ export async function POST(
   const requestBody = (await req.json().catch(() => ({}))) as {
     paymentProvider?: "alipay" | "wechat";
     returnUrlOnly?: boolean;
+    isMobile?: boolean;
     loginCode?: string;
   };
   const returnUrlOnly = requestBody?.returnUrlOnly === true;
@@ -358,7 +359,7 @@ export async function POST(
   const notifyUrl =
     process.env.ALIPAY_NOTIFY_URL || `${baseUrl}/api/payment/alipay/notify`;
   const returnUrl = `${baseUrl}/toolbox/motion-effects?paymentJob=${encodeURIComponent(id)}`;
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(
+  const isMobile = requestBody?.isMobile === true || /Android|iPhone|iPad|iPod/i.test(
     String(req.headers.get("user-agent") || ""),
   );
   const alipaySdk = createAlipaySdk();

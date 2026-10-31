@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { ActivityIndicator, Alert, Image, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
 import { IconFont } from '../../components/IconFont'
@@ -7,7 +7,16 @@ import { SectionCard } from '../../components/SectionCard'
 import { apiClient } from '../../api'
 import { colors, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
-import { openExternalUrl } from '../../externalLinks'
+import { ImagePreviewModal } from '../../components/ImagePreviewModal'
+import { useAuth } from '../../providers/AuthProvider'
+import { getInitialLocationMapView, toTianDiTuCoordinates, type LocationCoordinateSystem, type LocationEquipmentInput, type LocationEquipmentType } from '@coachlink/core'
+import type { MapBridgeEvent } from '@coachlink/core/src/locationMapBridge'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { EquipmentSelector, EquipmentTags } from './LocationEquipment'
+import { StreetliftingLocationFormModal } from './StreetliftingLocationFormModal'
+import { contributorLabel, systemMapCoordinates, type StreetliftingLocation } from './locationModel'
+import { LocationMapView, type LocationMapHandle } from './LocationMapView'
+import { explainLocationError, locateWithMapFallback } from './userLocation'
 import {
   computeCoefficient,
   estimateTotal1RMFromTotalWeightAndReps,
@@ -57,25 +66,19 @@ type StreetliftingFormula = StreetliftingFormulaLike & {
   exercise_type: ExerciseType
 }
 
-type MapPin = {
+type MapPin = LocationEquipmentInput & {
   id: string
   name: string
   latitude: number
   longitude: number
+  coordinate_system?: LocationCoordinateSystem | null
+  country?: string | null
   province?: string | null
   city?: string | null
   county?: string | null
   address?: string | null
 }
 
-type StreetliftingLocation = MapPin & {
-  description?: string | null
-  image_url?: string | null
-  image_urls?: string[] | null
-  created_at?: string | null
-  user_contact?: string | null
-  contributor_name_snapshot?: string | null
-}
 
 type SubmitForm = {
   exercise_type: ExerciseType
@@ -177,8 +180,9 @@ function webMapUrl(latitude: number, longitude: number) {
   return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
 }
 
-async function openSystemMap(latitude: number, longitude: number, name: string) {
-  const label = encodeURIComponent(name)
+export async function openSystemMap(location: Parameters<typeof systemMapCoordinates>[0] & { name: string }) {
+  const { latitude, longitude } = systemMapCoordinates(location)
+  const label = encodeURIComponent(location.name)
   const nativeUrl = Platform.select({
     ios: `http://maps.apple.com/?ll=${latitude},${longitude}&q=${label}`,
     android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`,
@@ -567,27 +571,74 @@ export function StreetliftingSubmitSuccessScreen({ navigation, route }: SubmitSu
   )
 }
 
+const MAP_DEFAULT_HINT = '点数字放大，点单杠查看。可以拖动地图浏览国内外点位。'
+
 export function StreetliftingLocationsMapScreen({ navigation }: MapProps) {
   const [pins, setPins] = useState<MapPin[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [equipment, setEquipment] = useState<LocationEquipmentType[]>([])
+  const requestIdRef = useRef(0)
+  const mapRef = useRef<LocationMapHandle>(null)
+  const viewFittedRef = useRef(false)
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
+  const [selected, setSelected] = useState<MapPin | null>(null)
+  const [locating, setLocating] = useState(false)
+  const [hint, setHint] = useState(MAP_DEFAULT_HINT)
 
   const load = async () => {
+    const requestId = ++requestIdRef.current
     setLoading(true)
     setError('')
     try {
-      const data = await apiClient.request<MapPin[]>('/api/streetlifting-index/locations/map-pins', { method: 'POST', body: {}, timeoutMs: 12000 })
-      setPins(data || [])
+      const data = await apiClient.request<MapPin[]>('/api/streetlifting-index/locations/map-pins', { method: 'POST', body: equipment.length ? { equipment } : {}, timeoutMs: 12000 })
+      if (requestId === requestIdRef.current) setPins(data || [])
     } catch (e) {
-      setError((e as Error)?.message || '地图点位加载失败')
+      if (requestId === requestIdRef.current) setError((e as Error)?.message || '地图点位加载失败')
     } finally {
-      setLoading(false)
+      if (requestId === requestIdRef.current) setLoading(false)
     }
   }
 
   useEffect(() => {
     load()
-  }, [])
+  }, [equipment])
+
+  const showDistribution = () => {
+    const view = getInitialLocationMapView(pins.map((pin) => toTianDiTuCoordinates(pin)))
+    mapRef.current?.send({ type: 'moveTo', latitude: view.latitude, longitude: view.longitude, zoom: view.scale })
+  }
+
+  // 换筛选时地图上的点位跟着变；视野只在第一次自动调整，不打断正在看的位置
+  useEffect(() => {
+    if (viewMode !== 'map') return
+    mapRef.current?.send({ type: 'setPins', pins: pins.map((pin) => ({ id: pin.id, name: pin.name, latitude: pin.latitude, longitude: pin.longitude, country: pin.country, coordinate_system: pin.coordinate_system })) })
+    if (pins.length && !viewFittedRef.current) {
+      viewFittedRef.current = true
+      showDistribution()
+    }
+  }, [pins, viewMode])
+
+  async function locate() {
+    if (locating) return
+    setLocating(true)
+    try {
+      const position = await locateWithMapFallback(mapRef.current)
+      mapRef.current?.send({ type: 'moveTo', ...position, zoom: 13 })
+      mapRef.current?.send({ type: 'showUser', ...position })
+      setHint('已定位到你附近。点数字可以展开周边单杠。')
+    } catch (locateError) {
+      explainLocationError(locateError, '需要允许定位后才能查看附近单杠。你也可以继续浏览单杠地图。')
+    } finally {
+      setLocating(false)
+    }
+  }
+
+  function handleMapEvent(event: MapBridgeEvent) {
+    if (event.type === 'ready') setHint(MAP_DEFAULT_HINT)
+    if (event.type !== 'pinPress') return
+    setSelected(pins.find((pin) => pin.id === event.id) || null)
+  }
 
   const grouped = useMemo(() => {
     const map = new Map<string, number>()
@@ -598,14 +649,48 @@ export function StreetliftingLocationsMapScreen({ navigation }: MapProps) {
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8)
   }, [pins])
 
+  if (viewMode === 'map') {
+    return (
+      <SafeAreaView style={styles.mapPage} edges={['top']}>
+        <View style={styles.mapToolbar}>
+          <Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={() => navigation.goBack()} style={styles.mapTool}><Text style={styles.mapToolText}>返回</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="定位我附近" accessibilityState={{ disabled: locating, busy: locating }} disabled={locating} onPress={() => void locate()} style={styles.mapTool}><Text style={styles.mapToolText}>{locating ? '定位中…' : '定位我附近'}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="查看点位分布" onPress={showDistribution} style={styles.mapTool}><Text style={styles.mapToolText}>点位分布</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="切换到列表" onPress={() => setViewMode('list')} style={styles.mapTool}><Text style={styles.mapToolText}>列表</Text></Pressable>
+        </View>
+        <EquipmentSelector filter value={equipment} onChange={(value) => { setSelected(null); setEquipment(value) }} />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <View style={styles.mapArea}>
+          <LocationMapView ref={mapRef} mode="browse" onEvent={handleMapEvent} onFailed={setHint} style={styles.mapFill} />
+          <View style={styles.mapBadge} pointerEvents="none"><Text style={styles.mapBadgeText}>{loading ? '加载中' : `${pins.length} 处`}</Text></View>
+        </View>
+        {selected ? (
+          <View style={styles.mapSelected}>
+            <Text style={styles.pinTitle}>{selected.name}</Text>
+            <Text style={styles.pinMeta}>{areaLine(selected)}</Text>
+            <EquipmentTags location={selected} />
+            <Text style={styles.pinAddress}>{selected.address || '暂未补充详细地址'}</Text>
+            <View style={styles.mapSelectedActions}>
+              <Pressable accessibilityRole="button" accessibilityLabel="取消选中" onPress={() => setSelected(null)} style={styles.mapTool}><Text style={styles.mapToolText}>取消选中</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={`打开系统地图查看${selected.name}`} onPress={() => void openSystemMap(selected)} style={styles.mapTool}><Text style={styles.mapToolText}>打开系统地图</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={`查看${selected.name}详情`} onPress={() => navigation.navigate('StreetliftingLocationDetail', { id: selected.id })} style={styles.mapTool}><Text style={styles.mapToolText}>查看详情</Text></Pressable>
+            </View>
+          </View>
+        ) : <Text style={styles.mapHint}>{hint}</Text>}
+      </SafeAreaView>
+    )
+  }
+
   return (
     <Page>
       <BackRow onPress={() => navigation.goBack()} />
-      <Hero title="点位地图" subtitle="APP 端先展示可导航点位列表，点击点位可打开系统地图。" icon="icon-location" />
+      <Pressable accessibilityRole="button" accessibilityLabel="切换到地图" onPress={() => { viewFittedRef.current = false; setViewMode('map') }} style={styles.mapTool}><Text style={styles.mapToolText}>切换到地图</Text></Pressable>
+      <Hero title="点位列表" subtitle="点击点位查看详情和导航。" icon="icon-location" />
       <View style={styles.statGrid}>
         <StatCard value={pins.length} label="可导航点位" />
         <StatCard value={grouped.length} label="覆盖区域" />
       </View>
+      <EquipmentSelector filter value={equipment} onChange={setEquipment} />
       {grouped.length ? (
         <SectionCard title="区域分布">
           {grouped.map(([name, count]) => (
@@ -627,6 +712,7 @@ export function StreetliftingLocationsMapScreen({ navigation }: MapProps) {
               <View style={styles.pinMain}>
                 <Text style={styles.pinTitle}>{pin.name}</Text>
                 <Text style={styles.pinMeta}>{areaLine(pin)}</Text>
+                <EquipmentTags location={pin} />
                 {pin.address ? <Text style={styles.pinAddress}>{pin.address}</Text> : null}
               </View>
               <IconFont name="icon-right-arrow" color={colors.textMuted} size={16} />
@@ -640,9 +726,12 @@ export function StreetliftingLocationsMapScreen({ navigation }: MapProps) {
 
 export function StreetliftingLocationDetailScreen({ navigation, route }: DetailProps) {
   const locationId = route.params?.id || ''
+  const { isAuthenticated } = useAuth()
   const [location, setLocation] = useState<StreetliftingLocation | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -670,7 +759,7 @@ export function StreetliftingLocationDetailScreen({ navigation, route }: DetailP
 
   const openMap = () => {
     if (location?.latitude == null || location?.longitude == null) return
-    void openSystemMap(location.latitude, location.longitude, location.name)
+    void openSystemMap({ ...location, latitude: location.latitude, longitude: location.longitude })
   }
 
   const shareLocation = async () => {
@@ -700,7 +789,7 @@ export function StreetliftingLocationDetailScreen({ navigation, route }: DetailP
           {images.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locationGallery}>
               {images.map((url, index) => (
-                <Pressable key={url} accessibilityRole="imagebutton" accessibilityLabel={`查看点位图片 ${index + 1}`} onPress={() => void openExternalUrl(url, { errorTitle: '图片打开失败' })}>
+                <Pressable key={url} accessibilityRole="imagebutton" accessibilityLabel={`查看点位图片 ${index + 1}`} onPress={() => setPreviewUrl(url)}>
                   <Image source={{ uri: url }} style={styles.locationImage} />
                 </Pressable>
               ))}
@@ -708,15 +797,40 @@ export function StreetliftingLocationDetailScreen({ navigation, route }: DetailP
           ) : <View style={styles.locationImageFallback}><IconFont name="icon-location" color={colors.brand} size={30} /></View>}
           <SectionCard title="点位信息">
             <Text style={styles.docTitle}>{areaLine(location)}</Text>
+            <EquipmentTags location={location} />
             <Text style={styles.paragraph}>{location.description || '这个点位暂时还没有更多介绍。'}</Text>
             {location.address ? <Text style={styles.pinAddress}>{location.address}</Text> : null}
-            <Text style={styles.storyMeta}>贡献者：{location.contributor_name_snapshot || location.user_contact || '未署名'}</Text>
+            <Text style={styles.storyMeta}>贡献者：{contributorLabel(location)}</Text>
           </SectionCard>
           <View style={styles.actions}>
             <Pressable onPress={openMap} disabled={location.latitude == null || location.longitude == null} style={[styles.primaryButton, (location.latitude == null || location.longitude == null) && styles.buttonDisabled]}><Text style={styles.primaryButtonText}>打开系统地图</Text></Pressable>
             <Pressable onPress={() => void shareLocation()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>分享点位</Text></Pressable>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="编辑位置"
+            onPress={() => {
+              if (isAuthenticated) setEditing(true)
+              else Alert.alert('登录后可用', '登录后才能编辑单杠位置和补充图片。', [
+                { text: '取消', style: 'cancel' },
+                { text: '去登录', onPress: () => navigation.navigate('Login') },
+              ])
+            }}
+            style={styles.fullSecondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>编辑位置</Text>
+          </Pressable>
           <Pressable onPress={() => navigation.navigate('StreetliftingLocations')} style={styles.fullSecondaryButton}><Text style={styles.secondaryButtonText}>返回点位列表</Text></Pressable>
+          <ImagePreviewModal urls={images} initialUrl={previewUrl} onClose={() => setPreviewUrl(null)} />
+          <StreetliftingLocationFormModal
+            visible={editing}
+            editing={location}
+            onClose={() => setEditing(false)}
+            onSaved={(saved) => {
+              setEditing(false)
+              if (saved) setLocation(saved)
+            }}
+          />
         </>
       ) : null}
     </Page>
@@ -724,6 +838,17 @@ export function StreetliftingLocationDetailScreen({ navigation, route }: DetailP
 }
 
 const styles = StyleSheet.create({
+  mapPage: { flex: 1, gap: spacing.xs, backgroundColor: colors.background },
+  mapToolbar: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.sm },
+  mapTool: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.xs },
+  mapToolText: { color: colors.brand, fontSize: 14, fontWeight: '600' },
+  mapArea: { flex: 1 },
+  mapFill: { flex: 1 },
+  mapBadge: { position: 'absolute', top: spacing.xs, right: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: 'rgba(0,0,0,0.6)' },
+  mapBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+  mapSelected: { gap: 4, padding: spacing.sm, backgroundColor: colors.surface },
+  mapSelectedActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.xs },
+  mapHint: { paddingHorizontal: spacing.sm, paddingBottom: spacing.sm, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   backRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs },
   backText: { color: colors.text, fontSize: 15, fontWeight: '600' },
   hero: { minHeight: 152, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', borderRadius: radius.xl, padding: spacing.md, backgroundColor: '#1F1F1F' },

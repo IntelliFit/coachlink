@@ -8,6 +8,8 @@ import { IconFont } from '../../components/IconFont'
 import type { RootStackParamList } from '../../navigation/types'
 import { colors, radius, spacing } from '../../theme'
 import { Card, EmptyState, FormField, LoadingState, ScreenShell, SolidButton, safeRequest } from '../me/MeShared'
+import { ensureSetUids } from '../plan/model/planSetFields'
+import { PlanAdvancedTools, PlanImportButtons } from '../plan/PlanAdvancedTools'
 import { PlanDaysEditor } from '../plan/PlanDaysEditor'
 import { SUITABLE_FOR_LABELS, createDefaultPlanDays, normalizePlanDays } from '../plan/model/planEditor'
 import { finalizeDays, findUnpickedStrength, prepareDaysForEditor } from '../plan/model/planDayOps'
@@ -306,10 +308,20 @@ export function CoachPlanTemplateEditScreen() {
         <Text style={styles.sectionTitle}>文本导入</Text>
         <FormField label="粘贴计划文本" value={importText} onChangeText={setImportText} multiline placeholder="粘贴一段训练安排，系统按你的动作库解析成训练日。" />
         <SolidButton label="解析文本" variant="secondary" loading={parsing} onPress={() => void parseImportText()} />
+        <PlanImportButtons onText={setImportText} />
       </Card>
       <Card style={styles.formCard}>
         <Text style={styles.sectionTitle}>训练日</Text>
         <PlanDaysEditor days={days} onChange={setDays} actions={actions} mode="coach" />
+        <PlanAdvancedTools
+          days={days}
+          description={form.description}
+          actions={actions}
+          onApply={(next) => {
+            setDays(ensureSetUids(next.days))
+            if (next.description !== undefined) patch({ description: next.description })
+          }}
+        />
       </Card>
       <SolidButton label={isEdit ? '保存模板' : '创建模板'} loading={saving} onPress={() => void save()} />
     </ScreenShell>

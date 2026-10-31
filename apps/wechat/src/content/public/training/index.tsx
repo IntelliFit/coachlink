@@ -9,6 +9,7 @@ import {
   getPublicTrainingShareTitle,
   openCoachLinkShareMenu
 } from '@/utils/share'
+import { buildMuscleScores, highlightBodySvg } from '@coachlink/core/src/publicTrainingSummary'
 import { svgToDataUri } from '@/utils/svgToDataUri'
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
 import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
@@ -49,85 +50,11 @@ function formatDateTime(input: string) {
   })
 }
 
-const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
-const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
-
-const MUSCLE_INFERENCE_RULES: Array<{ label: string; keywords: string[] }> = [
-  { label: '胸部', keywords: ['胸', '卧推', '飞鸟', '夹胸', '俯卧撑', '双杠', '臂屈伸'] },
-  { label: '背部', keywords: ['背', '引体', '划船', '下拉', '硬拉', '高位下拉'] },
-  { label: '肩部', keywords: ['肩', '推举', '侧平举', '三角肌', '面拉'] },
-  { label: '手臂', keywords: ['手臂', '二头', '三头', '肱二头', '肱三头', '弯举', '臂屈伸'] },
-  { label: '核心', keywords: ['核心', '腹', '卷腹', '平板', '腰腹', '悬垂举腿'] },
-  { label: '腿部', keywords: ['腿', '深蹲', '腿举', '弓步', '股四头', '腘绳', '蹲'] },
-  { label: '臀部', keywords: ['臀', '臀桥', '髋', '硬拉'] }
-]
-
-function parseSvgCategoryMap(svg: string): Record<string, string> {
-  const map: Record<string, string> = {}
-  const singleLineRegex = /<g[^>]*data-name="([^"]+)"[^>]*category="([^"]+)"[^>]*>/g
-  let match: RegExpExecArray | null
-  while ((match = singleLineRegex.exec(svg)) !== null) {
-    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
-      map[match[1]] = match[2]
-    }
-  }
-  const multiLineRegex = /<g\s*\n?\s*data-name="([^"]+)"\s*\n?\s*category="([^"]+)"/g
-  while ((match = multiLineRegex.exec(svg)) !== null) {
-    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
-      map[match[1]] = match[2]
-    }
-  }
-  return map
-}
-
 function highlightSvgCategories(svg: string, selectedParts: string[]) {
-  const categoryMap = parseSvgCategoryMap(svg)
-  const dataNamesToHighlight = new Set<string>()
-  selectedParts.forEach((part) => {
-    Object.entries(categoryMap).forEach(([dataName, category]) => {
-      if (category === part) dataNamesToHighlight.add(dataName)
-    })
-  })
-
-  let result = svg
-    .replace(/fill:#fff/gi, MUSCLE_FILL_ORIGIN_STYLE)
-    .replace(/fill="#fff"/gi, 'fill="#222222"')
-
-  dataNamesToHighlight.forEach((dataName) => {
-    const regex = new RegExp(`(<g[^>]*data-name="${dataName}"[^>]*>)([\\s\\S]*?)(</g>)`, 'g')
-    result = result.replace(regex, (_match, open, content, close) => {
-      const highlighted = content.replace(
-        new RegExp(MUSCLE_FILL_ORIGIN_STYLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-        MUSCLE_FILL_HIGHLIGHT_STYLE
-      )
-      return open + highlighted + close
-    })
-  })
-
-  return svgToDataUri(result.replace(
+  return svgToDataUri(highlightBodySvg(svg, selectedParts).replace(
     /<svg\s/,
     '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
   ))
-}
-
-function inferMusclesForAction(action: ActionExecutionSummary): string[] {
-  const sourceText = String(action?.actionName || '').toLowerCase()
-  return MUSCLE_INFERENCE_RULES
-    .filter((rule) => rule.keywords.some((keyword) => sourceText.includes(keyword.toLowerCase())))
-    .map((rule) => rule.label)
-}
-
-function buildMuscleScores(actions: ActionExecutionSummary[]) {
-  const scores = new Map<string, number>()
-  actions.forEach((action) => {
-    const muscles = inferMusclesForAction(action)
-    const score = Math.max(1, Number(action.setsCount || 0)) + Math.max(0, Math.round(Number(action.volume || 0) / 1000))
-    muscles.forEach((muscle) => scores.set(muscle, (scores.get(muscle) || 0) + score))
-  })
-
-  return Array.from(scores.entries())
-    .map(([label, score]) => ({ label, score }))
-    .sort((a, b) => b.score - a.score)
 }
 
 /**

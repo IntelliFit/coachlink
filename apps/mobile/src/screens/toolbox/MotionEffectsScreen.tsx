@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy'
 import * as ImagePicker from 'expo-image-picker'
 import * as MediaLibrary from 'expo-media-library'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { apiClient, getStoredToken } from '../../api'
 import { NativeVideoPlayer } from '../../components/NativeMedia'
 import { IconFont } from '../../components/IconFont'
@@ -22,6 +22,23 @@ import {
   type MotionEffectJobStatus,
   type MotionEffectLimits,
   type MotionEffectUploadPhase,
+  DEFAULT_MOTION_PRICES,
+  GLOW_STRENGTH_OPTIONS,
+  MOTION_SPEED_OPTIONS,
+  MOTION_STYLE_OPTIONS,
+  SURFACE_DENSITY_OPTIONS,
+  canReleaseMotionJob,
+  formatMotionPrice,
+  isMotionJobPaymentLocked,
+  motionEffectPriceCents,
+  motionRestorePlan,
+  shouldRememberMotionJob,
+  type ExportQuality,
+  type GlowStrength,
+  type MotionEffectPrices,
+  type MotionSpeed,
+  type QueueTier,
+  type SurfaceDensity,
 } from './motionEffectsModel'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MotionEffects'>
@@ -43,12 +60,28 @@ type MotionEffectJob = {
   createdAt: string
   completedAt: string | null
   canDownload: boolean
+  paymentStatus?: string
+  priceCents?: number
+  exportQuality?: ExportQuality
+  queueTier?: QueueTier
+  styleKey?: string
+  motionSpeed?: MotionSpeed
+  glowStrength?: GlowStrength
+  surfaceDensity?: SurfaceDensity
   queueInfo?: { jobsAhead: number; queuedAhead: number; processingAhead: number; totalQueued: number } | null
 }
 
 type CreateMotionEffectResponse = {
   job: MotionEffectJob
   limits: MotionEffectLimits
+  signupFreeAvailable?: boolean
+  prices?: MotionEffectPrices
+}
+
+type MotionEffectCheckout = {
+  job: MotionEffectJob
+  order: { id: string; totalAmountCents: number; status: string }
+  paymentInfo: { provider?: string; paymentUrl?: string }
 }
 
 type MotionEffectDownload = {
@@ -69,6 +102,8 @@ type SelectedVideo = {
 
 const DEFAULT_LIMITS = { maxVideoSizeMb: 100, maxDurationSeconds: 30, dailyLimit: 5 }
 const LAST_JOB_KEY = 'motion-effects-last-job-v1'
+const PAYMENT_RECHECK_TIMES = 2
+const PAYMENT_RECHECK_MS = 2000
 const TERMINAL_STATUSES: MotionEffectJobStatus[] = ['done', 'failed', 'expired']
 
 function inferVideoName(uri: string) {
@@ -125,16 +160,78 @@ export function MotionEffectsScreen({ navigation }: Props) {
   const [hint, setHint] = useState('')
   const [saving, setSaving] = useState(false)
   const [restoredJob, setRestoredJob] = useState(false)
+  const [exportQuality, setExportQuality] = useState<ExportQuality>('standard')
+  const [queueTier, setQueueTier] = useState<QueueTier>('standard')
+  const [styleKey, setStyleKey] = useState(MOTION_STYLE_OPTIONS[0].key)
+  const [motionSpeed, setMotionSpeed] = useState<MotionSpeed>('balanced')
+  const [glowStrength, setGlowStrength] = useState<GlowStrength>('balanced')
+  const [surfaceDensity, setSurfaceDensity] = useState<SurfaceDensity>('balanced')
+  const [prices, setPrices] = useState<MotionEffectPrices>(DEFAULT_MOTION_PRICES)
+  const [signupFreeAvailable, setSignupFreeAvailable] = useState(false)
+  const [checkout, setCheckout] = useState<MotionEffectCheckout | null>(null)
+  const [paying, setPaying] = useState(false)
+  const paymentOpenedRef = useRef(false)
+  const checkingPaymentRef = useRef(false)
+  const mountedRef = useRef(true)
+  // 随任务一起记在本地，重新打开页面或 APP 被杀后靠它们接上
+  const uploadedJobIdRef = useRef('')
+  const orderIdRef = useRef('')
+
+  // 规格和效果在上传时确定，选好视频后锁定
+  const optionsLocked = phase !== 'idle' || Boolean(job)
+  const priceCents = motionEffectPriceCents({ quality: exportQuality, tier: queueTier, prices, signupFreeAvailable })
+
+  // 先读价格和首单免费资格，选视频前就能看到本次要付多少
+  useEffect(() => {
+    let alive = true
+    apiClient.request<{ signupFreeAvailable?: boolean; prices?: MotionEffectPrices }>('/api/toolbox/motion-effects/quote', { timeoutMs: 12000 })
+      .then((quote) => {
+        if (!alive) return
+        setSignupFreeAvailable(Boolean(quote?.signupFreeAvailable))
+        if (quote?.prices) setPrices(quote.prices)
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [userId])
 
   const stopPolling = () => {
     if (pollTimerRef.current) clearInterval(pollTimerRef.current)
     pollTimerRef.current = null
   }
 
-  useEffect(() => () => {
-    stopPolling()
-    void uploadTaskRef.current?.cancelAsync().catch(() => undefined)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      stopPolling()
+      void uploadTaskRef.current?.cancelAsync().catch(() => undefined)
+    }
   }, [])
+
+  const rememberJob = (jobId: string) => AsyncStorage.setItem(LAST_JOB_KEY, JSON.stringify({
+    v: 1,
+    userId,
+    jobId,
+    uploaded: uploadedJobIdRef.current === jobId,
+    orderId: orderIdRef.current || undefined,
+  })).catch(() => undefined)
+
+  /** 上传失败或换视频时释放名额，否则服务端最多占 1 小时，期间新视频都传不了。 */
+  const releaseUnpaidJob = async (target: MotionEffectJob | null) => {
+    if (!target || !canReleaseMotionJob(target)) return
+    await apiClient.request(`/api/toolbox/motion-effects/jobs/${target.id}/cancel`, { method: 'POST', timeoutMs: 10000 }).catch(() => undefined)
+  }
+
+  const applyJobOptions = (target: MotionEffectJob) => {
+    if (target.exportQuality) setExportQuality(target.exportQuality)
+    if (target.queueTier) setQueueTier(target.queueTier)
+    if (target.styleKey) setStyleKey(target.styleKey)
+    if (target.motionSpeed) setMotionSpeed(target.motionSpeed)
+    if (target.glowStrength) setGlowStrength(target.glowStrength)
+    if (target.surfaceDensity) setSurfaceDensity(target.surfaceDensity)
+  }
 
   const ensureDownloadUrl = async (jobId: string) => {
     const data = await apiClient.request<MotionEffectDownload>(`/api/toolbox/motion-effects/jobs/${jobId}/download-url`, {
@@ -183,23 +280,38 @@ export function MotionEffectsScreen({ navigation }: Props) {
         if (stored?.v !== 1 || String(stored.userId || '') !== userId || !stored.jobId) return
         const current = await apiClient.request<MotionEffectJob>(`/api/toolbox/motion-effects/jobs/${stored.jobId}`, { timeoutMs: 12000 })
         if (!active) return
-        if (current.status === 'queued' || current.status === 'processing') {
-          setJob(current)
+        uploadedJobIdRef.current = stored.uploaded ? current.id : ''
+        orderIdRef.current = String(stored.orderId || '')
+        const plan = motionRestorePlan(current, Boolean(stored.uploaded))
+        if (plan === 'forget' || plan === 'release') {
+          if (plan === 'release') await releaseUnpaidJob(current)
+          await AsyncStorage.removeItem(LAST_JOB_KEY)
+          return
+        }
+        setJob(current)
+        applyJobOptions(current)
+        setRestoredJob(true)
+        if (plan === 'poll') {
           setPhase('queued')
-          setRestoredJob(true)
           pollJob(current.id)
-          return
-        }
-        if (current.status === 'done' && current.canDownload) {
-          setJob(current)
+        } else if (plan === 'done') {
           setPhase('done')
-          setRestoredJob(true)
           await ensureDownloadUrl(current.id)
-          return
+        } else if (plan === 'retry') {
+          setPhase('done')
+        } else {
+          uploadedJobIdRef.current = current.id
+          setPhase('uploaded')
+          if (plan === 'confirmPayment') {
+            if (orderIdRef.current) {
+              setCheckout({ job: current, order: { id: orderIdRef.current, totalAmountCents: Number(current.priceCents) || 0, status: 'pending' }, paymentInfo: {} })
+            }
+            await checkPayment(current.id, true)
+          }
         }
-        await AsyncStorage.removeItem(LAST_JOB_KEY)
-      } catch {
-        await AsyncStorage.removeItem(LAST_JOB_KEY)
+      } catch (restoreError) {
+        // 网络失败不能忘记任务，里面可能有已付款的订单；只有任务确实不存在才清掉
+        if ((restoreError as { status?: number })?.status === 404) await AsyncStorage.removeItem(LAST_JOB_KEY)
       }
     }
     void restore()
@@ -207,9 +319,9 @@ export function MotionEffectsScreen({ navigation }: Props) {
   }, [userId])
 
   useEffect(() => {
-    if (!userId || !job?.id || !['queued', 'processing', 'done'].includes(job.status)) return
-    void AsyncStorage.setItem(LAST_JOB_KEY, JSON.stringify({ v: 1, userId, jobId: job.id }))
-  }, [job?.id, job?.status, userId])
+    if (!userId || !job?.id || !shouldRememberMotionJob(job)) return
+    void rememberJob(job.id)
+  }, [job?.id, job?.status, job?.paymentStatus, phase, checkout?.order.id, userId])
 
   const uploadVideo = async (nextVideo: SelectedVideo, jobId: string) => {
     const token = await getStoredToken()
@@ -241,6 +353,8 @@ export function MotionEffectsScreen({ navigation }: Props) {
       return
     }
     stopPolling()
+    const previousJob = job
+    let createdJob: MotionEffectJob | null = null
     setVideo(nextVideo)
     setJob(null)
     setPreviewUrl('')
@@ -248,8 +362,11 @@ export function MotionEffectsScreen({ navigation }: Props) {
     setHint('')
     setRestoredJob(false)
     setUploadProgress(0)
+    uploadedJobIdRef.current = ''
+    orderIdRef.current = ''
     try {
       setPhase('creating')
+      await releaseUnpaidJob(previousJob)
       const created = await apiClient.request<CreateMotionEffectResponse>('/api/toolbox/motion-effects/create-upload-url', {
         method: 'POST',
         body: {
@@ -257,13 +374,24 @@ export function MotionEffectsScreen({ navigation }: Props) {
           contentType: nextVideo.contentType,
           fileSizeBytes: nextVideo.size,
           durationSeconds: nextVideo.durationSeconds || undefined,
+          exportQuality,
+          queueTier,
+          styleKey,
+          bgmKey: 'original',
+          motionSpeed,
+          glowStrength,
+          surfaceDensity,
         },
         timeoutMs: 15000,
       })
       setLimits(created.limits)
+      setSignupFreeAvailable(Boolean(created.signupFreeAvailable))
+      if (created.prices) setPrices(created.prices)
+      createdJob = created.job
       setJob(created.job)
       setPhase('uploading')
       await uploadVideo(nextVideo, created.job.id)
+      uploadedJobIdRef.current = created.job.id
       setPhase('uploaded')
       setHint('视频已安全上传，可以开始生成。')
     } catch (nextError) {
@@ -271,6 +399,8 @@ export function MotionEffectsScreen({ navigation }: Props) {
       setJob(null)
       setUploadProgress(0)
       setError((nextError as Error)?.message || '视频上传失败')
+      await releaseUnpaidJob(createdJob)
+      await AsyncStorage.removeItem(LAST_JOB_KEY).catch(() => undefined)
     }
   }
 
@@ -282,6 +412,14 @@ export function MotionEffectsScreen({ navigation }: Props) {
     }
     if (['creating', 'uploading', 'enqueueing', 'queued'].includes(phase) || job?.status === 'processing') {
       setError('当前任务处理中，请等待完成后再选择新视频')
+      return
+    }
+    if (isMotionJobPaymentLocked(job)) {
+      setError('这个视频已发起付款，请先完成付款。不付款的话，最多 1 小时后可以重新选择。')
+      return
+    }
+    if (job?.status === 'failed' && job.paymentStatus === 'paid') {
+      setError('这次已付款，可以点「免费重新生成」。不想再试的话，先点「重新选择」。')
       return
     }
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -312,16 +450,111 @@ export function MotionEffectsScreen({ navigation }: Props) {
     })
   }
 
+  const openAlipay = async (url: string) => {
+    paymentOpenedRef.current = true
+    if (await Linking.canOpenURL(url)) {
+      await Linking.openURL(url)
+      return
+    }
+    await Clipboard.setStringAsync(url)
+    setHint('无法直接打开支付宝，支付地址已复制，请在浏览器里打开。')
+  }
+
+  const createCheckout = async (jobId: string) => {
+    setPaying(true)
+    setError('')
+    try {
+      const created = await apiClient.request<MotionEffectCheckout>(`/api/toolbox/motion-effects/jobs/${jobId}/order`, {
+        method: 'POST',
+        body: { paymentProvider: 'alipay', returnUrlOnly: true, isMobile: true },
+        timeoutMs: 15000,
+      })
+      orderIdRef.current = created.order.id
+      setCheckout(created)
+      setJob(created.job)
+      if (!created.paymentInfo?.paymentUrl) throw new Error('支付地址不可用，请稍后重试')
+      // 打开支付宝前先记下任务，系统可能在付款期间杀掉 APP
+      await rememberJob(created.job.id)
+      await openAlipay(created.paymentInfo.paymentUrl)
+    } catch (payError) {
+      setError((payError as Error)?.message || '发起支付失败')
+      // 409 通常是这笔已经付过了，查一次就能继续
+      if ((payError as { status?: number })?.status === 409) void checkPayment(jobId, true)
+    } finally {
+      setPaying(false)
+    }
+  }
+
+  /** 先让服务端向支付宝查一次，支付宝的异步通知可能还没到。 */
+  const queryPaymentStatus = async (jobId: string) => {
+    if (orderIdRef.current) {
+      await apiClient.request('/api/payment/alipay/query', { method: 'POST', body: { orderId: orderIdRef.current }, timeoutMs: 12000 }).catch(() => undefined)
+    }
+    return apiClient.request<MotionEffectJob>(`/api/toolbox/motion-effects/jobs/${jobId}/payment-status`, { timeoutMs: 12000 })
+  }
+
+  /** 付款成功才开始生成；付款结果以服务端为准。quiet 是自动查询，结果没到时多等几次。 */
+  const checkPayment = async (jobId: string, quiet = false) => {
+    if (checkingPaymentRef.current) return
+    checkingPaymentRef.current = true
+    setPaying(true)
+    try {
+      let current = await queryPaymentStatus(jobId)
+      for (let attempt = 0; quiet && current.paymentStatus !== 'paid' && attempt < PAYMENT_RECHECK_TIMES; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, PAYMENT_RECHECK_MS))
+        if (!mountedRef.current) return
+        current = await queryPaymentStatus(jobId)
+      }
+      if (!mountedRef.current) return
+      setJob(current)
+      if (current.paymentStatus === 'paid') {
+        paymentOpenedRef.current = false
+        setCheckout(null)
+        await enqueueJob(jobId)
+      } else if (current.status === 'failed') {
+        setCheckout(null)
+        setPhase('done')
+        await AsyncStorage.removeItem(LAST_JOB_KEY).catch(() => undefined)
+      } else {
+        setHint(quiet ? '支付结果还在确认中。付款完成后可以点「刷新支付状态」。' : '暂未收到支付结果，请稍后再试')
+      }
+    } catch (statusError) {
+      if (!quiet) setError((statusError as Error)?.message || '支付状态查询失败')
+      else setHint('支付结果查询失败，可以点「刷新支付状态」重试。')
+    } finally {
+      checkingPaymentRef.current = false
+      if (mountedRef.current) setPaying(false)
+    }
+  }
+
+  // 从支付宝回到 APP 时自动查询付款结果
+  const pendingCheckoutJobId = checkout?.job.id
+  useEffect(() => {
+    if (!pendingCheckoutJobId) return undefined
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && paymentOpenedRef.current) void checkPayment(pendingCheckoutJobId, true)
+    })
+    return () => subscription.remove()
+  }, [pendingCheckoutJobId])
+
   const startGeneration = async () => {
     if (!job?.id || phase !== 'uploaded') {
       setError('请先选择并上传视频')
       return
     }
+    if (priceCents > 0 && job.paymentStatus !== 'paid') {
+      await createCheckout(job.id)
+      return
+    }
+    await enqueueJob(job.id)
+  }
+
+  const enqueueJob = async (jobId: string) => {
     setError('')
     setHint('')
     try {
       setPhase('enqueueing')
-      const queued = await apiClient.request<MotionEffectJob>(`/api/toolbox/motion-effects/jobs/${job.id}/enqueue`, {
+      const queued = await apiClient.request<MotionEffectJob>(`/api/toolbox/motion-effects/jobs/${jobId}/enqueue`, {
         method: 'POST',
         timeoutMs: 15000,
       })
@@ -331,6 +564,8 @@ export function MotionEffectsScreen({ navigation }: Props) {
     } catch (nextError) {
       setPhase('uploaded')
       setError((nextError as Error)?.message || '提交生成任务失败')
+      // 免费次数已在别的设备用掉：按钮要变成付款，否则一直点一直失败
+      if ((nextError as { status?: number })?.status === 402) setSignupFreeAvailable(false)
     }
   }
 
@@ -375,7 +610,8 @@ export function MotionEffectsScreen({ navigation }: Props) {
     }
   }
 
-  const reset = () => {
+  const clearCurrentJob = () => {
+    const previousJob = job
     stopPolling()
     setVideo(null)
     setJob(null)
@@ -385,6 +621,23 @@ export function MotionEffectsScreen({ navigation }: Props) {
     setError('')
     setHint('')
     setRestoredJob(false)
+    setCheckout(null)
+    paymentOpenedRef.current = false
+    uploadedJobIdRef.current = ''
+    orderIdRef.current = ''
+    void AsyncStorage.removeItem(LAST_JOB_KEY).catch(() => undefined)
+    void releaseUnpaidJob(previousJob)
+  }
+
+  const reset = () => {
+    if (job?.status === 'failed' && job.paymentStatus === 'paid') {
+      Alert.alert('放弃这次付款？', '这次已付款，可以免费重新生成。放弃后不会自动退款，需要联系客服处理。', [
+        { text: '继续重试', style: 'cancel' },
+        { text: '放弃', style: 'destructive', onPress: clearCurrentJob },
+      ])
+      return
+    }
+    clearCurrentJob()
   }
 
   const statusInput = { phase, uploadProgress, jobStatus: job?.status, jobProgress: job?.progress }
@@ -392,6 +645,9 @@ export function MotionEffectsScreen({ navigation }: Props) {
   const progressValue = getMotionEffectProgress(statusInput)
 
   const busy = ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase) || job?.status === 'processing'
+  const paymentLocked = isMotionJobPaymentLocked(job)
+  const alreadyPaid = job?.paymentStatus === 'paid'
+  const generateLabel = alreadyPaid ? '开始生成' : priceCents > 0 ? `支付 ${formatMotionPrice(priceCents)} 并生成` : '免费生成'
 
   return (
     <Page>
@@ -427,6 +683,38 @@ export function MotionEffectsScreen({ navigation }: Props) {
         </View>
       </SectionCard>
 
+      <SectionCard title="选择光膜风格">
+        <View style={styles.styleGrid}>
+          {MOTION_STYLE_OPTIONS.map((item) => {
+            const active = styleKey === item.key
+            return (
+              <Pressable key={item.key} accessibilityRole="radio" accessibilityLabel={`${item.name}，${item.description}`} accessibilityState={{ checked: active, disabled: optionsLocked }} disabled={optionsLocked} onPress={() => setStyleKey(item.key)} style={[styles.styleCard, active && styles.optionActive, optionsLocked && styles.disabled]}>
+                <View style={styles.swatches}>{item.colors.map((color) => <View key={color} style={[styles.swatch, { backgroundColor: color }]} />)}</View>
+                <Text style={styles.optionTitle}>{item.name}</Text>
+                <Text style={styles.optionDesc}>{item.description}</Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      </SectionCard>
+
+      <SectionCard title="选择下载规格" description="预览免费。视频导出会持续占用服务器计算、临时存储和下载带宽，因此下载按规格收费。">
+        <PriceOption title="标准版 · 720p" desc={signupFreeAvailable ? '注册账号首次标准导出免费' : '适合朋友圈和快速分享'} price={signupFreeAvailable ? '首次免费' : formatMotionPrice(prices.standardCents)} active={exportQuality === 'standard'} disabled={optionsLocked} onPress={() => setExportQuality('standard')} />
+        <PriceOption title="高清版 · 1080p" desc="更清晰，适合发布短视频" price={formatMotionPrice(prices.hdCents)} active={exportQuality === 'hd'} disabled={optionsLocked} onPress={() => setExportQuality('hd')} />
+        <PriceOption title="极速处理" desc="进入独立优先队列，按真实任务顺序处理" price={`+${formatMotionPrice(prices.priorityAddonCents)}`} active={queueTier === 'priority'} disabled={optionsLocked} onPress={() => setQueueTier(queueTier === 'priority' ? 'standard' : 'priority')} />
+        <View style={styles.priceTotal}>
+          <Text style={styles.optionTitle}>本次预计</Text>
+          <Text style={styles.priceTotalValue}>{priceCents === 0 ? '免费' : formatMotionPrice(priceCents)}</Text>
+        </View>
+      </SectionCard>
+
+      <SectionCard title="调整效果细节" description="默认「标准 / 均衡 / 均衡」最稳妥，也可以按画面气质微调。">
+        <DetailGroup title="动态节奏" options={MOTION_SPEED_OPTIONS} value={motionSpeed} disabled={optionsLocked} onChange={setMotionSpeed} />
+        <DetailGroup title="边缘光强度" options={GLOW_STRENGTH_OPTIONS} value={glowStrength} disabled={optionsLocked} onChange={setGlowStrength} />
+        <DetailGroup title="膜面浓度" options={SURFACE_DENSITY_OPTIONS} value={surfaceDensity} disabled={optionsLocked} onChange={setSurfaceDensity} />
+        {optionsLocked ? <Text style={styles.optionDesc}>当前视频已锁定以上设置；制作新视频后可重新选择。</Text> : null}
+      </SectionCard>
+
       <SectionCard title="上传视频" description={`每日最多生成 ${limits.dailyLimit} 次；原视频和结果默认仅保留 24 小时。`}>
         <Pressable disabled={busy} onPress={() => void chooseVideo()} style={[styles.uploadBox, busy && styles.disabled]}>
           {phase === 'creating' || phase === 'uploading' ? <ActivityIndicator color={colors.brand} /> : <IconFont name="icon-video" color={colors.brand} size={28} />}
@@ -446,19 +734,31 @@ export function MotionEffectsScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.actions}>
-          <Pressable disabled={phase !== 'uploaded'} onPress={() => void startGeneration()} style={[styles.primaryButton, phase !== 'uploaded' && styles.buttonDisabled]}>
-            <Text style={styles.primaryButtonText}>{phase === 'enqueueing' ? '提交中…' : '开始生成'}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={generateLabel} accessibilityState={{ disabled: phase !== 'uploaded' || paying, busy: paying }} disabled={phase !== 'uploaded' || paying} onPress={() => void startGeneration()} style={[styles.primaryButton, (phase !== 'uploaded' || paying) && styles.buttonDisabled]}>
+            <Text style={styles.primaryButtonText}>{paying ? '正在处理…' : phase === 'enqueueing' ? '提交中…' : generateLabel}</Text>
           </Pressable>
-          <Pressable disabled={busy} onPress={reset} style={[styles.secondaryButton, busy && styles.buttonDisabled]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="重新选择" accessibilityState={{ disabled: busy || paying || paymentLocked }} disabled={busy || paying || paymentLocked} onPress={reset} style={[styles.secondaryButton, (busy || paying || paymentLocked) && styles.buttonDisabled]}>
             <Text style={styles.secondaryButtonText}>重新选择</Text>
           </Pressable>
         </View>
 
+        {checkout && phase === 'uploaded' ? (
+          <View style={styles.checkoutCard}>
+            <Text style={styles.optionTitle}>等待付款 {formatMotionPrice(checkout.order.totalAmountCents)}</Text>
+            <Text style={styles.optionDesc}>支付成功后才会占用服务器算力开始生成。付款后回到 APP 会自动查询结果。不付款的话，最多 1 小时后可以重新选择视频。</Text>
+            <View style={styles.actions}>
+              <Pressable accessibilityRole="button" accessibilityLabel="重新打开支付宝" disabled={paying} onPress={() => void createCheckout(checkout.job.id)} style={[styles.secondaryButton, paying && styles.buttonDisabled]}><Text style={styles.secondaryButtonText}>重新支付</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="刷新支付状态" disabled={paying} onPress={() => void checkPayment(checkout.job.id)} style={[styles.primaryButton, paying && styles.buttonDisabled]}><Text style={styles.primaryButtonText}>{paying ? '正在查询…' : '刷新支付状态'}</Text></Pressable>
+            </View>
+          </View>
+        ) : null}
         {!pollTimerRef.current && (job?.status === 'queued' || job?.status === 'processing') ? (
           <Pressable onPress={() => pollJob(job.id)} style={styles.retryButton}><Text style={styles.retryText}>继续刷新</Text></Pressable>
         ) : null}
         {job?.status === 'failed' ? (
-          <Pressable onPress={() => video ? void prepareUpload(video) : reset()} style={styles.retryButton}><Text style={styles.retryText}>重新生成</Text></Pressable>
+          alreadyPaid
+            ? <Pressable accessibilityRole="button" accessibilityLabel="免费重新生成" onPress={() => void enqueueJob(job.id)} style={styles.retryButton}><Text style={styles.retryText}>免费重新生成（这次已付款）</Text></Pressable>
+            : <Pressable onPress={() => video ? void prepareUpload(video) : reset()} style={styles.retryButton}><Text style={styles.retryText}>重新生成</Text></Pressable>
         ) : null}
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {job?.errorMessage ? <Text style={styles.errorText}>{job.errorMessage}</Text> : null}
@@ -503,7 +803,51 @@ function MetricCard({ label, value, brand }: { label: string; value: string; bra
   return <View style={styles.metricCard}><Text style={styles.metricLabel}>{label}</Text><Text style={[styles.metricValue, brand && styles.metricValueBrand]}>{value}</Text></View>
 }
 
+function PriceOption({ title, desc, price, active, disabled, onPress }: { title: string; desc: string; price: string; active: boolean; disabled: boolean; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="radio" accessibilityLabel={`${title}，${price}`} accessibilityState={{ checked: active, disabled }} disabled={disabled} onPress={onPress} style={[styles.priceOption, active && styles.optionActive, disabled && styles.disabled]}>
+      <View style={styles.priceMain}>
+        <Text style={styles.optionTitle}>{title}</Text>
+        <Text style={styles.optionDesc}>{desc}</Text>
+      </View>
+      <Text style={styles.priceValue}>{price}</Text>
+    </Pressable>
+  )
+}
+
+function DetailGroup<T extends string>({ title, options, value, disabled, onChange }: { title: string; options: Array<{ value: T; label: string; description: string }>; value: T; disabled: boolean; onChange: (value: T) => void }) {
+  return (
+    <View style={styles.detailGroup}>
+      <Text style={styles.optionTitle}>{title}</Text>
+      <View style={styles.detailRow}>
+        {options.map((option) => (
+          <Pressable key={option.value} accessibilityRole="radio" accessibilityLabel={`${title}：${option.label}，${option.description}`} accessibilityState={{ checked: value === option.value, disabled }} disabled={disabled} onPress={() => onChange(option.value)} style={[styles.detailOption, value === option.value && styles.optionActive, disabled && styles.disabled]}>
+            <Text style={styles.optionTitle}>{option.label}</Text>
+            <Text style={styles.optionDesc}>{option.description}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
+  styleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  styleCard: { width: '48%', flexGrow: 1, gap: 4, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  swatches: { flexDirection: 'row', gap: 4 },
+  swatch: { width: 20, height: 20, borderRadius: radius.pill },
+  optionActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+  optionTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  optionDesc: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  priceOption: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  priceMain: { flex: 1, gap: 2 },
+  priceValue: { color: colors.brand, fontSize: 14, fontWeight: '700' },
+  priceTotal: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  priceTotalValue: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  detailGroup: { gap: spacing.xs },
+  detailRow: { flexDirection: 'row', gap: spacing.xs },
+  detailOption: { flex: 1, gap: 2, padding: spacing.xs, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  checkoutCard: { gap: spacing.xs, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.brandSoft },
   backRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs },
   backText: { color: colors.text, fontSize: 15, fontWeight: '600' },
   hero: { minHeight: 168, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', borderRadius: radius.xl, padding: spacing.md, backgroundColor: '#1F1F1F' },

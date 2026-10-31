@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import * as ImagePicker from 'expo-image-picker'
-import { fetchWithTimeout, getStoredToken, persistSession } from '../../api'
-import { API_BASE_URL } from '../../config'
+import { uploadFile } from '../../fileUpload'
+import { COMPATIBLE_IMAGE_OPTIONS } from '../../imagePickerOptions'
+import { getStoredToken, persistSession } from '../../api'
 import { useAuth } from '../../providers/AuthProvider'
 import { colors, controlHeight, radius, spacing, typography } from '../../theme'
 import { Card, FormField, InlineAvatar, LoadingState, ScreenShell, SolidButton, errorMessage, safeRequest, type RootNav } from './MeShared'
@@ -149,16 +150,12 @@ export function ProfileEditScreen() {
   }, [loadProfile])
 
   async function uploadAvatar() {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.82 })
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.82, ...COMPATIBLE_IMAGE_OPTIONS })
     if (result.canceled || !result.assets[0]?.uri) return
     setUploading(true)
     try {
-      const token = await getStoredToken()
-      const body = new FormData()
-      body.append('file', { uri: result.assets[0].uri, name: 'avatar.jpg', type: 'image/jpeg' } as any)
-      const response = await fetchWithTimeout(`${API_BASE_URL}/api/upload/avatar`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : undefined, body })
-      const json = await response.json().catch(() => null)
-      if (!response.ok || !json?.success || !json?.data?.url) throw new Error(json?.message || '头像上传失败')
+      const { ok, json } = await uploadFile('/api/upload/avatar', { uri: result.assets[0].uri, mimeType: result.assets[0].mimeType || 'image/jpeg' })
+      if (!ok || !json?.success || !json?.data?.url) throw new Error(json?.message || '头像上传失败')
       patch({ avatar_url: json.data.url })
     } catch (error) {
       Alert.alert('头像上传失败', errorMessage(error))

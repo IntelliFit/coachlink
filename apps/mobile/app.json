@@ -39,6 +39,16 @@
           "isAccessMediaLocationEnabled": false
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "允许 CoachLink 获取你的位置，以查找附近的单杠和在地图上标记单杠位置。只在使用这些功能时获取，不会保存到 CoachLink 的服务器。",
+          "locationAlwaysPermission": false,
+          "locationAlwaysAndWhenInUsePermission": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ],
       "expo-video",
       "expo-audio",
       [
@@ -47,7 +57,8 @@
           "color": "#CF6D4E",
           "defaultChannel": "messages"
         }
-      ]
+      ],
+      "expo-asset"
     ]
   }
 }

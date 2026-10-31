@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import * as ImagePicker from 'expo-image-picker'
+import { COMPATIBLE_IMAGE_OPTIONS } from '../../imagePickerOptions'
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
@@ -95,6 +96,7 @@ export function CoachWalletMerchantScreen() {
       allowsEditing: false,
       base64: true,
       quality: 0.7,
+      ...COMPATIBLE_IMAGE_OPTIONS,
     })
     if (result.canceled || !result.assets[0]?.base64) return
     const asset = result.assets[0]

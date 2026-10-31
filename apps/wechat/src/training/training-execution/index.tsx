@@ -16,6 +16,7 @@ import SetEditor, { type SetEditorPanel } from './SetEditor'
 import { toggleQuickRpe, type TrainingViewMode } from '@coachlink/core/src/trainingViewMode'
 import { readTrainingViewMode, saveTrainingViewMode } from '@/utils/trainingViewMode'
 import { fromKg, getSetDisplayWeight, inheritedPlannedWeightUnit, toKg, weightUnitLabel, type SetWeightUnit } from '@coachlink/core/src/weightUnit'
+import { formatRestMinutes } from '@coachlink/core/src/restDisplay'
 import { resolveWeappImageThumbnailUrl } from '@/utils/mediaUrl'
 import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas, Swiper, SwiperItem } from '@tarojs/components'
 import { ClButton, ClTag } from '@/components/ui'
@@ -216,11 +217,8 @@ function formatRestSummary(seconds?: number | null): string {
   }
   const s = Math.max(0, Math.round(Number(seconds)))
   if (s <= 0) return '无间歇'
-  if (s < 60) return `间歇 ${s}s`
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  if (r === 0) return `间歇 ${m}分钟`
-  return `间歇 ${m}分${r}秒`
+  // 休息时间按秒存、统一按分钟显示（DECISIONS 2026-10-27）
+  return `间歇 ${formatRestMinutes(s)}`
 }
 
 function getPlanActionNote(

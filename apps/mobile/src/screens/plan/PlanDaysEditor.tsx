@@ -6,7 +6,7 @@ import { WEEKDAY_LABELS, addEmptyWeek, chunkDaysByWeek, cloneWeekToTail, deleteW
 import { addActionSet, copyDayTo, moveActionSet, removeActionSet, replaceActionSet, setDayType, updateDay } from './model/planDayOps'
 import { ensureSetUids, getSetActionId, withPickedAction } from './model/planSetFields'
 import { normalizeItemType } from './model/planEditor'
-import { ITEM_META, PlanActionSetCard } from './PlanActionSetCard'
+import { ITEM_META, PlanActionSetCard, type PlanStrengthContext } from './PlanActionSetCard'
 import { PlanActionPicker } from './PlanActionPicker'
 
 type Props = {
@@ -21,10 +21,12 @@ type Props = {
   initialDayIndex?: number
   /** 整份计划只读（例如已完成的计划）。 */
   readOnly?: boolean
+  /** 学员的 1RM 和体重：有的话力量动作显示自动算重结果（小程序 plan-editor__auto-load）。 */
+  strengthContext?: PlanStrengthContext
 }
 
 /** 按周排列的训练日编辑器，对应小程序 PlanEditorWorkbench 的日程 + 当天编辑区。 */
-export function PlanDaysEditor({ days, onChange, actions, mode, lockedThroughDayIndex = 0, initialDayIndex, readOnly = false }: Props) {
+export function PlanDaysEditor({ days, onChange, actions, mode, lockedThroughDayIndex = 0, initialDayIndex, readOnly = false, strengthContext }: Props) {
   const weeks = useMemo(() => chunkDaysByWeek(days), [days])
   const [selectedDayIndex, setSelectedDayIndex] = useState(() => (
     (initialDayIndex && days.some((day) => day.dayIndex === initialDayIndex) ? initialDayIndex : 0)
@@ -160,6 +162,7 @@ export function PlanDaysEditor({ days, onChange, actions, mode, lockedThroughDay
           {sets.length === 0 ? <Text style={styles.empty}>{selectedDay.type === 'rest' ? '休息日，可以添加拉伸、饮食等轻任务。' : '还没有动作，从下方添加。'}</Text> : null}
           {sets.map((set, setIndex) => (
             <PlanActionSetCard
+              strengthContext={strengthContext}
               // 稳定键：移动或删除后，模式、正在输入的文本等本地状态不会串到别的卡片上。
               key={typeof set._uid === 'string' ? set._uid : `${selectedDay.dayIndex}-${setIndex}-${getSetActionId(set) || set.itemType || 'item'}`}
               actionSet={set}

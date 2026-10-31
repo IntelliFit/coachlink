@@ -37,6 +37,9 @@ import { useTheme } from '@/hooks/useTheme'
 import { isValidLocationCoordinates, getLocationCountry, toWeChatCoordinates, inferLocationEquipment, normalizeLocationEquipment, resolveLocationEquipment, matchesLocationEquipment, type LocationEquipmentType, type LocationCoordinateSystem, type LocationSelection } from '@coachlink/core'
 import { EquipmentSelector, EquipmentTags } from '@/components/LocationEquipment'
 import { readLocationCache, writeLocationCache, type LocationDraft, type LocationListCache } from '@/utils/streetliftingLocationCache'
+
+// 每个点位一份草稿，新增的草稿不会被打开编辑覆盖
+const locationDraftKey = (userId: string, locationId?: string | null) => `draft:${userId}:${locationId || 'new'}`
 import { getApproxUserLocation } from '@/utils/approxLocation'
 import { rememberBarMapCount } from '@/toolbox/barMapCount'
 import { parseNativeLocation, mergePickedLocation, usableSearchSelection, getPickerStart, type PickerAutoFields } from '@/utils/locationPicker'
@@ -380,14 +383,14 @@ export default function StreetliftingLocations() {
     const merged = mergePickedLocation(request.form, usableSearchSelection(position), autoFilledRef.current)
     const next = merged.form
     autoFilledRef.current = merged.autoFilled
-    writeLocationCache(`draft:${request.userId}`, { ...next, id: request.id, image_urls: request.imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: merged.autoFilled })
+    writeLocationCache(locationDraftKey(request.userId, request.id), { ...next, id: request.id, image_urls: request.imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: merged.autoFilled })
     setForm(next)
     setManualDetailsOpen(true)
     void Taro.showToast({ title: next.address ? '位置和地址已带回，请核对' : '位置已记录，请补充地址', icon: 'none' })
   })
   useEffect(() => {
     const userId = authService.getCurrentUser()?.id
-    if (dialogOpen && userId) writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
+    if (dialogOpen && userId) writeLocationCache(locationDraftKey(userId, editing?.id), { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
   }, [dialogOpen, form, editing, imageUrls, equipmentTypes])
   const posterLoadResultRef = useRef<{ coverLoaded: boolean; qrLoaded: boolean }>({ coverLoaded: false, qrLoaded: false })
 
@@ -541,7 +544,7 @@ export default function StreetliftingLocations() {
       return
     }
     resetForm()
-    const draft = readLocationCache<LocationDraft>(`draft:${authService.getCurrentUser()?.id || ''}`)
+    const draft = readLocationCache<LocationDraft>(locationDraftKey(authService.getCurrentUser()?.id || '', null))
     if (draft && draft.id === null && typeof draft.name === 'string') {
       setForm({ name: draft.name, description: draft.description, address: draft.address, city: draft.city, province: draft.province, county: draft.county, country: draft.country || '中国', latitude: draft.latitude, longitude: draft.longitude, coordinate_system: draft.coordinate_system })
       setImageUrls(draft.image_urls || [])
@@ -555,6 +558,8 @@ export default function StreetliftingLocations() {
   }
 
   const closeDialogByUser = () => {
+    // 编辑时取消就是放弃修改；新增的草稿保留，下次还能接着填
+    if (editing) writeLocationCache(locationDraftKey(authService.getCurrentUser()?.id || '', editing.id), null)
     setDialogOpen(false)
     resetForm()
     if (returnToMine) void Taro.navigateBack()
@@ -573,10 +578,25 @@ export default function StreetliftingLocations() {
       requireLoginForLocationsAction('登录后才能编辑单杠位置和补充图片。')
       return
     }
+    const pending = readLocationCache<LocationDraft>(locationDraftKey(authService.getCurrentUser()?.id || '', loc.id))
+    if (pending?.id !== loc.id) {
+      fillEditForm(loc, null)
+      return
+    }
+    // 点位是共享数据：旧草稿保存时会覆盖所有字段，不能悄悄恢复
+    Taro.showModal({
+      title: '恢复未保存的修改？',
+      content: '上次编辑这个点位时有修改没有保存。如果别人之后更新过，恢复并保存会覆盖他们的修改。',
+      confirmText: '恢复',
+      cancelText: '放弃',
+      success: (result) => fillEditForm(loc, result.confirm ? pending : null)
+    })
+  }
+
+  const fillEditForm = (loc: StreetliftingLocation, pending: LocationDraft | null) => {
     const imgs = getLocationImages(loc)
-    const pending = readLocationCache<LocationDraft>(`draft:${authService.getCurrentUser()?.id || ''}`)
-    const source = pending?.id === loc.id ? { ...loc, ...pending } : loc
-    equipmentTouchedRef.current = pending?.id === loc.id ? pending.equipment_touched ?? false : resolveLocationEquipment(loc).equipment_source === 'confirmed'
+    const source = pending ? { ...loc, ...pending } : loc
+    equipmentTouchedRef.current = pending ? pending.equipment_touched ?? false : resolveLocationEquipment(loc).equipment_source === 'confirmed'
     setEquipmentTypes(resolveLocationEquipment(source).equipment_types)
     setEditing(loc)
     setForm({
@@ -591,9 +611,9 @@ export default function StreetliftingLocations() {
       latitude: source.latitude ?? null,
       longitude: source.longitude ?? null
     })
-    setImageUrls(pending?.id === loc.id ? pending.image_urls : imgs)
+    setImageUrls(pending ? pending.image_urls : imgs)
     setOverseasLocation(getLocationCountry(source) !== '中国')
-    autoFilledRef.current = pending?.id === loc.id ? pending.auto_filled || {} : {}
+    autoFilledRef.current = pending ? pending.auto_filled || {} : {}
     setManualDetailsOpen(true)
     setRegionDetailsOpen(false)
     setDialogOpen(true)
@@ -606,7 +626,7 @@ export default function StreetliftingLocations() {
     setOpeningPicker(true)
     const key = `picker:${userId}:${Date.now()}`
     pickerRequestRef.current = { key, userId, form, id: editing?.id || null, imageUrls }
-    writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
+    writeLocationCache(locationDraftKey(userId, editing?.id), { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
     // New locations start at a fresh, explicitly requested nearby position.
     let nearby = previousNearby || null
     if (!hasSelectedPosition && previousNearby === undefined) {
@@ -640,7 +660,7 @@ export default function StreetliftingLocations() {
     if (form.country !== '中国') { await openMapPicker(); return }
     const userId = authService.getCurrentUser()?.id
     if (!userId) { requireLoginForLocationsAction('登录后可选择并分享单杠位置。'); return }
-    writeLocationCache(`draft:${userId}`, { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
+    writeLocationCache(locationDraftKey(userId, editing?.id), { ...form, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
     setOpeningPicker(true)
     try {
       // New points open without a start position so WeChat centres on the user's
@@ -742,7 +762,7 @@ export default function StreetliftingLocations() {
       ? { latitude: form.latitude, longitude: form.longitude, coordinate_system: form.coordinate_system }
       : { latitude: null, longitude: null, coordinate_system: null }
     const equipmentFields = { equipment_types: equipmentTypes.length || equipmentTouchedRef.current ? equipmentTypes : undefined }
-    const draftKey = `draft:${authService.getCurrentUser()?.id || ''}`
+    const draftKey = locationDraftKey(authService.getCurrentUser()?.id || '', editing?.id)
     // Persist the mutation before starting cloud sync; failed submissions keep a recoverable draft.
     writeLocationCache(draftKey, { ...form, ...coordinateFields, id: editing?.id || null, image_urls: imageUrls, equipment_types: equipmentTypes, equipment_touched: equipmentTouchedRef.current, auto_filled: autoFilledRef.current })
     setSubmitting(true)

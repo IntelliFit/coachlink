@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native'
 import * as Clipboard from 'expo-clipboard'
 import * as ImagePicker from 'expo-image-picker'
+import { uploadFile } from '../../fileUpload'
+import { COMPATIBLE_IMAGE_OPTIONS } from '../../imagePickerOptions'
 import { resolveCoachLinkAppRole } from '@coachlink/core'
-import { apiClient, fetchWithTimeout, getStoredToken } from '../../api'
-import { API_BASE_URL } from '../../config'
+import { apiClient } from '../../api'
 import { openExternalUrl } from '../../externalLinks'
 import { IconFont } from '../../components/IconFont'
 import { ImagePreviewModal } from '../../components/ImagePreviewModal'
@@ -310,7 +311,7 @@ export function ChatScreen() {
       Alert.alert('需要相册权限', '请允许 CoachLink 访问相册后再发送图片。')
       return
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.82 })
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.82, ...COMPATIBLE_IMAGE_OPTIONS })
     const asset = result.canceled ? null : result.assets[0]
     if (!asset?.uri) return
 
@@ -320,17 +321,9 @@ export function ChatScreen() {
     appendOptimistic({ id, messageType: 'image', content: '', mediaUrl: asset.uri, createdAt: new Date().toISOString(), isMine: true, pending: true, contentMetadata: replyMetadata(target) })
     setUploadingImage(true)
     try {
-      const token = await getStoredToken()
-      const form = new FormData()
-      form.append('file', { uri: asset.uri, name: asset.fileName || `chat-${Date.now()}.jpg`, type: asset.mimeType || 'image/jpeg' } as any)
-      const uploadResponse = await fetchWithTimeout(`${API_BASE_URL}/api/upload/chat-image`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: form,
-      })
-      const uploadJson = await uploadResponse.json().catch(() => null)
+      const { ok, json: uploadJson } = await uploadFile('/api/upload/chat-image', { uri: asset.uri, mimeType: asset.mimeType || 'image/jpeg' })
       const url = uploadJson?.data?.url
-      if (!uploadResponse.ok || !uploadJson?.success || !url) throw new Error(uploadJson?.message || '图片上传失败')
+      if (!ok || !uploadJson?.success || !url) throw new Error(uploadJson?.message || '图片上传失败')
       const sent = await apiClient.request<SendResponse>('/api/chat/send-message', {
         method: 'POST',
         body: { roomId, messageType: 'image', mediaUrl: url, content: '', replyToMessageId: target?.id },

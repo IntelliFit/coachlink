@@ -26,9 +26,10 @@ export function ToolboxScreen({ navigation }: Props) {
 
       <SectionCard title="专项评估" description="快速评估当前阶段，并获得可执行的训练建议。">
         <RowCard title="单手引体评估" subtitle="输入体重和负重引体 1RM，查看准备度与 8 周计划。" icon="icon-strength" onPress={() => rootNav?.navigate('OneArmPullUp')} />
+        <RowCard title="薄肌检测器" subtitle="一张正面照测出薄肌等级，看超越了多少人，再拉好友 PK。" icon="icon-strength" onPress={() => rootNav?.navigate('BojiDetector')} />
       </SectionCard>
 
-      <ImageToolCard title="功率视频分析" subtitle="上传引体、双力臂、臂屈伸、俯卧撑或深蹲视频，估算功率与速度。" image={powerImage} onPress={() => rootNav?.navigate('PowerAnalysis')} />
+      <ImageToolCard title="功率视频分析" subtitle="上传自重动作或杠铃三大项视频，测速度、功率，看动作问题。" image={powerImage} onPress={() => rootNav?.navigate('PowerAnalysis')} />
       <SectionCard title="视频创作" description="复用小程序同一套云端处理能力，任务退出页面后也可恢复。">
         <RowCard title="手指光膜" subtitle="上传双手动作视频，生成随指尖变化的动态光膜并保存到相册。" icon="icon-video" onPress={() => rootNav?.navigate('MotionEffects')} />
       </SectionCard>

@@ -80,6 +80,8 @@ const PUBLIC_PATHS = new Set([
     "/toolbox/power-analysis",
     "/toolbox/boji",
     "/toolbox/one-arm-pull-up",
+    // APP 内嵌的单杠地图，点位由 APP 传入，页面本身不返回数据
+    "/embed/locations-map",
     "/admin/login",
     "/wechat-auth/bridge",
     "/payment/start",
@@ -235,6 +237,8 @@ export async function proxy(request: NextRequest) {
         pathname.startsWith("/api/system/version") ||
         pathname.startsWith("/api/public/") ||
         pathname.startsWith("/api/public-action-lib/") ||
+        // 训练分享链接：好友没登录也要能看，地址里的分享 token 才是凭证
+        pathname.startsWith("/public/training/") ||
         pathname === "/api/toolbox/pose-model" ||
         pathname.startsWith("/api/toolbox/motion-effects/") ||
         // 薄肌 PK 卡：好友点开分享链接时还没登录，只返回昵称和分数

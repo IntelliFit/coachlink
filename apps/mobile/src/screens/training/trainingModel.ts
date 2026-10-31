@@ -5,6 +5,11 @@ export type NormalizedSet = {
   plannedWeight?: string | number | null
   plannedReps?: string | number | null
   actualWeight?: string | number | null
+  /** 学员记录时选的单位；actualWeight 始终是 kg */
+  weightUnit?: string | null
+  weightInput?: number | null
+  plannedWeightUnit?: string | null
+  plannedWeightInput?: number | null
   actualReps?: string | number | null
   actualDuration?: number | null
   plannedTargetType?: string | null
@@ -23,6 +28,9 @@ export type NormalizedActionExecution = {
   actionIndex: number
   actionId?: string
   actionName: string
+  /** 对应计划当天 actionSets 的下标，用于读取教练备注 */
+  sourceActionIndex?: number
+  planNote?: string | null
   attrs?: string[] | null
   itemType: 'STRENGTH' | 'DIET' | 'CARDIO' | 'HABIT'
   status?: string
@@ -71,6 +79,12 @@ export function normalizeExecution(raw: any) {
       actionIndex,
       actionId: action.action_id || action.actionId || actionDetail.id,
       actionName,
+      sourceActionIndex: (() => {
+        const raw = action.source_action_index ?? action.sourceActionIndex
+        const value = raw === null || raw === undefined || raw === '' ? NaN : Number(raw)
+        return Number.isInteger(value) && value >= 0 ? value : undefined
+      })(),
+      planNote: action.plan_note ?? action.planNote ?? null,
       attrs: action.attrs ?? actionDetail.attrs ?? null,
       itemType: normalizeTrainingItemType(
         action.item_type || action.itemType || action.type || actionDetail.type,
@@ -90,6 +104,10 @@ export function normalizeExecution(raw: any) {
         plannedWeight: set.planned_weight ?? set.plannedWeight ?? set.weight ?? null,
         plannedReps: set.planned_reps ?? set.plannedReps ?? set.reps ?? null,
         actualWeight: set.actual_weight ?? set.actualWeight ?? null,
+        weightUnit: set.weight_unit ?? set.weightUnit ?? null,
+        weightInput: set.weight_input ?? set.weightInput ?? null,
+        plannedWeightUnit: set.planned_weight_unit ?? set.plannedWeightUnit ?? null,
+        plannedWeightInput: set.planned_weight_input ?? set.plannedWeightInput ?? null,
         actualReps: set.actual_reps ?? set.actualReps ?? null,
         actualDuration: set.actual_duration ?? set.actualDuration ?? null,
         plannedTargetType: set.planned_target_type ?? set.plannedTargetType ?? null,

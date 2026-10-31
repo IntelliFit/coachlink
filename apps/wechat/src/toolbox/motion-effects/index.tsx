@@ -791,7 +791,14 @@ function PaidFingerMotionEffectsPage() {
     apply()
   }
 
+  // 上传失败或换视频时释放名额，否则服务端最多占 1 小时，期间新视频都传不了
+  const releaseUnpaidJob = async (target: MotionJob | null) => {
+    if (!target || !['awaiting_upload', 'awaiting_payment'].includes(target.status) || ['pending', 'paid'].includes(String(target.paymentStatus))) return
+    await callApi<MotionJob>({ url: `/api/toolbox/motion-effects/jobs/${target.id}/cancel`, method: 'POST' }).catch(() => undefined)
+  }
+
   const handleReset = () => {
+    void releaseUnpaidJob(job)
     stopPolling()
     setVideo(null)
     setJob(null)
@@ -813,6 +820,7 @@ function PaidFingerMotionEffectsPage() {
     }
 
     stopPolling()
+    await releaseUnpaidJob(job)
     setVideo(nextVideo)
     setPreviewUrl('')
     setPreviewFilename('')
@@ -842,11 +850,16 @@ function PaidFingerMotionEffectsPage() {
     setSignupFreeAvailable(created.signupFreeAvailable)
     setPrices(created.prices)
     setPhase('uploading')
-    await uploadVideo({
-      jobId: created.job.id,
-      filePath: nextVideo.tempFilePath,
-      onProgress: setUploadProgress
-    })
+    try {
+      await uploadVideo({
+        jobId: created.job.id,
+        filePath: nextVideo.tempFilePath,
+        onProgress: setUploadProgress
+      })
+    } catch (uploadError) {
+      await releaseUnpaidJob(created.job)
+      throw uploadError
+    }
     setPhase('uploaded')
     Taro.showToast({ title: '原片已上传', icon: 'success' })
   }
@@ -1004,6 +1017,17 @@ function PaidFingerMotionEffectsPage() {
     setPhase('queued')
     pollJob(queued.id)
     Taro.showToast({ title: '已开始生成', icon: 'success' })
+  }
+
+  // 已付款但生成失败：用原视频重新排队，不再收费
+  const handleRetryPaidJob = async () => {
+    if (!job?.id) return
+    try {
+      await enqueueUploadedJob(job.id)
+    } catch (retryError) {
+      setPhase('done')
+      Taro.showToast({ title: (retryError as Error)?.message || '重新生成失败', icon: 'none', duration: 3000 })
+    }
   }
 
   const confirmWechatPayment = async (orderId: string, jobId: string) => {
@@ -1168,7 +1192,7 @@ function PaidFingerMotionEffectsPage() {
       return {
         stage: '生成失败',
         title: job.errorMessage || '生成失败',
-        detail: '请重新选择视频后再试一次。'
+        detail: job.paymentStatus === 'paid' ? '这次已付款，可以免费重新生成，不用再付一次。' : '请重新选择视频后再试一次。'
       }
     }
     if (job?.status === 'expired') {
@@ -1509,6 +1533,16 @@ function PaidFingerMotionEffectsPage() {
             <View className='motion-button motion-button-primary' onClick={handleCheckPayment}>
               <Text>{paying ? '正在查询…' : '刷新支付状态'}</Text>
             </View>
+          </View>
+        </View>
+      )}
+
+      {job?.status === 'failed' && job.paymentStatus === 'paid' && (
+        <View className='motion-card motion-payment-card'>
+          <Text className='motion-section-title'>这次已付款</Text>
+          <Text className='motion-hint'>生成失败不用重新付款，可以用原视频再试一次。</Text>
+          <View className='motion-button motion-button-primary' onClick={handleRetryPaidJob}>
+            <Text>免费重新生成</Text>
           </View>
         </View>
       )}

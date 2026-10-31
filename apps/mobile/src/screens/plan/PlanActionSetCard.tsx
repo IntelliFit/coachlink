@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { colors, radius, spacing } from '../../theme'
 import { restMinutesToSeconds, restSecondsToMinutes } from '@coachlink/core/src/restDisplay'
 import type { PlanActionOption, PlanActionSet, PlanItemType } from './model/planTypes'
-import { normalizeItemType, resolveActionDisplayName } from './model/planEditor'
-import { applyStrengthControlValue, getStrengthControlValue } from './model/planStrength'
+import { getActionIdFromSet, normalizeItemType, resolveActionDisplayName } from './model/planEditor'
+import { applyStrengthControlValue, buildStrengthPreview, getStrengthControlValue, resolveReferenceOneRM } from './model/planStrength'
 import { getSetNote, getSetReps, getSetRestSeconds, getSetSets, getSetWeight, withFixedLoad, withSetCounts, withSetNote, withoutFixedLoad } from './model/planSetFields'
 
 export const ITEM_META: Record<PlanItemType, { label: string; color: string; soft: string }> = {
@@ -52,9 +52,37 @@ type Props = {
   onPickAction: () => void
   onMove: (delta: -1 | 1) => void
   onRemove: () => void
+  strengthContext?: PlanStrengthContext
 }
 
-export function PlanActionSetCard({ actionSet, index, total, actions, readOnly, structureLocked, onChange, onPickAction, onMove, onRemove }: Props) {
+export type PlanStrengthContext = {
+  oneRMConfig: Record<string, number>
+  oneRMIndex: Record<string, number>
+  bodyWeight: number | null
+}
+
+/** 自动算重结果，对应小程序 plan-editor__auto-load。 */
+function StrengthPreviewLine({ actionSet, actions, context, mode }: { actionSet: PlanActionSet; actions: PlanActionOption[]; context: PlanStrengthContext; mode?: string }) {
+  const actionId = String(getActionIdFromSet(actionSet) || '')
+  const action = actions.find((item) => String(item.id) === actionId)
+  const oneRM = resolveReferenceOneRM(action, context.oneRMConfig, context.oneRMIndex)
+  const preview = buildStrengthPreview(actionSet.params || {}, { action, oneRM, bodyWeight: context.bodyWeight })
+  const hasValue = (preview.source === 'auto' || preview.source === 'manual') && preview.value !== undefined
+  const meta = preview.source === 'auto'
+    ? `基于 ${preview.basis || ''}${oneRM ? ` · 1RM ${oneRM}kg` : ''}${context.bodyWeight ? ` · 体重 ${context.bodyWeight}kg` : ''}`
+    : preview.source === 'manual'
+      ? (mode === 'fixed' ? '这组会按固定重量展示与执行' : '无法计算时会回退使用推荐重量')
+      : ''
+  return (
+    <View style={styles.previewRow}>
+      <Text style={styles.previewLabel}>{mode === 'fixed' ? '固定重量' : '自动计算'}</Text>
+      <Text style={styles.previewValue}>{hasValue ? `${preview.value}${preview.unit || 'kg'}` : preview.reason || '填写强度后显示自动算重'}</Text>
+      {meta ? <Text style={styles.previewMeta}>{meta}</Text> : null}
+    </View>
+  )
+}
+
+export function PlanActionSetCard({ actionSet, index, total, actions, readOnly, structureLocked, onChange, onPickAction, onMove, onRemove, strengthContext }: Props) {
   const itemType = normalizeItemType(actionSet.itemType)
   const meta = ITEM_META[itemType]
   const params = actionSet.params || {}
@@ -160,6 +188,7 @@ export function PlanActionSetCard({ actionSet, index, total, actions, readOnly, 
             </View>
             <Text style={styles.unit}>{control?.mode === 'fixed' ? 'kg' : control?.mode === 'percentage' ? '%' : 'RM'}</Text>
           </View>
+          {strengthContext ? <StrengthPreviewLine actionSet={actionSet} actions={actions} context={strengthContext} mode={control?.mode} /> : null}
         </>
       ) : null}
 
@@ -299,6 +328,10 @@ function TextField({ label, value, readOnly, placeholder, compact = false, onCha
 }
 
 const styles = StyleSheet.create({
+  previewRow: { gap: 2, padding: spacing.xs, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  previewLabel: { color: colors.textTertiary, fontSize: 11, fontWeight: '600' },
+  previewValue: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  previewMeta: { color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
   card: {
     gap: spacing.xs,
     padding: spacing.sm,

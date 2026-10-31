@@ -21,6 +21,12 @@ const SORT_OPTIONS: Array<{ label: string; value: SortMode }> = [
   { label: '最近更新', value: 'subscription_updated_desc' },
 ]
 
+import { AiGenerateSheet } from './AiGenerateSheet'
+import { StudentAutomationCard, StudentPlanHistoryCard, SubscriptionWeeksCard } from './CoachStudentExtras'
+import { CoachStudentQuestionnaireCard } from './CoachStudentQuestionnaireCard'
+import { refundableOrderId } from './questionnaireAnswers'
+import { aiGeneratedPlanName, bulkAiResultMessage, type AiGenerationConfig } from './aiGenerateConfig'
+
 function nameOf(student: any) {
   return student?.profile?.nickname || student?.profile?.full_name || student?.profile?.phone || student?.student_id || '学员'
 }
@@ -88,6 +94,10 @@ export function CoachStudentsScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 批量生成时取消勾选的未配置计划学员（与小程序 excludedNoPlanIds 一致）
+  const [excludedNoPlanIds, setExcludedNoPlanIds] = useState<string[]>([])
+  const [aiTarget, setAiTarget] = useState<{ mode: 'single'; student: any } | { mode: 'bulk' } | null>(null)
+  const [aiBusy, setAiBusy] = useState(false)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -123,6 +133,40 @@ export function CoachStudentsScreen() {
 
   const noPlanCount = useMemo(() => students.filter((item) => !item?.plan).length, [students])
 
+  async function runAiGenerate(config: AiGenerationConfig) {
+    if (!aiTarget || aiBusy) return
+    setAiBusy(true)
+    try {
+      if (aiTarget.mode === 'single') {
+        const student = aiTarget.student
+        const subscriptionId = String(student?.id || '')
+        const res = await safeRequest<any>('/api/plan-lib/create-ai-instance', { body: { subscriptionId, ...config } })
+        if (!res?.template) throw new Error('生成失败，请稍后重试')
+        const name = aiGeneratedPlanName(res.template?.name, nameOf(student))
+        setStudents((current) => current.map((item) => (String(item?.id || '') === subscriptionId
+          ? { ...item, plan: { name, description: res.template?.description || '暂无描述', status: res.template?.status || 'active' } }
+          : item)))
+        Alert.alert(config.useLLM ? 'LLM 生成成功' : '规则生成成功', `已为${nameOf(student)}生成「${name}」。`)
+      } else {
+        const res = await safeRequest<any>('/api/plan-lib/bulk-create-ai-instances', {
+          body: { mode: 'no_plan', subscriptionIds: [], excludedSubscriptionIds: excludedNoPlanIds, ...config },
+        })
+        Alert.alert('批量生成完成', bulkAiResultMessage(res, config.useLLM))
+        setExcludedNoPlanIds([])
+        await load(page, true)
+      }
+      setAiTarget(null)
+    } catch (aiError) {
+      Alert.alert(aiTarget.mode === 'single' ? '生成失败' : '批量生成失败', aiError instanceof Error ? aiError.message : '请稍后重试')
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
+  function toggleExcluded(subscriptionId: string) {
+    setExcludedNoPlanIds((current) => (current.includes(subscriptionId) ? current.filter((id) => id !== subscriptionId) : [...current, subscriptionId]))
+  }
+
   function submitSearch() {
     setQuery(search.trim())
     setPage(0)
@@ -151,6 +195,9 @@ export function CoachStudentsScreen() {
             </Pressable>
           ) : null}
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="批量快速生成计划" accessibilityState={{ busy: aiBusy }} disabled={aiBusy} onPress={() => setAiTarget({ mode: 'bulk' })} style={styles.aiBulkButton}>
+          <Text style={styles.aiBulkText}>{aiBusy && aiTarget?.mode === 'bulk' ? '批量生成中…' : '批量快速生成'}</Text>
+        </Pressable>
         <View style={styles.sortRow}>
           {SORT_OPTIONS.map((item) => (
             <Pressable key={item.value} accessibilityRole="button" accessibilityLabel={`按${item.label}排序`} accessibilityState={{ selected: sort === item.value }} onPress={() => { setSort(item.value); setPage(0) }} style={[styles.sortPill, sort === item.value && styles.sortPillActive]}>
@@ -167,7 +214,15 @@ export function CoachStudentsScreen() {
       {!loading && !error ? (
         <>
           {students.map((student) => (
-            <StudentCard key={String(student?.id || student?.student_id)} student={student} onOpen={() => navigation.navigate('CoachStudentDetail', { subscriptionId: student?.id, studentId: student?.student_id })} />
+            <StudentCard
+              key={String(student?.id || student?.student_id)}
+              student={student}
+              onOpen={() => navigation.navigate('CoachStudentDetail', { subscriptionId: student?.id, studentId: student?.student_id })}
+              aiBusy={aiBusy}
+              includedInBulk={!excludedNoPlanIds.includes(String(student?.id || ''))}
+              onToggleBulk={() => toggleExcluded(String(student?.id || ''))}
+              onAiGenerate={() => setAiTarget({ mode: 'single', student })}
+            />
           ))}
           <View style={styles.pager}>
             <SolidButton label="上一页" variant="secondary" disabled={page <= 0 || refreshing} onPress={() => void load(Math.max(0, page - 1), true)} />
@@ -176,11 +231,28 @@ export function CoachStudentsScreen() {
           </View>
         </>
       ) : null}
+      <AiGenerateSheet
+        visible={Boolean(aiTarget)}
+        title={aiTarget?.mode === 'single' ? 'AI 生成配置' : '批量 AI 生成配置'}
+        subtitle={aiTarget?.mode === 'single'
+          ? `${nameOf(aiTarget.student)} · 可指定从第几周第几天开始，并选择是否启用 LLM 深度个性化。`
+          : `将为未配置计划学员生成，已取消勾选 ${excludedNoPlanIds.length} 位。`}
+        busy={aiBusy}
+        onClose={() => setAiTarget(null)}
+        onConfirm={(config) => void runAiGenerate(config)}
+      />
     </ScreenShell>
   )
 }
 
-function StudentCard({ student, onOpen }: { student: any; onOpen: () => void }) {
+function StudentCard({ student, onOpen, aiBusy, includedInBulk, onToggleBulk, onAiGenerate }: {
+  student: any
+  onOpen: () => void
+  aiBusy: boolean
+  includedInBulk: boolean
+  onToggleBulk: () => void
+  onAiGenerate: () => void
+}) {
   const progress = progressOf(student)
   const unreviewed = Math.max(0, Number(student?.uploaded || 0) - Number(student?.reviewed || 0))
   const status = planStatus(student)
@@ -213,6 +285,17 @@ function StudentCard({ student, onOpen }: { student: any; onOpen: () => void }) 
           <Text style={styles.metricText}>到期 {dateText(student?.end_date)}</Text>
         </View>
       </View>
+      {!student?.plan ? (
+        <View style={styles.aiRow}>
+          <Pressable accessibilityRole="checkbox" accessibilityLabel={`${nameOf(student)}纳入批量生成`} accessibilityState={{ checked: includedInBulk }} onPress={onToggleBulk} style={styles.bulkToggle}>
+            <View style={[styles.bulkBox, includedInBulk && styles.bulkBoxChecked]}>{includedInBulk ? <Text style={styles.bulkCheck}>✓</Text> : null}</View>
+            <Text style={styles.bulkLabel}>纳入批量生成</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={`为${nameOf(student)} AI 生成计划`} accessibilityState={{ disabled: aiBusy }} disabled={aiBusy} onPress={onAiGenerate} style={[styles.aiButton, aiBusy && styles.aiButtonDisabled]}>
+            <Text style={styles.aiButtonText}>AI生成</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </Card>
   )
 }
@@ -373,6 +456,7 @@ export function CoachStudentDetailScreen() {
           })}
           onOpenMessages={() => void openStudentChat()}
           onReplyFeedback={(feedback) => void openStudentChat(buildFeedbackDraft(feedback))}
+          onQuestionnaireSaved={(next) => setStudent((current: any) => (current ? { ...current, subscribe_data: next } : current))}
           onEditPlan={(focusDay) => navigation.navigate('CoachStudentPlan', {
             subscriptionId: String(route.params?.subscriptionId || student?.id || ''),
             studentName: nameOf(student),
@@ -389,6 +473,25 @@ export function CoachStudentDetailScreen() {
           planName={planData?.instance?.name}
           onPlanCleared={() => void load()}
         />
+      ) : null}
+      {!loading && !error && student ? (
+        <>
+          <SubscriptionWeeksCard
+            subscriptionId={String(route.params?.subscriptionId || student?.id || '')}
+            priorWeeks={Number(student?.prior_training_weeks || 0)}
+            subscribedWeeks={Number(student?.subscribed_weeks || 0)}
+            onSaved={({ priorWeeks, subscribedWeeks }) => setStudent((current: any) => (current ? { ...current, prior_training_weeks: priorWeeks, subscribed_weeks: subscribedWeeks } : current))}
+            refundOrderId={refundableOrderId(student)}
+            onRefunded={() => setStudent((current: any) => (current ? { ...current, status: 'cancelled', order_id: null, last_payment_order_id: null, payment_method: null } : current))}
+          />
+          <StudentPlanHistoryCard
+            studentId={String(route.params?.studentId || student?.student_id || '')}
+            currentInstanceId={planData?.instance?.id ? String(planData.instance.id) : null}
+            onOpenCurrent={() => navigation.navigate('CoachStudentPlan', { subscriptionId: String(route.params?.subscriptionId || student?.id || ''), studentName: nameOf(student) })}
+            onOpenHistory={(instanceId) => navigation.navigate('CoachStudentPlan', { subscriptionId: String(route.params?.subscriptionId || student?.id || ''), studentName: nameOf(student), instanceId })}
+          />
+          <StudentAutomationCard subscriptionId={String(route.params?.subscriptionId || student?.id || '')} />
+        </>
       ) : null}
     </ScreenShell>
   )
@@ -409,6 +512,7 @@ function StudentDetailBody({
   onOpenMessages,
   onReplyFeedback,
   onEditPlan,
+  onQuestionnaireSaved,
 }: {
   student: any
   planData: any
@@ -424,13 +528,9 @@ function StudentDetailBody({
   onOpenMessages: () => void
   onReplyFeedback: (feedback: any) => void
   onEditPlan: (focusDay?: number) => void
+  onQuestionnaireSaved: (next: any[]) => void
 }) {
   const profile = student?.profile || {}
-  const answers = Array.isArray(student?.subscribe_data)
-    ? student.subscribe_data
-    : Array.isArray(student?.subscribe_data?.answers)
-      ? student.subscribe_data.answers
-      : []
   return (
     <>
       <Card style={styles.detailTop}>
@@ -495,12 +595,12 @@ function StudentDetailBody({
         <InfoRow label="上传/点评" value={`${Number(student?.reviewed || 0)} / ${Number(student?.uploaded || 0)}`} />
       </Card>
 
-      <Card style={styles.infoCard}>
-        <Text style={styles.cardTitle}>问卷摘要</Text>
-        {answers.length > 0 ? answers.slice(0, 8).map((item: any, index: number) => (
-          <InfoRow key={`${item?.question || index}`} label={String(item?.question || `问题 ${index + 1}`)} value={String(item?.answer || item?.userSelection || item?.userSelections?.join?.('、') || '-')} />
-        )) : <Text style={styles.emptyText}>暂无问卷答案</Text>}
-      </Card>
+      <CoachStudentQuestionnaireCard
+        subscriptionId={String(student?.id || '')}
+        coachId={String(student?.coach_id || '')}
+        subscribeData={student?.subscribe_data}
+        onSaved={onQuestionnaireSaved}
+      />
 
       <Card style={styles.infoCard}>
         <View style={styles.cardTitleRow}>
@@ -614,6 +714,17 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
   },
+  aiBulkButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.brand, backgroundColor: colors.surface },
+  aiBulkText: { color: colors.brand, fontSize: 14, fontWeight: '700' },
+  aiRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs },
+  bulkToggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  bulkBox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm, borderWidth: 2, borderColor: colors.border },
+  bulkBoxChecked: { borderColor: colors.brand, backgroundColor: colors.brand },
+  bulkCheck: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  bulkLabel: { color: colors.textSecondary, fontSize: 13 },
+  aiButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.brand },
+  aiButtonDisabled: { opacity: 0.5 },
+  aiButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   sortRow: {
     flexDirection: 'row',
     gap: spacing.xs,

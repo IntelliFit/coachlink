@@ -13,13 +13,21 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
 import * as Clipboard from 'expo-clipboard'
 import * as ImagePicker from 'expo-image-picker'
+import { uploadFile } from '../../fileUpload'
+import { COMPATIBLE_IMAGE_OPTIONS } from '../../imagePickerOptions'
 import { API_BASE_URL, APP_VERSION } from '../../config'
-import { apiClient, fetchWithTimeout, getStoredToken, persistSession } from '../../api'
+import { apiClient, getStoredToken, persistSession } from '../../api'
 import { IconFont, type IconFontName } from '../../components/IconFont'
+import { ImagePreviewModal } from '../../components/ImagePreviewModal'
+import { VideoPlayerModal, type VideoPlayerTarget } from '../../components/VideoPlayerModal'
+import { isLikelyVideoUrl, resolveImageThumbnailUrl, resolveMediaUrl } from '../../mediaUrl'
 import { useAuth } from '../../providers/AuthProvider'
 import { useMessageCenter } from '../../providers/MessageCenterProvider'
 import { colors, radius, spacing } from '../../theme'
 import { PlanDaysEditor } from '../plan/PlanDaysEditor'
+import { PlanAdvancedTools, PlanImportButtons } from '../plan/PlanAdvancedTools'
+import { PlanOneRMPanel } from '../plan/PlanOneRMPanel'
+import { buildOneRMIndex } from '../plan/model/planStrength'
 import { createDefaultPlanDays } from '../plan/model/planEditor'
 import { finalizeDays, findUnpickedStrength } from '../plan/model/planDayOps'
 import { ensureSetUids } from '../plan/model/planSetFields'
@@ -2086,7 +2094,10 @@ export function ActionDetailScreen() {
   const route = useRouteAny<'ActionDetail'>()
   const id = route.params?.id || route.params?.action?.id
   const source = route.params?.source || 'mine'
+  const coachNote = String(route.params?.coachNote || '').trim()
   const [action, setAction] = useState<ActionDetailData | null>(route.params?.action || null)
+  const [previewImage, setPreviewImage] = useState('')
+  const [videoTarget, setVideoTarget] = useState<VideoPlayerTarget | null>(null)
   const [loading, setLoading] = useState(!route.params?.action && Boolean(id))
   const [error, setError] = useState('')
 
@@ -2115,7 +2126,11 @@ export function ActionDetailScreen() {
 
   const positions = normalizeStringList(action?.positions)
   const attrs = normalizeStringList(action?.attrs)
-  const videoUrl = actionVideoUrl(action)
+  const videoUrl = resolveMediaUrl(actionVideoUrl(action), API_BASE_URL)
+  const referenceImageUrl = resolveMediaUrl(action?.reference_image_url, API_BASE_URL)
+  const playableVideo = isLikelyVideoUrl(videoUrl)
+  const hasDetail = Boolean(asText(action?.detail || action?.description, ''))
+  const hasMaterial = hasDetail || Boolean(videoUrl) || Boolean(referenceImageUrl)
 
   async function copyVideoUrl() {
     if (!videoUrl) {
@@ -2131,7 +2146,7 @@ export function ActionDetailScreen() {
   }
 
   return (
-    <ScreenShell title={actionName(action)} subtitle={source === 'coach' ? '教练动作详情' : source === 'public' ? '公共动作详情' : '我的动作详情'} onBack={navigation.goBack}>
+    <ScreenShell title={actionName(action)} subtitle={source === 'training' ? '动作讲解' : source === 'coach' ? '教练动作详情' : source === 'public' ? '公共动作详情' : '我的动作详情'} onBack={navigation.goBack}>
       {loading ? <LoadingState title="正在加载动作详情" /> : null}
       {!loading && error ? <EmptyState title="加载失败" desc={error} icon="icon-wenhao" /> : null}
       {!loading && !error && !action ? (
@@ -2143,10 +2158,27 @@ export function ActionDetailScreen() {
             <Text style={local.actionDetailTitle}>{actionName(action)}</Text>
             <Text style={local.typePill}>{actionTypeLabel(action.type)}</Text>
           </View>
-          <View style={local.detailSection}>
-            <Text style={local.sectionTitle}>动作说明</Text>
-            <Text style={local.itemMeta}>{actionDetailText(action)}</Text>
-          </View>
+          {coachNote ? (
+            <View style={local.coachNoteBox}>
+              <Text style={local.sectionTitle}>本次教练要求</Text>
+              <Text selectable style={local.itemMeta}>{coachNote}</Text>
+            </View>
+          ) : null}
+          {source === 'training' && !hasMaterial ? <Text style={local.itemMeta}>这个动作暂未提供讲解素材。</Text> : null}
+          {referenceImageUrl ? (
+            <View style={local.detailSection}>
+              <Text style={local.sectionTitle}>参考图</Text>
+              <Pressable accessibilityRole="imagebutton" accessibilityLabel="查看参考图大图" onPress={() => setPreviewImage(referenceImageUrl)}>
+                <Image source={{ uri: resolveImageThumbnailUrl(action.reference_image_url, API_BASE_URL, 960) }} resizeMode="contain" style={local.referenceImage} accessibilityIgnoresInvertColors />
+              </Pressable>
+            </View>
+          ) : null}
+          {source !== 'training' || hasDetail ? (
+            <View style={local.detailSection}>
+              <Text style={local.sectionTitle}>动作说明</Text>
+              <Text style={local.itemMeta}>{actionDetailText(action)}</Text>
+            </View>
+          ) : null}
           {positions.length > 0 ? (
             <View style={local.detailSection}>
               <Text style={local.sectionTitle}>训练部位</Text>
@@ -2165,14 +2197,18 @@ export function ActionDetailScreen() {
           ) : null}
           {videoUrl ? (
             <View style={local.detailSection}>
-              <Text style={local.sectionTitle}>演示视频链接</Text>
+              <Text style={local.sectionTitle}>演示素材</Text>
+              <Text style={local.itemMeta}>{playableVideo ? '可直接播放动作演示视频' : '当前演示素材为外部链接，可先复制后查看'}</Text>
               <Text selectable style={local.videoUrl}>{videoUrl}</Text>
-              <SolidButton label="复制视频链接" variant="secondary" onPress={copyVideoUrl} />
+              {playableVideo ? <SolidButton label="播放演示" onPress={() => setVideoTarget({ url: videoUrl, title: actionName(action) })} /> : null}
+              <SolidButton label="复制地址" variant="secondary" onPress={copyVideoUrl} />
             </View>
           ) : null}
           {source === 'mine' ? <SolidButton label="编辑动作" onPress={() => navigation.navigate('ActionEdit', { id: action.id || id, action })} /> : null}
         </Card>
       ) : null}
+      <ImagePreviewModal urls={referenceImageUrl ? [referenceImageUrl] : []} initialUrl={previewImage || null} onClose={() => setPreviewImage('')} />
+      <VideoPlayerModal target={videoTarget} onClose={() => setVideoTarget(null)} />
     </ScreenShell>
   )
 }
@@ -2662,6 +2698,7 @@ export function PlanLibraryScreen() {
 
 export function PlanEditScreen() {
   const navigation = useNavigationAny()
+  const { user } = useAuth()
   const route = useRouteAny<'PlanEdit'>()
   const id = route.params?.id
   const autoGenerate = route.params?.autoGenerate === true
@@ -2677,6 +2714,9 @@ export function PlanEditScreen() {
   const [loading, setLoading] = useState(false)
   const [bootLoading, setBootLoading] = useState(Boolean(id))
   const [parsing, setParsing] = useState(false)
+  const [planOneRMConfig, setPlanOneRMConfig] = useState<Record<string, number>>({})
+  const [planOneRMIndex, setPlanOneRMIndex] = useState<Record<string, number>>({})
+  const [planBodyWeight, setPlanBodyWeight] = useState<number | null>(null)
   const [actions, setActions] = useState<PlanActionLite[]>([])
 
   async function loadInitial() {
@@ -2709,6 +2749,24 @@ export function PlanEditScreen() {
   useEffect(() => {
     void loadInitial()
   }, [id])
+
+  // 负重参考和自动算重：读个人 1RM 和体重，失败时只是不显示算重结果
+  useEffect(() => {
+    if (!user?.id) return
+    let alive = true
+    requestMaybe<any>('/api/student/get-current-1rm', { body: { preferPR: true } })
+      .then((data) => { if (alive) setPlanOneRMIndex(buildOneRMIndex(pickList(data, ['records']) as any[])) })
+      .catch(() => undefined)
+    requestMaybe<any>('/api/user/get-student-profile', { body: { userId: user.id } })
+      .then((data) => {
+        const weight = Number(data?.profile?.weight || 0)
+        if (alive) setPlanBodyWeight(Number.isFinite(weight) && weight > 0 ? weight : null)
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [user?.id])
 
   useEffect(() => {
     if (bootLoading || id || !autoGenerate || autoGenerateStartedRef.current) return
@@ -2796,7 +2854,15 @@ export function PlanEditScreen() {
           <SolidButton label="AI 草稿" variant="secondary" loading={parsing} onPress={generateDraft} />
           <SolidButton label="解析文本" loading={parsing} onPress={parseImportText} />
         </View>
+        <PlanImportButtons onText={setImportText} />
       </Card>
+      <PlanOneRMPanel
+        days={days as unknown as PlanTrainingDay[]}
+        actions={actions as unknown as PlanActionOption[]}
+        oneRMConfig={planOneRMConfig}
+        oneRMIndex={planOneRMIndex}
+        onChange={setPlanOneRMConfig}
+      />
       <Card>
         <Text style={local.sectionTitle}>训练日</Text>
         <Text style={local.itemMeta}>按周安排训练日和休息日，点某一天编辑动作、组数和强度。</Text>
@@ -2805,6 +2871,16 @@ export function PlanEditScreen() {
           onChange={(next) => setDays(next as unknown as PlanTrainingDayDetail[])}
           actions={actions as unknown as PlanActionOption[]}
           mode="student"
+          strengthContext={{ oneRMConfig: planOneRMConfig, oneRMIndex: planOneRMIndex, bodyWeight: planBodyWeight }}
+        />
+        <PlanAdvancedTools
+          days={days as unknown as PlanTrainingDay[]}
+          description={description}
+          actions={actions as unknown as PlanActionOption[]}
+          onApply={(next) => {
+            setDays(ensureSetUids(next.days) as unknown as PlanTrainingDayDetail[])
+            if (next.description !== undefined) setDescription(next.description)
+          }}
         />
         <SolidButton label={id ? '保存更新' : '保存计划'} loading={loading} disabled={!name.trim() || days.length === 0} onPress={save} />
       </Card>
@@ -5086,6 +5162,7 @@ export function FeedbackScreen() {
       quality: 0.82,
       allowsMultipleSelection: true,
       selectionLimit: 4 - imageUrls.length,
+      ...COMPATIBLE_IMAGE_OPTIONS,
     })
     if (result.canceled) return
     setUploading(true)
@@ -5093,17 +5170,8 @@ export function FeedbackScreen() {
       const token = await getStoredToken()
       for (const [index, asset] of result.assets.entries()) {
         if (asset.fileSize && asset.fileSize > 8 * 1024 * 1024) throw new Error(`第 ${index + 1} 张截图超过 8MB`)
-        const type = asset.mimeType || 'image/jpeg'
-        const ext = type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
-        const formData = new FormData()
-        formData.append('file', { uri: asset.uri, name: asset.fileName || `feedback-${Date.now()}-${index}.${ext}`, type } as any)
-        const response = await fetchWithTimeout(`${API_BASE_URL}/api/feedback/upload-image`, {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          body: formData,
-        })
-        const payload = await response.json().catch(() => null)
-        if (!response.ok || !payload?.success || !payload?.data?.url) throw new Error(payload?.message || '截图上传失败')
+        const { ok, json: payload } = await uploadFile('/api/feedback/upload-image', { uri: asset.uri, mimeType: asset.mimeType || 'image/jpeg' })
+        if (!ok || !payload?.success || !payload?.data?.url) throw new Error(payload?.message || '截图上传失败')
         setImageUrls((prev) => [...prev, String(payload.data.url)].slice(0, 4))
       }
     } catch (error) {
@@ -6061,6 +6129,18 @@ const local = StyleSheet.create({
   },
   detailSection: {
     gap: spacing.xs,
+  },
+  coachNoteBox: {
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+  },
+  referenceImage: {
+    width: '100%',
+    height: 240,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
   },
   typePill: {
     overflow: 'hidden',

@@ -4,11 +4,12 @@ import { buildPlannedSetPreviews } from '@coachlink/core/src/planSetPrescription
 import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type TrainingIntent } from '@coachlink/core/src/trainingAccess'
 import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation'
 import { formatRestMinutes } from '@coachlink/core/src/restDisplay'
+import { weightUnitLabel, type SetWeightUnit } from '@coachlink/core/src/weightUnit'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import * as ImagePicker from 'expo-image-picker'
+import { uploadFile } from '../../fileUpload'
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { apiClient, fetchWithTimeout, getStoredToken } from '../../api'
-import { API_BASE_URL } from '../../config'
+import { apiClient } from '../../api'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
 import { IconFont } from '../../components/IconFont'
@@ -19,6 +20,8 @@ import { useAuth } from '../../providers/AuthProvider'
 import { executionSnapshotKey, readExecutionSnapshot, removeExecutionSnapshot, syncTrainingExecutionToCache } from './trainingCache'
 import { removeExecutionFromTodayTrainingCache } from './todayTrainingCache'
 import { RecordCompletionSheet } from './RecordCompletionSheet'
+import { WEIGHT_UNITS, convertDraftWeight, initialWeightDraft, weightSubmission } from './weightUnitDraft'
+import { planActionCoachNote } from './planActionNote'
 import {
   displayLoad,
   normalizeExecution,
@@ -33,7 +36,7 @@ import {
 } from './restTimerCache'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TrainingExecution'>
-type DraftValue = { weight: string; reps: string; rpe: string; notes: string; isPr: boolean; videoUrl: string; videoId?: string }
+type DraftValue = { weight: string; weightUnit: SetWeightUnit; reps: string; rpe: string; notes: string; isPr: boolean; videoUrl: string; videoId?: string }
 type ItemDraftValue = { content: string; distance: string; duration: string; notes: string }
 type PickerAction = { id?: string; name: string; type?: string; source: 'mine' | 'public' }
 
@@ -70,6 +73,19 @@ function buildPlanPreview(planData: any, dayIndex: number) {
     action_executions: actionExecutions,
     execution_notice: instance?.execution_notice || instance?.executionNotice,
   })
+}
+
+function ActionTeachingRow({ note, onPress }: { note: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={note ? `查看动作要点，教练要求：${note}` : '查看动作要点'} onPress={onPress} style={styles.teachingRow}>
+      <IconFont name="icon-dumbbell" color={colors.brand} size={16} />
+      <View style={styles.teachingMain}>
+        <Text style={styles.teachingTitle}>动作要点与示范</Text>
+        {note ? <Text style={styles.teachingNote} numberOfLines={2}>教练要求：{note}</Text> : null}
+      </View>
+      <IconFont name="icon-right-arrow" color={colors.textTertiary} size={14} />
+    </Pressable>
+  )
 }
 
 function formatRestTime(seconds: number) {
@@ -111,6 +127,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   const [drafts, setDrafts] = useState<Record<string, DraftValue>>({})
   const [itemDrafts, setItemDrafts] = useState<Record<number, ItemDraftValue>>({})
   const [planActions, setPlanActions] = useState<Record<string, any>>({})
+  const [planDays, setPlanDays] = useState<any[]>([])
   const [feedbackContent, setFeedbackContent] = useState('')
   const [feedbackDifficulty, setFeedbackDifficulty] = useState(3)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
@@ -185,6 +202,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         const planData = pickData(planRes) || {}
         if (!isCurrent()) return
         setPlanActions(planData.actions || {})
+        setPlanDays(Array.isArray(planData.instance?.training_days) ? planData.instance.training_days : [])
         setPlanStartDate(String(planData.instance?.start_date || planData.instance?.created_at || ''))
         setCanStartPreview(canStartPlanDay({ trainingDays: planData.instance?.training_days || [],
           progressDayIndex: Number(planData.recommendedDayIndex || 1), targetDayIndex: Number(params.dayIndex || 1),
@@ -321,22 +339,47 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     if (execution?.id) void clearRestTimerDeadline(userId, String(execution.id))
   }
 
+  function coachNoteFor(action: any) {
+    return isImpromptu ? '' : planActionCoachNote(planDays, Number(params.dayIndex || 1), action, action.actionIndex)
+  }
+
+  /** 只读跳转：查看讲解不会开始训练或计时（与小程序 openActionTeaching 一致）。 */
+  function openActionTeaching(action: any) {
+    const actionId = String(action.actionId || '')
+    if (!actionId) {
+      Alert.alert('暂无动作详情')
+      return
+    }
+    const detail = planActions[actionId] || {}
+    navigation.navigate('ActionDetail', {
+      id: actionId,
+      action: { ...detail, id: actionId, name: action.actionName || detail.name, url: detail.url || detail.video_url },
+      coachNote: coachNoteFor(action),
+      source: 'training',
+    })
+  }
+
   function setDraft(actionIndex: number, setIndex: number, patch: Partial<DraftValue>) {
     const key = draftKey(actionIndex, setIndex)
     setDrafts((current) => {
-      const base: DraftValue = current[key] || { weight: '', reps: '', rpe: '', notes: '', isPr: false, videoUrl: '' }
+      // 第一次改某一项时以预填值为底，否则先改次数会把预填的计划重量清空
+      const base: DraftValue = current[key] || initialDraft(actionIndex, setIndex)
       return { ...current, [key]: { ...base, ...patch } }
     })
   }
 
   function getDraft(actionIndex: number, setIndex: number, set: any): DraftValue {
-    const existing = drafts[draftKey(actionIndex, setIndex)]
-    if (existing) return existing
+    return drafts[draftKey(actionIndex, setIndex)] || initialDraft(actionIndex, setIndex, set)
+  }
+
+  function initialDraft(actionIndex: number, setIndex: number, knownSet?: any): DraftValue {
     const action = execution?.action_executions?.find((item: any) => item.actionIndex === actionIndex)
+    const set = knownSet ?? action?.sets?.find((item: any) => item.setIndex === setIndex)
+    if (!set) return { weight: '', weightUnit: 'kg', reps: '', rpe: '', notes: '', isPr: false, videoUrl: '' }
     const timed = isTimedTrainingSet(set, action)
     const seconds = getActualDurationSeconds(set) ?? (set.status === 'completed' ? null : getPlannedDurationSeconds(set, action))
     return {
-      weight: set.actualWeight != null ? String(set.actualWeight) : set.plannedWeight != null ? String(set.plannedWeight).replace(/[^\d.-]/g, '') : '',
+      ...initialWeightDraft(set),
       reps: timed ? (seconds === null ? '' : String(seconds)) : set.actualReps != null ? String(set.actualReps) : set.plannedReps != null ? String(set.plannedReps).replace(/[^\d.-]/g, '') : '',
       rpe: set.rpe != null ? String(set.rpe) : '',
       notes: String(set.notes || ''),
@@ -362,23 +405,16 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     }
     setUploadingVideoKey(key)
     try {
-      const token = await getStoredToken()
-      const type = asset.mimeType || 'video/mp4'
-      const ext = type.split('/')[1] || 'mp4'
-      const formData = new FormData()
-      formData.append('file', { uri: asset.uri, name: asset.fileName || `training-set-${Date.now()}.${ext}`, type } as any)
-      formData.append('executionId', String(execution.id))
-      if (action.actionId) formData.append('actionId', String(action.actionId))
-      formData.append('actionIndex', String(action.actionIndex))
-      formData.append('setNumber', String(set.setNumber))
       const endpoint = isImpromptu ? '/api/impromptu/upload-set-video' : '/api/execution/upload-set-video'
-      const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: formData,
-      }, 180_000)
-      const payload = await response.json().catch(() => null)
-      if (!response.ok || !payload?.success || !payload?.data?.video_url) throw new Error(payload?.message || '视频上传失败')
+      const { ok, json: payload } = await uploadFile(endpoint, { uri: asset.uri, mimeType: asset.mimeType || 'video/mp4' }, {
+        parameters: {
+          executionId: String(execution.id),
+          ...(action.actionId ? { actionId: String(action.actionId) } : {}),
+          actionIndex: String(action.actionIndex),
+          setNumber: String(set.setNumber),
+        },
+      })
+      if (!ok || !payload?.success || !payload?.data?.video_url) throw new Error(payload?.message || '视频上传失败')
       setDraft(action.actionIndex, set.setIndex, { videoUrl: String(payload.data.video_url), videoId: String(payload.data.id || '') })
     } catch (error) {
       Alert.alert('视频上传失败', error instanceof Error ? error.message : '请稍后重试')
@@ -500,7 +536,8 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     const setIndex = set.setIndex
     if (!execution?.id || !canEditRecords) return
     const draft = getDraft(actionIndex, setIndex, set)
-    const actualWeight = parseNumberInput(draft.weight)
+    const weightFields = weightSubmission(draft.weight, draft.weightUnit)
+    const actualWeight = weightFields.actualWeight
     const actualReps = parseNumberInput(draft.reps)
     const timed = isTimedTrainingSet(set, action)
     if (actualReps == null || actualReps <= 0) {
@@ -521,12 +558,17 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         setIndex,
         actionId: action.actionId,
         actualWeight: timed ? null : actualWeight,
+        // actualWeight 始终是 kg；磅另带单位和学员输入的数字（与小程序一致）
+        ...(timed || !weightFields.weightUnit ? {} : { weightUnit: weightFields.weightUnit, weightInput: weightFields.weightInput }),
         actualReps: timed ? null : actualReps,
         actualDuration: timed ? actualReps : undefined,
         notes: draft.notes.trim() || undefined,
+        // 清空 RPE 要传 null，否则服务端保留旧值（与小程序一致）
+        rpe: parseNumberInput(draft.rpe),
       }
-      if (!isImpromptu) {
-        body.rpe = parseNumberInput(draft.rpe)
+      if (isImpromptu) {
+        body.isPR = draft.isPr
+      } else {
         body.is_pr = draft.isPr
         body.has_video = Boolean(draft.videoUrl.trim())
       }
@@ -537,6 +579,8 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         : execution
       const next = patchCompletedSet(responseExecution, actionIndex, setIndex, {
         actualWeight: body.actualWeight,
+        weightUnit: body.weightUnit ?? null,
+        weightInput: body.weightInput ?? null,
         actualReps: body.actualReps,
         actualDuration: body.actualDuration,
         rpe: body.rpe,
@@ -560,11 +604,11 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     }
   }
 
-  function patchCompletedSet(current: any, actionIndex: number, setIndex: number, values: { actualWeight: number | null; actualReps: number | null; actualDuration?: number; rpe?: number | null; notes?: string; isPr?: boolean; isAutoPr?: boolean; e1rm?: number | null; videoUrl?: string; completedSets?: number; totalSets?: number }) {
+  function patchCompletedSet(current: any, actionIndex: number, setIndex: number, values: { actualWeight: number | null; weightUnit?: SetWeightUnit | null; weightInput?: number | null; actualReps: number | null; actualDuration?: number; rpe?: number | null; notes?: string; isPr?: boolean; isAutoPr?: boolean; e1rm?: number | null; videoUrl?: string; completedSets?: number; totalSets?: number }) {
     const nextActions = current.action_executions.map((action: any) => {
       if (action.actionIndex !== actionIndex) return action
       const nextSets = action.sets.map((item: any) => item.setIndex === setIndex
-        ? { ...item, status: 'completed', actualWeight: values.actualWeight, actualReps: values.actualReps, actualDuration: values.actualDuration ?? item.actualDuration, rpe: values.rpe ?? item.rpe, notes: values.notes ?? item.notes, isPr: values.isPr ?? item.isPr, isAutoPr: values.isAutoPr ?? item.isAutoPr, e1rm: values.e1rm === null ? null : values.e1rm ?? item.e1rm, hasVideo: Boolean(values.videoUrl || item.videoUrl), videoUrl: values.videoUrl || item.videoUrl }
+        ? { ...item, status: 'completed', actualWeight: values.actualWeight, weightUnit: values.weightUnit ?? null, weightInput: values.weightInput ?? null, actualReps: values.actualReps, actualDuration: values.actualDuration ?? item.actualDuration, rpe: values.rpe !== undefined ? values.rpe : item.rpe, notes: values.notes ?? item.notes, isPr: values.isPr ?? item.isPr, isAutoPr: values.isAutoPr ?? item.isAutoPr, e1rm: values.e1rm === null ? null : values.e1rm ?? item.e1rm, hasVideo: Boolean(values.videoUrl || item.videoUrl), videoUrl: values.videoUrl || item.videoUrl }
         : item)
       return { ...action, sets: nextSets }
     })
@@ -996,6 +1040,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
 
         return (
           <SectionCard key={`${action.actionIndex}-${action.actionName}`} title={action.actionName} description={`${action.sets.filter((set: any) => set.status === 'completed').length}/${action.sets.length} 组已完成`}>
+            <ActionTeachingRow note={coachNoteFor(action)} onPress={() => openActionTeaching(action)} />
             {action.sets.map((set: any) => {
               const draft = getDraft(action.actionIndex, set.setIndex, set)
               const completed = set.status === 'completed'
@@ -1020,14 +1065,36 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                   <Text style={styles.setPlan}>计划 {isTimedTrainingSet(set, action) ? `保持 ${getPlannedDurationSeconds(set, action) ?? '-'} 秒` : displayLoad(set.plannedWeight, set.plannedReps)}{formatRestMinutes(set.plannedRestSeconds) ? ` · 休息 ${formatRestMinutes(set.plannedRestSeconds)}` : ''}</Text>
                   {completed && <Text style={styles.setPlan}>{formatRecordedTrainingSet(set, action)}</Text>}
                   <View style={styles.inputs}>
-                    {!isTimedTrainingSet(set, action) && <TextInput accessibilityLabel={`第 ${set.setNumber} 组外加重量`} value={draft.weight} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { weight: value })} keyboardType="decimal-pad" placeholder="外加重量 kg" placeholderTextColor={colors.textMuted} style={styles.input} />}
+                    {!isTimedTrainingSet(set, action) && <TextInput accessibilityLabel={`第 ${set.setNumber} 组外加重量`} value={draft.weight} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { weight: value })} keyboardType="decimal-pad" placeholder={`外加重量 ${weightUnitLabel(draft.weightUnit)}`} placeholderTextColor={colors.textMuted} style={styles.input} />}
                     <TextInput accessibilityLabel={`第 ${set.setNumber} 组${isTimedTrainingSet(set, action) ? '保持秒数' : '次数'}`} value={draft.reps} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { reps: value })} keyboardType="number-pad" placeholder={isTimedTrainingSet(set, action) ? '保持秒数' : '次数'} placeholderTextColor={colors.textMuted} style={styles.input} />
-                    {!isImpromptu ? <TextInput accessibilityLabel={`第 ${set.setNumber} 组 RPE`} value={draft.rpe} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { rpe: value })} keyboardType="decimal-pad" placeholder="RPE" placeholderTextColor={colors.textMuted} style={styles.input} /> : null}
+                    <TextInput accessibilityLabel={`第 ${set.setNumber} 组 RPE`} value={draft.rpe} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { rpe: value })} keyboardType="decimal-pad" placeholder="RPE" placeholderTextColor={colors.textMuted} style={styles.input} />
                     <Pressable accessibilityRole="button" accessibilityLabel={`${completed ? '保存' : '完成'}第 ${set.setNumber} 组`} accessibilityState={{ disabled: !canEditSet || uploadingVideo, busy: syncing || uploadingVideo }} disabled={!canEditSet || uploadingVideo} onPress={() => completeSet(action, set)} style={[styles.doneButton, (!canEditSet || uploadingVideo) && styles.doneButtonDisabled]}>
                       <Text style={styles.doneButtonText}>{completed ? '保存' : '完成'}</Text>
                     </Pressable>
                   </View>
-                  {!isTimedTrainingSet(set, action) && <Pressable accessibilityRole="button" disabled={!canEditSet} onPress={() => setDraft(action.actionIndex, set.setIndex, { weight: '0' })} style={styles.setMoreButton}><Text style={styles.setMoreText}>{draft.weight === '0' ? '已选自重 / 无负重' : '自重 / 无负重'}</Text></Pressable>}
+                  {!isTimedTrainingSet(set, action) && (
+                    <View style={styles.loadRow}>
+                      <View style={styles.unitSwitch} accessibilityRole="radiogroup" accessibilityLabel={`第 ${set.setNumber} 组重量单位`}>
+                        {WEIGHT_UNITS.map((unit) => {
+                          const active = draft.weightUnit === unit
+                          return (
+                            <Pressable
+                              key={unit}
+                              accessibilityRole="radio"
+                              accessibilityLabel={unit === 'lbs' ? '磅' : '千克'}
+                              accessibilityState={{ checked: active, disabled: !canEditSet }}
+                              disabled={!canEditSet || active}
+                              onPress={() => setDraft(action.actionIndex, set.setIndex, { weightUnit: unit, weight: convertDraftWeight(draft.weight, draft.weightUnit, unit) })}
+                              style={[styles.unitOption, active && styles.unitOptionActive]}
+                            >
+                              <Text style={[styles.unitOptionText, active && styles.unitOptionTextActive]}>{weightUnitLabel(unit)}</Text>
+                            </Pressable>
+                          )
+                        })}
+                      </View>
+                      <Pressable accessibilityRole="button" disabled={!canEditSet} onPress={() => setDraft(action.actionIndex, set.setIndex, { weight: '0' })} style={[styles.setMoreButton, styles.flexButton]}><Text style={styles.setMoreText}>{draft.weight === '0' ? '已选自重 / 无负重' : '自重 / 无负重'}</Text></Pressable>
+                    </View>
+                  )}
                   <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? '收起' : '展开'}第 ${set.setNumber} 组详细记录`} accessibilityState={{ expanded }} onPress={() => setExpandedSetKey(expanded ? '' : setKey)} style={styles.setMoreButton}>
                     <Text style={styles.setMoreText}>{expanded ? '收起详细记录' : '备注、PR 与组视频'}</Text>
                     <IconFont name={expanded ? 'icon-left' : 'icon-right-arrow'} color={colors.brand} size={14} />
@@ -1046,7 +1113,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                         style={styles.setNotesInput}
                       />
                       <Text style={styles.setNotesCount}>{draft.notes.length}/500</Text>
-                      {!isImpromptu ? (
+                      {(
                         <Pressable accessibilityRole="checkbox" accessibilityLabel={`第 ${set.setNumber} 组标记为进步组`} accessibilityState={{ checked: draft.isPr, disabled: !canEditSet }} disabled={!canEditSet} onPress={() => setDraft(action.actionIndex, set.setIndex, { isPr: !draft.isPr })} style={[styles.prToggle, draft.isPr && styles.prToggleActive, !canEditSet && styles.doneButtonDisabled]}>
                           <IconFont name="icon-star" color={draft.isPr ? '#FFFFFF' : colors.brand} size={16} />
                           <View style={styles.prToggleMain}>
@@ -1054,7 +1121,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
                             <Text style={[styles.prToggleHint, draft.isPr && styles.prToggleHintActive]}>自动 PR 仍由系统按估算 1RM 独立判断</Text>
                           </View>
                         </Pressable>
-                      ) : <Text style={styles.setHelper}>即兴训练会自动计算估算 1RM 和 PR，无需手动标记。</Text>}
+                      )}
                       {(
                         <>
                           <View style={styles.videoActionRow}>
@@ -1247,6 +1314,17 @@ const styles = StyleSheet.create({
   deleteText: { color: colors.danger, fontSize: 12, fontWeight: '600' },
   disabledText: { color: colors.textTertiary },
   inputs: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  loadRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  flexButton: { flex: 1 },
+  unitSwitch: { flexDirection: 'row', minHeight: 48, padding: 4, gap: 4, borderRadius: radius.pill, backgroundColor: colors.surfaceMuted },
+  unitOption: { minWidth: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xs, borderRadius: radius.pill },
+  unitOptionActive: { backgroundColor: colors.selected },
+  unitOptionText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  unitOptionTextActive: { color: colors.selectedText },
+  teachingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 48, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  teachingMain: { flex: 1, gap: 2 },
+  teachingTitle: { color: colors.text, fontSize: 13, fontWeight: '600' },
+  teachingNote: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   input: { flex: 1, minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.xs, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14 },
   doneButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
   doneButtonDisabled: { backgroundColor: colors.textMuted },

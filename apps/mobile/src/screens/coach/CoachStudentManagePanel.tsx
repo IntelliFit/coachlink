@@ -42,6 +42,7 @@ type Props = {
 export function CoachStudentManagePanel({ subscriptionId, studentId, coachId, planInstanceId, planName, onPlanCleared }: Props) {
   const [reviews, setReviews] = useState<CoachReview[]>([])
   const [draft, setDraft] = useState('')
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [clearing, setClearing] = useState(false)
 
@@ -60,8 +61,13 @@ export function CoachStudentManagePanel({ subscriptionId, studentId, coachId, pl
     if (!reviewText || !subscriptionId || !studentId || !coachId) return
     setSaving(true)
     try {
-      await safeRequest('/api/subscription/create-coach-reviews', { body: { subscriptionId, studentId, coachId, reviewText } })
+      if (editingReviewId) {
+        await safeRequest('/api/subscription/update-coach-reviews', { body: { reviewId: editingReviewId, reviewText } })
+      } else {
+        await safeRequest('/api/subscription/create-coach-reviews', { body: { subscriptionId, studentId, coachId, reviewText } })
+      }
       setDraft('')
+      setEditingReviewId(null)
       await loadReviews()
     } catch (saveError) {
       Alert.alert('保存失败', errorMessage(saveError, '请稍后重试'))
@@ -78,7 +84,13 @@ export function CoachStudentManagePanel({ subscriptionId, studentId, coachId, pl
         style: 'destructive',
         onPress: () => {
           void safeRequest('/api/subscription/delete-coach-reviews', { body: { reviewId: review.id } })
-            .then(() => setReviews((current) => current.filter((item) => item.id !== review.id)))
+            .then(() => {
+              setReviews((current) => current.filter((item) => item.id !== review.id))
+              if (editingReviewId === review.id) {
+                setEditingReviewId(null)
+                setDraft('')
+              }
+            })
             .catch((deleteError) => Alert.alert('删除失败', errorMessage(deleteError)))
         },
       },
@@ -124,7 +136,7 @@ export function CoachStudentManagePanel({ subscriptionId, studentId, coachId, pl
         <Text style={styles.title}>教练私密记录</Text>
         <Text style={styles.subtitle}>记录学员状态、伤病和沟通要点。注意：学员在个人资料的「教练评语」里也能看到这些记录。</Text>
         <TextInput
-          accessibilityLabel="新增记录"
+          accessibilityLabel={editingReviewId ? '编辑记录' : '新增记录'}
           value={draft}
           onChangeText={setDraft}
           placeholder="例如：右膝旧伤，深蹲控制在 90 度以内"
@@ -132,13 +144,17 @@ export function CoachStudentManagePanel({ subscriptionId, studentId, coachId, pl
           multiline
           style={styles.input}
         />
-        <SolidButton label="新增记录" loading={saving} disabled={!draft.trim()} onPress={() => void saveReview()} />
+        <SolidButton label={editingReviewId ? '更新记录' : '新增记录'} loading={saving} disabled={!draft.trim()} onPress={() => void saveReview()} />
+        {editingReviewId ? <SolidButton label="取消编辑" variant="secondary" disabled={saving} onPress={() => { setEditingReviewId(null); setDraft('') }} /> : null}
         {reviews.map((review) => (
           <View key={review.id} style={styles.reviewRow}>
             <View style={styles.reviewBody}>
               <Text style={styles.reviewText}>{review.review_text || '（空）'}</Text>
               <Text style={styles.reviewDate}>{dateText(review.created_at)}</Text>
             </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="编辑这条记录" onPress={() => { setEditingReviewId(review.id); setDraft(review.review_text || '') }} style={styles.deleteButton}>
+              <Text style={styles.editText}>编辑</Text>
+            </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="删除这条记录" onPress={() => deleteReview(review)} style={styles.deleteButton}>
               <Text style={styles.deleteText}>删除</Text>
             </Pressable>
@@ -158,6 +174,11 @@ export function CoachStudentManagePanel({ subscriptionId, studentId, coachId, pl
 }
 
 const styles = StyleSheet.create({
+  editText: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   card: {
     gap: spacing.xs,
   },

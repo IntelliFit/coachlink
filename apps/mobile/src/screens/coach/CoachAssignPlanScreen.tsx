@@ -14,6 +14,7 @@ import {
   SolidButton,
   safeRequest,
 } from '../me/MeShared'
+import { assignPlanSuccessMessage, buildAssignPlanRequest, type AssignPlanMode } from './assignPlanRequest'
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>
 
@@ -34,6 +35,11 @@ export function CoachAssignPlanScreen() {
   const [search, setSearch] = useState('')
   const [templates, setTemplates] = useState<any[]>([])
   const [currentPlan, setCurrentPlan] = useState<any | null>(null)
+  const [currentExecutions, setCurrentExecutions] = useState<Record<number, any>>({})
+  // 读不到当前计划时不能分配：会把「覆盖」误当成新建，按替换计费且丢掉已练天
+  const [currentPlanError, setCurrentPlanError] = useState('')
+  // 与小程序一致：已有当前计划时默认「覆盖当前计划」
+  const [mode, setMode] = useState<AssignPlanMode>('overwrite')
   const [selectedId, setSelectedId] = useState('')
   const [selectedDetail, setSelectedDetail] = useState<any | null>(null)
   const [startWeek, setStartWeek] = useState('1')
@@ -56,6 +62,10 @@ export function CoachAssignPlanScreen() {
       setTemplates(Array.isArray(templatesResult.value?.templates) ? templatesResult.value.templates : [])
       if (instanceResult.status === 'fulfilled') {
         setCurrentPlan(instanceResult.value?.instance || null)
+        setCurrentExecutions(instanceResult.value?.executionsByDayIndex || {})
+        setCurrentPlanError('')
+      } else {
+        setCurrentPlanError(instanceResult.reason instanceof Error ? instanceResult.reason.message : '当前计划读取失败')
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : '计划模板加载失败')
@@ -95,13 +105,19 @@ export function CoachAssignPlanScreen() {
 
   function requestAssign() {
     if (!selectedTemplate || selectedDays.length === 0 || assigning) return
+    if (currentPlanError) {
+      Alert.alert('请先重新加载', '学员当前计划没有读取成功，重新加载后再分配。')
+      return
+    }
     if (startPosition.index > selectedDays.length) {
       Alert.alert('起始位置无效', `该模板共 ${selectedDays.length} 天，请调整起始周和起始日。`)
       return
     }
-    const replaceMessage = currentPlan
-      ? `当前计划“${currentPlan.name || '未命名计划'}”会归档保留历史，新计划将成为当前计划。`
-      : '计划会立即成为该学员的当前计划。'
+    const replaceMessage = !currentPlan
+      ? '计划会立即成为该学员的当前计划。'
+      : mode === 'overwrite'
+        ? `用模板内容覆盖当前计划“${currentPlan.name || '未命名计划'}”。已经练过的天会保留，训练记录不受影响。`
+        : `当前计划“${currentPlan.name || '未命名计划'}”会归档保留历史，新阶段将成为当前计划。`
     Alert.alert(
       '确认分配计划',
       `${replaceMessage}\n\n从第 ${startPosition.week} 周第 ${startPosition.day} 天开始执行。`,
@@ -116,24 +132,18 @@ export function CoachAssignPlanScreen() {
     if (!selectedTemplate || assigning) return
     setAssigning(true)
     try {
-      const result = await safeRequest<any>('/api/plan-lib/create-instance', {
-        body: {
-          subscriptionId,
-          templateId: selectedTemplate.id,
-          name: selectedTemplate.name,
-          description: selectedTemplate.description || null,
-          executionNotice:
-            selectedTemplate.execution_notice || selectedTemplate.executionNotice || undefined,
-          tags: selectedTemplate.tags || null,
-          type: selectedTemplate.type || null,
-          suitableFor: selectedTemplate.suitable_for || selectedTemplate.suitableFor || null,
-          trainingDays: selectedDays,
-          startWeek: startPosition.week,
-          startDay: startPosition.day,
-        },
+      const request = buildAssignPlanRequest({
+        mode,
+        subscriptionId,
+        template: selectedTemplate,
+        templateDays: selectedDays,
+        startDayIndex: startPosition.index,
+        currentPlan,
+        executionsByDayIndex: currentExecutions,
       })
-      if (!result?.instance?.id) throw new Error('服务端未返回计划实例')
-      Alert.alert('分配成功', '新计划已同步到学员训练首页。', [
+      const result = await safeRequest<any>(request.endpoint, { body: request.body })
+      if (request.endpoint === '/api/plan-lib/create-instance' && !result?.instance?.id) throw new Error('服务端未返回计划实例')
+      Alert.alert('分配成功', assignPlanSuccessMessage(request), [
         { text: '完成', onPress: () => navigation.goBack() },
       ])
     } catch (assignError) {
@@ -149,13 +159,41 @@ export function CoachAssignPlanScreen() {
       subtitle={`为 ${route.params?.studentName || '学员'} 选择模板与起始训练日。`}
       onBack={() => navigation.goBack()}
     >
+      {currentPlanError ? (
+        <View style={styles.currentWarning}>
+          <IconFont name="icon-wenhao" color={colors.brand} size={20} />
+          <View style={styles.warningMain}>
+            <Text style={styles.warningTitle}>学员当前计划读取失败</Text>
+            <Text style={styles.warningText}>{currentPlanError}。重新加载成功后才能分配，避免误把当前计划当成不存在。</Text>
+            <SolidButton label="重新加载" variant="secondary" onPress={() => void load(search.trim())} />
+          </View>
+        </View>
+      ) : null}
+
       {currentPlan ? (
         <View style={styles.currentWarning}>
           <IconFont name="icon-a-Trainingplan" color={colors.brand} size={20} />
           <View style={styles.warningMain}>
             <Text style={styles.warningTitle}>当前计划：{currentPlan.name || '未命名计划'}</Text>
-            <Text style={styles.warningText}>重新分配会归档当前计划，历史训练记录不会删除。</Text>
+            <Text style={styles.warningText}>历史训练记录不会删除。可以覆盖当前计划，或另起一个新阶段。</Text>
           </View>
+        </View>
+      ) : null}
+
+      {currentPlan ? (
+        <View style={styles.modeRow}>
+          {([
+            { key: 'overwrite', title: '覆盖当前计划', desc: '保留已练过的天，之后的天换成模板内容' },
+            { key: 'new_instance', title: '新建阶段', desc: '当前计划归档，从选定的起点开始新计划' },
+          ] as const).map((item) => {
+            const active = mode === item.key
+            return (
+              <Pressable key={item.key} accessibilityRole="radio" accessibilityState={{ checked: active }} accessibilityLabel={`${item.title}，${item.desc}`} onPress={() => setMode(item.key)} style={[styles.modeCard, active && styles.modeCardActive]}>
+                <Text style={[styles.modeTitle, active && styles.modeTitleActive]}>{item.title}</Text>
+                <Text style={styles.modeDesc}>{item.desc}</Text>
+              </Pressable>
+            )
+          })}
         </View>
       ) : null}
 
@@ -208,7 +246,7 @@ export function CoachAssignPlanScreen() {
             </View>
           </View>
           <Text style={styles.positionHint}>将从计划第 {startPosition.index} 天开始 · 共 {selectedDays.length} 天</Text>
-          <SolidButton label={assigning ? '正在分配…' : currentPlan ? '替换并分配计划' : '分配计划'} loading={assigning} onPress={requestAssign} />
+          <SolidButton label={assigning ? '正在分配…' : !currentPlan ? '分配计划' : mode === 'overwrite' ? '覆盖当前计划' : '新建阶段'} loading={assigning} onPress={requestAssign} />
         </Card>
       ) : null}
     </ScreenShell>
@@ -220,6 +258,12 @@ const styles = StyleSheet.create({
   warningMain: { flex: 1, gap: 4 },
   warningTitle: { color: colors.brand, fontSize: 14, fontWeight: '700' },
   warningText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  modeRow: { flexDirection: 'row', gap: spacing.xs },
+  modeCard: { flex: 1, gap: 4, minHeight: 72, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  modeCardActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+  modeTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  modeTitleActive: { color: colors.brand },
+  modeDesc: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   searchCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   searchInput: { flex: 1, minHeight: 40, color: colors.text, fontSize: 14 },
   searchButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.brand },

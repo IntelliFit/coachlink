@@ -10,6 +10,7 @@ import { chatService } from '@/services/chatService'
 import { refundAlipayOrder } from '@/services/paymentService'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
+import { mergeQuestionnaireAnswers } from '@coachlink/core/src/questionnaireMerge'
 
 const FITNESS_LEVEL_LABEL_MAP: Record<string, string> = {
   beginner: '零基础',
@@ -204,6 +205,8 @@ export default function StudentDetailPage() {
   const [planHistorySource, setPlanHistorySource] = useState<PlanHistorySource>('all')
   const [automationOverride, setAutomationOverride] = useState<AutomationOverride>(AUTOMATION_DEFAULT_OVERRIDE)
   const [automationSaving, setAutomationSaving] = useState(false)
+  // 读取失败时不能保存：保存是整条覆盖，会把真实设置写成「继承全局」
+  const [automationLoadFailed, setAutomationLoadFailed] = useState(false)
 
   useEffect(() => {
     if (!subscriptionId) {
@@ -226,6 +229,7 @@ export default function StudentDetailPage() {
       ])
 
       setAutomationOverride(normalizeAutomationOverride((automationRes as any)?.override))
+      setAutomationLoadFailed(automationRes === null)
 
       if (studentRes?.student) {
         setStudent(studentRes.student)
@@ -306,31 +310,6 @@ export default function StudentDetailPage() {
       }))
     }
     return []
-  }
-
-  const getQuestionnaireKey = (item: QuestionnaireItem) => {
-    if (item.id) return `id:${item.id}`
-    if (item.type === 'tags' || item.type === 'times' || item.type === 'rm') return `type:${item.type}`
-    if (item.question) return `${item.type || 'text'}:${item.question}`
-    return String(item.type || 'text')
-  }
-
-  const mergeQuestionnaireAnswers = (
-    questions: QuestionnaireItem[],
-    existingAnswers: QuestionnaireItem[]
-  ) => {
-    const answerMap = new Map<string, QuestionnaireItem>()
-    existingAnswers.forEach((item) => answerMap.set(getQuestionnaireKey(item), item))
-    return questions.map((question) => {
-      const answer = answerMap.get(getQuestionnaireKey(question))
-      if (!answer) return question
-      if (question.type === 'tags') return { ...question, userSelections: answer.userSelections || [] }
-      if (question.type === 'rm') return { ...question, userInputs: answer.userInputs || {} }
-      if (question.type === 'times' || question.type === 'option' || question.type === 'text') {
-        return { ...question, userSelection: answer.userSelection ?? answer.answer ?? '' }
-      }
-      return { ...question, ...answer }
-    })
   }
 
   const getQuestionText = (item: QuestionnaireItem) => {
@@ -581,6 +560,10 @@ export default function StudentDetailPage() {
 
   const handleSaveAutomationOverride = async () => {
     if (!subscriptionId) return
+    if (automationLoadFailed) {
+      Taro.showToast({ title: '自动化设置读取失败，请重新进入后再保存', icon: 'none' })
+      return
+    }
     setAutomationSaving(true)
     try {
       const res = await coachService.updateStudentAutomationOverride({
@@ -864,9 +847,9 @@ export default function StudentDetailPage() {
     }
 
     if (item.type === 'rm') {
-      const actionKeys = Array.isArray(item.actionIds) && item.actionIds.length > 0
-        ? item.actionIds
-        : Object.keys(item.userInputs || {})
+      // userInputs 的键是动作名；actionIds 是 UUID，只在没有 userInputs 时兜底
+      const inputKeys = Object.keys(item.userInputs || {})
+      const actionKeys = inputKeys.length > 0 ? inputKeys : Array.isArray(item.actionIds) ? item.actionIds : []
       return (
         <View className='rm-input-list'>
           {actionKeys.length > 0 ? actionKeys.map((actionId) => (

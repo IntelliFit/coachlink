@@ -127,7 +127,11 @@ export function createCoachLinkApiClient({ baseUrl, adapters }: CoachLinkApiClie
 
     const result = normalizeApiData<T>(response.data)
     if (response.status < 200 || response.status >= 300 || result.success === false) {
-      throw new Error(responseMessage(response.data, `Request failed: ${response.status}`))
+      const error = new Error(responseMessage(response.data, `Request failed: ${response.status}`)) as Error & { code?: string; status?: number }
+      error.status = response.status
+      const code = (response.data as { code?: unknown } | null)?.code
+      if (typeof code === 'string') error.code = code
+      throw error
     }
 
     return result.data as T

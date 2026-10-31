@@ -5,79 +5,55 @@ import * as FileSystem from 'expo-file-system/legacy'
 import * as MediaLibrary from 'expo-media-library'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import Svg, { Polyline } from 'react-native-svg'
 import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
-import { apiClient, fetchWithTimeout, getStoredToken } from '../../api'
+import { apiClient, getStoredToken } from '../../api'
 import { API_BASE_URL } from '../../config'
 import { colors, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
 import { useAuth } from '../../providers/AuthProvider'
+import { VideoPlayerModal, type VideoPlayerTarget } from '../../components/VideoPlayerModal'
+import {
+  isBarbellPowerAnalysisMode,
+  isCustomPowerAnalysisMode,
+  isValidPlateDiameterCm,
+  isValidPowerAnalysisLoadKg,
+  parsePowerAnalysisCustomActionName,
+  POWER_ANALYSIS_BARBELL_SHOOTING_TIP,
+  POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH,
+  POWER_ANALYSIS_CUSTOM_SHOOTING_TIP,
+  POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG,
+  POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM,
+  POWER_ANALYSIS_MODE_OPTIONS as MODE_OPTIONS,
+  type PowerAnalysisMode,
+} from '@coachlink/core/src/powerAnalysisModes'
+import {
+  isActivePowerAnalysisJobStatus,
+  isTerminalPowerAnalysisJobStatus,
+  POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_CODE,
+} from '@coachlink/core/src/powerAnalysisJobs'
+import {
+  buildPowerComparisonRows,
+  formatPowerMetric,
+  getComparisonBlocker,
+  getPowerComparisonVerdict,
+  isDailyLimitMessage,
+  powerAudioText,
+  powerRepText,
+  powerSummaryTiles,
+  type OverlayLanguage,
+  type PowerAnalysisJobDto,
+  type PowerAnalysisMetrics,
+  type PowerAnalysisQuality,
+} from './powerAnalysisModel'
+import { PowerAssessmentCard, PowerComparisonCard, PowerRankingCard } from './PowerAnalysisSections'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PowerAnalysis'>
-type PowerAnalysisMode = 'pullup' | 'muscleup' | 'dip' | 'pushup' | 'squat'
-type PowerAnalysisJobStatus = 'awaiting_upload' | 'queued' | 'processing' | 'done' | 'failed' | 'expired'
 type UploadPhase = 'idle' | 'creating' | 'uploading' | 'uploaded' | 'enqueueing' | 'queued' | 'done'
-type PowerAnalysisQuality = 'compressed' | 'original'
-type OverlayLanguage = 'zh' | 'en'
 type CurveMetric = 'displacementM' | 'velocityMps' | 'powerW'
-
-type PowerAnalysisRepMetric = {
-  repIndex: number
-  displacementM: number
-  ascentTimeS: number
-  avgPowerW: number
-  horsepowerHp: number
-  maxVelocityMps: number
-}
-
-type PowerAnalysisMetrics = {
-  mode: PowerAnalysisMode
-  mass?: { bodyWeightKg: number; externalLoadKg: number; effectiveMassKg: number }
-  repCount: number
-  summary: {
-    avgPowerW: number
-    bestPowerW: number
-    bestHorsepowerHp: number
-    bestVelocityMps: number
-    avgAscentTimeS: number
-    avgDisplacementM: number
-  }
-  reps: PowerAnalysisRepMetric[]
-  timeSeries?: Array<{ timeS: number; displacementM: number; velocityMps: number; powerW: number }>
-  rating?: {
-    normalizedPowerWPerKg: number
-    labelZh: string
-    descriptionZh: string
-  }
-  video?: {
-    audioPreserved?: boolean
-    quality?: PowerAnalysisQuality
-  }
-  notes?: string[]
-}
-
-type PowerAnalysisJobDto = {
-  id: string
-  mode: PowerAnalysisMode
-  heightCm: number
-  weightKg: number
-  externalLoadKg: number
-  status: PowerAnalysisJobStatus
-  progress: number
-  metrics: PowerAnalysisMetrics | null
-  llmSummary: string | null
-  errorMessage: string | null
-  expiresAt: string
-  createdAt: string
-  completedAt: string | null
-  canDownload: boolean
-  quality?: PowerAnalysisQuality
-  overlayLanguage?: OverlayLanguage
-  queueInfo?: { jobsAhead: number; queuedAhead: number; processingAhead: number; totalQueued: number } | null
-}
 
 type CreatePowerAnalysisUploadUrlResponseDto = {
   job: PowerAnalysisJobDto
@@ -88,6 +64,7 @@ type CreatePowerAnalysisUploadUrlResponseDto = {
 type PowerAnalysisDownloadUrlResponseDto = {
   url: string
   proxyUrl?: string
+  signedUrl?: string
   expiresInSeconds: number
   filename: string
 }
@@ -119,15 +96,15 @@ const DEFAULT_ENTITLEMENTS: PowerAnalysisEntitlements = {
 }
 const LAST_DOWNLOADABLE_JOB_KEY = 'power-analysis-last-downloadable-job-v1'
 
-const MODE_OPTIONS: Array<{ label: string; value: PowerAnalysisMode; hint: string }> = [
-  { label: '引体向上', value: 'pullup', hint: '正面或侧前方，全身入镜' },
-  { label: '双力臂', value: 'muscleup', hint: '保留过杠阶段，避免遮挡' },
-  { label: '双杠臂屈伸', value: 'dip', hint: '肩、髋和双杠无遮挡' },
-  { label: '俯卧撑', value: 'pushup', hint: '侧面拍摄，肩髋都要清楚' },
-  { label: '深蹲起身', value: 'squat', hint: '侧前方全身，髋部可见' },
-]
+// 动作分组展示：自重 / 杠铃三大项 / 其他，列表以 @coachlink/core 为准（与小程序一致）
+const MODE_GROUPS = [
+  { title: '自重动作', options: MODE_OPTIONS.filter((item) => !item.barbell && item.value !== 'custom') },
+  { title: '杠铃三大项', options: MODE_OPTIONS.filter((item) => item.barbell) },
+  { title: '其他', options: MODE_OPTIONS.filter((item) => item.value === 'custom') },
+].filter((group) => group.options.length > 0)
 
-const TERMINAL_STATUSES: PowerAnalysisJobStatus[] = ['done', 'failed', 'expired']
+const COMPARISON_BASELINE_KEY = 'power-analysis-comparison-baseline-v1'
+
 const CURVE_OPTIONS: Array<{ value: CurveMetric; label: string }> = [
   { value: 'displacementM', label: '位移' },
   { value: 'velocityMps', label: '速度' },
@@ -141,10 +118,7 @@ function membershipLabel(tier: PowerAnalysisEntitlements['tier']) {
   return '免费版'
 }
 
-function formatMetric(value: number | undefined, digits = 1) {
-  const n = Number(value || 0)
-  return Number.isFinite(n) ? n.toFixed(digits) : '0'
-}
+const formatMetric = formatPowerMetric
 
 function formatFileSize(size: number) {
   if (!Number.isFinite(size) || size <= 0) return '未知大小'
@@ -170,19 +144,20 @@ function inferContentType(filename: string, mimeType?: string | null) {
 }
 
 async function uploadSignedVideo(params: { uploadUrl: string; uri: string; contentType: string; onProgress: (progress: number) => void }) {
-  params.onProgress(8)
-  const fileResponse = await fetch(params.uri)
-  const blob = await fileResponse.blob()
-  params.onProgress(30)
-  const uploadResponse = await fetchWithTimeout(params.uploadUrl, {
-    method: 'PUT',
+  params.onProgress(1)
+  // 不能用 fetch 发 Blob：Expo 的 fetch 读不出 Blob，而且视频不该整个读进内存
+  const task = FileSystem.createUploadTask(params.uploadUrl, params.uri, {
+    httpMethod: 'PUT',
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
     headers: { 'Content-Type': params.contentType },
-    body: blob,
-  }, 1_800_000)
-  if (!uploadResponse.ok) {
-    const text = await uploadResponse.text().catch(() => '')
-    throw new Error(text || `上传失败（${uploadResponse.status}）`)
-  }
+    sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
+  }, ({ totalBytesExpectedToSend, totalBytesSent }) => {
+    const total = Math.max(1, Number(totalBytesExpectedToSend || 1))
+    params.onProgress(Math.max(1, Math.min(99, Math.round((totalBytesSent / total) * 100))))
+  })
+  const result = await task.uploadAsync()
+  if (!result) throw new Error('上传已取消')
+  if (result.status < 200 || result.status >= 300) throw new Error(result.body || `上传失败（${result.status}）`)
   params.onProgress(100)
 }
 
@@ -218,10 +193,19 @@ export function PowerAnalysisScreen({ navigation }: Props) {
   const userId = String(user?.id || '')
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const llmRequestedRef = useRef<string | null>(null)
+  // 上传了新视频后，旧任务晚到的响应不能把页面拉回去
+  const jobIdRef = useRef('')
+  const userStartedRef = useRef(false)
   const [mode, setMode] = useState<PowerAnalysisMode>('pullup')
   const [heightCm, setHeightCm] = useState('175')
   const [weightKg, setWeightKg] = useState('70')
   const [externalLoadKg, setExternalLoadKg] = useState('0')
+  const [barbellKg, setBarbellKg] = useState(String(POWER_ANALYSIS_DEFAULT_BARBELL_MASS_KG))
+  const [plateDiameterCm, setPlateDiameterCm] = useState(String(POWER_ANALYSIS_DEFAULT_PLATE_DIAMETER_CM))
+  const [customActionName, setCustomActionName] = useState('')
+  const [comparisonBaselineJob, setComparisonBaselineJob] = useState<PowerAnalysisJobDto | null>(null)
+  const [videoTarget, setVideoTarget] = useState<VideoPlayerTarget | null>(null)
+  const [openingPreview, setOpeningPreview] = useState(false)
   const [video, setVideo] = useState<SelectedVideo | null>(null)
   const [phase, setPhase] = useState<UploadPhase>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -237,13 +221,37 @@ export function PowerAnalysisScreen({ navigation }: Props) {
   const [restoredJob, setRestoredJob] = useState(false)
 
   const selectedMode = useMemo(() => MODE_OPTIONS.find((item) => item.value === mode) || MODE_OPTIONS[0], [mode])
+  // 结果标题跟随这次任务的动作，改表单选项不影响已出的结果
+  const resultMode = useMemo(() => MODE_OPTIONS.find((item) => item.value === (job?.mode || mode)) || MODE_OPTIONS[0], [job?.mode, mode])
   const metrics = job?.metrics || null
   const heightValue = Number(heightCm)
   const weightValue = Number(weightKg)
-  const externalLoadValue = Number(externalLoadKg)
-  const formReady = Number.isFinite(heightValue) && heightValue >= 100 && heightValue <= 250 && Number.isFinite(weightValue) && weightValue >= 30 && weightValue <= 250 && Number.isFinite(externalLoadValue) && externalLoadValue >= 0 && externalLoadValue <= 250
+  const isBarbell = isBarbellPowerAnalysisMode(mode)
+  const isCustom = isCustomPowerAnalysisMode(mode)
+  const externalLoadValue = Number(isBarbell ? barbellKg : externalLoadKg)
+  const formReady = Number.isFinite(heightValue) && heightValue >= 100 && heightValue <= 250 && Number.isFinite(weightValue) && weightValue >= 30 && weightValue <= 250
+    && isValidPowerAnalysisLoadKg(mode, externalLoadValue)
+    && (!isBarbell || isValidPlateDiameterCm(plateDiameterCm))
+    && (!isCustom || parsePowerAnalysisCustomActionName(customActionName).ok)
   const isBusy = ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase) || job?.status === 'queued' || job?.status === 'processing'
-  const settingsLocked = isBusy || phase === 'uploaded'
+  // 开始分析时会重新发送设置，所以上传后仍可修改；画质决定上传前的压缩，选好视频后不能再改
+  const settingsLocked = ['enqueueing', 'queued'].includes(phase) || job?.status === 'queued' || job?.status === 'processing'
+  const qualityLocked = isBusy || phase === 'uploaded'
+  const analysisSettingsPayload = {
+    mode,
+    heightCm: heightValue,
+    weightKg: weightValue,
+    externalLoadKg: externalLoadValue,
+    ...(isBarbell ? { plateDiameterCm: Number(plateDiameterCm) } : {}),
+    ...(isCustom ? { customActionName: customActionName.trim() } : {}),
+    overlayLanguage,
+  }
+  const comparisonBaselineMetrics = comparisonBaselineJob?.metrics || null
+  const comparisonRows = useMemo(
+    () => (comparisonBaselineMetrics && metrics && comparisonBaselineJob?.id !== job?.id ? buildPowerComparisonRows(comparisonBaselineMetrics, metrics) : []),
+    [comparisonBaselineJob?.id, comparisonBaselineMetrics, job?.id, metrics],
+  )
+  const comparisonVerdict = comparisonRows.length > 0 ? getPowerComparisonVerdict(comparisonRows, getComparisonBlocker(comparisonBaselineJob, job)) : ''
   const canSubmit = Boolean(video) && formReady && phase === 'uploaded' && job?.status === 'awaiting_upload'
 
   const stopPolling = () => {
@@ -255,13 +263,17 @@ export function PowerAnalysisScreen({ navigation }: Props) {
 
   useEffect(() => () => stopPolling(), [])
 
+  useEffect(() => {
+    jobIdRef.current = job?.id || ''
+  }, [job?.id])
+
   const generateSummary = async (jobId: string) => {
     setSummaryLoading(true)
     try {
       const next = await apiClient.request<PowerAnalysisJobDto>(`/api/toolbox/power-analysis/jobs/${jobId}/llm-summary`, { method: 'POST', timeoutMs: 20000 })
-      setJob(next)
+      if (jobIdRef.current === jobId) setJob(next)
     } catch (e) {
-      setDownloadHint((e as Error)?.message || 'AI 解读暂未生成，指标结果仍可查看')
+      if (jobIdRef.current === jobId) setDownloadHint((e as Error)?.message || 'AI 解读暂未生成，指标结果仍可查看')
     } finally {
       setSummaryLoading(false)
     }
@@ -279,7 +291,7 @@ export function PowerAnalysisScreen({ navigation }: Props) {
       try {
         const next = await apiClient.request<PowerAnalysisJobDto>(`/api/toolbox/power-analysis/jobs/${jobId}`, { timeoutMs: 12000 })
         setJob(next)
-        if (TERMINAL_STATUSES.includes(next.status)) {
+        if (isTerminalPowerAnalysisJobStatus(next.status)) {
           stopPolling()
           setPhase('done')
         }
@@ -306,6 +318,31 @@ export function PowerAnalysisScreen({ navigation }: Props) {
       }
 
       if (!userId) return
+
+      // 对比的前测（只认本账号）
+      try {
+        const rawBaseline = await AsyncStorage.getItem(COMPARISON_BASELINE_KEY)
+        const baseline = rawBaseline ? JSON.parse(rawBaseline) : null
+        if (baseline?.v === 1 && String(baseline.userId || '') === userId && baseline.jobId) {
+          const restoredBaseline = await apiClient.request<PowerAnalysisJobDto>(`/api/toolbox/power-analysis/jobs/${baseline.jobId}`, { timeoutMs: 12000 })
+          if (active && restoredBaseline.status === 'done' && restoredBaseline.metrics) setComparisonBaselineJob(restoredBaseline)
+        }
+      } catch (baselineError) {
+        // 网络失败不能丢掉前测，只有任务确实不存在才清掉
+        if ((baselineError as { status?: number })?.status === 404) await AsyncStorage.removeItem(COMPARISON_BASELINE_KEY).catch(() => undefined)
+      }
+
+      // 账号有进行中的任务时直接跟进它（包括在小程序或其他设备上提交的）
+      try {
+        const activeJob = await apiClient.request<{ job: PowerAnalysisJobDto | null }>('/api/toolbox/power-analysis/jobs/active', { timeoutMs: 12000 })
+        if (active && !userStartedRef.current && activeJob?.job && isActivePowerAnalysisJobStatus(activeJob.job.status)) {
+          followActiveJob(activeJob.job)
+          return
+        }
+      } catch (lookupError) {
+        console.warn('[power-analysis] active job lookup failed', lookupError)
+      }
+
       try {
         const raw = await AsyncStorage.getItem(LAST_DOWNLOADABLE_JOB_KEY)
         if (!raw || !active) return
@@ -315,13 +352,10 @@ export function PowerAnalysisScreen({ navigation }: Props) {
           `/api/toolbox/power-analysis/jobs/${stored.jobId}`,
           { timeoutMs: 12000 },
         )
-        if (!active) return
+        if (!active || userStartedRef.current || jobIdRef.current) return
         if (restored.status === 'done' && restored.canDownload) {
           setJob(restored)
-          setMode(restored.mode)
-          setHeightCm(String(restored.heightCm))
-          setWeightKg(String(restored.weightKg))
-          setExternalLoadKg(String(restored.externalLoadKg))
+          applyJobSettings(restored)
           setQuality(restored.quality || 'compressed')
           setOverlayLanguage(restored.overlayLanguage || 'zh')
           setPhase('done')
@@ -333,8 +367,8 @@ export function PowerAnalysisScreen({ navigation }: Props) {
         } else {
           await AsyncStorage.removeItem(LAST_DOWNLOADABLE_JOB_KEY)
         }
-      } catch {
-        await AsyncStorage.removeItem(LAST_DOWNLOADABLE_JOB_KEY)
+      } catch (restoreError) {
+        if ((restoreError as { status?: number })?.status === 404) await AsyncStorage.removeItem(LAST_DOWNLOADABLE_JOB_KEY).catch(() => undefined)
       }
     }
     void restore()
@@ -352,9 +386,82 @@ export function PowerAnalysisScreen({ navigation }: Props) {
     }))
   }, [job?.canDownload, job?.id, job?.status, userId])
 
+  /** 恢复任务时把表单同步成它的设置（杠铃重量和普通负重是两个输入框）。 */
+  const applyJobSettings = (target: PowerAnalysisJobDto) => {
+    setMode(target.mode)
+    setHeightCm(String(target.heightCm))
+    setWeightKg(String(target.weightKg))
+    if (isBarbellPowerAnalysisMode(target.mode)) {
+      setBarbellKg(String(target.externalLoadKg))
+      if (target.plateDiameterCm) setPlateDiameterCm(String(target.plateDiameterCm))
+    } else {
+      setExternalLoadKg(String(target.externalLoadKg))
+    }
+    if (target.customActionName) setCustomActionName(target.customActionName)
+  }
+
+  const followActiveJob = (active: PowerAnalysisJobDto) => {
+    stopPolling()
+    applyJobSettings(active)
+    setVideo(null)
+    setJob(active)
+    setPhase('queued')
+    setRestoredJob(false)
+    pollJob(active.id)
+  }
+
+  const cancelPowerJob = (jobId: string) =>
+    apiClient.request<PowerAnalysisJobDto>(`/api/toolbox/power-analysis/jobs/${jobId}/cancel`, { method: 'POST', timeoutMs: 15000 })
+
+  const confirmCancel = () => {
+    const jobId = job?.id
+    if (!jobId) return
+    Alert.alert('取消这次分析？', '取消后这个视频不会出结果，也不占今天的分析次数。', [
+      { text: '继续等待', style: 'cancel' },
+      {
+        text: '取消分析',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelPowerJob(jobId)
+            reset()
+            setDownloadHint('已取消分析')
+          } catch (cancelError) {
+            Alert.alert('取消失败', (cancelError as Error)?.message || '请稍后重试')
+          }
+        },
+      },
+    ])
+  }
+
+  /** 账号同时只能有一个进行中的任务：可以看旧任务进度，或取消旧的改分析刚选的视频。 */
+  const handleActiveJobConflict = async (nextVideo: SelectedVideo) => {
+    const activeJob = await apiClient.request<{ job: PowerAnalysisJobDto | null }>('/api/toolbox/power-analysis/jobs/active', { timeoutMs: 12000 }).catch(() => null)
+    if (!activeJob?.job || !isActivePowerAnalysisJobStatus(activeJob.job.status)) {
+      setError('上一个任务刚结束，请重新选择视频')
+      return
+    }
+    const active = activeJob.job
+    Alert.alert('上一个视频还在分析', '可以查看它的进度；选「取消旧的」会撤销它，改为分析刚选的视频。', [
+      { text: '查看进度', onPress: () => followActiveJob(active) },
+      {
+        text: '取消旧的',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelPowerJob(active.id)
+            await prepareUpload(nextVideo)
+          } catch (cancelError) {
+            Alert.alert('取消失败', (cancelError as Error)?.message || '请稍后重试')
+          }
+        },
+      },
+    ])
+  }
+
   const prepareUpload = async (nextVideo: SelectedVideo) => {
     if (!formReady) {
-      setError('请先填写有效的身高、体重和额外负重')
+      setError(isBarbell ? '请先填写有效身高体重和杠铃重量' : isCustom ? '请先填写动作名称和有效身高体重' : '请先填写有效身高体重')
       return
     }
     const maxSizeBytes = entitlements.maxVideoSizeMb * 1024 * 1024
@@ -367,9 +474,11 @@ export function PowerAnalysisScreen({ navigation }: Props) {
       setError(`当前等级最多支持 ${entitlements.maxDurationSeconds} 秒视频`)
       return
     }
+    userStartedRef.current = true
     stopPolling()
     setError('')
     setDownloadHint('')
+    const previousDownloadableJob = job?.status === 'done' && job.canDownload ? job : null
     setVideo(nextVideo)
     setJob(null)
     setUploadProgress(0)
@@ -379,16 +488,12 @@ export function PowerAnalysisScreen({ navigation }: Props) {
       const created = await apiClient.request<CreatePowerAnalysisUploadUrlResponseDto>('/api/toolbox/power-analysis/create-upload-url', {
         method: 'POST',
         body: {
-          mode,
-          heightCm: heightValue,
-          weightKg: weightValue,
-          externalLoadKg: externalLoadValue,
+          ...analysisSettingsPayload,
           originalFilename: nextVideo.name,
           contentType: nextVideo.contentType,
           fileSizeBytes: nextVideo.size,
           durationSeconds: durationSeconds > 0 ? durationSeconds : undefined,
           quality,
-          overlayLanguage,
         },
         timeoutMs: 15000,
       })
@@ -397,10 +502,29 @@ export function PowerAnalysisScreen({ navigation }: Props) {
       await uploadSignedVideo({ uploadUrl: created.upload.uploadUrl, uri: nextVideo.uri, contentType: nextVideo.contentType, onProgress: setUploadProgress })
       setPhase('uploaded')
     } catch (e) {
-      setPhase('idle')
-      setJob(null)
+      const message = (e as Error)?.message || '上传失败'
       setUploadProgress(0)
-      setError((e as Error)?.message || '上传失败')
+      if ((e as { code?: string })?.code === POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_CODE) {
+        setVideo(null)
+        setJob(previousDownloadableJob)
+        setPhase(previousDownloadableJob ? 'done' : 'idle')
+        void handleActiveJobConflict(nextVideo)
+        return
+      }
+      if (previousDownloadableJob) {
+        // 上一份结果仍可查看和保存，不因为这次失败丢掉
+        setVideo(null)
+        setJob(previousDownloadableJob)
+        setPhase('done')
+        if (isDailyLimitMessage(message)) {
+          Alert.alert('今日分析次数已用完', `${message}。上一份结果仍可下载，无需重复分析。`)
+          return
+        }
+      } else {
+        setPhase('idle')
+        setJob(null)
+      }
+      setError(message)
     }
   }
 
@@ -437,7 +561,8 @@ export function PowerAnalysisScreen({ navigation }: Props) {
     setError('')
     try {
       setPhase('enqueueing')
-      const queued = await apiClient.request<PowerAnalysisJobDto>(`/api/toolbox/power-analysis/jobs/${job.id}/enqueue`, { method: 'POST', timeoutMs: 15000 })
+      // 以最新的设置为准，服务端会重新校验
+      const queued = await apiClient.request<PowerAnalysisJobDto>(`/api/toolbox/power-analysis/jobs/${job.id}/enqueue`, { method: 'POST', body: analysisSettingsPayload, timeoutMs: 15000 })
       setJob(queued)
       setPhase('queued')
       pollJob(queued.id)
@@ -457,6 +582,34 @@ export function PowerAnalysisScreen({ navigation }: Props) {
     setDownloadHint('')
     setRestoredJob(false)
     llmRequestedRef.current = null
+  }
+
+  const startComparison = () => {
+    if (!job?.id || job.status !== 'done' || !job.metrics || !userId) return
+    setComparisonBaselineJob(job)
+    void AsyncStorage.setItem(COMPARISON_BASELINE_KEY, JSON.stringify({ v: 1, userId, jobId: job.id }))
+    reset()
+    setDownloadHint('前测已保存，请选择后测视频')
+  }
+
+  const clearComparison = () => {
+    setComparisonBaselineJob(null)
+    void AsyncStorage.removeItem(COMPARISON_BASELINE_KEY)
+  }
+
+  const previewResultVideo = async () => {
+    if (!job?.id || !job.canDownload || openingPreview) return
+    setOpeningPreview(true)
+    try {
+      const data = await apiClient.request<PowerAnalysisDownloadUrlResponseDto>(`/api/toolbox/power-analysis/jobs/${job.id}/download-url`, { method: 'POST', timeoutMs: 15000 })
+      const url = data.signedUrl || data.url
+      if (!url) throw new Error('结果视频地址不可用')
+      setVideoTarget({ url, title: '分析结果' })
+    } catch (e) {
+      setDownloadHint((e as Error)?.message || '结果视频打开失败')
+    } finally {
+      setOpeningPreview(false)
+    }
   }
 
   const saveResultVideo = async () => {
@@ -519,6 +672,7 @@ export function PowerAnalysisScreen({ navigation }: Props) {
     if (job?.status === 'done') return '分析完成'
     if (job?.status === 'failed') return '分析失败'
     if (job?.status === 'expired') return '任务已过期'
+    if (job?.status === 'canceled') return '已取消分析'
     return '选择视频后会自动上传'
   })()
 
@@ -557,6 +711,18 @@ export function PowerAnalysisScreen({ navigation }: Props) {
         </View>
       ) : null}
 
+      {comparisonBaselineMetrics ? (
+        <View style={styles.restoreBanner}>
+          <View style={styles.restoreMain}>
+            <Text style={styles.restoreTitle}>前测已保存</Text>
+            <Text style={styles.restoreText}>完成下一段同动作视频后自动生成对比</Text>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="清除前测" onPress={clearComparison} style={styles.bannerAction}>
+            <Text style={styles.bannerActionText}>清除</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <SectionCard title="测试设置" description="视频仅作为临时分析任务处理，默认最多保留 24 小时。">
         <View style={styles.entitlementCard}>
           <View>
@@ -568,10 +734,10 @@ export function PowerAnalysisScreen({ navigation }: Props) {
 
         <Text style={styles.optionLabel}>输出画质</Text>
         <View style={styles.optionRow}>
-          <Pressable disabled={settingsLocked} onPress={() => setQuality('compressed')} style={[styles.optionChip, quality === 'compressed' && styles.optionChipActive]}>
+          <Pressable disabled={qualityLocked} onPress={() => setQuality('compressed')} style={[styles.optionChip, quality === 'compressed' && styles.optionChipActive]}>
             <Text style={[styles.optionText, quality === 'compressed' && styles.optionTextActive]}>压缩画质</Text>
           </Pressable>
-          <Pressable disabled={settingsLocked || !entitlements.canUseOriginalQuality} onPress={() => entitlements.canUseOriginalQuality && setQuality('original')} style={[styles.optionChip, quality === 'original' && styles.optionChipActive, !entitlements.canUseOriginalQuality && styles.disabled]}>
+          <Pressable disabled={qualityLocked || !entitlements.canUseOriginalQuality} onPress={() => entitlements.canUseOriginalQuality && setQuality('original')} style={[styles.optionChip, quality === 'original' && styles.optionChipActive, !entitlements.canUseOriginalQuality && styles.disabled]}>
             <Text style={[styles.optionText, quality === 'original' && styles.optionTextActive]}>原画质{!entitlements.canUseOriginalQuality ? ' · 会员' : ''}</Text>
           </Pressable>
         </View>
@@ -585,22 +751,42 @@ export function PowerAnalysisScreen({ navigation }: Props) {
           ))}
         </View>
 
-        <View style={styles.modeGrid}>
-          {MODE_OPTIONS.map((item) => {
-            const active = mode === item.value
-            return (
-              <Pressable key={item.value} disabled={settingsLocked} onPress={() => setMode(item.value)} style={[styles.modeCard, active && styles.modeCardActive, settingsLocked && styles.disabled]}>
-                <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{item.label}</Text>
-                <Text style={[styles.modeHint, active && styles.modeHintActive]}>{item.hint}</Text>
-              </Pressable>
-            )
-          })}
-        </View>
+        {MODE_GROUPS.map((group) => (
+          <View key={group.title}>
+            <Text style={styles.optionLabel}>{group.title}</Text>
+            <View style={styles.modeGrid}>
+              {group.options.map((item) => {
+                const active = mode === item.value
+                return (
+                  <Pressable key={item.value} accessibilityRole="radio" accessibilityLabel={item.label} accessibilityState={{ checked: active, disabled: settingsLocked }} disabled={settingsLocked} onPress={() => setMode(item.value)} style={[styles.modeCard, active && styles.modeCardActive, settingsLocked && styles.disabled]}>
+                    <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{item.label}</Text>
+                    <Text style={[styles.modeHint, active && styles.modeHintActive]}>{item.hint}</Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+          </View>
+        ))}
+        <Text style={styles.shootTip}>拍摄要点：{isBarbell ? POWER_ANALYSIS_BARBELL_SHOOTING_TIP : isCustom ? POWER_ANALYSIS_CUSTOM_SHOOTING_TIP : selectedMode.hint}</Text>
+        {isCustom ? (
+          <View style={styles.field}>
+            <View style={styles.fieldHeader}><Text style={styles.fieldLabel}>动作名称</Text></View>
+            <TextInput accessibilityLabel="动作名称" value={customActionName} editable={!settingsLocked} maxLength={POWER_ANALYSIS_CUSTOM_ACTION_NAME_MAX_LENGTH} onChangeText={setCustomActionName} placeholder="例如：哑铃弯举、保加利亚分腿蹲" placeholderTextColor={colors.textMuted} style={styles.input} />
+          </View>
+        ) : null}
         <View style={styles.formGrid}>
           <MetricInput label="身高" suffix="cm" value={heightCm} disabled={settingsLocked} onChangeText={setHeightCm} />
           <MetricInput label="体重" suffix="kg" value={weightKg} disabled={settingsLocked} onChangeText={setWeightKg} />
-          <MetricInput label="额外负重" suffix="kg" value={externalLoadKg} disabled={settingsLocked} onChangeText={setExternalLoadKg} />
+          {isBarbell ? (
+            <>
+              <MetricInput label="杠铃总重" suffix="kg" value={barbellKg} disabled={settingsLocked} onChangeText={setBarbellKg} />
+              <MetricInput label="杠铃片直径" suffix="cm" value={plateDiameterCm} disabled={settingsLocked} onChangeText={setPlateDiameterCm} />
+            </>
+          ) : (
+            <MetricInput label={isCustom ? '负重（选填）' : '额外负重'} suffix="kg" value={externalLoadKg} disabled={settingsLocked} onChangeText={setExternalLoadKg} />
+          )}
         </View>
+        {isBarbell ? <Text style={styles.shootTip}>杠铃总重含杠铃杆和杠铃片；标准片直径 45 cm，请填写杠上最大那片的直径。</Text> : null}
       </SectionCard>
 
       <SectionCard title="视频上传">
@@ -618,7 +804,12 @@ export function PowerAnalysisScreen({ navigation }: Props) {
           <Text style={styles.queueText}>队列前方 {job.queueInfo.jobsAhead} 个任务（处理中 {job.queueInfo.processingAhead}，等待 {job.queueInfo.queuedAhead}）</Text>
         ) : null}
         <View style={styles.actions}>
-          <Pressable onPress={reset} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>重置</Text></Pressable>
+          {/* 排队或分析中「重置」只会隐藏任务，要在服务端取消 */}
+          {job?.status === 'queued' || job?.status === 'processing' ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="取消这次分析" onPress={confirmCancel} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>取消分析</Text></Pressable>
+          ) : (
+            <Pressable accessibilityRole="button" accessibilityLabel="重置" accessibilityState={{ disabled: isBusy }} disabled={isBusy} onPress={reset} style={[styles.secondaryButton, isBusy && styles.buttonDisabled]}><Text style={styles.secondaryButtonText}>重置</Text></Pressable>
+          )}
           <Pressable onPress={startAnalysis} disabled={!canSubmit} style={[styles.primaryButton, !canSubmit && styles.buttonDisabled]}>
             <Text style={styles.primaryButtonText}>{isBusy ? '处理中' : '开始分析'}</Text>
           </Pressable>
@@ -630,7 +821,7 @@ export function PowerAnalysisScreen({ navigation }: Props) {
 
       <View style={styles.resultCard}>
         <View style={styles.resultHeader}>
-          <View><Text style={styles.resultKicker}>{selectedMode.label}</Text><Text style={styles.resultTitle}>分析结果</Text></View>
+          <View style={styles.flex}><Text style={styles.resultKicker}>{isCustomPowerAnalysisMode(job?.mode) && job?.customActionName ? `其他动作 · ${job.customActionName}` : resultMode.label}</Text><Text style={styles.resultTitle}>分析结果</Text></View>
           <Pressable onPress={saveResultVideo} disabled={!job?.canDownload || downloading} style={[styles.downloadButton, (!job?.canDownload || downloading) && styles.buttonDisabled]}>
             {downloading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.downloadText}>保存到相册</Text>}
           </Pressable>
@@ -640,11 +831,21 @@ export function PowerAnalysisScreen({ navigation }: Props) {
         ) : (
           <>
             <View style={styles.metricGrid}>
-              <MetricCard label="有效次数" value={`${metrics.repCount}`} />
-              <MetricCard label="最高功率" value={`${formatMetric(metrics.summary.bestPowerW, 0)} W`} />
-              <MetricCard label="最高马力" value={`${formatMetric(metrics.summary.bestHorsepowerHp, 2)} hp`} brand />
-              <MetricCard label="最快速度" value={`${formatMetric(metrics.summary.bestVelocityMps, 2)} m/s`} />
+              {powerSummaryTiles(metrics).map((tile) => <MetricCard key={tile.label} label={tile.label} value={tile.value} brand={tile.accent} />)}
             </View>
+            <View style={styles.actions}>
+              {job?.canDownload ? (
+                <Pressable accessibilityRole="button" accessibilityLabel="播放结果视频" accessibilityState={{ busy: openingPreview, disabled: openingPreview }} disabled={openingPreview} onPress={() => void previewResultVideo()} style={styles.secondaryButton}>
+                  <Text style={styles.secondaryButtonText}>{openingPreview ? '打开中…' : '播放结果视频'}</Text>
+                </Pressable>
+              ) : null}
+              <Pressable accessibilityRole="button" accessibilityLabel="对比下一次" onPress={startComparison} style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>对比下一次</Text>
+              </Pressable>
+            </View>
+            {job?.ranking && (job.ranking.power.rank > 0 || job.ranking.speed.rank > 0) ? (
+              <PowerRankingCard ranking={job.ranking} onOpenBoard={(id) => navigation.navigate('RankingDetail', { id })} />
+            ) : null}
             {metrics.rating ? (
               <View style={styles.ratingCard}>
                 <View style={styles.ratingTop}><Text style={styles.ratingTitle}>{metrics.rating.labelZh}</Text><Text style={styles.ratingValue}>{formatMetric(metrics.rating.normalizedPowerWPerKg, 2)} W/kg</Text></View>
@@ -668,22 +869,35 @@ export function PowerAnalysisScreen({ navigation }: Props) {
               {metrics.reps.map((rep) => (
                 <View key={rep.repIndex} style={styles.repRow}>
                   <Text style={styles.repIndex}>#{rep.repIndex}</Text>
-                  <Text style={styles.repText}>{formatMetric(rep.displacementM, 2)}m</Text>
-                  <Text style={styles.repText}>{formatMetric(rep.ascentTimeS, 2)}s</Text>
-                  <Text style={styles.repText}>{formatMetric(rep.avgPowerW, 0)}W</Text>
-                  <Text style={styles.repText}>{formatMetric(rep.maxVelocityMps, 2)}m/s</Text>
+                  <View style={styles.flex}>
+                    <Text style={styles.repText}>{powerRepText(metrics, rep).main}</Text>
+                    <Text style={styles.repDetail}>{powerRepText(metrics, rep).detail}</Text>
+                  </View>
                 </View>
               ))}
             </View>
-            {metrics.video?.audioPreserved !== undefined ? (
-              <View style={styles.audioStatus}><IconFont name="icon-video" color={metrics.video.audioPreserved ? '#087A63' : colors.textMuted} size={16} /><Text style={styles.audioText}>{metrics.video.audioPreserved ? '结果视频已保留原音频' : '结果视频不含原音频'}</Text></View>
+            {isCustomPowerAnalysisMode(metrics.mode) ? <Text style={styles.shootTip}>「{metrics.custom?.actionNameZh || '其他动作'}」按{metrics.custom?.primaryPartZh || '运动最大的部位'}计次，试验功能，不套用专项标准，不计算功率和评级。</Text> : null}
+            {isBarbellPowerAnalysisMode(metrics.mode) ? <Text style={styles.shootTip}>功率为杠铃抬升功率（杠铃总重 × g × 杠铃上升高度 ÷ 上升时间），只用来和自己同重量的记录比较，不代表力量水平。</Text> : null}
+            {powerAudioText(metrics.video) ? (
+              <View style={styles.audioStatus}><IconFont name="icon-video" color={metrics.video?.audioPreserved ? '#087A63' : colors.textMuted} size={16} /><Text style={styles.audioText}>{powerAudioText(metrics.video)}</Text></View>
             ) : null}
-            {job?.llmSummary ? <Text style={styles.summaryText}>{job.llmSummary}</Text> : summaryLoading ? <Text style={styles.emptyText}>正在生成 AI 解读...</Text> : null}
+            <PowerAssessmentCard assessment={metrics.assessment} measurement={metrics.measurement} />
+            {comparisonRows.length > 0 ? <PowerComparisonCard rows={comparisonRows} verdict={comparisonVerdict} onClear={clearComparison} /> : null}
+            {job?.status === 'done' ? (
+              <View style={styles.summaryHeader}>
+                <Text style={styles.curveTitle}>AI 解读</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="重新生成 AI 解读" accessibilityState={{ busy: summaryLoading, disabled: summaryLoading }} disabled={summaryLoading} onPress={() => job.id && void generateSummary(job.id)} style={styles.bannerAction}>
+                  <Text style={styles.bannerActionText}>{summaryLoading ? '生成中' : '重新生成'}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {job?.llmSummary ? <Text style={styles.summaryText}>{job.llmSummary.replace(/\*/g, '')}</Text> : summaryLoading ? <Text style={styles.emptyText}>正在根据结构化指标生成解读...</Text> : null}
           </>
         )}
         {job?.errorMessage ? <Text style={styles.errorText}>{job.errorMessage}</Text> : null}
         {downloadHint ? <Text style={styles.hintText}>{downloadHint}</Text> : null}
       </View>
+      <VideoPlayerModal target={videoTarget} onClose={() => setVideoTarget(null)} />
     </Page>
   )
 }
@@ -702,6 +916,12 @@ function MetricCard({ label, value, brand }: { label: string; value: string; bra
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  shootTip: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginTop: spacing.xs },
+  repDetail: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 2 },
+  summaryHeader: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bannerAction: { minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center' },
+  bannerActionText: { color: colors.brand, fontSize: 13, fontWeight: '600' },
   backRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs },
   backText: { color: colors.text, fontSize: 15, fontWeight: '600' },
   hero: { minHeight: 168, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', borderRadius: radius.xl, padding: spacing.md, backgroundColor: '#1F1F1F' },
@@ -786,7 +1006,7 @@ const styles = StyleSheet.create({
   curveLegend: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.xs, paddingBottom: spacing.xs },
   curveLegendText: { color: colors.textTertiary, fontSize: 10 },
   repList: { gap: spacing.xs },
-  repRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted },
+  repRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.md, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.surfaceMuted },
   repIndex: { color: colors.brand, fontSize: 13, fontWeight: '700' },
   repText: { color: colors.text, fontSize: 12, fontWeight: '600' },
   summaryText: { color: colors.textSecondary, fontSize: 13, lineHeight: 21, borderRadius: radius.lg, padding: spacing.sm, backgroundColor: colors.brandSoft },

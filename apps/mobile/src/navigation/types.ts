@@ -24,7 +24,7 @@ export type RootStackParamList = {
   FitnessCard: undefined
   E1RMChart: undefined
   ActionLibrary: undefined
-  ActionDetail: { id?: string; action?: any; source?: 'mine' | 'coach' | 'public' } | undefined
+  ActionDetail: { id?: string; action?: any; source?: 'mine' | 'coach' | 'public' | 'training'; coachNote?: string } | undefined
   CopyCoachActions: undefined
   ActionEdit: { id?: string; action?: any } | undefined
   PlanLibrary: undefined
@@ -48,7 +48,7 @@ export type RootStackParamList = {
   CoachDashboard: undefined
   CoachStudents: undefined
   CoachPayments: undefined
-  CoachStudentPlan: { subscriptionId: string; studentName?: string; focusDay?: number }
+  CoachStudentPlan: { subscriptionId: string; studentName?: string; focusDay?: number; instanceId?: string }
   CoachStudentDetail: { subscriptionId?: string; studentId?: string } | undefined
   CoachAssignPlan: { subscriptionId: string; studentId?: string; studentName?: string }
   CoachActions: undefined
@@ -68,6 +68,7 @@ export type RootStackParamList = {
   CoachWallet: undefined
   CoachWalletMerchant: undefined
   CoachInvitation: undefined
+  CoachProfileEdit: undefined
   CoachMarket: undefined
   GeneratePlan: { coachId?: string } | undefined
   GeneratePlanWaiting: { coachId?: string; domain?: string; taskId?: string } | undefined
@@ -97,7 +98,7 @@ export type RootStackParamList = {
   ProtectionOfConsumer: undefined
   TrainingExecution: { instanceId?: string; dayIndex?: number; readOnly?: boolean; intent?: 'execute' | 'preview' | 'review'; impromptuId?: string } | undefined
   TrainingShare: { executionId?: string } | undefined
-  ImpromptuTraining: undefined
+  ImpromptuTraining: { quickStart?: 'push' | 'pull' | 'legs' | 'street' } | undefined
   CoachProfile: { id?: string } | undefined
   CoachQuestionnaire: {
     coachId?: string
@@ -115,10 +116,15 @@ export type RootStackParamList = {
   CoachContentDetail: { id?: string } | undefined
   KnowledgePlanDetail: { id?: string; fallback?: Record<string, unknown> } | undefined
   KnowledgeBookDetail: { id?: string } | undefined
+  KnowledgePlans: undefined
+  KnowledgeBooks: undefined
+  KnowledgeArticles: undefined
   PowerAnalysis: undefined
+  BojiDetector: { challenge?: string } | undefined
   MotionEffects: undefined
   OneArmPullUp: undefined
   StreetliftingCalculator: undefined
+  StreetliftingCalculatorHistory: { exerciseType?: string } | undefined
   StreetliftingData: undefined
   StreetliftingLocations: undefined
   StreetliftingMethodology: undefined
@@ -126,6 +132,7 @@ export type RootStackParamList = {
   StreetliftingSubmit: undefined
   StreetliftingSubmitSuccess: { submissionId?: string; exerciseType?: string; oneRm?: number; score?: number } | undefined
   StreetliftingLocationsMap: undefined
+  StreetliftingMyLocations: undefined
   StreetliftingLocationDetail: { id: string } | undefined
   ToolboxScenario: { slug?: string } | undefined
 }

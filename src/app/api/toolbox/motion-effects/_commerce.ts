@@ -216,3 +216,22 @@ export function createOrderClaimHash(jobId: string, ownerTokenHash: string) {
     .update(`${jobId}:${ownerTokenHash}`)
     .digest("hex");
 }
+
+export const MAX_PAID_MOTION_RETRIES = 3;
+
+/** 已付款但生成失败的任务可以用原视频重新排队，不再收费。 */
+export function isPaidMotionRetry(row: { status?: string | null; payment_status?: string | null }) {
+  return row.status === "failed" && row.payment_status === "paid";
+}
+
+export function paidMotionRetryCount(metadata: unknown) {
+  const count = Number((metadata as { paid_retry_count?: unknown } | null)?.paid_retry_count);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
+/** 只有还没发起过付款的任务能取消：一旦有订单，用户可能正在付款。 */
+export function canCancelMotionJob(row: { status?: string | null; payment_status?: string | null; payment_order_id?: string | null }) {
+  return ["awaiting_upload", "awaiting_payment"].includes(String(row.status))
+    && row.payment_status !== "paid"
+    && !row.payment_order_id;
+}

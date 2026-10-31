@@ -1,106 +1,110 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import * as ImagePicker from 'expo-image-picker'
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
+import type { LocationEquipmentType } from '@coachlink/core'
 import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
-import { apiClient, fetchWithTimeout, getStoredToken } from '../../api'
-import { API_BASE_URL } from '../../config'
+import { apiClient } from '../../api'
 import { useAuth } from '../../providers/AuthProvider'
 import { colors, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
+import { EquipmentSelector, EquipmentTags } from './LocationEquipment'
+import { NearbyLocationCard } from './NearbyLocationCard'
+import { openSystemMap } from './StreetliftingExtraScreens'
+import { explainLocationError, getCurrentPosition, LocationPermissionError } from './userLocation'
+import { StreetliftingLocationFormModal } from './StreetliftingLocationFormModal'
+import { toBeijingDateKey } from '@coachlink/core/src/beijingTime'
+import {
+  contributorLabel,
+  formatContributorName,
+  formatMonthLabel,
+  formatRate,
+  getLocationImages,
+  locationRegion,
+  sortLocations,
+  type LocationContributor,
+  type LocationOverview,
+  type StreetliftingLocation,
+  consumeLocationsChanged,
+  nearestLocations,
+  type LocationMapPin,
+} from './locationModel'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StreetliftingLocations'>
-
-type StreetliftingLocation = {
-  id: string
-  name: string
-  description: string | null
-  address: string | null
-  city: string | null
-  province: string | null
-  county: string | null
-  image_url: string | null
-  image_urls: string[] | null
-  latitude: number | null
-  longitude: number | null
-  created_at: string
-  user_contact?: string | null
-  contributor_name_snapshot?: string | null
-}
-
-type LocationOverview = {
-  totalCount: number
-  withImagesCount: number
-  withDescriptionCount: number
-  averageImageCount: number
-  provinceCount: number
-  mapReadyCount: number
-  contributorCount: number
-  topProvinces: Array<{ name: string; count: number }>
-  topCities: Array<{ name: string; count: number }>
-}
 
 type ListRes = {
   locations: StreetliftingLocation[]
   pagination: { page: number; limit: number; total: number }
   provinces: string[]
+  countries?: string[]
 }
 
 const PAGE_SIZE = 20
-const MAX_IMAGES = 4
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024
-
-function getLocationImages(location: StreetliftingLocation) {
-  if (Array.isArray(location.image_urls) && location.image_urls.length) return location.image_urls
-  if (location.image_url) return [location.image_url]
-  return []
-}
-
-function locationArea(location: StreetliftingLocation) {
-  return [location.province, location.city, location.county].filter(Boolean).join(' · ') || '未补充区域'
-}
-
-function contributorName(location: StreetliftingLocation) {
-  return location.contributor_name_snapshot || location.user_contact || '未署名贡献者'
-}
+const TABS = [
+  { key: 'list', label: '单杠列表' },
+  { key: 'data', label: '单杠数据' },
+  { key: 'rank', label: '贡献排行榜' },
+] as const
+type TabKey = (typeof TABS)[number]['key']
 
 function formatDate(value?: string | null) {
   if (!value) return ''
   const date = new Date(value)
   if (!Number.isFinite(date.getTime())) return ''
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return toBeijingDateKey(date)
 }
 
+/** 单杠点位，对应小程序 streetlifting/index/locations：列表筛选、数据、贡献榜，分享和编辑点位。 */
 export function StreetliftingLocationsScreen({ navigation }: Props) {
   const { isAuthenticated } = useAuth()
+  const [tab, setTab] = useState<TabKey>('list')
   const [loading, setLoading] = useState(true)
   const [locations, setLocations] = useState<StreetliftingLocation[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [provinces, setProvinces] = useState<string[]>([])
+  const [countries, setCountries] = useState<string[]>(['中国'])
   const [province, setProvince] = useState('all')
+  const [country, setCountry] = useState('all')
+  const [equipment, setEquipment] = useState<LocationEquipmentType[]>([])
   const [search, setSearch] = useState('')
+  const [activeSearch, setActiveSearch] = useState('')
   const [overview, setOverview] = useState<LocationOverview | null>(null)
+  const [contributors, setContributors] = useState<LocationContributor[]>([])
+  const [loadingContributors, setLoadingContributors] = useState(false)
   const [error, setError] = useState('')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [imageUrls, setImageUrls] = useState<string[]>([])
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    address: '',
-    province: '',
-    city: '',
-    county: '',
-    latitude: '',
-    longitude: '',
-    user_contact: '',
-  })
+  const [formVisible, setFormVisible] = useState(false)
+  const [editing, setEditing] = useState<StreetliftingLocation | null>(null)
+  // 筛选切换很快时，只采用最后一次请求的结果
+  const requestIdRef = useRef(0)
+  const [userPosition, setUserPosition] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [locating, setLocating] = useState(false)
+  const [nearbyPins, setNearbyPins] = useState<LocationMapPin[]>([])
+  const nearby = useMemo(() => (userPosition ? nearestLocations(userPosition, nearbyPins, equipment) : []), [equipment, nearbyPins, userPosition])
 
-  const visibleProvinceOptions = useMemo(() => ['all', ...provinces], [provinces])
+  async function locateNearby() {
+    if (locating) return
+    setLocating(true)
+    try {
+      const position = await getCurrentPosition()
+      const pins = await apiClient.request<LocationMapPin[]>('/api/streetlifting-index/locations/map-pins', { method: 'POST', body: {}, timeoutMs: 15000 })
+      setNearbyPins(Array.isArray(pins) ? pins : [])
+      setUserPosition(position)
+    } catch (locateError) {
+      if (locateError instanceof LocationPermissionError) {
+        explainLocationError(locateError, '需要允许定位后才能查看附近单杠。你也可以继续浏览单杠地图。')
+      } else {
+        Alert.alert('定位失败', `${locateError instanceof Error ? locateError.message : '定位暂不可用。'}也可以打开地图，用「定位我附近」再试一次。`, [
+          { text: '取消', style: 'cancel' },
+          { text: '打开地图', onPress: () => navigation.navigate('StreetliftingLocationsMap') },
+        ])
+      }
+    } finally {
+      setLocating(false)
+    }
+  }
 
   const loadOverview = async () => {
     try {
@@ -111,149 +115,102 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
     }
   }
 
+  const loadContributors = async () => {
+    setLoadingContributors(true)
+    try {
+      const data = await apiClient.request<{ contributors: LocationContributor[] }>('/api/streetlifting-index/locations/contributors', { method: 'POST', body: {}, timeoutMs: 15000 })
+      setContributors(Array.isArray(data?.contributors) ? data.contributors : [])
+    } catch {
+      setContributors([])
+    } finally {
+      setLoadingContributors(false)
+    }
+  }
+
   const loadLocations = async (targetPage = 1, append = false) => {
+    const requestId = ++requestIdRef.current
     setLoading(true)
     setError('')
     try {
       const data = await apiClient.request<ListRes>('/api/streetlifting-index/locations/list', {
         method: 'POST',
-        body: { page: targetPage, limit: PAGE_SIZE, search: search.trim() || undefined, province: province === 'all' ? undefined : province },
+        body: {
+          page: targetPage,
+          limit: PAGE_SIZE,
+          search: activeSearch || undefined,
+          country: country === 'all' ? undefined : country,
+          province: province === 'all' ? undefined : province,
+          equipment: equipment.length ? equipment : undefined,
+        },
         timeoutMs: 12000,
       })
-      const sorted = [...(data.locations || [])].sort((a, b) => getLocationImages(b).length - getLocationImages(a).length || new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      if (requestId !== requestIdRef.current) return
+      const sorted = sortLocations(data.locations || [])
       setLocations((prev) => (append ? [...prev, ...sorted] : sorted))
-      setTotal(data.pagination?.total || sorted.length)
+      setTotal(data.pagination?.total ?? sorted.length)
       setPage(targetPage)
       setProvinces(data.provinces || [])
+      if (data.countries?.length) setCountries(data.countries)
     } catch (e) {
-      setError((e as Error)?.message || '加载失败')
+      if (requestId === requestIdRef.current) setError((e as Error)?.message || '加载失败')
     } finally {
-      setLoading(false)
+      if (requestId === requestIdRef.current) setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadLocations(1, false)
-    loadOverview()
+    void loadLocations(1, false)
+  }, [activeSearch, country, equipment, province])
+
+  useEffect(() => {
+    void loadOverview()
+    void loadContributors()
   }, [])
 
-  const applyFilter = () => loadLocations(1, false)
+  // 从详情或「我的点位」回来时，只有点位真的变了才刷新，否则会把翻过的页收回第一页
+  const reloadAllRef = useRef(() => undefined as void)
+  reloadAllRef.current = () => {
+    void loadLocations(1, false)
+    void loadOverview()
+    void loadContributors()
+  }
+  useFocusEffect(useCallback(() => {
+    if (consumeLocationsChanged()) reloadAllRef.current()
+  }, []))
 
-  const openCreateDialog = () => {
-    if (!isAuthenticated) {
-      Alert.alert('请先登录', '登录后才能新增单杠点位和上传现场图片。', [
-        { text: '取消', style: 'cancel' },
-        { text: '去登录', onPress: () => navigation.navigate('Login') },
-      ])
-      return
-    }
-    setError('')
-    setImageUrls([])
-    setDialogOpen(true)
+  const requireLogin = (message: string) => {
+    if (isAuthenticated) return true
+    Alert.alert('登录后可用', message, [
+      { text: '取消', style: 'cancel' },
+      { text: '去登录', onPress: () => navigation.navigate('Login') },
+    ])
+    return false
   }
 
-  const uploadImageAssets = async (assets: ImagePicker.ImagePickerAsset[]) => {
-    const available = MAX_IMAGES - imageUrls.length
-    const selected = assets.slice(0, available)
-    if (!selected.length) return
-    setUploading(true)
-    try {
-      const token = await getStoredToken()
-      for (const [index, asset] of selected.entries()) {
-        if (asset.fileSize && asset.fileSize > MAX_IMAGE_BYTES) throw new Error(`第 ${index + 1} 张图片超过 5MB，请压缩后重试`)
-        const type = asset.mimeType || 'image/jpeg'
-        const ext = type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
-        const formData = new FormData()
-        formData.append('file', {
-          uri: asset.uri,
-          name: asset.fileName || `streetlifting-location-${Date.now()}-${index}.${ext}`,
-          type,
-        } as any)
-        const response = await fetchWithTimeout(`${API_BASE_URL}/api/streetlifting-index/upload-location-image`, {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          body: formData,
-        })
-        const payload = await response.json().catch(() => null)
-        if (!response.ok || !payload?.success || !payload?.data?.url) throw new Error(payload?.message || '图片上传失败')
-        setImageUrls((prev) => [...prev, String(payload.data.url)].slice(0, MAX_IMAGES))
-      }
-    } catch (err) {
-      Alert.alert('图片上传失败', err instanceof Error ? err.message : '请稍后重试')
-    } finally {
-      setUploading(false)
-    }
+  const openCreate = () => {
+    if (!requireLogin('登录后才能新增你的单杠位置和上传图片。')) return
+    setEditing(null)
+    setFormVisible(true)
   }
 
-  const chooseImages = async () => {
-    if (imageUrls.length >= MAX_IMAGES) {
-      Alert.alert('图片已满', `每个点位最多上传 ${MAX_IMAGES} 张图片。`)
-      return
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.82,
-      allowsMultipleSelection: true,
-      selectionLimit: MAX_IMAGES - imageUrls.length,
-    })
-    if (!result.canceled) await uploadImageAssets(result.assets)
+  const openEdit = (location: StreetliftingLocation) => {
+    if (!requireLogin('登录后才能编辑单杠位置和补充图片。')) return
+    setEditing(location)
+    setFormVisible(true)
   }
 
-  const takePhoto = async () => {
-    if (imageUrls.length >= MAX_IMAGES) {
-      Alert.alert('图片已满', `每个点位最多上传 ${MAX_IMAGES} 张图片。`)
-      return
-    }
-    const permission = await ImagePicker.requestCameraPermissionsAsync()
-    if (!permission.granted) {
-      Alert.alert('需要相机权限', '请在系统设置中允许 CoachLink 使用相机后重试。')
-      return
-    }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.82 })
-    if (!result.canceled) await uploadImageAssets(result.assets)
+  const openMine = () => {
+    if (!requireLogin('登录后可以查看和更新你上传过的单杠点位。')) return
+    navigation.navigate('StreetliftingMyLocations')
   }
 
-  const createLocation = async () => {
-    setSubmitting(true)
-    setError('')
-    try {
-      const payload = {
-        name: form.name.trim(),
-        description: form.description.trim() || null,
-        address: form.address.trim() || null,
-        province: form.province.trim() || null,
-        city: form.city.trim() || null,
-        county: form.county.trim() || null,
-        latitude: form.latitude.trim() ? Number(form.latitude) : null,
-        longitude: form.longitude.trim() ? Number(form.longitude) : null,
-        image_urls: imageUrls,
-        user_contact: form.user_contact.trim() || null,
-      }
-      if (!payload.name) throw new Error('请填写地点名称')
-      if ((payload.latitude !== null && !Number.isFinite(payload.latitude)) || (payload.longitude !== null && !Number.isFinite(payload.longitude))) {
-        throw new Error('经纬度格式不正确')
-      }
-      const res = await apiClient.request<{ location: StreetliftingLocation }>('/api/streetlifting-index/locations/create', {
-        method: 'POST',
-        body: payload,
-        timeoutMs: 12000,
-      })
-      setLocations((prev) => [res.location, ...prev])
-      setTotal((prev) => prev + 1)
-      setDialogOpen(false)
-      setImageUrls([])
-      setForm({ name: '', description: '', address: '', province: '', city: '', county: '', latitude: '', longitude: '', user_contact: '' })
-      void loadOverview()
-    } catch (e) {
-      setError((e as Error)?.message || '提交失败')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  const countryOptions = useMemo(() => (countries.includes('中国') ? countries : ['中国', ...countries]), [countries])
+  const maxProvince = overview?.topProvinces?.[0]?.count || 1
+  const maxMonth = Math.max(1, ...(overview?.recentMonths || []).map((item) => item.count))
 
   return (
     <Page>
-      <Pressable onPress={() => navigation.goBack()} style={styles.backRow}>
+      <Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={() => navigation.goBack()} style={styles.backRow}>
         <IconFont name="icon-back" color={colors.text} size={18} />
         <Text style={styles.backText}>返回</Text>
       </Pressable>
@@ -270,124 +227,218 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.statGrid}>
-        <View style={styles.statCard}><Text style={styles.statValue}>{overview?.totalCount ?? total}</Text><Text style={styles.statLabel}>点位</Text></View>
-        <View style={styles.statCard}><Text style={styles.statValue}>{overview?.withImagesCount ?? 0}</Text><Text style={styles.statLabel}>有图片</Text></View>
-        <View style={styles.statCard}><Text style={styles.statValue}>{overview?.provinceCount ?? provinces.length}</Text><Text style={styles.statLabel}>省份</Text></View>
-        <View style={styles.statCard}><Text style={styles.statValue}>{overview?.mapReadyCount ?? 0}</Text><Text style={styles.statLabel}>可导航</Text></View>
+        <View style={styles.statCard}><Text style={styles.statValue}>{overview?.totalCount ?? total}</Text><Text style={styles.statLabel}>全部点位</Text></View>
+        <View style={styles.statCard}><Text style={styles.statValue}>{overview?.withImagesCount ?? 0}</Text><Text style={styles.statLabel}>带图片</Text></View>
+        <View style={styles.statCard}><Text style={styles.statValue}>{overview?.provinceCount ?? provinces.length}</Text><Text style={styles.statLabel}>覆盖省份</Text></View>
       </View>
 
-      <SectionCard title="筛选">
-        <TextInput value={search} onChangeText={setSearch} placeholder="搜索名称、地址或描述" placeholderTextColor={colors.textMuted} style={styles.input} />
-        <View style={styles.chips}>
-          {visibleProvinceOptions.slice(0, 12).map((item) => {
-            const active = province === item
-            return (
-              <Pressable key={item} onPress={() => setProvince(item)} style={[styles.chip, active && styles.chipActive]}>
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{item === 'all' ? '全部省份' : item}</Text>
-              </Pressable>
-            )
-          })}
-        </View>
-        <View style={styles.actions}>
-          <Pressable onPress={applyFilter} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>应用筛选</Text></Pressable>
-          <Pressable onPress={openCreateDialog} style={styles.primaryButton}><Text style={styles.primaryButtonText}>新增点位</Text></Pressable>
-        </View>
-        <Pressable onPress={() => navigation.navigate('StreetliftingLocationsMap')} style={styles.mapButton}>
-          <IconFont name="icon-location" color={colors.brand} size={18} />
-          <Text style={styles.mapButtonText}>查看可导航点位地图</Text>
-        </Pressable>
-      </SectionCard>
+      <View style={styles.tabBar}>
+        {TABS.map((item) => {
+          const active = tab === item.key
+          return (
+            <Pressable key={item.key} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: active }} onPress={() => setTab(item.key)} style={[styles.tab, active && styles.tabActive]}>
+              <Text style={[styles.tabText, active && styles.tabTextActive]}>{item.label}</Text>
+            </Pressable>
+          )
+        })}
+      </View>
 
-      {overview?.topProvinces?.length ? (
-        <SectionCard title="热门区域">
-          <View style={styles.areaList}>
-            {overview.topProvinces.slice(0, 6).map((item) => (
-              <View key={item.name} style={styles.areaRow}>
-                <Text style={styles.areaName}>{item.name}</Text>
-                <Text style={styles.areaCount}>{item.count} 个点位</Text>
+      {tab === 'list' ? (
+        <>
+          <SectionCard title="筛选">
+            <View style={styles.searchRow}>
+              <TextInput accessibilityLabel="搜索单杠点位" value={search} onChangeText={setSearch} onSubmitEditing={() => setActiveSearch(search.trim())} returnKeyType="search" placeholder="搜索名称、城市、区县或地址，可空格分隔" placeholderTextColor={colors.textMuted} style={[styles.input, styles.flex]} />
+              <Pressable accessibilityRole="button" accessibilityLabel="搜索" onPress={() => setActiveSearch(search.trim())} style={styles.searchButton}>
+                <Text style={styles.searchButtonText}>搜索</Text>
+              </Pressable>
+            </View>
+            <FilterRow all="国家/地区" value={country} options={countryOptions} onChange={(value) => { setCountry(value); setProvince('all') }} />
+            <FilterRow all="省/州" value={province} options={provinces} onChange={setProvince} />
+            <EquipmentSelector filter value={equipment} onChange={setEquipment} />
+            <View style={styles.mapActions}>
+              <Pressable accessibilityRole="button" accessibilityLabel="查看离我最近的单杠" accessibilityState={{ disabled: locating, busy: locating }} disabled={locating} onPress={() => void locateNearby()} style={[styles.mapButton, styles.mapAction]}>
+                <IconFont name="icon-location" color={colors.brand} size={18} />
+                <Text style={styles.mapButtonText}>{locating ? '定位中…' : '附近'}</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="打开单杠地图" onPress={() => navigation.navigate('StreetliftingLocationsMap')} style={[styles.mapButton, styles.mapAction]}>
+                <Text style={styles.mapButtonText}>地图</Text>
+              </Pressable>
+            </View>
+          </SectionCard>
+
+          {userPosition ? (
+            <SectionCard title="离你最近" description={nearby.length ? '已获取当前位置，距离是直线距离。' : '当前筛选下没有带位置的点位。'}>
+              {nearby.map((item) => (
+                <NearbyLocationCard
+                  key={item.id}
+                  location={item}
+                  onOpenDetail={() => navigation.navigate('StreetliftingLocationDetail', { id: item.id })}
+                  onOpenMap={() => void openSystemMap(item)}
+                />
+              ))}
+            </SectionCard>
+          ) : null}
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          {loading && !locations.length ? (
+            <View style={styles.loadingCard}><ActivityIndicator color={colors.brand} /><Text style={styles.loadingText}>正在加载点位</Text></View>
+          ) : (
+            <View style={styles.list}>
+              {!loading && !error && locations.length === 0 ? <Text style={styles.loadingText}>暂无匹配的单杠点位，换个筛选条件试试。</Text> : null}
+              {locations.map((location) => {
+                const image = getLocationImages(location)[0]
+                return (
+                  <View key={location.id} style={styles.locationCard}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`查看${location.name}`} onPress={() => navigation.navigate('StreetliftingLocationDetail', { id: location.id })}>
+                      {image ? <Image source={{ uri: image }} style={styles.locationImage} accessibilityIgnoresInvertColors /> : <View style={styles.imageFallback}><IconFont name="icon-location" color={colors.brand} size={28} /></View>}
+                      <View style={styles.locationBody}>
+                        <Text style={styles.locationTitle}>{location.name}</Text>
+                        <Text style={styles.locationArea}>{locationRegion(location)}</Text>
+                        <EquipmentTags location={location} />
+                        {location.description ? <Text style={styles.locationDesc} numberOfLines={2}>{location.description}</Text> : null}
+                        {location.address ? <Text style={styles.locationMeta}>{location.address}</Text> : null}
+                        <View style={styles.locationFooter}>
+                          <Text style={styles.footerText}>{contributorLabel(location)} · {formatDate(location.created_at)}</Text>
+                          {location.latitude != null && location.longitude != null ? <Text style={styles.mapReady}>可导航</Text> : null}
+                        </View>
+                      </View>
+                    </Pressable>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`编辑${location.name}的位置`} onPress={() => openEdit(location)} style={styles.editButton}>
+                      <IconFont name="icon-pencil" color={colors.brand} size={14} />
+                      <Text style={styles.editText}>编辑位置</Text>
+                    </Pressable>
+                  </View>
+                )
+              })}
+              {locations.length < total ? (
+                <Pressable accessibilityRole="button" accessibilityLabel="加载更多点位" accessibilityState={{ disabled: loading, busy: loading }} disabled={loading} onPress={() => void loadLocations(page + 1, true)} style={styles.loadMoreButton}>
+                  <Text style={styles.loadMoreText}>{loading ? '加载中' : '加载更多'}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+        </>
+      ) : null}
+
+      {tab === 'data' ? (
+        overview ? (
+          <>
+            <View style={styles.dataGrid}>
+              <DataCard label="图片覆盖率" value={formatRate(overview.withImagesCount, overview.totalCount)} helper={`${overview.withImagesCount} / ${overview.totalCount} 有图`} />
+              <DataCard label="描述覆盖率" value={formatRate(overview.withDescriptionCount, overview.totalCount)} helper={`${overview.withDescriptionCount} / ${overview.totalCount} 有描述`} />
+              <DataCard label="平均图片数" value={String(overview.averageImageCount)} helper="每个点位的平均图片数量" />
+              <DataCard label="可地图打开" value={String(overview.mapReadyCount)} helper="已带经纬度，可直接导航" />
+              <DataCard label="贡献者数" value={String(overview.contributorCount)} helper="已建立贡献累计的上传者" />
+            </View>
+            {overview.topProvinces?.length ? (
+              <SectionCard title="省份分布 Top 6">
+                <View style={styles.list}>
+                  {overview.topProvinces.slice(0, 6).map((item) => (
+                    <View key={item.name} style={styles.rankRow}>
+                      <View style={styles.rankHead}>
+                        <Text style={styles.areaName}>{item.name}</Text>
+                        <Text style={styles.areaCount}>{item.count}</Text>
+                      </View>
+                      <View style={styles.rankTrack}>
+                        <View style={[styles.rankFill, { width: `${Math.max(12, Math.round((item.count / maxProvince) * 100))}%` }]} />
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </SectionCard>
+            ) : null}
+            {overview.recentMonths?.length ? (
+              <SectionCard title="最近 6 个月新增趋势">
+                <View style={styles.trend}>
+                  {overview.recentMonths.map((item) => (
+                    <View key={item.month} style={styles.trendItem}>
+                      <Text style={styles.areaCount}>{item.count}</Text>
+                      <View style={styles.trendBarWrap}>
+                        <View style={[styles.trendBar, { height: `${Math.max(8, Math.round((item.count / maxMonth) * 100))}%` }]} />
+                      </View>
+                      <Text style={styles.areaCount}>{formatMonthLabel(item.month)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </SectionCard>
+            ) : null}
+          </>
+        ) : (
+          <View style={styles.loadingCard}><ActivityIndicator color={colors.brand} /><Text style={styles.loadingText}>正在加载数据</Text></View>
+        )
+      ) : null}
+
+      {tab === 'rank' ? (
+        <SectionCard title="单杠贡献排行榜" description="权益方向：贡献徽章、内测优先权、训练资料兑换等都会优先参考这份贡献分。">
+          {loadingContributors ? <ActivityIndicator color={colors.brand} /> : null}
+          {!loadingContributors && contributors.length === 0 ? <Text style={styles.loadingText}>当前可识别的署名贡献还不多，新的分享会开始累计上榜。</Text> : null}
+          {contributors.map((item, index) => (
+            <View key={item.contributor_key} style={styles.contributor}>
+              <Text style={styles.contributorRank}>{index + 1}</Text>
+              <View style={styles.flex}>
+                <Text style={styles.areaName} numberOfLines={1}>{formatContributorName(item.display_name)}</Text>
+                <Text style={styles.areaCount}>{item.upload_count} 次上传 · 详细度 {item.detail_score_total} 分 · {item.image_count_total} 张图</Text>
               </View>
-            ))}
-          </View>
+              <View style={styles.contributorScore}>
+                <Text style={styles.contributorScoreValue}>{item.contribution_score}</Text>
+                <Text style={styles.areaCount}>贡献分</Text>
+              </View>
+            </View>
+          ))}
         </SectionCard>
       ) : null}
 
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <View style={styles.actions}>
+        <Pressable accessibilityRole="button" accessibilityLabel="我的点位" onPress={openMine} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>我的点位</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="分享我的单杠位置" onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryButtonText}>分享我的单杠位置</Text></Pressable>
+      </View>
 
-      {loading && !locations.length ? (
-        <View style={styles.loadingCard}><ActivityIndicator color={colors.brand} /><Text style={styles.loadingText}>正在加载点位</Text></View>
-      ) : (
-        <View style={styles.list}>
-          {locations.map((location) => {
-            const image = getLocationImages(location)[0]
-            return (
-              <Pressable key={location.id} onPress={() => navigation.navigate('StreetliftingLocationDetail', { id: location.id })} style={styles.locationCard}>
-                {image ? <Image source={{ uri: image }} style={styles.locationImage} /> : <View style={styles.imageFallback}><IconFont name="icon-location" color={colors.brand} size={28} /></View>}
-                <View style={styles.locationBody}>
-                  <Text style={styles.locationTitle}>{location.name}</Text>
-                  <Text style={styles.locationArea}>{locationArea(location)}</Text>
-                  {location.description ? <Text style={styles.locationDesc}>{location.description}</Text> : null}
-                  {location.address ? <Text style={styles.locationMeta}>{location.address}</Text> : null}
-                  <View style={styles.locationFooter}>
-                    <Text style={styles.footerText}>{contributorName(location)} · {formatDate(location.created_at)}</Text>
-                    {location.latitude && location.longitude ? <Text style={styles.mapReady}>可导航</Text> : null}
-                  </View>
-                </View>
-              </Pressable>
-            )
-          })}
-          {locations.length < total ? (
-            <Pressable onPress={() => loadLocations(page + 1, true)} style={styles.loadMoreButton}>
-              <Text style={styles.loadMoreText}>{loading ? '加载中' : '加载更多'}</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      )}
-
-      <Modal visible={dialogOpen} animationType="slide" transparent onRequestClose={() => setDialogOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <ScrollView style={styles.modalCard} contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <Text style={styles.modalTitle}>新增单杠点位</Text>
-            <TextInput value={form.name} onChangeText={(name) => setForm((prev) => ({ ...prev, name }))} placeholder="地点名称" placeholderTextColor={colors.textMuted} style={styles.input} />
-            <TextInput value={form.description} onChangeText={(description) => setForm((prev) => ({ ...prev, description }))} placeholder="描述" placeholderTextColor={colors.textMuted} style={styles.input} />
-            <TextInput value={form.address} onChangeText={(address) => setForm((prev) => ({ ...prev, address }))} placeholder="详细地址" placeholderTextColor={colors.textMuted} style={styles.input} />
-            <TextInput value={form.province} onChangeText={(provinceValue) => setForm((prev) => ({ ...prev, province: provinceValue }))} placeholder="省份" placeholderTextColor={colors.textMuted} style={styles.input} />
-            <TextInput value={form.city} onChangeText={(city) => setForm((prev) => ({ ...prev, city }))} placeholder="城市" placeholderTextColor={colors.textMuted} style={styles.input} />
-            <TextInput value={form.county} onChangeText={(county) => setForm((prev) => ({ ...prev, county }))} placeholder="区县" placeholderTextColor={colors.textMuted} style={styles.input} />
-            <TextInput value={form.latitude} onChangeText={(latitude) => setForm((prev) => ({ ...prev, latitude }))} keyboardType="decimal-pad" placeholder="纬度（可选）" placeholderTextColor={colors.textMuted} style={styles.input} />
-            <TextInput value={form.longitude} onChangeText={(longitude) => setForm((prev) => ({ ...prev, longitude }))} keyboardType="decimal-pad" placeholder="经度（可选）" placeholderTextColor={colors.textMuted} style={styles.input} />
-            <TextInput value={form.user_contact} onChangeText={(user_contact) => setForm((prev) => ({ ...prev, user_contact }))} placeholder="署名/联系方式（可选）" placeholderTextColor={colors.textMuted} style={styles.input} />
-            <View style={styles.photoHeader}>
-              <View><Text style={styles.photoTitle}>现场图片</Text><Text style={styles.photoHint}>最多 {MAX_IMAGES} 张，单张不超过 5MB</Text></View>
-              <Text style={styles.photoCount}>{imageUrls.length}/{MAX_IMAGES}</Text>
-            </View>
-            {imageUrls.length > 0 ? (
-              <View style={styles.photoGrid}>
-                {imageUrls.map((url, index) => (
-                  <View key={url} style={styles.photoPreviewWrap}>
-                    <Image source={{ uri: url }} style={styles.photoPreview} />
-                    <Pressable accessibilityLabel={`删除第 ${index + 1} 张图片`} onPress={() => setImageUrls((prev) => prev.filter((_, itemIndex) => itemIndex !== index))} style={styles.photoRemove}><Text style={styles.photoRemoveText}>×</Text></Pressable>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-            <View style={styles.photoActions}>
-              <Pressable disabled={uploading || imageUrls.length >= MAX_IMAGES} onPress={() => void chooseImages()} style={[styles.photoButton, (uploading || imageUrls.length >= MAX_IMAGES) && styles.buttonDisabled]}><IconFont name="icon-picture" color={colors.brand} size={17} /><Text style={styles.photoButtonText}>相册选择</Text></Pressable>
-              <Pressable disabled={uploading || imageUrls.length >= MAX_IMAGES} onPress={() => void takePhoto()} style={[styles.photoButton, (uploading || imageUrls.length >= MAX_IMAGES) && styles.buttonDisabled]}><IconFont name="icon-kaiji" color={colors.brand} size={17} /><Text style={styles.photoButtonText}>现场拍照</Text></Pressable>
-            </View>
-            {uploading ? <View style={styles.uploadingRow}><ActivityIndicator color={colors.brand} size="small" /><Text style={styles.photoHint}>图片上传中，请稍候…</Text></View> : null}
-            <View style={styles.actions}>
-              <Pressable onPress={() => setDialogOpen(false)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>取消</Text></Pressable>
-              <Pressable onPress={createLocation} disabled={submitting || uploading} style={[styles.primaryButton, (submitting || uploading) && styles.buttonDisabled]}><Text style={styles.primaryButtonText}>{submitting ? '提交中' : uploading ? '等待图片上传' : '提交'}</Text></Pressable>
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
+      <StreetliftingLocationFormModal
+        visible={formVisible}
+        editing={editing}
+        onClose={() => setFormVisible(false)}
+        onSaved={() => {
+          consumeLocationsChanged()
+          setFormVisible(false)
+          void loadLocations(1, false)
+          void loadOverview()
+          void loadContributors()
+        }}
+      />
     </Page>
   )
 }
 
+function FilterRow({ all, value, options, onChange }: { all: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  if (options.length === 0) return null
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+      {['all', ...options].map((item) => {
+        const active = value === item
+        return (
+          <Pressable key={item} accessibilityRole="radio" accessibilityLabel={item === 'all' ? `全部${all}` : item} accessibilityState={{ checked: active }} onPress={() => onChange(item)} style={[styles.chip, active && styles.chipActive]}>
+            <Text style={[styles.chipText, active && styles.chipTextActive]}>{item === 'all' ? `全部${all}` : item}</Text>
+          </Pressable>
+        )
+      })}
+    </ScrollView>
+  )
+}
+
+function DataCard({ label, value, helper }: { label: string; value: string; helper: string }) {
+  return (
+    <View style={styles.dataCard}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.areaCount}>{helper}</Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
-  backRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs },
+  flex: { flex: 1 },
+  backRow: { alignSelf: 'flex-start', minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   backText: { color: colors.text, fontSize: 15, fontWeight: '600' },
   hero: { minHeight: 152, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', borderRadius: radius.xl, padding: spacing.md, backgroundColor: '#1F1F1F' },
   heroText: { flex: 1, gap: spacing.xs },
@@ -395,29 +446,37 @@ const styles = StyleSheet.create({
   heroTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: '700' },
   heroSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 14, lineHeight: 22 },
   heroIcon: { width: 56, height: 56, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  statCard: { width: '47%', borderRadius: radius.lg, padding: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
-  statValue: { color: colors.text, fontSize: 24, fontWeight: '700' },
+  statGrid: { flexDirection: 'row', gap: spacing.xs },
+  statCard: { flex: 1, borderRadius: radius.lg, padding: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
+  statValue: { color: colors.text, fontSize: 22, fontWeight: '700' },
   statLabel: { color: colors.textTertiary, fontSize: 12, fontWeight: '600' },
-  input: { minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, fontSize: 15, fontWeight: '600', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border, marginTop: spacing.xs },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
-  chip: { minHeight: 48, borderRadius: radius.pill, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
-  chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  chipText: { color: colors.text, fontSize: 13, fontWeight: '700' },
-  chipTextActive: { color: '#FFFFFF' },
-  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  mapButton: { minHeight: 48, marginTop: spacing.sm, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.brandSoft },
+  tabBar: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: radius.pill, backgroundColor: colors.surfaceMuted },
+  tab: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill },
+  tabActive: { backgroundColor: colors.surface },
+  tabText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  tabTextActive: { color: colors.text },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  input: { minHeight: 48, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, fontSize: 14, backgroundColor: colors.surfaceMuted },
+  searchButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.brand },
+  searchButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  filterRow: { gap: spacing.xs },
+  // 与小程序 ClChip 一致
+  chip: { minHeight: 36, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surfaceMuted },
+  chipActive: { backgroundColor: colors.selected },
+  chipText: { color: colors.textSecondary, fontSize: 13 },
+  chipTextActive: { color: colors.selectedText, fontWeight: '500' },
+  actions: { flexDirection: 'row', gap: spacing.xs },
+  mapActions: { flexDirection: 'row', gap: spacing.xs },
+  mapAction: { flex: 1 },
+  mapButton: { minHeight: 48, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.brandSoft },
   mapButtonText: { color: colors.brand, fontSize: 14, fontWeight: '700' },
-  primaryButton: { flex: 1, minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
+  primaryButton: { flex: 2, minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   secondaryButton: { flex: 1, minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  buttonDisabled: { opacity: 0.55 },
   errorText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   loadingCard: { minHeight: 96, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: colors.surface },
   loadingText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  areaList: { gap: spacing.xs },
-  areaRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surfaceMuted },
   areaName: { color: colors.text, fontSize: 14, fontWeight: '700' },
   areaCount: { color: colors.textTertiary, fontSize: 12, fontWeight: '600' },
   list: { gap: spacing.sm },
@@ -432,23 +491,22 @@ const styles = StyleSheet.create({
   locationFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   footerText: { flex: 1, color: colors.textTertiary, fontSize: 12 },
   mapReady: { color: colors.success, fontSize: 12, fontWeight: '700' },
+  editButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, paddingHorizontal: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  editText: { color: colors.brand, fontSize: 13, fontWeight: '600' },
   loadMoreButton: { minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   loadMoreText: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
-  modalCard: { maxHeight: '88%', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, backgroundColor: colors.surface },
-  modalContent: { padding: spacing.sm, paddingBottom: spacing.lg, gap: spacing.xs },
-  modalTitle: { color: colors.text, fontSize: 20, fontWeight: '700' },
-  photoHeader: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xs },
-  photoTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  photoHint: { color: colors.textTertiary, fontSize: 12, lineHeight: 18 },
-  photoCount: { color: colors.brand, fontSize: 13, fontWeight: '700' },
-  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  photoPreviewWrap: { width: 72, height: 72 },
-  photoPreview: { width: 72, height: 72, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
-  photoRemove: { position: 'absolute', right: -4, top: -4, width: 24, height: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.danger },
-  photoRemoveText: { color: '#FFFFFF', fontSize: 18, lineHeight: 20, fontWeight: '700' },
-  photoActions: { flexDirection: 'row', gap: spacing.xs },
-  photoButton: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
-  photoButtonText: { color: colors.brand, fontSize: 13, fontWeight: '700' },
-  uploadingRow: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  dataGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  dataCard: { width: '48%', flexGrow: 1, gap: 2, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  rankRow: { gap: 4 },
+  rankHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rankTrack: { height: 8, borderRadius: radius.pill, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+  rankFill: { height: 8, borderRadius: radius.pill, backgroundColor: colors.brand },
+  trend: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.xs },
+  trendItem: { flex: 1, alignItems: 'center', gap: 4 },
+  trendBarWrap: { width: '100%', height: 96, justifyContent: 'flex-end', alignItems: 'center' },
+  trendBar: { width: 16, borderRadius: radius.sm, backgroundColor: colors.brand },
+  contributor: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
+  contributorRank: { width: 28, textAlign: 'center', color: colors.brand, fontSize: 15, fontWeight: '700' },
+  contributorScore: { alignItems: 'flex-end' },
+  contributorScoreValue: { color: colors.text, fontSize: 16, fontWeight: '700' },
 })

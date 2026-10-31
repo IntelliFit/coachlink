@@ -57,6 +57,7 @@ import { CoachContentDetailScreen } from '../screens/coach/CoachContentDetailScr
 import { CoachActionEditScreen, CoachActionsScreen } from '../screens/coach/CoachActionsScreen'
 import { CoachAutomationScreen } from '../screens/coach/CoachAutomationScreen'
 import { CoachAccountScreen } from '../screens/coach/CoachAccountScreen'
+import { CoachProfileEditScreen } from '../screens/coach/CoachProfileEditScreen'
 import { CoachContentEditScreen, CoachContentsScreen } from '../screens/coach/CoachContentsScreen'
 import { CoachDashboardScreen } from '../screens/coach/CoachDashboardScreen'
 import { CoachPlanTemplateEditScreen, CoachPlanTemplatesScreen } from '../screens/coach/CoachPlanTemplatesScreen'
@@ -87,11 +88,15 @@ import {
   StreetliftingSubmitSuccessScreen,
 } from '../screens/streetlifting/StreetliftingExtraScreens'
 import { StreetliftingLocationsScreen } from '../screens/streetlifting/StreetliftingLocationsScreen'
+import { StreetliftingMyLocationsScreen } from '../screens/streetlifting/StreetliftingMyLocationsScreen'
+import { StreetliftingCalculatorHistoryScreen } from '../screens/streetlifting/StreetliftingCalculatorHistoryScreen'
+import { BojiDetectorScreen } from '../screens/toolbox/BojiDetectorScreen'
 import { ImpromptuTrainingScreen } from '../screens/training/ImpromptuTrainingScreen'
 import { TrainingExecutionScreen } from '../screens/training/TrainingExecutionScreen'
 import { TrainingShareScreen } from '../screens/training/TrainingShareScreen'
 import { KnowledgeBookDetailScreen } from '../screens/knowledge/KnowledgeBookDetailScreen'
 import { KnowledgePlanDetailScreen } from '../screens/knowledge/KnowledgePlanDetailScreen'
+import { KnowledgeArticlesScreen, KnowledgeBooksScreen, KnowledgePlansScreen } from '../screens/knowledge/KnowledgeListScreens'
 import { KnowledgeSearchScreen } from '../screens/knowledge/KnowledgeSearchScreen'
 import { PowerAnalysisScreen } from '../screens/toolbox/PowerAnalysisScreen'
 import { MotionEffectsScreen } from '../screens/toolbox/MotionEffectsScreen'
@@ -117,6 +122,7 @@ const linking = {
       Chat: 'messages/:roomId',
       Announcements: 'announcements',
       AnnouncementDetail: 'announcements/:id',
+      BojiDetector: 'toolbox/boji/:challenge?',
     },
   },
 }
@@ -318,6 +324,7 @@ export function RootNavigator() {
             <Stack.Screen name="CoachWallet" component={CoachWalletScreen} />
             <Stack.Screen name="CoachWalletMerchant" component={CoachWalletMerchantScreen} />
             <Stack.Screen name="CoachInvitation" component={CoachInvitationScreen} />
+            <Stack.Screen name="CoachProfileEdit" component={CoachProfileEditScreen} />
             <Stack.Screen name="CoachMarket" component={CoachMarketScreen} />
             <Stack.Screen name="GeneratePlan" component={GeneratePlanScreen} />
             <Stack.Screen name="GeneratePlanWaiting" component={GeneratePlanWaitingScreen} />
@@ -344,6 +351,9 @@ export function RootNavigator() {
             <Stack.Screen name="KnowledgeSearch" component={KnowledgeSearchScreen} />
             <Stack.Screen name="KnowledgePlanDetail" component={KnowledgePlanDetailScreen} />
             <Stack.Screen name="KnowledgeBookDetail" component={KnowledgeBookDetailScreen} />
+            <Stack.Screen name="KnowledgePlans" component={KnowledgePlansScreen} />
+            <Stack.Screen name="KnowledgeBooks" component={KnowledgeBooksScreen} />
+            <Stack.Screen name="KnowledgeArticles" component={KnowledgeArticlesScreen} />
             <Stack.Screen name="PowerAnalysis" component={PowerAnalysisScreen} />
             <Stack.Screen name="MotionEffects" component={MotionEffectsScreen} />
             <Stack.Screen name="OneArmPullUp" component={OneArmPullUpScreen} />
@@ -355,6 +365,9 @@ export function RootNavigator() {
             <Stack.Screen name="StreetliftingSubmit" component={StreetliftingSubmitScreen} />
             <Stack.Screen name="StreetliftingSubmitSuccess" component={StreetliftingSubmitSuccessScreen} />
             <Stack.Screen name="StreetliftingLocationsMap" component={StreetliftingLocationsMapScreen} />
+            <Stack.Screen name="StreetliftingMyLocations" component={StreetliftingMyLocationsScreen} />
+            <Stack.Screen name="StreetliftingCalculatorHistory" component={StreetliftingCalculatorHistoryScreen} />
+            <Stack.Screen name="BojiDetector" component={BojiDetectorScreen} />
             <Stack.Screen name="StreetliftingLocationDetail" component={StreetliftingLocationDetailScreen} />
             <Stack.Screen name="ToolboxScenario" component={ToolboxScenarioScreen} />
             {isGuest ? (

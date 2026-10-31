@@ -90,11 +90,13 @@ const resolveScriptAction = (actionName: string, actions: PlanActionOption[]): M
     }
   })
 
-  if (!best || best.score < 0.78) {
+  // TS 看不到 forEach 回调里的赋值，这里显式还原类型
+  const bestMatch = best as MatchedAction | null
+  if (!bestMatch || bestMatch.score < 0.78) {
     throw new Error(`未找到动作：${actionName}`)
   }
 
-  return best
+  return bestMatch
 }
 
 const parseNumber = (value: unknown) => {

@@ -9,6 +9,7 @@ import { colors, radius, spacing } from '../../theme'
 import { HeroPanel, RowCard } from '../AppHomeShared'
 import type { RootStackParamList } from '../../navigation/types'
 import { getBookSource, normalizeBookContent, pickArray } from './knowledgeHelpers'
+import { BookDiscussion, BookGuideSections, BookReferenceSections, bookExtras } from './BookDetailSections'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'KnowledgeBookDetail'>
 
@@ -94,6 +95,7 @@ export function KnowledgeBookDetailScreen({ navigation, route }: Props) {
   }
 
   const normalized = normalizeBookContent(book.content)
+  const extras = bookExtras(book.content)
   const source = getBookSource(book.content)
   const canReadContent = hasAccess || book.is_free
 
@@ -131,6 +133,8 @@ export function KnowledgeBookDetailScreen({ navigation, route }: Props) {
 
       {normalized.disclaimer ? <SectionCard title="解读型笔记" description={normalized.disclaimer} /> : null}
 
+      <BookGuideSections extras={extras} />
+
       <SectionCard title="内容详情">
         {normalized.text ? <Text style={styles.contentText}>{normalized.text}</Text> : <Text style={styles.empty}>{book.summary || '暂无详细内容'}</Text>}
       </SectionCard>
@@ -158,6 +162,9 @@ export function KnowledgeBookDetailScreen({ navigation, route }: Props) {
           ))}
         </SectionCard>
       ) : null}
+
+      <BookReferenceSections extras={extras} />
+      {book.id ? <BookDiscussion bookId={String(book.id)} prompts={extras.discussionPrompts} /> : null}
 
       <Pressable onPress={() => navigation.goBack()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回</Text></Pressable>
     </Page>

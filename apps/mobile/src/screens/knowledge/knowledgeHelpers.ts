@@ -1,3 +1,5 @@
+import { formatRestMinutes } from '@coachlink/core/src/restDisplay'
+
 export type PublicTrainingPlanLevel = 'beginner' | 'intermediate' | 'advanced'
 
 export const PLAN_LEVEL_LABELS: Record<PublicTrainingPlanLevel, string> = {
@@ -27,12 +29,9 @@ export function toNumber(value: any) {
   return Number.isFinite(num) ? num : null
 }
 
+/** 休息时间按秒存、统一按分钟显示（DECISIONS 2026-10-27），与小程序 planDetailFormat 一致。 */
 export function formatRest(value: any) {
-  const seconds = toNumber(value)
-  if (seconds === null || seconds <= 0) return '按动作安排'
-  if (seconds % 60 === 0) return `${seconds / 60} 分钟`
-  if (seconds > 120) return `${(seconds / 60).toFixed(1)} 分钟`
-  return `${seconds} 秒`
+  return formatRestMinutes(toNumber(value)) || '按动作安排'
 }
 
 export function formatMetric(value: any, fallback = '按计划') {

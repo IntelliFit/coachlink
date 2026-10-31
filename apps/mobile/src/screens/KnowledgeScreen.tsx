@@ -184,6 +184,7 @@ export function KnowledgeScreen({ navigation }: Props) {
         {loading ? <ActivityIndicator color={colors.brand} /> : null}
         {plans.length === 0 && !loading && !loadError ? <Text style={styles.empty}>暂无训练计划。</Text> : null}
         {plans.slice(0, 6).map((plan) => <RowCard key={String(plan.id || plan.slug || plan.name)} title={plan.name || plan.title || '训练计划'} subtitle={`${plan.weeks || '-'}周 · ${plan.daysPerWeek || plan.days_per_week || '-'}天/周 · ${plan.specialtyLabel || plan.goal || plan.sport || '训练'}`} icon="icon-a-Trainingplan" onPress={() => rootNav?.navigate('KnowledgePlanDetail', { id: plan.slug || plan.id, fallback: plan })} />)}
+        <RowCard title="全部训练计划" subtitle="按水平筛选、搜索全部已发布计划" icon="icon-a-Trainingplan" onPress={() => rootNav?.navigate('KnowledgePlans')} />
       </SectionCard>
 
       {!hasPrivateAccess ? (
@@ -197,6 +198,7 @@ export function KnowledgeScreen({ navigation }: Props) {
           <SectionCard title="书籍笔记" description="深度资料保留在这里，适合需要理解原理时阅读。">
             {books.length === 0 && !loading && !loadError ? <Text style={styles.empty}>暂无书籍笔记。</Text> : null}
             {books.map((book) => <RowCard key={String(book.id || book.slug || book.title)} title={book.title || book.name || '书籍笔记'} subtitle={book.summary || book.description || '进入阅读'} icon="icon-knowledge" onPress={() => rootNav?.navigate('KnowledgeBookDetail', { id: book.id || book.slug })} />)}
+            <RowCard title="全部书籍笔记" subtitle="按整本书聚合总览、章节和讨论" icon="icon-knowledge" onPress={() => rootNav?.navigate('KnowledgeBooks')} />
           </SectionCard>
 
           <SectionCard title="教练专栏" description="对应小程序教练专栏广场，按订阅权限展示可读内容。">
@@ -215,6 +217,7 @@ export function KnowledgeScreen({ navigation }: Props) {
                 />
               )
             })}
+            <RowCard title="全部文章" subtitle="平台编辑与教练发布的训练内容" icon="icon-knowledge" onPress={() => rootNav?.navigate('KnowledgeArticles')} />
           </SectionCard>
         </>
       )}

@@ -1,93 +1,66 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native'
+import { Alert, Share, StyleSheet, Text, View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
+import { SvgXml } from 'react-native-svg'
+import { buildMuscleScores, highlightBodySvg } from '@coachlink/core/src/publicTrainingSummary'
 import { apiClient } from '../../api'
-import { IconFont } from '../../components/IconFont'
-import { Page } from '../../components/Page'
-import { colors, radius, shadow, spacing } from '../../theme'
+import maleBackSvg from '../../assets/body-map/maleBackSvg'
+import maleFrontSvg from '../../assets/body-map/maleFrontSvg'
+import { API_BASE_URL } from '../../config'
 import type { RootStackParamList } from '../../navigation/types'
+import { colors, radius, spacing } from '../../theme'
+import { Card, EmptyState, InlineAvatar, LoadingState, ScreenShell, SolidButton, errorMessage } from '../me/MeShared'
+import { buildTrainingShareText, formatShareDateTime, mergeTrainingShare, stripSvgProlog, trainingShareTitle, volumeInTons, type TrainingShareData } from './trainingShareModel'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TrainingShare'>
 
-type ShareData = {
-  workoutName: string
-  completedAt: string
-  totalSets: number
-  totalReps: number
-  totalVolume: number
-  prCount: number
-  duration: number
-}
-
-function pickData(payload: any) {
-  return payload?.data?.data || payload?.data || payload || {}
-}
-
-function formatDate(value?: string) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString()
-}
-
+/** 训练分享页，内容对应小程序公开训练页 content/public/training；分享内容带网页版链接。 */
 export function TrainingShareScreen({ navigation, route }: Props) {
   const executionId = route.params?.executionId || ''
-  const [data, setData] = useState<ShareData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<TrainingShareData | null>(null)
+  const [loading, setLoading] = useState(Boolean(executionId))
+  const [error, setError] = useState('')
   const [sharing, setSharing] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
+    if (!executionId) return
     let alive = true
-    async function loadData() {
-      if (!executionId) {
-        setLoading(false)
-        return
-      }
-      setLoading(true)
+    setLoading(true)
+    setError('')
+    async function load() {
       try {
-        const res = await apiClient.request('/api/execution/share-info', {
-          method: 'POST',
-          body: { id: executionId },
-          timeoutMs: 12000,
-        })
-        const row = pickData(res)
-        if (!alive) return
-        setData({
-          workoutName: row.planName || '今日训练',
-          completedAt: row.completedAt || row.completed_at || '',
-          totalSets: Number(row.totalSets || row.total_sets || 0),
-          totalReps: Number(row.totalReps || row.total_reps || 0),
-          totalVolume: Number(row.totalVolume || row.total_volume || 0),
-          prCount: Array.isArray(row.prRecords) ? row.prRecords.length : Number(row.prCount || 0),
-          duration: Number(row.durationMinutes || row.duration_minutes || 0),
-        })
-      } catch (error: any) {
-        Alert.alert('加载分享数据失败', error?.message || '请稍后重试')
+        const shareInfo = await apiClient.request<any>('/api/execution/share-info', { method: 'POST', body: { id: executionId }, timeoutMs: 12000 })
+        const publicTraining = shareInfo?.shareToken
+          ? await apiClient.request<any>(`/api/public/training?token=${encodeURIComponent(shareInfo.shareToken)}`, { timeoutMs: 12000 }).catch(() => null)
+          : null
+        if (alive) setData(mergeTrainingShare(shareInfo, publicTraining))
+      } catch (loadError) {
+        if (alive) setError(errorMessage(loadError, '加载分享数据失败，请稍后重试'))
       } finally {
         if (alive) setLoading(false)
       }
     }
-    void loadData()
-    return () => { alive = false }
-  }, [executionId])
+    void load()
+    return () => {
+      alive = false
+    }
+  }, [executionId, reloadKey])
 
-  const shareText = useMemo(() => {
-    if (!data) return ''
-    return [
-      '训练完成！',
-      data.workoutName,
-      `${formatDate(data.completedAt)} · ${data.duration || 0} 分钟`,
-      `总容量 ${data.totalVolume || 0}kg · ${data.totalSets || 0} 组 · PR ${data.prCount || 0}`,
-      '来自 CoachLink 健身',
-    ].filter(Boolean).join('\n')
-  }, [data])
+  const muscleScores = useMemo(() => buildMuscleScores(data?.actions || []), [data?.actions])
+  const bodyMaps = useMemo(() => {
+    const labels = muscleScores.map((item) => item.label)
+    return { front: stripSvgProlog(highlightBodySvg(maleFrontSvg, labels)), back: stripSvgProlog(highlightBodySvg(maleBackSvg, labels)) }
+  }, [muscleScores])
+  const maxMuscleScore = Math.max(1, ...muscleScores.map((item) => item.score))
+  const shareText = data ? buildTrainingShareText(data, API_BASE_URL) : ''
 
-  async function copyCardText() {
+  async function copyText() {
     if (!shareText) return
     try {
       await Clipboard.setStringAsync(shareText)
-      Alert.alert('已复制', '分享文案已复制，可直接粘贴分享。')
+      Alert.alert('已复制', '分享内容已复制，可直接粘贴发送。')
     } catch {
       Alert.alert('复制失败', '无法写入剪贴板，请稍后重试。')
     }
@@ -98,113 +71,123 @@ export function TrainingShareScreen({ navigation, route }: Props) {
     setSharing(true)
     try {
       await Share.share({ message: shareText })
-    } catch (error: any) {
-      Alert.alert('分享失败', error?.message || '请稍后重试')
+    } catch (shareError) {
+      Alert.alert('分享失败', errorMessage(shareError, '请稍后重试'))
     } finally {
       setSharing(false)
     }
   }
 
-  if (loading) {
-    return (
-      <Page>
-        <View style={styles.loading}>
-          <ActivityIndicator color={colors.brand} />
-          <Text style={styles.loadingText}>加载分享数据...</Text>
-        </View>
-      </Page>
-    )
-  }
-
   return (
-    <Page contentContainerStyle={styles.page}>
-      <View style={styles.previewCard}>
-        <View style={styles.cardHeader}>
-          <View style={styles.titleRow}>
-            <IconFont name="icon-star" color={colors.brand} size={22} />
-            <Text style={styles.title}>训练完成！</Text>
-          </View>
-          <Text style={styles.subtitle}>{data?.workoutName || '今日训练'}</Text>
-          <Text style={styles.date}>{formatDate(data?.completedAt)}</Text>
-        </View>
+    <ScreenShell title="分享训练" subtitle="把这次训练发给朋友" onBack={() => navigation.goBack()}>
+      {!executionId ? <EmptyState title="没有可分享的训练" desc="请从训练记录里选择一次已完成的训练。" /> : null}
+      {executionId && loading && !data ? <LoadingState title="正在加载分享数据" /> : null}
+      {error && !data ? (
+        <Card>
+          <Text style={styles.error}>{error}</Text>
+          <SolidButton label="重新加载" variant="secondary" onPress={() => setReloadKey((key) => key + 1)} />
+        </Card>
+      ) : null}
 
-        <View style={styles.statsSection}>
-          <View style={styles.mainStat}>
-            <Text style={styles.mainValue}>{data?.totalVolume || 0}</Text>
-            <Text style={styles.mainLabel}>总容量 (kg)</Text>
-          </View>
+      {data ? (
+        <>
+          <Card>
+            <View style={styles.header}>
+              <InlineAvatar uri={data.avatarUrl} label={data.nickname || '练'} size={56} />
+              <View style={styles.headerText}>
+                <Text style={styles.eyebrow}>TRAINING COMPLETE</Text>
+                <Text style={styles.title} numberOfLines={2}>{data.nickname ? `${data.nickname} 完成训练` : trainingShareTitle('', data.planName)}</Text>
+                <Text style={styles.meta}>{[formatShareDateTime(data.completedAt), data.planName].filter(Boolean).join(' · ')}</Text>
+              </View>
+            </View>
 
-          <View style={styles.subStats}>
-            <View style={styles.subStat}>
-              <Text style={styles.subValue}>{data?.totalSets || 0}</Text>
-              <Text style={styles.subLabel}>组数</Text>
+            <View style={styles.bodyRow}>
+              <BodyMap xml={bodyMaps.front} caption="正面" />
+              <BodyMap xml={bodyMaps.back} caption="背面" />
             </View>
-            <View style={styles.subStat}>
-              <Text style={styles.subValue}>{data?.totalReps || 0}</Text>
-              <Text style={styles.subLabel}>次数</Text>
-            </View>
-            <View style={styles.subStat}>
-              <Text style={[styles.subValue, styles.highlight]}>{data?.prCount || 0}</Text>
-              <Text style={styles.subLabel}>PR</Text>
-            </View>
-          </View>
-        </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>来自 CoachLink 健身</Text>
-        </View>
+            <View style={styles.statsRow}>
+              <Stat value={String(volumeInTons(data.totalVolume))} label="总容量 t" />
+              <Stat value={String(data.totalSets)} label="完成组数" />
+              <Stat value={data.durationMinutes ? String(data.durationMinutes) : '-'} label="分钟" />
+            </View>
+            {data.prCount > 0 ? <Text style={styles.pr}>本次刷新 {data.prCount} 项 PR</Text> : null}
+
+            <View style={styles.muscles}>
+              {(muscleScores.length ? muscleScores : [{ label: '全身', score: 1 }]).slice(0, 5).map((item) => (
+                <View key={item.label} style={styles.muscleRow}>
+                  <Text style={styles.muscleName}>{item.label}</Text>
+                  <View style={styles.muscleTrack}>
+                    <View style={[styles.muscleFill, { width: `${Math.max(12, Math.round((item.score / maxMuscleScore) * 100))}%` }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Card>
+
+          <Card>
+            <Text style={styles.sectionTitle}>训练明细</Text>
+            {data.actions.length === 0 ? <Text style={styles.meta}>暂无详细动作记录</Text> : null}
+            {data.actions.map((action, index) => (
+              <View key={`${action.actionName}-${index}`} style={styles.actionRow}>
+                <Text style={styles.actionIndex}>{index + 1}</Text>
+                <Text style={styles.actionName} numberOfLines={2}>{action.actionName}</Text>
+                <Text style={styles.badge}>{action.setsCount} 组</Text>
+                {action.volume > 0 ? <Text style={styles.meta}>{action.volume} kg</Text> : null}
+              </View>
+            ))}
+          </Card>
+
+          <SolidButton label="分享给朋友" loading={sharing} onPress={() => void shareCard()} />
+          <SolidButton label="复制分享内容" variant="secondary" onPress={() => void copyText()} />
+        </>
+      ) : null}
+    </ScreenShell>
+  )
+}
+
+function BodyMap({ xml, caption }: { xml: string; caption: string }) {
+  return (
+    <View style={styles.bodyMap}>
+      <View style={styles.bodyImage}>
+        <SvgXml xml={xml} width="100%" height="100%" />
       </View>
+      <Text style={styles.meta}>{caption}</Text>
+    </View>
+  )
+}
 
-      <View style={styles.actions}>
-        <Pressable disabled={sharing || !data} onPress={shareCard} style={[styles.primaryButton, (sharing || !data) && styles.disabled]}>
-          <Text style={styles.primaryButtonText}>{sharing ? '分享中...' : '分享训练卡片'}</Text>
-        </Pressable>
-        <Pressable disabled={!data} onPress={copyCardText} style={[styles.secondaryButton, !data && styles.disabled]}>
-          <Text style={styles.secondaryButtonText}>复制分享文案</Text>
-        </Pressable>
-        <Pressable onPress={() => navigation.goBack()} style={styles.ghostButton}>
-          <Text style={styles.ghostButtonText}>返回</Text>
-        </Pressable>
-      </View>
-    </Page>
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.meta}>{label}</Text>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  page: {
-    backgroundColor: '#667EEA',
-  },
-  loading: { alignItems: 'center', justifyContent: 'center', gap: spacing.sm, minHeight: 240 },
-  loadingText: { color: colors.textSecondary, fontSize: 14 },
-  previewCard: {
-    borderRadius: 24,
-    padding: spacing.lg,
-    backgroundColor: '#FFFFFF',
-    gap: spacing.lg,
-    ...shadow,
-  },
-  cardHeader: { alignItems: 'center', gap: spacing.xs },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  title: { color: '#333333', fontSize: 24, fontWeight: '700' },
-  subtitle: { color: '#666666', fontSize: 16, fontWeight: '700' },
-  date: { color: '#999999', fontSize: 12 },
-  statsSection: { gap: spacing.md },
-  mainStat: { alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F0F0F0', paddingBottom: spacing.md },
-  mainValue: { color: '#667EEA', fontSize: 44, fontWeight: '700' },
-  mainLabel: { color: '#999999', fontSize: 14 },
-  subStats: { flexDirection: 'row', justifyContent: 'space-around' },
-  subStat: { alignItems: 'center', gap: 4 },
-  subValue: { color: '#333333', fontSize: 26, fontWeight: '700' },
-  highlight: { color: '#FA8C16' },
-  subLabel: { color: '#999999', fontSize: 12 },
-  footer: { alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: spacing.md },
-  footerText: { color: '#999999', fontSize: 12 },
-  actions: { gap: spacing.sm },
-  primaryButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: '#FFFFFF' },
-  primaryButtonText: { color: '#667EEA', fontSize: 16, fontWeight: '700' },
-  secondaryButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.20)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.36)' },
-  secondaryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  ghostButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  ghostButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
-  disabled: { opacity: 0.55 },
+  error: { color: colors.danger, fontSize: 14, lineHeight: 20 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerText: { flex: 1, gap: 2 },
+  eyebrow: { color: colors.brand, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  title: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  meta: { color: colors.textTertiary, fontSize: 12, lineHeight: 18 },
+  bodyRow: { flexDirection: 'row', gap: spacing.xs },
+  bodyMap: { flex: 1, height: 176, alignItems: 'center', gap: 4, padding: spacing.xs, borderRadius: radius.lg, backgroundColor: colors.surfaceMuted },
+  bodyImage: { flex: 1, width: '100%' },
+  statsRow: { flexDirection: 'row', gap: spacing.xs },
+  stat: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: spacing.xs, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  statValue: { color: colors.text, fontSize: 22, fontWeight: '700' },
+  pr: { color: colors.brand, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  muscles: { gap: spacing.xs },
+  muscleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  muscleName: { width: 40, color: colors.textSecondary, fontSize: 12 },
+  muscleTrack: { flex: 1, height: 8, overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.surfaceMuted },
+  muscleFill: { height: '100%', borderRadius: radius.pill, backgroundColor: colors.brand },
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  actionRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  actionIndex: { width: 24, height: 24, overflow: 'hidden', borderRadius: radius.pill, textAlign: 'center', lineHeight: 24, color: colors.textSecondary, backgroundColor: colors.surfaceMuted, fontSize: 12, fontWeight: '600' },
+  actionName: { flex: 1, color: colors.text, fontSize: 14 },
+  badge: { overflow: 'hidden', paddingHorizontal: spacing.xs, paddingVertical: 2, borderRadius: radius.pill, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 12, fontWeight: '600' },
 })

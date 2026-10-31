@@ -67,7 +67,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         invalidSession = !probe?.userId || probe.userId !== storedUser?.id
       } catch (error) {
         const message = error instanceof Error ? error.message.trim().toLowerCase() : ''
-        invalidSession = message === 'unauthorized' || message.includes('登录已失效') || message.includes('登录已过期')
+        // 令牌过期时网关回的是「用户未登录」，文案靠不住，看状态码
+        invalidSession = (error as { status?: number } | null)?.status === 401 || message === 'unauthorized' || message.includes('登录已失效') || message.includes('登录已过期')
       }
 
       if (!invalidSession) return
