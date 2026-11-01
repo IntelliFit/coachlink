@@ -1,27 +1,26 @@
 import { getCoachlinkVisionLlm } from '@/lib/coachlinkLlm';
-import { ABS_CHECK_PROMPT, ABS_CHECK_SYSTEM, type AskAbsModel } from '@/lib/bojiAbsCheck';
+import { ABS_CHECK_SYSTEM, ABS_COUNT_PROMPT, type AskAbsModel } from '@/lib/bojiAbsCheck';
 
 /**
- * 用万界方舟的视觉模型回答腹肌复核问题。model 为空时用 WANJIE_ARK_VISION_MODEL。
+ * 用万界方舟的视觉模型（WANJIE_ARK_VISION_MODEL）回答腹肌问题。
  * 通义系列关闭思考（实测 2–5 秒，开着要 14 秒）。失败、超时都返回 null，不抛错。
  */
 export function createVisionAbsAsker(timeoutMs: number): AskAbsModel {
-  return async (cropBase64, model, prompt = ABS_CHECK_PROMPT) => {
+  return async (cropBase64) => {
     try {
-      const { client, model: visionModel } = getCoachlinkVisionLlm();
-      const use = model || visionModel;
+      const { client, model } = getCoachlinkVisionLlm();
       const body = {
-        model: use,
+        model,
         temperature: 0,
-        max_tokens: 800,
-        ...(/^qwen/i.test(use) ? { enable_thinking: false } : {}),
+        max_tokens: 500,
+        ...(/^qwen/i.test(model) ? { enable_thinking: false } : {}),
         messages: [
           { role: 'system', content: ABS_CHECK_SYSTEM },
           {
             role: 'user',
             content: [
-              { type: 'text', text: prompt },
               { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${cropBase64}` } },
+              { type: 'text', text: ABS_COUNT_PROMPT },
             ],
           },
         ],
