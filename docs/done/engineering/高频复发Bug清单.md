@@ -563,3 +563,49 @@
 - **统一规则**：服务端按账号占名额的长任务，客户端创建后立刻按账号把任务 id 写入本地，进入页面和 didShow 时恢复。只有服务端明确说任务不存在才删记录，断网和登录失效都要留着。没传完的任务要中断并释放名额。轮询失败不等于任务失败。账号任务在没登录或换了账号时服务端也回 404，删记录前先确认是谁在问；网关报的 404 也不算。释放名额前确认没有别的标签页正在上传。
 - **改动前自检**：返回上一页、杀进程、切后台之后，用户怎么找回这个任务？服务端的名额什么时候释放？换账号会不会看到别人的任务？
 - **典型案例**（2026-11-02）：`apps/wechat/src/toolbox/motion-effects/jobRestore.ts`、同目录 `index.tsx`，测试 `tests/motion-effects-weapp-restore.test.ts`。对照实现在 `apps/mobile/src/screens/toolbox/motionEffectsModel.ts`。网页端同样补上了恢复：`src/app/toolbox/motion-effects/jobRestore.ts`、同目录 `page.tsx`，测试 `tests/motion-effects-web-restore.test.ts`。Web 和小程序共用的规则在 `packages/core/src/motionEffectJobRestore.ts`。
+
+- **现象**：APP 训练执行页某一组先改次数（或备注、RPE），预填的计划重量随即消失，点「完成」提示「请填写外加重量」。
+- **根因**：输入框显示的是「草稿 ?? 预填值」，但 `setDraft` 在草稿不存在时用 `{ weight: '', reps: '', ... }` 打底再合并本次修改，第一次改任意一项就把其他预填项写成空串。
+- **统一规则**：草稿第一次创建时必须以「当前显示的预填值」为底（与读取用同一个函数，例如 `initialDraft(actionIndex, setIndex)`），再合并本次修改；不要另写一份空默认值。
+- **改动前自检**：只改其中一个字段，其他字段显示的值变了吗？读草稿和建草稿是不是同一个默认值来源？
+- **典型案例**（2026-10-29）：补 kg/磅 切换时发现，`apps/mobile/src/screens/training/TrainingExecutionScreen.tsx` 改为 `initialDraft` 统一打底。
+
+## 51) 读取失败被当成「没有数据」，随后的整条保存把真实数据覆盖（高风险，重复出现）
+
+- **现象**：学员档案的自动化单独设置读取超时后，页面显示四项都是「继承全局」，教练点保存就把真实设置清空；分配计划页读当前计划失败时当成「学员没有计划」，「覆盖当前计划」变成新建，旧计划按替换计费归档、已练天没有合并。APP 新页面和小程序（`coach/students/detail`、`coach/students/assign-plan`）都有。
+- **根因**：`.catch(() => null)` 把「请求失败」和「服务端确认为空」混成同一个值；而保存接口是整条 upsert / 按「有无当前计划」走不同分支。
+- **统一规则**：读取结果分三态：成功有数据 / 成功为空 / 失败。失败时不展示可编辑的默认值，保存和分配按钮禁用或拦截，并给「重新加载」。服务端「为空」要用成功响应表达（例如 `get-instance` 返回 `instance: null`），客户端据此区分。
+- **改动前自检**：这个读取失败时页面显示什么？此时点保存会写入什么？服务端的空结果和请求失败在客户端能区分吗？
+- **典型案例**（2026-10-29）：APP 代码审查发现，已修 `CoachStudentExtras.tsx`、`CoachAssignPlanScreen.tsx` 和小程序对应两页。
+
+## 52) 接口原样返回的联系方式被直接显示（权限边界，重复出现）
+
+- **现象**：APP 单杠点位的列表和详情直接显示贡献者的手机号和邮箱，小程序同一字段是打码的。
+- **根因**：署名字段里可能是手机号或邮箱（没有昵称时用它们署名），打码只写在小程序页面里；新端移植时照着字段名直接显示。
+- **统一规则**：可能含手机号或邮箱的字段，显示前必须走打码函数（`formatContributorName`）。移植页面时要逐个核对这类字段的显示方式，不能只看字段名。
+- **改动前自检**：这个名字字段在没有昵称时会是什么？列表和详情都打码了吗？
+- **典型案例**（2026-10-31）：`apps/mobile/src/screens/streetlifting/locationModel.ts` 统一打码。
+
+## 53) 付了钱的任务只存在内存里，中途被打断就丢（高风险，重复出现）
+
+- **现象**：光膜视频付款途中 APP 被系统杀掉、或离开页面，回来后任务接不上，钱付了没有结果，新视频还报「已有任务」。付款后生成失败时，「重新生成」会新建任务再收一次钱。
+- **根因**：本地只记排队后的任务，付款前后的状态只在内存；付款确认只读本地订单，依赖异步通知；失败重试走的是「新建任务」的路径。
+- **统一规则**：涉及付款的任务一创建就要落本地，打开外部支付前再写一次；恢复时先查付款结果（主动向支付渠道查询），付过就继续。付款后失败的重试不能产生新订单。网络失败不能清掉本地记录，只有服务端确认不存在才清。
+- **改动前自检**：打开支付后 APP 被杀，回来能接上吗？付完款服务失败，用户要再付一次吗？查询接口超时，本地记录还在吗？
+- **典型案例**（2026-10-31）：`MotionEffectsScreen.tsx`、`motion-effects/jobs/[id]/enqueue`，新增 `jobs/[id]/cancel`。
+
+## 54) APP 里用 fetch 上传本地文件（Blob 或 FormData 带 uri），类型检查和单测都发现不了
+
+- **现象**：`await (await fetch(uri)).blob()` 在 Expo 56 上抛 `Creating blobs from 'ArrayBuffer' and 'ArrayBufferView' are not supported`，请求根本没发出去。`FormData.append('file', { uri, name, type })` 同样会抛 `Unsupported FormDataPart implementation`。功率分析、头像、聊天图片、反馈截图、点位图片、训练视频、计划文件都中过。
+- **根因**：Expo 56 把全局 `fetch` 换成 `expo/fetch`，它的 `.blob()` 走 React Native 不支持的 `new Blob([buffer])`；就算拿到 Blob，发送时 `Content-Type` 也会被覆盖成 Blob 自己的空类型。它的 FormData 只接受字符串和 Blob，RN 风格的 `{ uri }` 不支持（Expo 自己的测试就断言这会抛错）。
+- **统一规则**：APP 上传本地文件一律用 `apps/mobile/src/fileUpload.ts` 的 `uploadFile`（multipart），或 `expo-file-system/legacy` 的 `uploadAsync` / `createUploadTask`（原始字节用 `BINARY_CONTENT`）。不要用 `fetch` 读本地文件，不要发 Blob，也不要用 FormData 带 `uri`。
+- **改动前自检**：这段上传在真机上跑过吗？有没有 `.blob()`、`new Blob` 或 `new FormData`？
+- **典型案例**（2026-10-31）：`PowerAnalysisScreen.tsx`、`BojiDetectorScreen.tsx`，以及 7 处 FormData 上传。
+
+## 55) 列表下标变了，按下标关联的另一张表没跟着变：视频跑到别的动作上（高风险）
+
+- **现象**：即兴训练里删掉学员自己加的动作后，被删动作的组视频行还留着，后面动作的视频挂到了前一个动作上；同样的组号还会让残留行显示到新占位的动作上。
+- **根因**：`impromptu_execution_set_videos` 用 `action_index` 关联 `action_executions` 的数组下标。`delete-extra-exercise` 只改了 JSON 列表，没有同步这张表。
+- **统一规则**：改动作列表的下标（删除、换序）时，必须在同一流程里同步关联行。先改关联行，再写列表；列表写失败要恢复；删行和删文件放到列表落库之后。批量改唯一约束里的列要分两段写（先到临时区间，再到目标值）。
+- **改动前自检**：这份数组的下标或组号，有没有被其他表当作外键用？写到一半失败时，两边还对得上吗？被删行占用的存储配额和文件有人处理吗？
+- **典型案例**（2026-11-01）：做训练中换序时发现。已加 `src/app/api/impromptu/_helpers/removeActionSetVideos.ts` 及路由测试。`delete-extra-set` 重排 `set_number` 时同样没有同步，待修。
