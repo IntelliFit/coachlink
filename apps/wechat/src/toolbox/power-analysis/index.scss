@@ -1046,6 +1046,48 @@
     margin-top: 8rpx;
   }
 
+  .rep-rom {
+    display: flex;
+    align-items: flex-start;
+    gap: 8rpx;
+    margin-top: 8rpx;
+  }
+
+  .rep-rom-tag {
+    flex-shrink: 0;
+    padding: 0 8rpx;
+    border-radius: 8rpx;
+    font-size: 22rpx;
+    font-weight: 700;
+    line-height: 1.6;
+
+    &.rep-rom-tag-full {
+      background: #ecfdf5;
+      color: #047857;
+    }
+
+    &.rep-rom-tag-partial {
+      background: #fffbeb;
+      color: #b45309;
+    }
+  }
+
+  .rep-rom-detail {
+    flex: 1;
+    min-width: 0;
+    font-size: 22rpx;
+    color: #6b7280;
+    line-height: 1.6;
+  }
+
+  .rep-rom-summary {
+    display: block;
+    margin-top: 16rpx;
+    font-size: 24rpx;
+    font-weight: 700;
+    color: #111827;
+  }
+
   .summary-text {
     display: block;
     margin-top: 16rpx;
@@ -1837,6 +1879,14 @@ $pa-footer-height: 136rpx;
 
   .rep-detail {
     color: var(--cl-ink-3);
+  }
+
+  .rep-rom-detail {
+    color: var(--cl-ink-3);
+  }
+
+  .rep-rom-summary {
+    color: var(--cl-ink);
   }
 
   .result-empty {

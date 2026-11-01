@@ -1,5 +1,6 @@
 import type { PowerAnalysisMode } from "@coachlink/core/src/powerAnalysisModes";
 import type { PowerAnalysisJobStatus } from "@coachlink/core/src/powerAnalysisJobs";
+import type { PowerAnalysisRepRom, PowerAnalysisRomSummary } from "@coachlink/core/src/powerAnalysisRepRom";
 
 export type { PowerAnalysisMode, PowerAnalysisJobStatus };
 export type PowerAnalysisQuality = "compressed" | "original";
@@ -25,6 +26,8 @@ export interface PowerAnalysisRepMetric {
   /** Custom mode: main joint angle range within the rep. */
   jointMinDeg?: number;
   jointMaxDeg?: number;
+  /** Pull-up and muscle-up: full or partial, read at this rep's own lowest and highest point. */
+  rom?: PowerAnalysisRepRom;
 }
 
 export interface PowerAnalysisTimeSeriesPoint {
@@ -121,6 +124,7 @@ export interface PowerAnalysisMetrics {
   reps: PowerAnalysisRepMetric[];
   /** Reps left out of the result: tracking jumps beyond human range, or partial reps. */
   excludedReps?: PowerAnalysisExcludedRep[];
+  romSummary?: PowerAnalysisRomSummary;
   timeSeries?: PowerAnalysisTimeSeriesPoint[];
   rating?: PowerAnalysisRating;
   assessment?: PowerAnalysisAssessment;
