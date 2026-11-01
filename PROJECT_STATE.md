@@ -1,3 +1,11 @@
+## 薄肌腹肌块数改为模型逐排判断并上线（2026-11-01）
+
+- 用户要求"先上线"。dev/main 推到 438219e1（含 58ab9430、438219e1 和此前只在 dev 的小程序修复 9e3f89f9）。网页代码相比线上只差 src/lib/bojiAbsCheck*.ts 和 analyze 路由。
+- Web `coachlink@sha256:3fda6371…`（标签 438219e，服务器 binary diff 还原，2775 文件 blob 一致）：dev、main 均 aaf401d2 → 3fda6371；main 3/3，dev 1/1（部署本来就是 1 副本）。healthy/login/boji/功率分析 200，未登录 analyze 401，challenge 未知 id 404。切换后 main 只有既有 admin_trace_events 22P02 错误。**上线时还没有真实检测经过新逻辑**，看 `[boji/ai-abs] engine N votes [...]` 日志确认。
+- 门禁：typecheck 0 错；vitest 1243/1244（既有 streetliftingLocationOverview），另 13 个 src/mobile 等测试文件因 worktree 缺 expo 依赖加载失败（与改动无关）。E2E 未跑。
+- 引擎未动：线上仍 fd499357（3f04392）。奇数修复 fix/abs-pair-rows（497a683）只在本地，且 deploy/boji-service/Dockerfile 的 BOJI_DETECTOR_REF 还停在 3b41c87，比线上旧，下次重建要改。
+- 已知不足：留出集上"没腹肌"5 张全错（模型多答 4 块），详见 DECISIONS.md。标注数据在 D:\CodexWork\boji-abs-dataset，网页来源授权未核实，不进仓库。
+
 ## 小程序审核驳回修复：未登录可先浏览快速开练（2026-10-30）
 
 - 驳回原因：【快速开练】未完整浏览即要求授权登录。修复 9e3f89f9（未推送）：未登录点快速开练/自己选动作开练进入公共动作库，可搜索、筛选、看详情；仅在加入动作、新建动作或开始训练时弹窗询问登录。线上 list-actions 无 token 返回 200，无需后端改动。
