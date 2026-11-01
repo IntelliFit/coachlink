@@ -7,6 +7,7 @@ import type {
     DeleteImpromptuExtraSetResponseDto,
 } from "../entity";
 import { computeExecutionProgress } from "@/lib/executionProgress";
+import { detachRemovedSetVideo } from "../../_helpers/removeSetVideo";
 
 export async function POST(request: NextRequest) {
     try {
@@ -73,6 +74,10 @@ export async function POST(request: NextRequest) {
             }, { status: 403 });
         }
 
+        // 读法与 mergeImpromptuSetVideos 一致，视频行就是按这个组号挂上去的。
+        const removedSet = action.sets[setIndex];
+        const removedSetNumber = Number(removedSet.set_number ?? removedSet.setNumber ?? Number(setIndex) + 1);
+
         action.sets.splice(setIndex, 1);
         action.sets.forEach((set: any, idx: number) => {
             set.set_number = idx + 1;
@@ -80,6 +85,15 @@ export async function POST(request: NextRequest) {
         });
         action.total_sets = action.sets.length;
         const progress = computeExecutionProgress(actionExecutions);
+
+        const setVideos = await detachRemovedSetVideo(executionId, Number(actionIndex), removedSetNumber, userId);
+        if (!setVideos) {
+            return NextResponse.json<ApiData<DeleteImpromptuExtraSetResponseDto>>({
+                success: false,
+                message: "更新失败",
+                data: null,
+            }, { status: 500 });
+        }
 
         const { error: updateError } = await supabase
             .from("impromptu_executions")
@@ -91,12 +105,16 @@ export async function POST(request: NextRequest) {
             .eq("id", executionId)
             .eq("student_id", userId);
         if (updateError) {
+            await setVideos.restore();
             return NextResponse.json<ApiData<DeleteImpromptuExtraSetResponseDto>>({
                 success: false,
                 message: "更新失败",
                 data: null,
             }, { status: 500 });
         }
+
+        // 组已删除，这里失败只留下不再展示的残留行，下次删组时会清掉。
+        await setVideos.purge();
 
         return NextResponse.json<ApiData<DeleteImpromptuExtraSetResponseDto>>({
             success: true,
