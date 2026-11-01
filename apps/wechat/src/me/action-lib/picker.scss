@@ -291,6 +291,36 @@
   background: var(--cl-card);
 }
 
+.al-picker--titled {
+  padding-bottom: calc(#{$cl-button-lg + 160rpx} + env(safe-area-inset-bottom));
+}
+
+.al-dock--titled {
+  flex-direction: column;
+  align-items: stretch;
+  gap: $cl-space-2;
+}
+
+.al-dock__row {
+  display: flex;
+  align-items: center;
+  gap: $cl-space-3;
+}
+
+.al-dock__title {
+  height: 80rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  border-radius: 16rpx;
+  background: var(--cl-sunk);
+  color: var(--cl-ink);
+  font-size: 28rpx;
+}
+
+.al-dock__title-placeholder {
+  color: var(--cl-ink-4);
+}
+
 .al-dock__copy {
   flex: 1;
   min-width: 0;

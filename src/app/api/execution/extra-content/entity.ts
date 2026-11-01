@@ -63,6 +63,19 @@ export interface DeleteExtraExerciseDto {
     actionIndex: number;
 }
 
+export interface ReorderExecutionActionsDto {
+    executionId: string;
+    /** order[新位置] = 旧下标 */
+    order: number[];
+    /** 排序时看到的动作，用来发现列表已被其他设备改动 */
+    actionKeys: string[];
+}
+
+export interface ReorderExecutionActionsResponseDto {
+    executionId: string;
+    order: number[];
+}
+
 export interface DeleteExtraExerciseResponseDto {
     success: boolean;
     data?: {

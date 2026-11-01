@@ -345,6 +345,16 @@ class ExecutionService {
   /**
    * 删除额外动作（仅限 source: student_extra）
    */
+  async reorderActions(executionId: string, order: number[], actionKeys: string[]): Promise<void> {
+    const res = await request({
+      url: `${this.baseUrl}/extra-content/reorder-actions`,
+      method: 'POST',
+      data: { executionId, order, actionKeys },
+      showErrorToast: false
+    })
+    if (!res.success) throw new Error(res.message || '保存顺序失败')
+  }
+
   async deleteExtraExercise(executionId: string, actionIndex: number): Promise<{ totalSets: number } | null> {
     const res = await request({
       url: `${this.baseUrl}/extra-content/delete-extra-exercise`,

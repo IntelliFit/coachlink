@@ -14,6 +14,8 @@ export interface ImpromptuActionInput {
 
 export interface StartImpromptuDto {
     actions: ImpromptuActionInput[];
+    /** 开始前起的名字；不填用默认名称 */
+    title?: string | null;
 }
 
 export interface StartImpromptuResponseDto {
