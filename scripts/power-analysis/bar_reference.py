@@ -28,9 +28,9 @@ GAP_SECONDS = 0.5
 ARM_TO_TORSO = 1.05
 # Fixed cameras read 0.04-0.09 torso lengths from landmark noise and hands rolling on the bar.
 CAMERA_MOVED_TORSO = 0.15
-# Changes leaderboard numbers for shaky videos, so it stays off until the owner confirms the
-# comparison (DECISIONS.md 2026-11-01). The diagnostics in metrics.measurement are always written.
-HAND_REFERENCE_ENABLED = False
+# Changes leaderboard numbers for shaky videos only; the owner confirmed it against the comparison
+# (DECISIONS.md 2026-11-01). The diagnostics in metrics.measurement are written either way.
+HAND_REFERENCE_ENABLED = True
 
 
 @dataclass

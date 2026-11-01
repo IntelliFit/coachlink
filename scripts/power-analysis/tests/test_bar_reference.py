@@ -88,6 +88,20 @@ class MovingCameraTest(unittest.TestCase):
         for fixed, moving in zip(truth, corrected):
             self.assertAlmostEqual(moving["displacementM"], fixed["displacementM"], delta=fixed["displacementM"] * 0.08)
 
+    def test_correction_applies_by_default(self):
+        rise = rise_profile(PULLUPS)
+        steady = hanging_track(rise)
+        shaken = with_camera_motion(steady, sway(rise.size, 40))
+        measured = av.measure_body_anchor(shaken, "pullup", 1200, 180.0, FPS)
+        self.assertTrue(measured.measurement["barReference"]["applied"])
+        self.assertTrue(measured.measurement["barReference"]["cameraMoved"])
+
+    def test_default_leaves_a_fixed_camera_track_untouched(self):
+        track = hanging_track(rise_profile(PULLUPS))
+        measured = av.measure_body_anchor(track, "pullup", 1200, 180.0, FPS)
+        self.assertEqual(measured.y_track, av.moving_average(av.to_optional_list(av.body_anchor_y(track, "shoulder"))))
+        self.assertEqual(measured.measurement["warningsZh"], [])
+
     def test_warning_names_the_correction(self):
         rise = rise_profile(PULLUPS)
         shaken = with_camera_motion(hanging_track(rise), sway(rise.size, 40))
