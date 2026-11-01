@@ -91,6 +91,12 @@
     color: var(--cl-link);
   }
 
+  .txv3-hero__title-hint {
+    flex-shrink: 0;
+    color: var(--cl-link);
+    font-size: 24rpx;
+  }
+
   .txv3-hero__timer {
     display: flex;
     flex-direction: column;
@@ -1064,6 +1070,117 @@
   }
 
   /* ---------- 组间休息：悬浮条（列表 / 卡片收起）与深色弹层（卡片） ---------- */
+  .txv3-order-mask {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: var(--cl-mask);
+  }
+
+  .txv3-order-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 24rpx;
+    padding: 32rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+    border-radius: 32rpx 32rpx 0 0;
+    background: var(--cl-card);
+  }
+
+  .txv3-order-sheet__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16rpx;
+  }
+
+  .txv3-order-sheet__title {
+    color: var(--cl-ink);
+    font-size: 34rpx;
+    font-weight: 700;
+  }
+
+  .txv3-order-sheet__hint {
+    color: var(--cl-ink-3);
+    font-size: 24rpx;
+  }
+
+  .txv3-order-sheet__cancel {
+    padding: 8rpx 0;
+    color: var(--cl-ink-3);
+    font-size: 28rpx;
+    text-align: center;
+  }
+
+  .txv3-order-list {
+    max-height: 56vh;
+  }
+
+  .txv3-order-row {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    padding: 16rpx 0;
+    border-bottom: 2rpx solid var(--cl-line-soft);
+  }
+
+  .txv3-order-row__no {
+    flex-shrink: 0;
+    width: 48rpx;
+    color: var(--cl-ink-3);
+    font-size: 30rpx;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .txv3-order-row__copy {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8rpx;
+    min-width: 0;
+  }
+
+  .txv3-order-row__name {
+    overflow: hidden;
+    color: var(--cl-ink);
+    font-size: 30rpx;
+    font-weight: 500;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .txv3-order-row__meta {
+    color: var(--cl-ink-3);
+    font-size: 24rpx;
+  }
+
+  .txv3-order-row__btn {
+    flex-shrink: 0;
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 16rpx;
+    background: var(--cl-sunk);
+    color: var(--cl-ink);
+    font-size: 32rpx;
+    line-height: 80rpx;
+    text-align: center;
+
+    &:active {
+      opacity: 0.7;
+    }
+
+    &.is-disabled {
+      color: var(--cl-ink-4);
+      opacity: 0.5;
+    }
+  }
+
   .txv3-rest-bar {
     position: fixed;
     right: 32rpx;

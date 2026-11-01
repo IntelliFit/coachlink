@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isTimedTrainingSet } from '@coachlink/core/src/trainingSetMetrics';
+import { normalizeImpromptuTitle } from "@coachlink/core/src/impromptuTitle";
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -24,6 +25,15 @@ export async function POST(req: Request) {
             return NextResponse.json<ApiData<StartImpromptuResponseDto>>({
                 success: false,
                 message: "请至少选择一个动作",
+                data: null,
+            }, { status: 400 });
+        }
+
+        const normalizedTitle = normalizeImpromptuTitle(body.title);
+        if (!normalizedTitle.ok) {
+            return NextResponse.json<ApiData<StartImpromptuResponseDto>>({
+                success: false,
+                message: normalizedTitle.message,
                 data: null,
             }, { status: 400 });
         }
@@ -112,6 +122,7 @@ export async function POST(req: Request) {
                 action_executions: actionExecutions,
                 total_sets: totalSets,
                 completed_sets: 0,
+                ...(normalizedTitle.title ? { title: normalizedTitle.title } : {}),
             })
             .select("*")
             .single();

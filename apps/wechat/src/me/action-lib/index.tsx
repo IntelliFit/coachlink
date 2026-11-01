@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView, Input, Textarea, Image } from '@tarojs/components'
+import { DEFAULT_IMPROMPTU_TITLE, IMPROMPTU_TITLE_MAX_LENGTH } from '@coachlink/core/src/impromptuTitle'
+import { mergePickerSearchResults } from './pickerSearch'
 import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { studentActionLibService } from '@/services/studentActionLibService'
@@ -247,6 +249,10 @@ export default function ActionLibPage() {
   const isPlanSelectionMode = router.params?.mode === 'plan-select'
   const isImpromptuSelectionMode = router.params?.mode === 'impromptu-select'
   const isSelectionMode = isPlanSelectionMode || isImpromptuSelectionMode
+  // 训练中「添加动作」：选一个就返回，但和开练前一样能选自己的动作。
+  const isExecutionAddMode = isPlanSelectionMode && router.params?.from === 'execution'
+  // 开练和训练中选动作时，搜索不受来源标签和分类限制。
+  const usesGlobalSearch = isImpromptuSelectionMode || isExecutionAddMode
   const requestedMode = String(router.params?.itemType || '').toUpperCase() === 'CARDIO'
     ? 'CARDIO'
     : String(router.params?.itemType || '').toUpperCase() === 'STREET'
@@ -256,12 +262,12 @@ export default function ActionLibPage() {
   // 小程序审核要求：未登录用户可先浏览公共动作库，加入/开始训练时再自主选择登录。
   const [isGuest] = useState(() => !authService.getCurrentUser()?.id)
   const isGuestPicker = isImpromptuSelectionMode && isGuest
-  const initialTab: TabKey = isPlanSelectionMode || isGuestPicker
+  // 选动作默认看公共动作库（大多数动作都在这里）。旧入口传的 source=frequent 也按此处理，只有明确要「我的」才例外。
+  const pickerDefaultTab: TabKey = requestedTab === 'mine' ? 'mine' : 'public'
+  const initialTab: TabKey = isPlanSelectionMode && !isExecutionAddMode || isGuestPicker
     ? 'public'
-    : isImpromptuSelectionMode
-      ? (requestedTab === 'mine' || requestedTab === 'public' || requestedTab === 'frequent'
-          ? requestedTab
-          : requestedMode === 'STRENGTH' ? 'frequent' : 'public')
+    : isImpromptuSelectionMode || isExecutionAddMode
+      ? pickerDefaultTab
       : requestedTab === 'public' ? 'public' : 'mine'
   const [libraryMode, setLibraryMode] = useState<LibraryMode>(requestedMode)
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
@@ -280,7 +286,8 @@ export default function ActionLibPage() {
   const mySearchTermRef = useRef('')
   const publicSearchTermRef = useRef('')
   const hasHandledInitialShowRef = useRef(false)
-  mySearchTermRef.current = mySearchTerm
+  // 全局搜索的结果单独存放，「我的」列表始终是完整的。
+  mySearchTermRef.current = usesGlobalSearch ? '' : mySearchTerm
   publicSearchTermRef.current = publicSearchTerm
   const [publicActions, setPublicActions] = useState<PublicActionItemDto[]>([])
   const [publicLoading, setPublicLoading] = useState(false)
@@ -308,19 +315,22 @@ export default function ActionLibPage() {
 
   const [pickerDetail, setPickerDetail] = useState<PickerItem | null>(null)
   const [showEquipmentFilter, setShowEquipmentFilter] = useState(false)
+  const [globalSearchOwned, setGlobalSearchOwned] = useState<Action[]>([])
+  const [globalSearchPublic, setGlobalSearchPublic] = useState<PublicActionItemDto[]>([])
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false)
+  const globalSearchSeqRef = useRef(0)
+  const [impromptuTitleInput, setImpromptuTitleInput] = useState('')
   const frequentLoadedRef = useRef(false)
 
   useEffect(() => {
-    if (isPlanSelectionMode || isGuestPicker) {
+    if (isPlanSelectionMode && !isExecutionAddMode || isGuestPicker) {
       setActiveTab('public')
-    } else if (isImpromptuSelectionMode) {
-      setActiveTab(requestedTab === 'mine' || requestedTab === 'public' || requestedTab === 'frequent'
-        ? requestedTab
-        : requestedMode === 'STRENGTH' ? 'frequent' : 'public')
+    } else if (isImpromptuSelectionMode || isExecutionAddMode) {
+      setActiveTab(pickerDefaultTab)
     } else if (router.params?.tab === 'public') {
       setActiveTab('public')
     }
-  }, [isGuestPicker, isImpromptuSelectionMode, isPlanSelectionMode, requestedMode, requestedTab, router.params?.tab])
+  }, [isExecutionAddMode, isGuestPicker, isImpromptuSelectionMode, isPlanSelectionMode, pickerDefaultTab, router.params?.tab])
 
   const promptGuestLogin = useCallback(() => {
     const query = Object.entries(router.params || {})
@@ -518,6 +528,36 @@ export default function ActionLibPage() {
     }
   }, [activeTab, frequentActions, frequentLoading, isImpromptuSelectionMode, libraryMode, mySearchTerm])
 
+  const globalSearchTerm = usesGlobalSearch ? mySearchTerm.trim() : ''
+  const isGlobalSearching = !!globalSearchTerm
+
+  useEffect(() => {
+    const seq = ++globalSearchSeqRef.current
+    if (!globalSearchTerm) {
+      setGlobalSearchLoading(false)
+      setGlobalSearchOwned([])
+      setGlobalSearchPublic([])
+      return undefined
+    }
+    setGlobalSearchLoading(true)
+    const timer = setTimeout(async () => {
+      const [owned, publicResult] = await Promise.all([
+        isGuest
+          ? Promise.resolve(null)
+          : studentActionLibService.listActions({ page: 1, limit: 100, search: globalSearchTerm }).catch(() => null),
+        listPublicActions({ page: 1, limit: 100, search: globalSearchTerm, viewerActionType: 'student' }).catch(() => null)
+      ])
+      if (seq !== globalSearchSeqRef.current) return
+      if ((!isGuest && !owned) || !publicResult) {
+        Taro.showToast({ title: '搜索没有完全成功，请重试', icon: 'none' })
+      }
+      setGlobalSearchOwned(owned?.actions || [])
+      setGlobalSearchPublic(publicResult?.actions || [])
+      setGlobalSearchLoading(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [globalSearchTerm, isGuest])
+
   useEffect(() => {
     if (isSelectionMode) {
       void Taro.setNavigationBarTitle({ title: '选动作' }).catch(() => undefined)
@@ -621,6 +661,7 @@ export default function ActionLibPage() {
   }
 
   const handleSubmitSearch = () => {
+    if (usesGlobalSearch) return
     if (activeTab === 'public') {
       setSelectedPublicPreset('all')
       loadPublicLibrary(publicSearchTerm.trim())
@@ -630,6 +671,10 @@ export default function ActionLibPage() {
   }
 
   const handleClearSearch = () => {
+    if (usesGlobalSearch) {
+      setMySearchTerm('')
+      return
+    }
     if (activeTab === 'public') {
       setPublicSearchTerm('')
       setSelectedPublicPreset('all')
@@ -737,6 +782,16 @@ export default function ActionLibPage() {
   }
 
   const toggleOwnedSelection = (action: Action) => {
+    if (isExecutionAddMode) {
+      const eventChannel = (Taro.getCurrentInstance().page as any)?.getOpenerEventChannel?.()
+      if (!eventChannel) {
+        Taro.showToast({ title: '无法返回上一页，请重新进入动作库', icon: 'none' })
+        return
+      }
+      eventChannel.emit('selectPlanAction', { ...action, source: 'mine' })
+      void Taro.navigateBack()
+      return
+    }
     if (!isImpromptuSelectionMode) return
     setSelectedActions((current) => {
       const exists = current.some((item) => item.id === action.id)
@@ -766,6 +821,7 @@ export default function ActionLibPage() {
 
     try {
       setStartingImpromptu(true)
+      const trainingTitle = impromptuTitleInput.trim()
       const data = await impromptuService.start(selectedActions.map((action) => ({
         actionId: action.id,
         actionName: action.name,
@@ -778,7 +834,7 @@ export default function ActionLibPage() {
         reps: null,
         weight: null,
         restSeconds: 90
-      })))
+      })), trainingTitle)
       if (!data?.id) throw new Error('创建即兴训练失败')
 
       const scopeKey = trainingExecutionSnapshotKey({
@@ -797,7 +853,7 @@ export default function ActionLibPage() {
         execution: data,
         planInstance: {
           id: 'impromptu',
-          name: '即兴锻炼',
+          name: trainingTitle || DEFAULT_IMPROMPTU_TITLE,
           description: '即兴训练模式',
           source: 'impromptu'
         },
@@ -1083,12 +1139,14 @@ export default function ActionLibPage() {
     )
   }
 
-  const pickerItems: PickerItem[] = activeTab === 'public'
+  const pickerItems: PickerItem[] = isGlobalSearching
+    ? mergePickerSearchResults(globalSearchTerm, globalSearchOwned, globalSearchPublic)
+    : activeTab === 'public'
     ? displayedPublicActions.map(action => ({ kind: 'public' as const, action }))
     : (activeTab === 'frequent' ? displayedFrequentActions : displayedMineActions).map(action => ({ kind: 'owned' as const, action }))
 
-  const pickerLoading = checkingCurrentImpromptu ||
-    (activeTab === 'public' ? publicLoading : activeTab === 'frequent' ? frequentLoading : loading)
+  const pickerLoading = checkingCurrentImpromptu || (isGlobalSearching && globalSearchLoading) ||
+    (!isGlobalSearching && activeTab === 'public' ? publicLoading : activeTab === 'frequent' ? frequentLoading : loading)
 
   const togglePickerItem = (item: PickerItem) => {
     if (item.kind === 'public') {
@@ -1112,10 +1170,10 @@ export default function ActionLibPage() {
       return (
         <View className='al-picker__state'>
           <Text className='al-picker__state-title'>{searching ? '没有找到这个动作' : '这个分类下还没有动作'}</Text>
-          <Text className='al-picker__state-desc'>换个部位或关键词试试</Text>
-          {activeTab !== 'public' ? (
+          <Text className='al-picker__state-desc'>{isGlobalSearching ? '已搜索你的动作和公共动作库，换个关键词试试' : '换个部位或关键词试试'}</Text>
+          {activeTab !== 'public' && !isGlobalSearching ? (
             <Text className='al-picker__state-link' onClick={() => setActiveTab('public')}>去公共动作库找 ›</Text>
-          ) : isImpromptuSelectionMode ? (
+          ) : isImpromptuSelectionMode || isExecutionAddMode ? (
             <Text className='al-picker__state-link' onClick={handleCreate}>新建这个动作 ›</Text>
           ) : null}
         </View>
@@ -1128,7 +1186,9 @@ export default function ActionLibPage() {
           <PickerActionRow
             key={`${item.kind}-${item.action.id}`}
             name={item.action.name || '未命名动作'}
-            meta={getPickerMeta(item.action)}
+            meta={isGlobalSearching
+              ? [item.kind === 'owned' ? '我的' : '公共', getPickerMeta(item.action)].filter(Boolean).join(' · ')
+              : getPickerMeta(item.action)}
             imageUrl={resolveWeappImageThumbnailUrl(item.action.reference_image_url, 240)}
             selected={isSelectedAction(item.action)}
             busy={item.kind === 'public' && addingPublicId === item.action.id}
@@ -1142,15 +1202,15 @@ export default function ActionLibPage() {
   }
 
   if (isSelectionMode) {
-    const searchValue = activeTab === 'public' ? publicSearchTerm : mySearchTerm
-    const sourceTabs: Array<{ key: TabKey; label: string }> = isImpromptuSelectionMode && !isGuest
-      ? [{ key: 'frequent', label: '常用' }, { key: 'mine', label: '我的' }, { key: 'public', label: '公共动作库' }]
+    const searchValue = activeTab === 'public' && !usesGlobalSearch ? publicSearchTerm : mySearchTerm
+    const sourceTabs: Array<{ key: TabKey; label: string }> = (isImpromptuSelectionMode || isExecutionAddMode) && !isGuest
+      ? [{ key: 'public', label: '公共动作库' }, { key: 'frequent', label: '常用' }, { key: 'mine', label: '我的' }]
       : []
     const headingPrefix = libraryMode === 'STREET' ? '街健' : libraryMode === 'CARDIO' ? '有氧' : '力量'
     const detailSelected = pickerDetail ? isSelectedAction(pickerDetail.action) : false
 
     return (
-      <View className={`al-picker ${effectiveTheme === 'dark' ? 'cl-theme-dark' : ''}`}>
+      <View className={`al-picker ${isImpromptuSelectionMode && selectedActions.length > 0 ? 'al-picker--titled' : ''} ${effectiveTheme === 'dark' ? 'cl-theme-dark' : ''}`}>
         <View className='al-picker__head'>
           <ClTabs items={LIBRARY_TABS} activeKey={libraryMode} onChange={handleSelectSystemLibrary} />
           <View className='al-picker__search'>
@@ -1161,7 +1221,7 @@ export default function ActionLibPage() {
               value={searchValue}
               onInput={(e) => {
                 const nextValue = e.detail.value
-                if (activeTab === 'public') setPublicSearchTerm(nextValue)
+                if (activeTab === 'public' && !usesGlobalSearch) setPublicSearchTerm(nextValue)
                 else setMySearchTerm(nextValue)
               }}
               confirmType='search'
@@ -1171,6 +1231,7 @@ export default function ActionLibPage() {
               <View className='al-picker__search-clear' onClick={handleClearSearch} ariaRole='button' ariaLabel='清空搜索'><Text>×</Text></View>
             ) : null}
           </View>
+          {!isGlobalSearching ? (
           <ScrollView scrollX className='al-picker__chips' showScrollbar={false}>
             <View className='al-picker__chips-row'>
               {primaryFilters.map(item => (
@@ -1180,7 +1241,8 @@ export default function ActionLibPage() {
               ))}
             </View>
           </ScrollView>
-          {(sourceTabs.length > 0 || libraryMode === 'STRENGTH') ? (
+          ) : null}
+          {!isGlobalSearching && (sourceTabs.length > 0 || libraryMode === 'STRENGTH') ? (
             <View className='al-picker__bar'>
               <View className='al-picker__sources'>
                 {sourceTabs.map(tab => (
@@ -1203,7 +1265,7 @@ export default function ActionLibPage() {
               ) : null}
             </View>
           ) : null}
-          {libraryMode === 'STRENGTH' && showEquipmentFilter ? (
+          {!isGlobalSearching && libraryMode === 'STRENGTH' && showEquipmentFilter ? (
             <ScrollView scrollX className='al-picker__chips' showScrollbar={false}>
               <View className='al-picker__chips-row'>
                 {EQUIPMENT_FILTERS.map(item => (
@@ -1218,8 +1280,8 @@ export default function ActionLibPage() {
 
         <View className='al-picker__heading'>
           <Text className='al-picker__heading-title'>
-            {headingPrefix} · {activeMuscleFilter.label}
-            <Text className='al-picker__heading-hint'> {pickerItems.length} 个</Text>
+            {isGlobalSearching ? '搜索全部动作' : `${headingPrefix} · ${activeMuscleFilter.label}`}
+            {pickerLoading ? null : <Text className='al-picker__heading-hint'> {pickerItems.length} 个</Text>}
           </Text>
           <Text className='al-picker__heading-hint'>{isPlanSelectionMode ? '点动作看要点 · 点 › 选择' : '点动作看要点 · 点 + 加入'}</Text>
         </View>
@@ -1227,7 +1289,16 @@ export default function ActionLibPage() {
         {renderPickerList()}
 
         {isImpromptuSelectionMode && selectedActions.length > 0 ? (
-          <View className='al-dock'>
+          <View className='al-dock al-dock--titled'>
+            <Input
+              className='al-dock__title'
+              value={impromptuTitleInput}
+              maxlength={IMPROMPTU_TITLE_MAX_LENGTH}
+              placeholder={`给这次训练起个名字（选填，最多${IMPROMPTU_TITLE_MAX_LENGTH}字）`}
+              placeholderClass='al-dock__title-placeholder'
+              onInput={(e) => setImpromptuTitleInput(e.detail.value)}
+            />
+            <View className='al-dock__row'>
             <View className='al-dock__copy'>
               <Text className='al-dock__count'>已选 {selectedActions.length} 个动作</Text>
               <Text className='al-dock__names'>{selectedActions.map(action => action.name).join('、')}</Text>
@@ -1240,6 +1311,7 @@ export default function ActionLibPage() {
             >
               开始训练
             </ClButton>
+            </View>
           </View>
         ) : null}
 

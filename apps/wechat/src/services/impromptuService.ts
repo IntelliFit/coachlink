@@ -37,11 +37,11 @@ class ImpromptuService {
   private readonly baseUrl = '/api/impromptu'
 
   /** 开始即兴训练 */
-  async start(actions: ImpromptuActionInput[]): Promise<StartImpromptuResponseDto | null> {
+  async start(actions: ImpromptuActionInput[], title?: string): Promise<StartImpromptuResponseDto | null> {
     const res = await request({
       url: `${this.baseUrl}/start`,
       method: 'POST',
-      data: { actions }
+      data: { actions, title: title || null }
     })
     if (res.success && res.data) return res.data as StartImpromptuResponseDto
     return null
@@ -200,6 +200,17 @@ class ImpromptuService {
   }
 
   /** 删除额外动作 */
+  /** 调整本次训练的动作顺序；order[新位置] = 旧下标。失败时抛出带服务端提示的错误。 */
+  async reorderActions(executionId: string, order: number[], actionKeys: string[]): Promise<void> {
+    const res = await request({
+      url: `${this.baseUrl}/extra-content/reorder-actions`,
+      method: 'POST',
+      data: { executionId, order, actionKeys },
+      showErrorToast: false
+    })
+    if (!res.success) throw new Error(res.message || '保存顺序失败')
+  }
+
   async deleteExtraExercise(
     executionId: string,
     actionIndex: number

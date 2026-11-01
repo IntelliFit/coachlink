@@ -7,6 +7,14 @@ import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type Tra
 import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation'
 import { resolveActionLoadMode, type ActionLoadMode } from '@coachlink/core/src/actionLoadMode'
 import { IMPROMPTU_TITLE_MAX_LENGTH, resolveImpromptuTitle } from '@coachlink/core/src/impromptuTitle'
+import {
+  executionActionKey,
+  findNextOpenActionIndex,
+  isIdentityActionOrder,
+  moveInActionOrder,
+  remapActionIndex,
+  reorderExecutionActions
+} from '@coachlink/core/src/executionActionOrder'
 import { Edit } from '@nutui/icons-react-taro'
 import { isTimedTrainingSet, getActualDurationSeconds, getPlannedDurationSeconds, getTrainingSetVolume, formatRecordedTrainingSet, inheritedTimedSetDefaults } from '@coachlink/core/src/trainingSetMetrics'
 import RecordCompletionButton from '@/components/RecordCompletionButton'
@@ -451,6 +459,9 @@ function TrainingExecution() {
   const [expandedAction, setExpandedAction] = React.useState<number>(0)
   const [currentSetIndex, setCurrentSetIndex] = React.useState(0)
   const [expandedSetKey, setExpandedSetKey] = React.useState<string | null>(null)
+  /** 调整顺序弹层的草稿：orderDraft[位置] = 当前下标；null 表示弹层关闭。 */
+  const [orderDraft, setOrderDraft] = React.useState<number[] | null>(null)
+  const [savingOrder, setSavingOrder] = React.useState(false)
   const [openSetMoreKey, setOpenSetMoreKey] = React.useState<string | null>(null)
   // 用户在本次训练里手动切换的负重方式（按动作序号），优先于自动判断
   const [loadModeOverrides, setLoadModeOverrides] = React.useState<Record<number, ActionLoadMode>>({})
@@ -1414,6 +1425,68 @@ function TrainingExecution() {
     })
   }
 
+  const handleOpenOrderSheet = () => {
+    const current = executionRef.current
+    if (isReadOnly || !current || blockUntilExecutionReady()) return
+    if (completing || uploadingVideo) {
+      Taro.showToast({ title: '正在保存，稍后再调整', icon: 'none' })
+      return
+    }
+    setOrderDraft((current.action_executions || []).map((_: ActionExecution, index: number) => index))
+  }
+
+  const handleSaveActionOrder = async () => {
+    const current = executionRef.current
+    if (!orderDraft || !current || savingOrder) return
+    if (isIdentityActionOrder(orderDraft)) {
+      setOrderDraft(null)
+      return
+    }
+    if (completing || uploadingVideo) {
+      Taro.showToast({ title: '正在保存，稍后再调整', icon: 'none' })
+      return
+    }
+    const order = orderDraft
+    const currentActions: ActionExecution[] = current.action_executions || []
+    const actionKeys = currentActions.map(executionActionKey)
+    setSavingOrder(true)
+    try {
+      await (isImpromptuMode ? impromptuService : executionService).reorderActions(current.id, order, actionKeys)
+      const updatedExecution = {
+        ...current,
+        action_executions: reorderExecutionActions(currentActions, order, { keepPlanIndex: !isImpromptuMode })
+      }
+      const remapSetKey = (key: string | null) => {
+        if (!key) return key
+        const [actionPart, setPart] = key.split(':')
+        return setKeyOf(remapActionIndex(Number(actionPart), order), Number(setPart))
+      }
+      const remapIndexed = <T,>(source: Record<number, T>) => Object.entries(source).reduce<Record<number, T>>((next, [key, value]) => {
+        next[remapActionIndex(Number(key), order)] = value
+        return next
+      }, {})
+      executionRef.current = updatedExecution
+      setExecution(updatedExecution)
+      syncExecutionToCaches(updatedExecution)
+      setExpandedAction((prev) => remapActionIndex(prev, order))
+      setEditingSetKey(remapSetKey)
+      setExpandedSetKey(remapSetKey)
+      setOpenSetMoreKey(remapSetKey)
+      setSetDrafts((prev) => Object.entries(prev).reduce<Record<string, SetRecordDraft>>((next, [key, value]) => {
+        next[remapSetKey(key) as string] = value
+        return next
+      }, {}))
+      setLoadModeOverrides(remapIndexed)
+      setItemStates(remapIndexed)
+      setOrderDraft(null)
+      Taro.showToast({ title: '已调整顺序', icon: 'success' })
+    } catch (error: any) {
+      Taro.showToast({ title: error?.message || '保存顺序失败', icon: 'none' })
+    } finally {
+      setSavingOrder(false)
+    }
+  }
+
   const handleBackToTodayTraining = React.useCallback(() => {
     Taro.navigateBack().catch(() => {
       Taro.redirectTo({ url: '/training/today-training' }).catch(() => {
@@ -1603,7 +1676,7 @@ function TrainingExecution() {
             setCurrentSetIndex(nextSetIndex)
           } else {
             // 当前动作完成，移动到下一个动作
-            const nextActionIndex = updatedActionExecutions.findIndex((a: ActionExecution, idx: number) => idx > expandedAction && a.completed_sets < a.total_sets)
+            const nextActionIndex = findNextOpenActionIndex(updatedActionExecutions, expandedAction)
             if (nextActionIndex >= 0) {
               setExpandedAction(nextActionIndex)
               const nextAction = updatedActionExecutions[nextActionIndex]
@@ -1920,9 +1993,7 @@ function TrainingExecution() {
         syncExecutionToCaches(updated)
         setItemStates((prev) => ({ ...prev, [actionIndex]: {} }))
         Taro.showToast({ title: '完成', icon: 'success' })
-        const nextIdx = (updated.action_executions || []).findIndex(
-          (item: ActionExecution, idx: number) => idx > actionIndex && item.completed_sets < item.total_sets
-        )
+        const nextIdx = findNextOpenActionIndex(updated.action_executions || [], actionIndex)
         if (nextIdx >= 0) {
           setExpandedAction(nextIdx)
           const nextPendingSet = updated.action_executions[nextIdx]?.sets?.findIndex((s: SetData) => s.status === 'pending') ?? 0
@@ -2250,7 +2321,7 @@ function TrainingExecution() {
   const handleOpenActionLibrary = () => {
     if (addingExtraAction) return
     void Taro.navigateTo({
-      url: '/me/action-lib/index?tab=public&mode=plan-select&itemType=STRENGTH',
+      url: '/me/action-lib/index?mode=plan-select&from=execution&itemType=STRENGTH',
       success: ({ eventChannel }) => {
         eventChannel.on('selectPlanAction', (selectedAction: PickerAction) => {
           if (!selectedAction?.id || !selectedAction?.name) return
@@ -3158,6 +3229,7 @@ function TrainingExecution() {
           <View className="txv3-hero__title-row" onClick={handleRenameImpromptu}>
             <Text className="txv3-hero__title">{planTitle}</Text>
             <Edit size={16} className="txv3-hero__title-edit" />
+            {!execution?.title && <Text className="txv3-hero__title-hint">起个名字</Text>}
           </View>
         ) : (
           <Text className="txv3-hero__title">{planTitle || '训练执行'}</Text>
@@ -3292,6 +3364,11 @@ function TrainingExecution() {
       {!isReadOnly && (
         <View className="txv3-dashed txv3-dashed--action" onClick={() => { if (!addingExtraAction) handleOpenActionLibrary() }}>
           <Text className="txv3-dashed__text">{addingExtraAction ? '添加中...' : '+ 添加动作'}</Text>
+        </View>
+      )}
+      {!isReadOnly && actionExecutions.length > 1 && (
+        <View className="txv3-dashed txv3-dashed--action" onClick={handleOpenOrderSheet}>
+          <Text className="txv3-dashed__text">调整动作顺序</Text>
         </View>
       )}
     </View>
@@ -3493,8 +3570,7 @@ function TrainingExecution() {
   const focusedEditorInfo = focusedAction && focusedEditorSet
     ? describeSet(focusedAction, focusedActionIdx, focusedEditorSet, currentSetIndex)
     : null
-  const nextOpenActionIdx = actionExecutions.findIndex((action: ActionExecution, idx: number) =>
-    idx !== focusedActionIdx && action.completed_sets < action.total_sets)
+  const nextOpenActionIdx = findNextOpenActionIndex(actionExecutions, focusedActionIdx)
 
   /** 卡片模式底部主按钮：跟着当前卡片变成「完成第 N 组 / 完成打卡 / 下一个动作 / 完成训练」。 */
   const cardPrimary = (() => {
@@ -3527,6 +3603,7 @@ function TrainingExecution() {
   const handleOpenCardMoreMenu = () => {
     const items: Array<{ label: string; run: () => void }> = []
     if (!isReadOnly) items.push({ label: '添加动作', run: handleOpenActionLibrary })
+    if (!isReadOnly && actionExecutions.length > 1) items.push({ label: '调整动作顺序', run: handleOpenOrderSheet })
     if (!isReadOnly && focusedInfo?.isStrength) items.push({ label: '这个动作加一组', run: () => void handleAddExtraSet(focusedActionIdx) })
     if (showFinishButton && cardPrimary?.label !== finishButtonLabel) items.push({ label: finishButtonLabel, run: () => void handleFinishButton() })
     if (canCancelTraining) items.push({ label: '取消本次训练', run: handleCancelTraining })
@@ -3733,6 +3810,42 @@ function TrainingExecution() {
         </View>
       )}
 
+
+      {orderDraft && (
+        <View className="txv3-order-mask" catchMove onClick={() => { if (!savingOrder) setOrderDraft(null) }}>
+          <View className="txv3-order-sheet" onClick={(e) => e.stopPropagation()}>
+            <View className="txv3-order-sheet__head">
+              <Text className="txv3-order-sheet__title">调整动作顺序</Text>
+              <Text className="txv3-order-sheet__hint">只影响这次训练，不改计划</Text>
+            </View>
+            <ScrollView scrollY className="txv3-order-list">
+              {orderDraft.map((oldIndex, position) => {
+                const item: ActionExecution | undefined = actionExecutions[oldIndex]
+                const isDone = !!item && item.completed_sets >= item.total_sets
+                return (
+                  <View key={oldIndex} className="txv3-order-row">
+                    <Text className="txv3-order-row__no cl-num">{position + 1}</Text>
+                    <View className="txv3-order-row__copy">
+                      <Text className="txv3-order-row__name">{item?.action_name || '未命名动作'}</Text>
+                      <Text className="txv3-order-row__meta cl-num">{isDone ? '已完成' : `${item?.completed_sets || 0}/${item?.total_sets || 0} 组`}</Text>
+                    </View>
+                    <Text
+                      className={`txv3-order-row__btn ${position === 0 ? 'is-disabled' : ''}`}
+                      onClick={() => setOrderDraft((prev) => prev && moveInActionOrder(prev, position, -1))}
+                    >↑</Text>
+                    <Text
+                      className={`txv3-order-row__btn ${position === orderDraft.length - 1 ? 'is-disabled' : ''}`}
+                      onClick={() => setOrderDraft((prev) => prev && moveInActionOrder(prev, position, 1))}
+                    >↓</Text>
+                  </View>
+                )
+              })}
+            </ScrollView>
+            <Button className="txv3-primary" loading={savingOrder} onClick={() => void handleSaveActionOrder()}>保存顺序</Button>
+            <Text className="txv3-order-sheet__cancel" onClick={() => { if (!savingOrder) setOrderDraft(null) }}>取消</Text>
+          </View>
+        </View>
+      )}
 
       {showRestBar && (
         <View
