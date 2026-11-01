@@ -1,9 +1,9 @@
-## 快乐小鸟上线进度（2026-11-02 凌晨，Web 已上线，迁移和小程序提审未做）
+## 快乐小鸟上线进度（2026-11-02，Web 已上线，迁移用户已执行，小程序未提审）
 
 - 用户要求直接上线。dev/main 推到 29d364e4：c3f02b5f（哑铃弹弹慢节奏版，原定下次小程序发版带上）+ 29d364e4（引体冲刺、俯卧撑突围合并成快乐小鸟）。本地 dev 的 8f60a97c（APP 对齐，121 个文件）和其他会话未提交的改动没有带上。
 - 小程序开发版 **2026.11.01.1609** 已上传（✔ upload，总包 10,652,774 / 主包 1,973,444），描述 release-29d364e-happy-bird；未设体验版、未提审。此前 2026.10.30.2123 的审核状态未核实。
 - Web 已上线（用户放行）：`coachlink@sha256:7e89b841…`（标签 d07f6c5，服务器 binary diff 还原，2780 文件 blob 一致），dev、main 均 3fda6371 → 7e89b841，main 3/3，dev 1/1。healthy/login/boji 200，motion-games start/finish 未登录 401，切换后 main 3 分钟无错误日志。登录后的榜单接口和真实结算没走过。
-- **未做**：线上迁移 `supabase/migrations/20261101120000_happy_bird_leaderboard.sql`（本地临时库已验证：可重复执行、新游戏能结算入榜、旧榜标签不变）。本机没有 Supabase 访问令牌，要用户在后台 SQL 编辑器执行，或 `supabase login` 后再由 Claude 执行。迁移前新游戏开局会被数据库约束拒绝，只能本机计分；旧版小程序的旧游戏不受影响。
+- 迁移 `supabase/migrations/20261101120000_happy_bird_leaderboard.sql`：用户说已在 Supabase 后台执行（2026-11-02）。Claude 没能独立核实：探测和匿名读取都没成功（服务端密钥探测被权限策略拦下，匿名密钥无表权限）。第一局真实成绩能进「快乐小鸟无限榜」才算端到端验证。
 - 小程序必须在迁移之后再提审。顺序反了游戏能玩，但成绩只存本机，并提示本局不计入在线榜。
 - 门禁：typecheck 0 错；vitest 在 worktree 里 15 个文件失败，都和这次无关：13 个缺 expo 依赖，streetliftingLocationOverview 跨月，plan-calendar-consistency 对应文件未改。E2E 未跑。
 - 未真机验证：头部跟随手感、声音、录制和保存视频。精简后的页面也没在开发者工具复测，精简前的版本走通过。
