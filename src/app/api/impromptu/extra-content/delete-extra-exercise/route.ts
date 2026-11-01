@@ -7,6 +7,7 @@ import type {
     DeleteImpromptuExtraExerciseResponseDto,
 } from "../entity";
 import { computeExecutionProgress } from "@/lib/executionProgress";
+import { detachRemovedActionSetVideos } from "../../_helpers/removeActionSetVideos";
 
 export async function POST(request: NextRequest) {
     try {
@@ -73,6 +74,15 @@ export async function POST(request: NextRequest) {
             }, { status: 403 });
         }
 
+        const setVideos = await detachRemovedActionSetVideos(executionId, Number(actionIndex), userId);
+        if (!setVideos) {
+            return NextResponse.json<ApiData<DeleteImpromptuExtraExerciseResponseDto>>({
+                success: false,
+                message: "更新失败",
+                data: null,
+            }, { status: 500 });
+        }
+
         actionExecutions.splice(actionIndex, 1);
         actionExecutions.forEach((item: any, idx: number) => {
             item.action_order = idx + 1;
@@ -90,12 +100,16 @@ export async function POST(request: NextRequest) {
             .eq("id", executionId)
             .eq("student_id", userId);
         if (updateError) {
+            await setVideos.restore();
             return NextResponse.json<ApiData<DeleteImpromptuExtraExerciseResponseDto>>({
                 success: false,
                 message: "更新失败",
                 data: null,
             }, { status: 500 });
         }
+
+        // 动作已删除，这里失败只留下不再展示的残留行，下次删动作时会清掉。
+        await setVideos.purge();
 
         return NextResponse.json<ApiData<DeleteImpromptuExtraExerciseResponseDto>>({
             success: true,

@@ -57,7 +57,7 @@ function normalizeActions(value: unknown): any[] {
     }
 }
 
-function isManagedStoragePath(value: string | null) {
+export function isManagedStoragePath(value: string | null) {
     return !!value && !value.startsWith("external/");
 }
 

@@ -595,3 +595,11 @@
 - **统一规则**：APP 上传本地文件一律用 `apps/mobile/src/fileUpload.ts` 的 `uploadFile`（multipart），或 `expo-file-system/legacy` 的 `uploadAsync` / `createUploadTask`（原始字节用 `BINARY_CONTENT`）。不要用 `fetch` 读本地文件，不要发 Blob，也不要用 FormData 带 `uri`。
 - **改动前自检**：这段上传在真机上跑过吗？有没有 `.blob()`、`new Blob` 或 `new FormData`？
 - **典型案例**（2026-10-31）：`PowerAnalysisScreen.tsx`、`BojiDetectorScreen.tsx`，以及 7 处 FormData 上传。
+
+## 55) 列表下标变了，按下标关联的另一张表没跟着变：视频跑到别的动作上（高风险）
+
+- **现象**：即兴训练里删掉学员自己加的动作后，被删动作的组视频行还留着，后面动作的视频挂到了前一个动作上；同样的组号还会让残留行显示到新占位的动作上。
+- **根因**：`impromptu_execution_set_videos` 用 `action_index` 关联 `action_executions` 的数组下标。`delete-extra-exercise` 只改了 JSON 列表，没有同步这张表。
+- **统一规则**：改动作列表的下标（删除、换序）时，必须在同一流程里同步关联行。先改关联行，再写列表；列表写失败要恢复；删行和删文件放到列表落库之后。批量改唯一约束里的列要分两段写（先到临时区间，再到目标值）。
+- **改动前自检**：这份数组的下标或组号，有没有被其他表当作外键用？写到一半失败时，两边还对得上吗？被删行占用的存储配额和文件有人处理吗？
+- **典型案例**（2026-11-01）：做训练中换序时发现。已加 `src/app/api/impromptu/_helpers/removeActionSetVideos.ts` 及路由测试。`delete-extra-set` 重排 `set_number` 时同样没有同步，待修。
