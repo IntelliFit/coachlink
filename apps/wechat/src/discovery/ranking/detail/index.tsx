@@ -102,11 +102,10 @@ function RankingDetail() {
     Taro.navigateBack()
   }
 
-  const motionGamePath = leaderboard?.type === 'motion_game_pullup'
-    ? '/toolbox/pullup-rush/index'
-    : leaderboard?.type === 'motion_game_pushup'
-      ? '/toolbox/pushup-dash/index'
-      : ''
+  // 引体冲刺、俯卧撑突围已合并成快乐小鸟，旧榜单的“开始挑战”也进新游戏。
+  const motionGamePath = String(leaderboard?.type || '').startsWith('motion_game_')
+    ? '/toolbox/happy-bird/index'
+    : ''
   const powerAnalysisPath = leaderboard?.type === 'power_analysis_power' || leaderboard?.type === 'power_analysis_speed'
     ? '/toolbox/power-analysis/index'
     : ''

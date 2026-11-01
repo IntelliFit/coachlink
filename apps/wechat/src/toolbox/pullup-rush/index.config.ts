@@ -1,9 +1,7 @@
 export default definePageConfig({
-  navigationBarTitleText: '引体冲刺',
-  navigationBarBackgroundColor: '#ffffff',
-  navigationBarTextStyle: 'black',
-  enableShareAppMessage: true,
-  enableShareTimeline: true,
-  disableScroll: true,
+  navigationBarTitleText: '快乐小鸟',
+  navigationBarBackgroundColor: '#000000',
+  navigationBarTextStyle: 'white',
+  backgroundColor: '#000000',
   animationType: 'none'
 })

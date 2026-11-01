@@ -1,8 +1,21 @@
-## 待下次小程序发版：哑铃弹弹慢节奏版（2026-10-31，只在本地 dev，未推送）
+## 快乐小鸟上线进度（2026-11-02，Web 已上线，迁移用户已执行，小程序未提审）
 
-- `b2a8e1af`：按原视频改为 1× 约每秒 1 下、两片间距 0.36、重力 0.5；每局撞几下在松手时抽好（中位 30，约 20% 上百，约 1% 上千），撞够后掉出画面。撞击时手机震动（所有倍速）、相机画面顿一下、片子转动。
-- 纯小程序改动，无后端/迁移。审核中的 2026.10.30.2123 不含这次改动，里面仍是 `cc6216b8` 的快节奏版。
-- 还没真机验证：实时预览里相机画面的震动（CSS 动画加在原生相机外层，部分手机可能不生效）、手机震动手感、录制和保存视频。
+- 用户要求直接上线。dev/main 推到 29d364e4：c3f02b5f（哑铃弹弹慢节奏版，原定下次小程序发版带上）+ 29d364e4（引体冲刺、俯卧撑突围合并成快乐小鸟）。本地 dev 的 8f60a97c（APP 对齐，121 个文件）和其他会话未提交的改动没有带上。
+- 小程序开发版 **2026.11.01.1609** 已上传（✔ upload，总包 10,652,774 / 主包 1,973,444），描述 release-29d364e-happy-bird；未设体验版、未提审。此前 2026.10.30.2123 的审核状态未核实。
+- Web 已上线（用户放行）：`coachlink@sha256:7e89b841…`（标签 d07f6c5，服务器 binary diff 还原，2780 文件 blob 一致），dev、main 均 3fda6371 → 7e89b841，main 3/3，dev 1/1。healthy/login/boji 200，motion-games start/finish 未登录 401，切换后 main 3 分钟无错误日志。登录后的榜单接口和真实结算没走过。
+- 迁移 `supabase/migrations/20261101120000_happy_bird_leaderboard.sql`：用户说已在 Supabase 后台执行（2026-11-02）。Claude 没能独立核实：探测和匿名读取都没成功（服务端密钥探测被权限策略拦下，匿名密钥无表权限）。第一局真实成绩能进「快乐小鸟无限榜」才算端到端验证。
+- 小程序必须在迁移之后再提审。顺序反了游戏能玩，但成绩只存本机，并提示本局不计入在线榜。
+- 门禁：typecheck 0 错；vitest 在 worktree 里 15 个文件失败，都和这次无关：13 个缺 expo 依赖，streetliftingLocationOverview 跨月，plan-calendar-consistency 对应文件未改。E2E 未跑。
+- 未真机验证：头部跟随手感、声音、录制和保存视频。精简后的页面也没在开发者工具复测，精简前的版本走通过。
+- 发布 worktree：`D:\CodexWork\coachlink-happy-bird-release`。主 checkout 里还留着同样内容的未提交改动，开发者工具预览用的是它；本地 dev 拉取最新代码前要先清掉，否则未跟踪文件会冲突。
+
+## 薄肌腹肌块数改为模型逐排判断并上线（2026-11-01）
+
+- 用户要求"先上线"。dev/main 推到 438219e1（含 58ab9430、438219e1 和此前只在 dev 的小程序修复 9e3f89f9）。网页代码相比线上只差 src/lib/bojiAbsCheck*.ts 和 analyze 路由。
+- Web `coachlink@sha256:3fda6371…`（标签 438219e，服务器 binary diff 还原，2775 文件 blob 一致）：dev、main 均 aaf401d2 → 3fda6371；main 3/3，dev 1/1（部署本来就是 1 副本）。healthy/login/boji/功率分析 200，未登录 analyze 401，challenge 未知 id 404。切换后 main 只有既有 admin_trace_events 22P02 错误。**上线时还没有真实检测经过新逻辑**，看 `[boji/ai-abs] engine N votes [...]` 日志确认。
+- 门禁：typecheck 0 错；vitest 1243/1244（既有 streetliftingLocationOverview），另 13 个 src/mobile 等测试文件因 worktree 缺 expo 依赖加载失败（与改动无关）。E2E 未跑。
+- 引擎未动：线上仍 fd499357（3f04392）。奇数修复 fix/abs-pair-rows（497a683）只在本地，且 deploy/boji-service/Dockerfile 的 BOJI_DETECTOR_REF 还停在 3b41c87，比线上旧，下次重建要改。
+- 已知不足：留出集上"没腹肌"5 张全错（模型多答 4 块），详见 DECISIONS.md。标注数据在 D:\CodexWork\boji-abs-dataset，网页来源授权未核实，不进仓库。
 
 ## 小程序审核驳回修复：未登录可先浏览快速开练（2026-10-30）
 

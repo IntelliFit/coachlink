@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   if (!sessionId || !isMotionGameKey(body?.gameKey) || score === null || elapsedMs === null || actionCount === null || lockRatio === null) {
     return NextResponse.json({ success: false, message: '成绩参数不完整', data: null }, { status: 400 });
   }
-  if (elapsedMs > MAX_SESSION_WALL_MS || !isPlausibleMotionGameScore(score, elapsedMs)) {
+  if (elapsedMs > MAX_SESSION_WALL_MS || !isPlausibleMotionGameScore(score, elapsedMs, body.gameKey)) {
     return NextResponse.json({ success: false, message: '成绩校验未通过', data: null }, { status: 400 });
   }
 

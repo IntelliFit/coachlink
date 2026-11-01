@@ -1,9 +1,10 @@
 import Taro from '@tarojs/taro'
 import { BaseService } from '@/utils/request'
 
-export type MotionGameKey = 'pullup-rush' | 'pushup-dash'
+export type MotionGameKey = 'happy-bird' | 'pullup-rush' | 'pushup-dash'
 
 export const MOTION_GAME_TEMPLATE_IDS: Record<MotionGameKey, string> = {
+  'happy-bird': 'b7bc1548-08ed-4f52-90cc-f5b22a785103',
   'pullup-rush': 'b7bc1548-08ed-4f52-90cc-f5b22a785101',
   'pushup-dash': 'b7bc1548-08ed-4f52-90cc-f5b22a785102'
 }

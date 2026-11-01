@@ -24,6 +24,14 @@ export function isBojiChunkModule(id: string): boolean {
   return BOJI_MODULE_PATTERNS.some((pattern) => pattern.test(file))
 }
 
+export const HAPPY_BIRD_CHUNK_NAME = 'toolbox/happy-bird-common'
+
+/** 快乐小鸟拆成了多个模块，互相引用后同样会被 Taro 放进主包，这里也留在工具箱分包。 */
+export function isHappyBirdChunkModule(id: string): boolean {
+  const file = id.split('?')[0]
+  return /[\\/]src[\\/]toolbox[\\/]happy-bird[\\/](?!index\.tsx$)[^\\/]+\.(ts|tsx)$/.test(file)
+}
+
 type ManualChunks = (id: string, api: unknown) => string | null | undefined
 
 interface OutputOptions {
@@ -38,7 +46,11 @@ export function weappBojiChunkPlugin() {
       if (typeof original !== 'function') return null
       return {
         ...options,
-        manualChunks: (id: string, api: unknown) => (isBojiChunkModule(id) ? BOJI_CHUNK_NAME : original(id, api)),
+        manualChunks: (id: string, api: unknown) => {
+          if (isBojiChunkModule(id)) return BOJI_CHUNK_NAME
+          if (isHappyBirdChunkModule(id)) return HAPPY_BIRD_CHUNK_NAME
+          return original(id, api)
+        },
       }
     },
   }
