@@ -16,6 +16,7 @@ import generic_motion as gm
 import plausibility
 import pose_features as pf
 from assessment import build_assessment
+from bar_reference import HAND_REFERENCE_ENABLED, BarReference, build_bar_reference, reference_anchor
 from body_scale import height_scale_is_squashed, segment_scale_m_per_px
 from barbell_reps import G, HP_WATT, refine_barbell_reps
 from custom_checks import build_custom_assessment
@@ -24,10 +25,11 @@ from mode_presets import SUPPORTED_MODES, get_mode_preset, is_barbell_mode, is_g
 from movement_rules import RuleContext
 from plate_tracker import track_plate
 from render_overlay import render_output_video
+from rep_rom import ROM_MODES, grade_reps_rom, tally_rom
 from video_encoding import finalize_output_video
 
 
-ANALYZER_VERSION = "2.1.0"
+ANALYZER_VERSION = "2.2.0"
 DEFAULT_PLATE_DIAMETER_CM = 45.0
 # Torso (shoulder to hip joint) as a share of standing height, used when lying down.
 TORSO_HEIGHT_RATIO = 0.288
@@ -189,20 +191,46 @@ def body_anchor_scale(track: np.ndarray, mode: str, frame_height: int, height_cm
     return frame_fallback_scale(frame_height, height_cm), "frame_fallback", []
 
 
-def measure_body_anchor(track: np.ndarray, mode: str, frame_height: int, height_cm: float) -> Measured:
+def bar_reference_info(reference: BarReference, scale: float, applied: bool) -> Dict[str, Any]:
+    return {
+        "applied": applied,
+        "cameraMoved": reference.camera_moved,
+        "cameraTravelTorso": round_float(reference.camera_travel_torso, 3),
+        "cameraTravelCm": round_float(reference.camera_travel_torso * reference.ruler_px * scale * 100, 1),
+        "onBarShare": round_float(float(np.mean(reference.on_bar)), 3),
+        "gripRiseCm": round_float(0.0 - reference.grip_step_px * scale * 100, 1),
+    }
+
+
+def measure_body_anchor(
+    track: np.ndarray,
+    mode: str,
+    frame_height: int,
+    height_cm: float,
+    fps: float = 30.0,
+    hand_reference: bool = HAND_REFERENCE_ENABLED,
+) -> Measured:
     preset = get_mode_preset(mode)
     scale, source, warnings = body_anchor_scale(track, mode, frame_height, height_cm)
     anchor = body_anchor_y(track, str(preset["anchor"]))
     if not np.any(np.isfinite(anchor)):
         raise RuntimeError("No stable pose landmarks detected")
+    reference = build_bar_reference(track, fps, mode) if mode in ROM_MODES else None
+    if reference is not None and hand_reference:
+        anchor = reference_anchor(anchor, reference)
+        if reference.camera_moved:
+            travel_cm = reference.camera_travel_torso * reference.ruler_px * scale * 100
+            warnings = [*warnings, f"手机晃动约 {travel_cm:.0f} cm，已按手腕位置扣除相机晃动；固定手机拍摄更准"]
     y_track = moving_average(to_optional_list(anchor))
-    measurement = {
+    measurement: Dict[str, Any] = {
         "target": "body_anchor",
         "anchorLabelZh": "髋部" if preset["anchor"] == "hip" else "肩部",
         "scaleSource": source,
         "confidence": "low" if source == "frame_fallback" else "medium",
         "warningsZh": warnings,
     }
+    if reference is not None:
+        measurement["barReference"] = bar_reference_info(reference, scale, hand_reference)
     return Measured(y_track=y_track, scale=scale, measurement=measurement)
 
 
@@ -634,7 +662,7 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     measured = (
         measure_barbell(args, track, fps, height)
         if barbell
-        else measure_body_anchor(track, args.mode, height, args.height_cm)
+        else measure_body_anchor(track, args.mode, height, args.height_cm, fps, args.hand_reference)
     )
     y_track, scale, bar_points, measurement = measured.y_track, measured.scale, measured.bar_points, measured.measurement
     emit_progress(52)
@@ -650,6 +678,8 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     else:
         reps = detect_reps(y_track, fps, scale, effective_mass_kg, args.mode)
         annotate_body_reps(reps, y_track, fps, scale)
+        if args.mode in ROM_MODES:
+            grade_reps_rom(reps, track, fps, scale, args.mode)
     reps, excluded_reps = plausibility.split_reps(reps, args.mode, args.height_cm)
     measurement = {
         **measurement,
@@ -659,6 +689,8 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     metrics = build_metrics(args.mode, reps, args.weight_kg, external_load_kg)
     metrics["analyzerVersion"] = ANALYZER_VERSION
     metrics["excludedReps"] = excluded_reps
+    if args.mode in ROM_MODES:
+        metrics["romSummary"] = tally_rom(reps)
     if not barbell:
         metrics["rating"] = build_power_rating(metrics)
     metrics["timeSeries"] = build_time_series(
@@ -847,6 +879,12 @@ def main() -> int:
     parser.add_argument("--quality", choices=["compressed", "original"], default="compressed")
     parser.add_argument("--action-name", type=action_name_arg, default="其他动作")
     parser.add_argument("--keyframes-dir", default="", help="custom mode: write de-identified keyframes here")
+    parser.add_argument(
+        "--hand-reference",
+        action=argparse.BooleanOptionalAction,
+        default=HAND_REFERENCE_ENABLED,
+        help="pull-up / muscle-up: drop frames off the bar and subtract a moving camera using the wrists",
+    )
     args = parser.parse_args()
 
     try:

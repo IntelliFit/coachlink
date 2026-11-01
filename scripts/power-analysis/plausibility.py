@@ -35,7 +35,9 @@ def max_peak_velocity(mode: str) -> Optional[float]:
 
 
 def _excluded(rep: Dict[str, Any], reason: str, reason_zh: str) -> Dict[str, Any]:
+    rom = {"rom": rep["rom"]} if rep.get("rom") else {}
     return {
+        **rom,
         "startTimeS": rep.get("startTimeS"),
         "endTimeS": rep.get("endTimeS"),
         "displacementM": rep.get("displacementM"),
@@ -77,7 +79,12 @@ def split_reps(
         share = float(LIMITS.get("partialRepShareOfMedian") or 0)
         median = float(np.median([float(rep.get("displacementM") or 0) for rep in kept]))
         if share > 0 and median > 0:
-            full = [rep for rep in kept if float(rep.get("displacementM") or 0) >= share * median]
+            # A rep that reads full at both of its own ends is never called partial (see rep_rom).
+            full = [
+                rep
+                for rep in kept
+                if float(rep.get("displacementM") or 0) >= share * median or (rep.get("rom") or {}).get("grade") == "full"
+            ]
             for rep in kept:
                 if rep not in full:
                     excluded.append(_excluded(rep, "partial_rep", f"幅度不到本组常规次数的 {round(share * 100)}%，按半程动作处理"))

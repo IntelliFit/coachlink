@@ -15,10 +15,15 @@ from movement_rules import (
     top_frame,
     unavailable,
 )
+from rep_rom import LOCKOUT_DEG
 
 NEED_SIDE_VIEW = "需要侧面或斜侧面机位才能判断"
 NEED_FRONT_VIEW = "需要正面机位才能比较左右"
 NEED_PLATE = "没有追踪到杠铃片，无法判断杠铃位置"
+# How far short of the rep_rom cutoff still reads as a near miss rather than a clear shortfall.
+BOTTOM_WARN_MARGIN_DEG = 15.0
+CLEARANCE_WARN_MARGIN_TORSO = 0.05
+LOCKOUT_WARN_DEG = 130.0
 
 
 def _majority_side(sides: List[Any]) -> str:
@@ -35,14 +40,40 @@ def _rep_window(ctx: RuleContext, rep: Dict[str, Any]) -> range:
     return range(max(0, start), end + 1)
 
 
+def _rom_items(ctx: RuleContext, key: str, frame_of: Any, grade_of: Any) -> List[Dict[str, Any]]:
+    """Per-rep measurements taken from the grade in rep["rom"], so a check cannot disagree with it."""
+    items = []
+    for rep in ctx.reps:
+        rom = rep.get("rom") or {}
+        value = rom.get(key)
+        items.append({
+            "rep": rep["repIndex"],
+            "frame": frame_of(ctx, rep),
+            "value": value,
+            "grade": None if value is None else grade_of(rom, value),
+        })
+    return items
+
+
+def _note_unreadable(items: List[Dict[str, Any]], describe: Any) -> Any:
+    missing = [item["rep"] for item in items if item["value"] is None]
+    suffix = f"；第 {rep_list_zh(missing)} 次看不清，没有判定" if missing else ""
+    return lambda status, chosen: describe(status, chosen) + suffix
+
+
 def check_bottom_extension(ctx: RuleContext) -> Dict[str, Any]:
-    items = per_rep_angle(ctx, ctx.angle("elbow"), bottom_frame, lambda v: v >= 150, lambda v: v >= 135)
+    def grade(rom: Dict[str, Any], value: float) -> str:
+        if rom["bottomOk"]:
+            return "good"
+        return "warn" if value >= rom["bottomRequiredDeg"] - BOTTOM_WARN_MARGIN_DEG else "issue"
+
+    items = _rom_items(ctx, "bottomElbowDeg", bottom_frame, grade)
     return grade_reps(
         ctx,
         f"{ctx.mode}.bottom_extension",
         "底部手臂伸直",
         items,
-        angle_detail("肘角", "每次都从手臂伸直的悬垂开始", "起始时手臂没有完全伸直，动作幅度偏小"),
+        _note_unreadable(items, angle_detail("肘角", "每次都从手臂伸直的悬垂开始", "起始时手臂没有完全伸直，动作幅度偏小")),
         {"zh": "手臂未伸直", "en": "Arms bent", "part": "elbow"},
     )
 
@@ -75,27 +106,69 @@ def check_depth_elbow(ctx: RuleContext, good: float, warn: float) -> Dict[str, A
     )
 
 
+def _clearance_grade(rom: Dict[str, Any], _value: float) -> str:
+    if rom["clearanceOk"]:
+        return "good"
+    near = rom["clearanceTorso"] >= rom["clearanceRequiredTorso"] - CLEARANCE_WARN_MARGIN_TORSO
+    return "warn" if near else "issue"
+
+
 def check_chin_over_bar(ctx: RuleContext) -> Dict[str, Any]:
-    code = "pullup.chin_over_bar"
-    mouth = pf.nan_mean_pair(pf.points(ctx.track, 9, 0.3), pf.points(ctx.track, 10, 0.3))[:, 1]
-    wrist = pf.side_points(ctx.track, "both", "wrist", 0.3)[:, 1]
-    gap_m = (mouth - wrist) * ctx.scale
-    radius = max(1, int(round(ctx.fps * 0.1)))
-    items = []
-    for rep in ctx.reps:
-        frame = top_frame(ctx, rep)
-        window = pf.window_values(gap_m, frame - radius, frame + radius)
-        value = float(np.min(window) * 100) if window.size else None
-        items.append({"rep": rep["repIndex"], "frame": frame, "value": value,
-                      "grade": grade_value(value, lambda v: v <= 0, lambda v: v <= 4)})
+    items = _rom_items(ctx, "clearanceCm", top_frame, _clearance_grade)
 
     def describe(status: str, chosen: List[Dict[str, Any]]) -> str:
         if status == "good":
-            return "每次顶端嘴部都高过手腕，下巴基本过杠（以手腕位置近似单杠）"
-        gap = float(np.median([item["value"] for item in chosen]))
-        return f"第 {rep_list_zh([i['rep'] for i in chosen])} 次顶端嘴部低于手腕约 {gap:.0f} cm，下巴可能没有过杠"
+            return "每次顶端头部都高过手腕，下巴基本到杠（以手腕位置近似单杠）"
+        gap = float(np.max([item["value"] for item in chosen]))
+        height = f"头部最多只比手腕高约 {gap:.0f} cm" if gap >= 0 else f"头部比手腕还低约 {-gap:.0f} cm"
+        return f"第 {rep_list_zh([i['rep'] for i in chosen])} 次顶端{height}，下巴可能没有过杠（手机机位偏低时头会显得偏低）"
 
-    return grade_reps(ctx, code, "下巴过杠", items, describe, {"zh": "未过杠", "en": "Chin below bar", "part": "nose"}, "cm")
+    return grade_reps(
+        ctx,
+        "pullup.chin_over_bar",
+        "下巴过杠",
+        items,
+        _note_unreadable(items, describe),
+        {"zh": "未过杠", "en": "Chin below bar", "part": "nose"},
+        "cm",
+    )
+
+
+def check_over_bar(ctx: RuleContext) -> Dict[str, Any]:
+    items = _rom_items(ctx, "clearanceCm", top_frame, _clearance_grade)
+
+    def describe(status: str, chosen: List[Dict[str, Any]]) -> str:
+        gap = float(np.median([item["value"] for item in chosen]))
+        if status == "good":
+            return f"每次都翻到杠上，顶端肩部高出手腕约 {gap:.0f} cm"
+        return f"第 {rep_list_zh([i['rep'] for i in chosen])} 次顶端肩部只高出手腕约 {gap:.0f} cm，没有翻到杠上"
+
+    return grade_reps(
+        ctx,
+        "muscleup.over_bar",
+        "翻到杠上",
+        items,
+        _note_unreadable(items, describe),
+        {"zh": "未翻上杠", "en": "Not over bar", "part": "shoulder"},
+        "cm",
+    )
+
+
+def check_muscleup_lockout(ctx: RuleContext) -> Dict[str, Any]:
+    items = _rom_items(
+        ctx,
+        "topElbowDeg",
+        top_frame,
+        lambda _rom, value: grade_value(value, lambda v: v >= LOCKOUT_DEG, lambda v: v >= LOCKOUT_WARN_DEG),
+    )
+    return grade_reps(
+        ctx,
+        "muscleup.lockout",
+        "顶端手臂撑直",
+        items,
+        _note_unreadable(items, angle_detail("肘角", "每次顶端都完成了锁定", "顶端手臂没有完全撑直")),
+        {"zh": "未锁定", "en": "No lockout", "part": "elbow"},
+    )
 
 
 def check_kipping(ctx: RuleContext, cap_warn: bool) -> Dict[str, Any]:
