@@ -3,10 +3,9 @@ import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { Image, ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import dumbbellBounceCover from '@/assets/images/toolbox-games/dumbbell-bounce-game-v1.webp'
+import happyBirdCover from '@/assets/images/toolbox-games/happy-bird-game-v1.webp'
 import motionBeanCover from '@/assets/images/toolbox-games/motion-bean-game-v2.webp'
 import motionEffectsCover from '@/assets/images/toolbox-games/motion-effects-game-v2.webp'
-import pullupRushCover from '@/assets/images/toolbox-games/pullup-rush-game-v2.webp'
-import pushupDashCover from '@/assets/images/toolbox-games/pushup-dash-game-v2.webp'
 import barLocationsCover from '@/assets/images/toolbox-practical/practical-bar-locations-v2.webp'
 import communityDataCover from '@/assets/images/toolbox-practical/practical-community-data-v2.webp'
 import oneArmPullUpCover from '@/assets/images/toolbox-practical/practical-one-arm-pull-up-v3.webp'
@@ -88,25 +87,18 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
 
 const MINI_GAMES: ToolboxEntry[] = [
   {
+    cover: happyBirdCover,
+    description: '引体俯卧撑都能玩，头动鸟飞',
+    key: 'happy-bird',
+    label: '快乐小鸟',
+    url: '/toolbox/happy-bird/index'
+  },
+  {
     cover: dumbbellBounceCover,
     description: '哑铃弹几下就做几个',
     key: 'dumbbell-bounce',
     label: '哑铃弹弹',
     url: '/toolbox/dumbbell-bounce/index'
-  },
-  {
-    cover: pullupRushCover,
-    description: '上拉带小鸟穿过障碍',
-    key: 'pullup-rush',
-    label: '引体冲刺',
-    url: '/toolbox/pullup-rush/index'
-  },
-  {
-    cover: pushupDashCover,
-    description: '完整俯卧撑撞开墙壁',
-    key: 'pushup-dash',
-    label: '俯卧撑突围',
-    url: '/toolbox/pushup-dash/index'
   },
   {
     cover: motionBeanCover,

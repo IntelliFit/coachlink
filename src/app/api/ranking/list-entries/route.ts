@@ -125,7 +125,6 @@ export async function POST(req: Request) {
 
     if (motionGameEntry) {
         const [gameKey, config] = motionGameEntry;
-        const actionLabel = gameKey === 'pullup-rush' ? '引体次数' : '俯卧撑次数';
         const db = serviceRoleSupabase as any;
         const { data: bestScores, error: bestScoresError, count: bestScoresCount } = await db
             .from('motion_game_best_scores')
@@ -169,9 +168,9 @@ export async function POST(req: Request) {
             score: item.score,
             status: 'approved',
             form_data: [
-                { type: 'number', name: '穿越通道', required: true, userInput: item.score },
+                { type: 'number', name: config.scoreLabel, required: true, userInput: item.score },
                 { type: 'number', name: '坚持秒数', required: true, userInput: Math.floor(item.elapsed_ms / 1000) },
-                { type: 'number', name: actionLabel, required: true, userInput: item.action_count },
+                { type: 'number', name: config.actionLabel, required: true, userInput: item.action_count },
             ],
             evidence_url: null,
             extra_data: {

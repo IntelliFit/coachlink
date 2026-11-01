@@ -62,6 +62,7 @@ function RankingIndex() {
 
   function getIcon(type: string | null) {
     switch (type) {
+      case 'motion_game_bird':
       case 'motion_game_pullup':
       case 'motion_game_pushup':
       case 'power_analysis_power':

@@ -1,0 +1,230 @@
+$bird-brand: #cf6d4e;
+
+.bird-page {
+  position: relative;
+  height: 100vh;
+  background: #000000;
+  overflow: hidden;
+}
+
+.bird-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000000;
+}
+
+.bird-camera,
+.bird-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bird-canvas {
+  z-index: 2;
+}
+
+.bird-rec {
+  position: absolute;
+  z-index: 3;
+  right: 24rpx;
+  top: 96rpx;
+  height: 48rpx;
+  padding: 0 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  border-radius: 9999rpx;
+  background: rgba(0, 0, 0, 0.56);
+}
+
+.bird-rec__dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 9999rpx;
+  background: #ff4d4f;
+  animation: bird-rec-blink 1s ease-in-out infinite;
+}
+
+.bird-rec__text {
+  font-size: 22rpx;
+  color: #ffffff;
+}
+
+@keyframes bird-rec-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.32;
+  }
+}
+
+.bird-note {
+  position: absolute;
+  z-index: 4;
+  left: 48rpx;
+  right: 48rpx;
+  top: 40%;
+  padding: 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  border-radius: 24rpx;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.bird-note__title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.bird-note__desc {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.76);
+  text-align: center;
+}
+
+.bird-controls {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  background: rgba(0, 0, 0, 0.56);
+}
+
+.bird-controls--bare {
+  left: 50%;
+  right: auto;
+  width: 192rpx;
+  margin-left: -96rpx;
+  padding: 0;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  background: transparent;
+}
+
+.bird-rank {
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #ffe08a;
+  text-align: center;
+}
+
+.bird-chips {
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.bird-chip {
+  height: 56rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999rpx;
+  background: rgba(255, 255, 255, 0.12);
+  border: 2rpx solid transparent;
+}
+
+.bird-chip--on {
+  background: rgba(207, 109, 78, 0.32);
+  border-color: $bird-brand;
+}
+
+.bird-chip__text {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.bird-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.bird-btn {
+  flex: 1;
+  height: 96rpx;
+  box-sizing: border-box;
+  border-radius: 9999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.bird-btn--primary {
+  background: $bird-brand;
+}
+
+.bird-btn--secondary {
+  background: #ffffff;
+  border: 2rpx solid #ffffff;
+}
+
+.bird-btn--ghost {
+  height: 56rpx;
+  background: rgba(0, 0, 0, 0.56);
+  border: 2rpx solid rgba(255, 255, 255, 0.48);
+}
+
+.bird-btn--disabled {
+  opacity: 0.48;
+}
+
+.bird-btn__text {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.bird-btn--secondary .bird-btn__text {
+  color: #111111;
+}
+
+.bird-btn--ghost .bird-btn__text {
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.bird-link {
+  display: flex;
+  justify-content: center;
+  gap: 32rpx;
+}
+
+.bird-link__text {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.76);
+  text-decoration: underline;
+}
+
+.bird-hint {
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.64);
+  text-align: center;
+}
