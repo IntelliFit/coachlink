@@ -8,7 +8,12 @@ import {
   SFX_NAMES,
   SFX_NOTES,
 } from '../apps/wechat/src/toolbox/happy-bird/birdSynth';
-import { replayHeightFor, BIRD_REPLAY_WIDTH } from '../apps/wechat/src/toolbox/happy-bird/birdRecorderSize';
+import {
+  chooseReplayQuality,
+  HIGH_REPLAY_QUALITY,
+  replayHeightFor,
+  STANDARD_REPLAY_QUALITY
+} from '../apps/wechat/src/toolbox/happy-bird/birdRecorderSize';
 import { isHappyBirdChunkModule } from '../apps/wechat/config/weappBojiChunk';
 
 function readText(view: DataView, offset: number, length: number) {
@@ -86,14 +91,32 @@ describe('happy bird chunking', () => {
 
 describe('happy bird replay size', () => {
   it('matches the stage aspect and stays on a 16px grid', () => {
-    const height = replayHeightFor(390, 753);
+    const height = replayHeightFor(390, 753, 720);
     expect(height % 16).toBe(0);
-    expect(height / BIRD_REPLAY_WIDTH).toBeCloseTo(753 / 390, 1);
+    expect(height / 720).toBeCloseTo(753 / 390, 1);
   });
 
   it('falls back to 9:16 before the stage is measured and clamps odd windows', () => {
-    expect(replayHeightFor(0, 0)).toBe(800);
-    expect(replayHeightFor(390, 3000) / BIRD_REPLAY_WIDTH).toBeLessThanOrEqual(2.25);
-    expect(replayHeightFor(800, 600) / BIRD_REPLAY_WIDTH).toBeGreaterThanOrEqual(1.45);
+    expect(replayHeightFor(0, 0, 720)).toBe(1280);
+    expect(replayHeightFor(390, 3000, 720) / 720).toBeLessThanOrEqual(2.25);
+    expect(replayHeightFor(800, 600, 720) / 720).toBeGreaterThanOrEqual(1.45);
+  });
+});
+
+describe('happy bird replay quality', () => {
+  it('defaults to high definition, including when the benchmark is unknown', () => {
+    expect(chooseReplayQuality(undefined)).toBe(HIGH_REPLAY_QUALITY);
+    expect(chooseReplayQuality(-1)).toBe(HIGH_REPLAY_QUALITY);
+    expect(chooseReplayQuality(0)).toBe(HIGH_REPLAY_QUALITY);
+    expect(chooseReplayQuality(40)).toBe(HIGH_REPLAY_QUALITY);
+  });
+
+  it('steps down only on phones known to be slow', () => {
+    expect(chooseReplayQuality(10)).toBe(STANDARD_REPLAY_QUALITY);
+  });
+
+  it('raises the camera frame together with the canvas, or the extra pixels are just upscaled blur', () => {
+    expect(HIGH_REPLAY_QUALITY.width).toBeGreaterThanOrEqual(720);
+    expect(HIGH_REPLAY_QUALITY.cameraFrameSize).toBe('large');
   });
 });

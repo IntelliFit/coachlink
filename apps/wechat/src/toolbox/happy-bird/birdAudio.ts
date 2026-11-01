@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro'
+import { MUSIC_VOLUME } from './birdSoundtrack'
 import { renderMusic, renderSfx, SFX_NAMES, type SfxName } from './birdSynth'
 
 declare const wx: any
@@ -6,7 +7,6 @@ declare const wx: any
 // 版本号写在目录名里：改了音色只要升版本，就会重新生成，旧目录留着也只占几百 KB。
 const AUDIO_DIR = 'happy-bird-audio-v1'
 const MUSIC_FILE = 'music.wav'
-const MUSIC_VOLUME = 0.34
 
 function pathExists(fileSystem: any, path: string) {
   return new Promise<boolean>((resolve) => {
