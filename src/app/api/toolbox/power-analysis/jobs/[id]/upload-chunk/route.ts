@@ -366,9 +366,10 @@ async function handleComplete(
     }
 
     const fileBlob = await openAsBlob(mergedPath, { type: contentType });
+    // Upsert: a client that timed out on a slow complete retries it, and the first one may already have stored the video.
     const uploadResult = await db.storage
       .from(POWER_ANALYSIS_BUCKET)
-      .upload(inputPath, fileBlob, { contentType, upsert: false });
+      .upload(inputPath, fileBlob, { contentType, upsert: true });
     if (uploadResult.error) {
       throw new PowerChunkUploadError(uploadResult.error.message || "视频写入失败", 500);
     }
@@ -415,9 +416,6 @@ async function handleComplete(
       message: "视频上传成功",
       data: mapPowerAnalysisJob(data),
     });
-  } catch (error) {
-    await removeIncompleteUpload(inputPath);
-    throw error;
   } finally {
     await Promise.all([
       rm(uploadDir, { recursive: true, force: true }).catch(() => null),
@@ -503,6 +501,33 @@ export async function POST(
         }
       } catch (updateError) {
         console.warn("[power-analysis/upload-chunk] failure metadata update failed:", updateError);
+      }
+    }
+
+    // The chunk may still get through on retry, so this stays out of error_message. Pod logs
+    // are gone after each rollout; the shortfall on the job is what a later review can read.
+    if (current && userId && id && action === "chunk" && details) {
+      try {
+        const { error: updateError } = await db
+          .from("tool_power_analysis_jobs")
+          .update({
+            metadata: {
+              ...normalizeMetadata(current.metadata),
+              upload_failed_at: new Date().toISOString(),
+              upload_failure_stage: "chunk_receive",
+              upload_failure_message: message.slice(0, 500),
+              upload_failure_details: details,
+            },
+          })
+          .eq("id", id)
+          .eq("user_id", userId)
+          .eq("status", "awaiting_upload")
+          .eq("updated_at", current.updated_at);
+        if (updateError) {
+          console.warn("[power-analysis/upload-chunk] chunk failure update failed:", updateError.message);
+        }
+      } catch (updateError) {
+        console.warn("[power-analysis/upload-chunk] chunk failure update failed:", updateError);
       }
     }
 

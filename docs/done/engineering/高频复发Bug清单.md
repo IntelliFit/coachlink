@@ -555,3 +555,11 @@
 - **统一规则**：带用户数据的读写接口先按登录身份解析出「我能访问的对象集合」，再用请求参数在这个集合里筛选；集合为空返回空列表，绝不在没有筛选时查全表。写入的归属字段（教练、学员）一律从服务端数据取。
 - **改动前自检**：不传任何参数调用这个接口会返回什么？换一个别人的 id 会返回什么？写入的 owner 字段来自请求还是来自服务端？
 - **典型案例**（2026-10-27）：接入 APP 教练记录时发现，已加 `src/lib/coachReviewAccess.ts` 及测试。
+
+## 50) 流式上传经过 proxy 丢请求体开头；上传收尾重试把好文件删掉（高风险）
+
+- **现象**：功率视频分片约 77% 的请求返回「第 N 个视频分片传输不完整」（14 天 519/675），不分机型和网络，同一文件隔一分钟又能传成功。另有 `The resource already exists`，之后这个任务的视频也没了。
+- **根因**：Next 16.0.1–16.0.4 跑完 `proxy.ts` 后没有等请求体复制结束（`requestData.body.finalize()` 没 await，16.0.5 起才 await）。nginx 配了 `proxy_request_buffering off` 时请求体还在到达，路由鉴权查库的这段时间里到达的字节进了副本，路由只读到后面的部分。第二个问题：`complete` 比客户端 30 秒超时慢时客户端会重传，第二次 `upsert:false` 报已存在，catch 里又把第一次存好的对象删了。
+- **统一规则**：读大请求体、且 nginx 不缓冲的路由不走 proxy，鉴权放路由里；上传收尾必须可重复调用，错误路径只删本次确认写坏的对象；诊断数字写到任务上，Pod 日志一发布就没了。
+- **改动前自检**：新上传路由走哪个 nginx location，是否在 proxy matcher 里？身体分段到达时读到的字节对吗？客户端超时后重试这个接口，结果还对吗，会删掉什么？
+- **典型案例**（2026-11-01）：`src/proxy.ts` matcher、`upload-chunk/route.ts`、`apps/wechat/src/toolbox/power-analysis/uploadRetry.ts`，测试见 `src/proxy.matcher.test.ts`、`upload-chunk/route.test.ts`。

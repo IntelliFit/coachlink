@@ -308,7 +308,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
     matcher: [
-        "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.jpg|themes|images|robots\\.txt|sitemap\\.xml|sitemap/.*|site\\.webmanifest).*)",
+        // The power-analysis upload routes stay out of the proxy (they check the session themselves).
+        // Next 16.0.1–16.0.4 runs the route without waiting for the proxy's body clone, so a body
+        // nginx is still streaming (proxy_request_buffering off) loses the bytes that arrived meanwhile.
+        "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.jpg|themes|images|robots\\.txt|sitemap\\.xml|sitemap/.*|site\\.webmanifest|api/toolbox/power-analysis/jobs/[^/]+/upload(?:-chunk)?(?:/|$)).*)",
     ],
 };
 
