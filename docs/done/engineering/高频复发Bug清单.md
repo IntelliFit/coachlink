@@ -560,6 +560,6 @@
 
 - **现象**：手指光膜要生成几分钟。小程序里生成中退出，回来看不到进度和成片；上传后没点生成就退出，再传会提示「已有一个视频正在生成」，最多卡 1 小时。切后台让一次轮询失败，页面也会退回初始状态。
 - **根因**：小程序把任务 id 只放在 React state。服务端同一账号只放行一个任务，又没有任务列表接口，页面一卸载就没有线索了。轮询的 catch 把「这次请求失败」当成「任务结束」。APP 早有本地记录和恢复，小程序没有对齐。
-- **统一规则**：服务端按账号占名额的长任务，客户端创建后立刻按账号把任务 id 写入本地，进入页面和 didShow 时恢复。只有服务端明确说任务不存在才删记录，断网和登录失效都要留着。没传完的任务要中断并释放名额。轮询失败不等于任务失败。
+- **统一规则**：服务端按账号占名额的长任务，客户端创建后立刻按账号把任务 id 写入本地，进入页面和 didShow 时恢复。只有服务端明确说任务不存在才删记录，断网和登录失效都要留着。没传完的任务要中断并释放名额。轮询失败不等于任务失败。账号任务在没登录或换了账号时服务端也回 404，删记录前先确认是谁在问；网关报的 404 也不算。释放名额前确认没有别的标签页正在上传。
 - **改动前自检**：返回上一页、杀进程、切后台之后，用户怎么找回这个任务？服务端的名额什么时候释放？换账号会不会看到别人的任务？
-- **典型案例**（2026-11-02）：`apps/wechat/src/toolbox/motion-effects/jobRestore.ts`、同目录 `index.tsx`，测试 `tests/motion-effects-weapp-restore.test.ts`。对照实现在 `apps/mobile/src/screens/toolbox/motionEffectsModel.ts`。网页端 `src/app/toolbox/motion-effects/page.tsx` 同样还没有恢复。
+- **典型案例**（2026-11-02）：`apps/wechat/src/toolbox/motion-effects/jobRestore.ts`、同目录 `index.tsx`，测试 `tests/motion-effects-weapp-restore.test.ts`。对照实现在 `apps/mobile/src/screens/toolbox/motionEffectsModel.ts`。网页端同样补上了恢复：`src/app/toolbox/motion-effects/jobRestore.ts`、同目录 `page.tsx`，测试 `tests/motion-effects-web-restore.test.ts`。Web 和小程序共用的规则在 `packages/core/src/motionEffectJobRestore.ts`。

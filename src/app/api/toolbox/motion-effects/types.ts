@@ -73,6 +73,8 @@ export interface CreateMotionEffectUploadResponseDto {
     dailyLimit: number;
   };
   ownerToken?: string;
+  /** 任务所属账号，访客任务为 null。页面用它决定本地记录存在哪个账号下。 */
+  ownerUserId: string | null;
   signedIn: boolean;
   signupFreeAvailable: boolean;
   prices: {

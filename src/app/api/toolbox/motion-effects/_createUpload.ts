@@ -264,6 +264,7 @@ export async function createMotionEffectUpload(
       },
       limits,
       ownerToken: ownerToken || undefined,
+      ownerUserId: userId,
       signedIn: Boolean(userId),
       signupFreeAvailable: false,
       prices: FREE_MOTION_EFFECT_PRICES,
