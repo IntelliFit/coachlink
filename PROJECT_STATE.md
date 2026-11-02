@@ -1,3 +1,11 @@
+## 体验版：本地全部改动合并（2026-11-02，只上传小程序，镜像未推）
+
+- dev ef42a54f：本地未提交的地图选点防覆盖 1a8bcc47、教练转化埋点与问卷 3383a54d、手指光膜全部免费 c026f2a6；此前本地未推的 APP 对齐 8f60a97c、哑铃弹弹放慢 b2a8e1af、训练中调整动作顺序 be9f56f2、即兴训练组视频对齐、数字输入不再漂浮 2013db39；origin/dev 的 Happy Bird 声音与高清 18dcc902、薄肌腹肌可见性与女性复核；分支 objective-ptolemy（分片上传丢片头）、distracted-ramanujan（引体/双力臂逐次判定与手部参照）、intelligent-nobel（离线评估脚本）。主目录 Happy Bird 未提交副本与 18dcc902 逐字节相同，已还原后由合并带入。
+- 未合并：claude/suspicious-perlman-3963b2（Next 升级，会话停在验证途中，未提交，改 package-lock）；feat/boji-poster-qr（已决定不用）。origin/main 未动（a9af0be8）。
+- 门禁：vitest 1675/1676（既有 streetliftingLocationOverview）；typecheck 12 个错误全在本地 .next 生成文件，源码 0 错。e2e 未跑（写正式库）。未在真机或开发者工具界面验证。
+- 小程序开发版 **2026.11.02.1017**（3018 模块，总包 10,719,522 / 主包 1,980,909，描述 trial-ef42a54-all-local-work）。DevTools 服务端口 25643；上传脚本默认 28264 时 CLI 打印 × 但脚本仍报 upload done，须看 √ upload。
+- **线上后端未更新**（main/dev 都是 438219e1，Worker f9f72831）。依赖新后端才能用：手指光膜生成与取消（free-upload-url、jobs/[id]/cancel，旧后端 404）、训练中调整动作顺序（reorder-actions）、教练转化（/api/coach/funnel，失败静默；另需迁移 20261102090000_coach_funnel_events.sql，未执行）、功率分析逐次判定（需 Worker + Web）、分片上传服务端部分、薄肌女性复核、即兴训练删除时的组视频对齐。package-lock 哈希已变为 f45751ffe9e1，服务器依赖缓存需按新锁文件重建，Worker 不能再直接叠加在 155e1c02 上而不核对依赖差异。
+
 ## 功率分析线上数据和配置修正（2026-11-01）
 
 - 榜单：用户确认后执行 `scripts/power-analysis-leaderboard-cleanup.ts --apply`，`power_analysis_best_scores` 改 40 项（20 人）：8 人换回各自合格的最好成绩，12 人没有合格成绩，整行删除（100 → 88 行），其余行未变。复跑演练为 0。改前整表备份和改后对照在 `D:\CodexWork\coachlink-motion-analysis\leaderboard-cleanup\`。
