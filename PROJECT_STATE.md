@@ -1,3 +1,9 @@
+## 功率分析线上数据和配置修正（2026-11-01）
+
+- 榜单：用户确认后执行 `scripts/power-analysis-leaderboard-cleanup.ts --apply`，`power_analysis_best_scores` 改 40 项（20 人）：8 人换回各自合格的最好成绩，12 人没有合格成绩，整行删除（100 → 88 行），其余行未变。复跑演练为 0。改前整表备份和改后对照在 `D:\CodexWork\coachlink-motion-analysis\leaderboard-cleanup\`。
+- 配置：`coachlink-power-worker-main-env` 补了 5 项 `WANJIE_*`（视觉 qwen3.8-flash，文本 deepseek-v4.1-flash-1017）并重启，此前正式环境“其他动作”的 AI 观察一直不可用。分析程序读 k8s secret，不读 Apollo，换模型或密钥要同时改 dev、main 两份 secret。备份在服务器 `~/secret-backup-*`。真实视频的完整流程还没走过。
+
+
 ## 快乐小鸟上线进度（2026-11-02，Web 已上线，迁移用户已执行，小程序未提审）
 
 - 用户要求直接上线。dev/main 推到 29d364e4：c3f02b5f（哑铃弹弹慢节奏版，原定下次小程序发版带上）+ 29d364e4（引体冲刺、俯卧撑突围合并成快乐小鸟）。本地 dev 的 8f60a97c（APP 对齐，121 个文件）和其他会话未提交的改动没有带上。
