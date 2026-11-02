@@ -55,6 +55,8 @@ describe('parseAbsCount', () => {
     expect(parseAbsCount(rows(0))).toBe(0);
     expect(parseAbsCount(rows(4))).toBe(8);
     expect(parseAbsCount('{"row1": false, "row2": true, "row3": false, "row4": true}')).toBe(4);
+    expect(parseAbsCount('{"has_abs": false, "row1": false, "row2": false, "row3": false, "row4": false}')).toBe(0);
+    expect(parseAbsCount('{"has_abs": true, "row1": true, "row2": true, "row3": true, "row4": false}')).toBe(6);
   });
 
   it('rejects incomplete or malformed answers', () => {

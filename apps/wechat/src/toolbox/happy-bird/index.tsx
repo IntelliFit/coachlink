@@ -46,11 +46,13 @@ import { HappyBirdRecorder } from './birdRecorder'
 import {
   BIRD_REPLAY_FPS,
   BIRD_REPLAY_MAX_SECONDS,
-  BIRD_REPLAY_WIDTH,
+  chooseReplayQuality,
   replayHeightFor
 } from './birdRecorderSize'
 import { fileExists, keepReplay, readLatestReplayPath, readLocalBest, writeLocalBest } from './birdReplayStore'
 import { drawBirdScene } from './birdScene'
+import { soundForEvent } from './birdSoundtrack'
+import { addSoundtrackToVideo } from './birdVideoAudio'
 import './index.scss'
 
 const CANVAS_ID = 'happyBirdCanvas'
@@ -67,6 +69,12 @@ type BirdPrefs = {
 }
 
 type SyncState = 'idle' | 'local-only' | 'synced' | 'syncing'
+
+type HeldCameraFrame = {
+  buffer: Uint8ClampedArray
+  height: number
+  width: number
+}
 
 type CanvasHandle = {
   canvas: any
@@ -95,6 +103,14 @@ function writePrefs(prefs: BirdPrefs) {
   }
 }
 
+function readBenchmarkLevel() {
+  try {
+    return (Taro.getSystemInfoSync() as any).benchmarkLevel as number | undefined
+  } catch {
+    return undefined
+  }
+}
+
 function roundSeed() {
   return Math.floor(Math.random() * 0x7fffffff)
 }
@@ -115,6 +131,7 @@ export default function HappyBirdPage() {
   usePageEnterTrace()
 
   const initialPrefs = useMemo(readPrefs, [])
+  const replayQuality = useMemo(() => chooseReplayQuality(readBenchmarkLevel()), [])
   const [status, setStatus] = useState<BirdStatus>('idle')
   const [prefs, setPrefs] = useState<BirdPrefs>(initialPrefs)
   const [cameraError, setCameraError] = useState('')
@@ -142,6 +159,7 @@ export default function HappyBirdPage() {
   const recorderRef = useRef<HappyBirdRecorder | null>(null)
   const recordingRef = useRef(false)
   const lastCaptureAtRef = useRef(0)
+  const latestFrameRef = useRef<HeldCameraFrame | null>(null)
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bestScoreRef = useRef(readLocalBest())
   const sessionIdRef = useRef<string | null>(null)
@@ -166,6 +184,16 @@ export default function HappyBirdPage() {
     bestScore: bestScoreRef.current
   })
 
+  const withSoundtrack = async (videoPath: string, recorder: HappyBirdRecorder) => {
+    try {
+      return await addSoundtrackToVideo(videoPath, recorder.soundtrackPlan())
+    } catch (error: any) {
+      console.warn('快乐小鸟合成声音失败:', error)
+      Taro.showToast({ title: `声音没合成进去，已保存无声视频：${String(error?.message || '').slice(0, 24)}`, icon: 'none', duration: 3000 })
+      return videoPath
+    }
+  }
+
   const finishRecording = async () => {
     const recorder = recorderRef.current
     if (!recorder || !recordingRef.current) return
@@ -176,7 +204,9 @@ export default function HappyBirdPage() {
       const result = await recorder.stop()
       if (unmountedRef.current) return
       if (result?.tempVideoPath) {
-        setVideoPath(await keepReplay(result.tempVideoPath))
+        const finalPath = await withSoundtrack(result.tempVideoPath, recorder)
+        if (unmountedRef.current) return
+        setVideoPath(await keepReplay(finalPath))
       } else {
         Taro.showToast({ title: '视频生成失败，再来一局试试', icon: 'none' })
       }
@@ -240,55 +270,40 @@ export default function HappyBirdPage() {
     if (roundId === roundIdRef.current) setSyncState('local-only')
   }
 
+  const stopMusic = () => {
+    audioRef.current?.stopMusic()
+    if (recordingRef.current) recorderRef.current?.noteMusicStop()
+  }
+
   const handleEvent = (event: BirdEvent) => {
-    const audio = audioRef.current
+    if (event.type === 'gameOver') stopMusic()
+    const sound = soundForEvent(event.type)
+    if (sound) {
+      audioRef.current?.play(sound.name, sound.volume)
+      if (recordingRef.current) recorderRef.current?.noteSound(sound)
+    }
     switch (event.type) {
-      case 'countdownTick':
-        audio?.play('tick')
-        break
       case 'go':
         // 倒计时里人还在走位，这段位移不算动作幅度：开飞后重新校准。
         headTravelRef.current = null
         playStartedAtRef.current = Date.now()
-        audio?.play('go')
-        audio?.startMusic()
+        audioRef.current?.startMusic()
+        if (recordingRef.current) recorderRef.current?.noteMusicStart()
         vibrate('medium')
         break
-      case 'coin':
-        audio?.play('coin', 0.7)
-        break
-      case 'pass':
-        audio?.play('pass', 0.7)
-        break
       case 'perfect':
-        audio?.play('perfect')
-        vibrate('light')
-        break
       case 'shieldUp':
-        audio?.play('perfect')
         vibrate('light')
         break
       case 'level':
-        audio?.play('go')
-        vibrate('medium')
-        break
-      case 'fever':
-        audio?.play('surge')
-        vibrate('heavy')
-        break
       case 'bump':
       case 'smash':
       case 'shieldBreak':
-        audio?.play('hit', 0.55)
         vibrate('medium')
         break
+      case 'fever':
       case 'hit':
-        audio?.play('hit')
         vibrate('heavy')
-        break
-      case 'gameOver':
-        audio?.stopMusic()
-        audio?.play('over')
         break
       default:
         break
@@ -320,11 +335,12 @@ export default function HappyBirdPage() {
     gameRef.current = step.game
     step.events.forEach(handleEvent)
     // 主动结束时跳过 gameOver 事件也要收掉音乐。
-    if (step.game.status === 'crashing' && before === 'playing') audioRef.current?.stopMusic()
+    if (step.game.status === 'crashing' && before === 'playing') stopMusic()
     if (step.game.status !== before) changeStatus(step.game.status)
 
     handle.ctx.clearRect(0, 0, handle.width, handle.height)
     drawBirdScene(handle.ctx, handle.width, handle.height, step.game, sceneExtras())
+    captureReplayFrame(now)
     rafIdRef.current = handle.canvas.requestAnimationFrame(tick)
   }
 
@@ -351,13 +367,32 @@ export default function HappyBirdPage() {
       })
   }
 
-  const captureReplayFrame = (frame: { data: ArrayBuffer; height: number; width: number }, now: number) => {
-    if (!recordingRef.current || !recorderRef.current) return
+  /** 相机回调的内存会被复用，录制时留一份最新画面给画面时钟用；只有一块缓冲区，不每帧新建。 */
+  const holdCameraFrame = (data: ArrayBuffer, width: number, height: number) => {
+    const rgba = new Uint8ClampedArray(data)
+    const held = latestFrameRef.current
+    if (held && held.buffer.length === rgba.length) {
+      held.buffer.set(rgba)
+      latestFrameRef.current = { ...held, height, width }
+      return
+    }
+    latestFrameRef.current = { buffer: new Uint8ClampedArray(rgba), height, width }
+  }
+
+  /**
+   * 录制按固定时钟出帧，不跟着相机回调走。相机帧率常低于录制帧率，跟着它走视频会比
+   * 真实时间快（实测 22 秒的一局录出来只有 17 秒），音效也就对不上了。
+   */
+  const captureReplayFrame = (now: number) => {
+    const frame = latestFrameRef.current
+    if (!recordingRef.current || !recorderRef.current || !frame) return
+    if (!lastCaptureAtRef.current) lastCaptureAtRef.current = now - REPLAY_FRAME_INTERVAL_MS
     if (now - lastCaptureAtRef.current < REPLAY_FRAME_INTERVAL_MS) return
-    lastCaptureAtRef.current = now
+    // 卡顿后不补帧连发，只往前追到当前时间。
+    lastCaptureAtRef.current = Math.max(lastCaptureAtRef.current + REPLAY_FRAME_INTERVAL_MS, now - REPLAY_FRAME_INTERVAL_MS)
     recorderRef.current.captureFrame({
       extras: sceneExtras(),
-      frameBuffer: new Uint8ClampedArray(frame.data),
+      frameBuffer: frame.buffer,
       frameHeight: frame.height,
       frameWidth: frame.width,
       game: gameRef.current
@@ -373,7 +408,7 @@ export default function HappyBirdPage() {
         if (!width || !height || !(frame?.data instanceof ArrayBuffer)) return
         const now = Date.now()
         trackerRef.current?.processFrame({ data: frame.data, height, width }, now)
-        captureReplayFrame({ data: frame.data, height, width }, now)
+        if (recordingRef.current) holdCameraFrame(frame.data, width, height)
       })
       listener.start()
       frameListenerRef.current = listener
@@ -388,13 +423,14 @@ export default function HappyBirdPage() {
       const recorder = new HappyBirdRecorder({
         durationSeconds: BIRD_REPLAY_MAX_SECONDS,
         fps: BIRD_REPLAY_FPS,
-        height: replayHeightFor(stageSizeRef.current.width, stageSizeRef.current.height),
-        videoBitsPerSecond: 2000,
-        width: BIRD_REPLAY_WIDTH
+        height: replayHeightFor(stageSizeRef.current.width, stageSizeRef.current.height, replayQuality.width),
+        videoBitsPerSecond: replayQuality.videoBitsPerSecond,
+        width: replayQuality.width
       })
       recorderRef.current = recorder
       await recorder.start()
       lastCaptureAtRef.current = 0
+      latestFrameRef.current = null
       recordingRef.current = true
       setRecording(true)
     } catch (error) {
@@ -611,8 +647,8 @@ export default function HappyBirdPage() {
             devicePosition={USER_FACING_CAMERA.devicePosition}
             flash='off'
             mode='normal'
-            frameSize={USER_FACING_CAMERA.frameSize}
-            resolution={USER_FACING_CAMERA.resolution}
+            frameSize={replayQuality.cameraFrameSize}
+            resolution={replayQuality.cameraResolution}
             onInitDone={() => {
               setCameraReady(true)
               setCameraError('')

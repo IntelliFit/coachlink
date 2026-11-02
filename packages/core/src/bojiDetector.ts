@@ -168,12 +168,17 @@ function pct(value: number | null): string {
   return value === null ? '—' : `${Math.round(value * 100)}%`;
 }
 
+const FEMALE_VEST_LEVELS = ['不明显', '隐约可见', '清晰'];
+
 function describeFemaleMetric(key: BojiMetricKey, values: Record<string, unknown>): { headline: string; details: string[] } | null {
   switch (key) {
     case 'abs': {
       const index = num(values, 'line_index');
+      const level = num(values, 'vest_level');
       return {
-        headline: index === null ? '—' : `马甲线清晰度 ${(index * 100).toFixed(1)}`,
+        headline: level !== null
+          ? `马甲线${FEMALE_VEST_LEVELS[level] ?? ''}`
+          : index === null ? '—' : `马甲线清晰度 ${(index * 100).toFixed(1)}`,
         details: ['腹肌线条受光线影响大，前后对比请用同一地点和光线'],
       };
     }

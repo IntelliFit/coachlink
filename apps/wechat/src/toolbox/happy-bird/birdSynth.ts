@@ -18,8 +18,8 @@ export type SfxName = 'coin' | 'go' | 'hit' | 'over' | 'pass' | 'perfect' | 'sur
 
 export const SFX_NAMES: SfxName[] = ['coin', 'go', 'hit', 'over', 'pass', 'perfect', 'surge', 'tick']
 
-const SFX_SAMPLE_RATE = 22050
-const MUSIC_SAMPLE_RATE = 16000
+export const SFX_SAMPLE_RATE = 22050
+export const MUSIC_SAMPLE_RATE = 16000
 const PEAK = 0.86
 const ATTACK_SECONDS = 0.004
 const TEMPO = 128
@@ -161,9 +161,13 @@ export const SFX_NOTES: Record<SfxName, { duration: number; notes: SynthNote[] }
   }
 }
 
-export function renderSfx(name: SfxName) {
+export function renderSfxSamples(name: SfxName) {
   const { duration, notes } = SFX_NOTES[name]
-  return encodeWav(renderNotes(notes, duration, SFX_SAMPLE_RATE), SFX_SAMPLE_RATE)
+  return renderNotes(notes, duration, SFX_SAMPLE_RATE)
+}
+
+export function renderSfx(name: SfxName) {
+  return encodeWav(renderSfxSamples(name), SFX_SAMPLE_RATE)
 }
 
 type MusicBar = { arp: string[]; bass: string; melody: (string | null)[] }
@@ -210,7 +214,11 @@ export function musicNotes() {
   return { duration: MUSIC_BARS.length * bar, notes }
 }
 
-export function renderMusic() {
+export function renderMusicSamples() {
   const { duration, notes } = musicNotes()
-  return encodeWav(renderNotes(notes, duration, MUSIC_SAMPLE_RATE), MUSIC_SAMPLE_RATE)
+  return renderNotes(notes, duration, MUSIC_SAMPLE_RATE)
+}
+
+export function renderMusic() {
+  return encodeWav(renderMusicSamples(), MUSIC_SAMPLE_RATE)
 }

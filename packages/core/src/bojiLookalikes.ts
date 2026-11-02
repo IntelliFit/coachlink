@@ -174,11 +174,12 @@ export function matchBojiLookalike(
 
 /**
  * 女性三项原始测量的参考水平。暂取 2026-10-26 引擎 0.2 在 20 张 CC0 女性健身照上的
- * 中位数和四分位距（IQR / 1.35）；女性真实检测攒够后按线上数据重算。
+ * 中位数和四分位距（IQR / 1.35）；腰臀比 2026-11-01 按 112 张网图改过（原 0.7/0.06）。
+ * 女性真实检测攒够后按线上数据重算。
  */
 export const BOJI_FEMALE_LOOKALIKE_REFERENCE = {
   absLineIndex: { median: 0.014, spread: 0.008 },
-  waistHipRatio: { median: 0.7, spread: 0.06 },
+  waistHipRatio: { median: 0.76, spread: 0.07 },
   shoulderWaistRatio: { median: 1.72, spread: 0.12 },
 } as const;
 

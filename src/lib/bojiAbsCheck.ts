@@ -6,7 +6,8 @@ import type { BojiAnalysisDto, BojiMetric } from '@coachlink/core/src/bojiDetect
  * 引擎靠亮度找横沟，纹身、皮肤起伏和光影都可能被当成腹肌，块数也常差一两块；
  * 这些假块的封闭度和深度与真腹肌几乎一样，调引擎门槛分不开。
  * 模型的问法很关键：直接问几排几乎都答 8；提示「大多数人 6 块」就都答 6；
- * 逐排问是非题才能分开 0、4、6、8。单次仍有波动，所以同时问 3 次取中位数。
+ * 逐排问是非题才能分开 0、4、6、8。先问有没有腹肌并列出肉褶、肋骨、纹身等不算，平肚子才判得准
+ * （验证集没腹肌判对 12/18 → 14/18；代价是隐约的腹肌更容易被判成 0，见 DECISIONS）。单次仍有波动，所以同时问 3 次取中位数。
  * 只发检测服务裁好的腹部（不含脸），不保存；答不出时保留引擎结果。
  */
 
@@ -22,18 +23,15 @@ const MAX_ROWS = 4;
 /** 模型只看到这么多块时，引擎的高分不可信：块数 → 腹肌分上限 */
 const SCORE_CAP: Record<number, number> = { 0: 20, 2: 45 };
 
-export const ABS_CHECK_SYSTEM = '你是严谨的健身体态评估员，只根据照片里看得到的东西判断，不猜测、不恭维。只输出 JSON。';
-
-export const ABS_COUNT_PROMPT = `这是一张男性腹部的裁剪照片。请数腹直肌能看出隆起轮廓的排数（一排 = 左右一对肌肉块）。
-皮肤褶皱、光影、纹身、画上去的线条、体毛、肚脐、胸肌下沿、肋骨都不算。肚子平滑就是 0 排。
-
+export const ABS_COUNT_PROMPT = `这是一张男性腹部的裁剪照片。
+第一步：has_abs 判断肚子上能不能看到一块块隆起、被横沟隔开的腹肌。以下都不算腹肌：平滑的肚子、胖肚子上的肉褶和皮肤皱褶、瘦到只看得见肋骨或一条中线、纹身或画上去的线条、体毛、光影造成的明暗。
+第二步：如果 has_abs 为 true，再逐排判断；为 false 时四排都填 false。
 从上往下逐排判断。只有肌肉块明显隆起、上下边界都看得到才算 true；隐约、平滑或看不清都算 false。
 - row1：紧贴胸肌下方的第一排
 - row2：第二排
 - row3：第三排（通常在肚脐上方）
 - row4：肚脐附近或下方的第四排
-
-只输出 JSON：{"row1": true/false, "row2": true/false, "row3": true/false, "row4": true/false}`;
+只输出 JSON：{"has_abs": true/false, "row1": true/false, "row2": true/false, "row3": true/false, "row4": true/false}`;
 
 /** 逐排的回答 → 块数（每排两块）；答不出返回 null */
 export function parseAbsCount(text: string | null): number | null {

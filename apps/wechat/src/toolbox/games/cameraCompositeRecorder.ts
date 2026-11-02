@@ -163,6 +163,9 @@ export abstract class CameraCompositeRecorder<T extends CameraFrameCapture> {
   /** 在已铺好相机画面的合成画布上画叠层。 */
   protected abstract drawOverlay(ctx: any, capture: T, width: number, height: number): void
 
+  /** 一帧画完交给录制器后调用，子类可以用它按帧对齐别的时间线。 */
+  protected onFrameDrawn(_capture: T): void {}
+
   /** 相机画面的位移和放大（像素），默认不动；放大用来盖住位移露出的边。 */
   protected cameraTransform(_capture: T, _width: number): CameraFrameTransform | null {
     return null
@@ -337,6 +340,7 @@ export abstract class CameraCompositeRecorder<T extends CameraFrameCapture> {
 
     this.drawOverlay(ctx, capture, width, height)
     this.blitCompositeCanvasToWebGL()
+    this.onFrameDrawn(capture)
   }
 
   private blitCompositeCanvasToWebGL() {
