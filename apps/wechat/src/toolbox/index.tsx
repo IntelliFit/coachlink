@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { WECHAT_FREE_RELEASE } from '@coachlink/core'
 import { Image, ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import dumbbellBounceCover from '@/assets/images/toolbox-games/dumbbell-bounce-game-v1.webp'
@@ -112,8 +111,7 @@ const MINI_GAMES: ToolboxEntry[] = [
     description: '手指控制光膜特效',
     key: 'motion-effects',
     label: '手指光膜',
-    url: '/toolbox/motion-effects/index',
-    unavailableLabel: WECHAT_FREE_RELEASE ? '暂未开放' : undefined
+    url: '/toolbox/motion-effects/index'
   }
 ]
 

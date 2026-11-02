@@ -9,17 +9,12 @@ import {
 } from "../../../_helpers";
 import type { MotionEffectJobDto } from "../../../types";
 import {
-  calculateMotionEffectPrice,
   getAccessibleMotionEffectJob,
   getMotionEffectRequestIdentity,
-  hasSignupFreeExport,
   isPaidMotionRetry,
   MAX_PAID_MOTION_RETRIES,
-  normalizeExportQuality,
   normalizeQueueTier,
   paidMotionRetryCount,
-  releaseSignupFreeExport,
-  reserveSignupFreeExport,
 } from "../../../_commerce";
 
 export const runtime = "nodejs";
@@ -73,84 +68,9 @@ export async function POST(
     }
   }
 
-  const quality = normalizeExportQuality(current.export_quality);
-  const queueTier = normalizeQueueTier(current.queue_tier);
-  const signupFreeAvailable = identity.userId
-    ? await hasSignupFreeExport(identity.userId)
-    : false;
-  const quote = calculateMotionEffectPrice({
-    quality,
-    queueTier,
-    signupFreeAvailable,
-  });
-  let reservedSignupFree = false;
+  // 手指光膜全部免费：没付款的任务（含改免费前创建的）直接按免费生成
   const paid = current.payment_status === "paid";
-  if (paid && current.entitlement_source === "signup_free") {
-    if (!identity.userId) {
-      return NextResponse.json<ApiData<null>>(
-        { success: false, message: "注册赠送权益必须由登录账号使用", data: null },
-        { status: 403 },
-      );
-    }
-    reservedSignupFree = await reserveSignupFreeExport(identity.userId, id);
-    if (!reservedSignupFree) {
-      // The payment already granted this job a discounted base export. Do not
-      // strand a paid customer if another browser tab won the free-entitlement
-      // reservation race; continue this paid job and keep the first reservation
-      // as the durable lifetime-use record.
-      console.warn("[motion-effects/enqueue] signup free reservation raced", {
-        userId: identity.userId,
-        jobId: id,
-      });
-    }
-  } else if (
-    !paid &&
-    identity.userId &&
-    quality === "standard" &&
-    queueTier === "standard" &&
-    quote.totalCents === 0
-  ) {
-    reservedSignupFree = await reserveSignupFreeExport(identity.userId, id);
-    if (reservedSignupFree) {
-      const { data } = await db
-        .from("tool_video_render_jobs")
-        .update({
-          payment_status: "free",
-          entitlement_source: "signup_free",
-          price_cents: 0,
-        })
-        .eq("id", id)
-        .select("*")
-        .maybeSingle();
-      current = data || {
-        ...current,
-        payment_status: "free",
-        entitlement_source: "signup_free",
-        price_cents: 0,
-      };
-    }
-  }
-
-  if (!paid && !reservedSignupFree) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: identity.userId
-          ? quality === "hd"
-            ? "高清下载需要付费"
-            : queueTier === "priority"
-              ? "极速处理需要付费"
-              : "注册赠送的免费下载已使用，本次下载需要付费"
-          : "未注册用户下载视频需要付费；注册可获一次低清免费下载",
-        data: {
-          paymentRequired: true,
-          quote,
-          signedIn: Boolean(identity.userId),
-        },
-      },
-      { status: 402 },
-    );
-  }
+  const queueTier = normalizeQueueTier(current.queue_tier);
 
   const info = await db.storage
     .from(current.input_storage_bucket || "videos")
@@ -158,7 +78,6 @@ export async function POST(
   const expected = Number(current.original_file_size_bytes || 0);
   const actual = Number(info.data?.size ?? info.data?.metadata?.size ?? 0);
   if (info.error || expected <= 0 || actual <= 0 || Math.abs(expected - actual) > 1024) {
-    if (reservedSignupFree) await releaseSignupFreeExport(id);
     return NextResponse.json<ApiData<null>>(
       {
         success: false,
@@ -176,6 +95,7 @@ export async function POST(
     .from("tool_video_render_jobs")
     .update({
       status: "queued",
+      ...(paid ? {} : { payment_status: "free" }),
       progress: 5,
       error_message: null,
       queue_driver: queue.driver,
@@ -196,7 +116,6 @@ export async function POST(
     .select("*")
     .single();
   if (error || !data) {
-    if (reservedSignupFree) await releaseSignupFreeExport(id);
     return NextResponse.json<ApiData<null>>(
       { success: false, message: error?.message || "任务入队失败", data: null },
       { status: 500 },
@@ -231,7 +150,6 @@ export async function POST(
       })
       .eq("id", data.id)
       .eq("status", "queued");
-    if (reservedSignupFree) await releaseSignupFreeExport(id);
     return NextResponse.json<ApiData<null>>(
       { success: false, message: "任务入队失败，请稍后重试", data: null },
       { status: 503 },

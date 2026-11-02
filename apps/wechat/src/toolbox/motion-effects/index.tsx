@@ -1,15 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePageEnterTrace } from '@/utils/pageTrace'
-import { WECHAT_FREE_RELEASE } from '@coachlink/core'
-import FreeReleaseInfo from '@/components/FreeReleaseInfo'
 import { Camera, Canvas, Text, View, Video } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
 import { authService } from '@/services/authService'
-import {
-  requestWechatPayment,
-  type WechatPaymentParams
-} from '@/services/paymentService'
 import {
   buildSharePath,
   createSharePayload,
@@ -55,7 +49,6 @@ interface DetailOption<T extends string> {
   description: string
 }
 type ExportQuality = 'standard' | 'hd'
-type QueueTier = 'standard' | 'priority'
 
 interface SelectedVideo {
   tempFilePath: string
@@ -72,7 +65,7 @@ interface MotionJob {
   errorMessage: string | null
   canDownload: boolean
   exportQuality: ExportQuality
-  queueTier: QueueTier
+  queueTier: 'standard' | 'priority'
   styleKey: string
   paymentStatus: 'unpaid' | 'pending' | 'paid' | 'free' | 'refunded'
   priceCents: number
@@ -187,36 +180,6 @@ const SURFACE_DENSITY_OPTIONS: DetailOption<SurfaceDensity>[] = [
   { value: 'balanced', label: '均衡', description: '光膜与画面平衡' },
   { value: 'rich', label: '浓郁', description: '膜面颜色更饱满' }
 ]
-
-interface CheckoutResponse {
-  job: MotionJob
-  order: {
-    id: string
-    totalAmountCents: number
-    totalAmountYuan: number
-    status: string
-  }
-  paymentInfo: {
-    provider?: 'wechat' | 'alipay'
-    paymentParams?: WechatPaymentParams
-    description: string
-  }
-}
-
-interface WechatPaymentQueryResponse {
-  status: 'pending' | 'success' | 'failed' | 'cancelled'
-}
-
-interface QuoteResponse {
-  signedIn: boolean
-  signupFreeAvailable: boolean
-  prices: {
-    standardCents: number
-    hdCents: number
-    priorityAddonCents: number
-  }
-  resourceNotice: string
-}
 
 const MAX_SIZE_MB = 100
 const MAX_DURATION_SECONDS = 30
@@ -357,10 +320,6 @@ function getProcessingPresentation(progress: number): StatusPresentation {
   }
 }
 
-function formatPrice(cents: number) {
-  return `¥${(cents / 100).toFixed(1)}`
-}
-
 function uploadVideo(params: {
   jobId: string
   filePath: string
@@ -402,7 +361,7 @@ function uploadVideo(params: {
   })
 }
 
-function PaidFingerMotionEffectsPage() {
+function FingerMotionEffectsContent() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const cameraContextRef = useRef<any>(null)
   const frameListenerRef = useRef<any>(null)
@@ -449,25 +408,8 @@ function PaidFingerMotionEffectsPage() {
     [selectedStyleKey]
   )
   const [exportQuality, setExportQuality] = useState<ExportQuality>('standard')
-  const [queueTier, setQueueTier] = useState<QueueTier>('standard')
-  const [signupFreeAvailable, setSignupFreeAvailable] = useState(false)
-  const [prices, setPrices] = useState({
-    standardCents: 290,
-    hdCents: 490,
-    priorityAddonCents: 190
-  })
-  const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
-  const [paying, setPaying] = useState(false)
 
   const optionsLocked = recording || phase !== 'idle' || Boolean(job)
-  const freeStandardSelected = signupFreeAvailable && exportQuality === 'standard'
-  const selectedPriceCents =
-    (freeStandardSelected
-      ? 0
-      : exportQuality === 'hd'
-        ? prices.hdCents
-        : prices.standardCents) +
-    (queueTier === 'priority' ? prices.priorityAddonCents : 0)
 
   const sharePayload = useMemo(
     () =>
@@ -501,14 +443,6 @@ function PaidFingerMotionEffectsPage() {
 
   useEffect(() => {
     openCoachLinkShareMenu()
-    void callApi<QuoteResponse>({
-      url: '/api/toolbox/motion-effects/quote'
-    }).then((quote) => {
-      setSignupFreeAvailable(quote.signupFreeAvailable)
-      setPrices(quote.prices)
-    }).catch(() => {
-      // 保留页面内置价格；真正创建订单时仍以后端报价为准。
-    })
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
@@ -802,7 +736,6 @@ function PaidFingerMotionEffectsPage() {
     stopPolling()
     setVideo(null)
     setJob(null)
-    setCheckout(null)
     setPhase('idle')
     setUploadProgress(0)
     setPreviewUrl('')
@@ -826,11 +759,10 @@ function PaidFingerMotionEffectsPage() {
     setPreviewFilename('')
     setPreviewState('idle')
     setJob(null)
-    setCheckout(null)
     setUploadProgress(0)
     setPhase('creating')
     const created = await callApi<CreateResponse>({
-      url: '/api/toolbox/motion-effects/create-upload-url',
+      url: '/api/toolbox/motion-effects/free-upload-url',
       method: 'POST',
       data: {
         originalFilename: nextVideo.name,
@@ -838,7 +770,6 @@ function PaidFingerMotionEffectsPage() {
         fileSizeBytes: nextVideo.size,
         durationSeconds: nextVideo.duration,
         exportQuality,
-        queueTier,
         styleKey: selectedStyleKey,
         bgmKey: 'original',
         motionSpeed,
@@ -847,8 +778,6 @@ function PaidFingerMotionEffectsPage() {
       }
     })
     setJob(created.job)
-    setSignupFreeAvailable(created.signupFreeAvailable)
-    setPrices(created.prices)
     setPhase('uploading')
     try {
       await uploadVideo({
@@ -1013,7 +942,6 @@ function PaidFingerMotionEffectsPage() {
       method: 'POST'
     })
     setJob(queued)
-    setCheckout(null)
     setPhase('queued')
     pollJob(queued.id)
     Taro.showToast({ title: '已开始生成', icon: 'success' })
@@ -1030,97 +958,13 @@ function PaidFingerMotionEffectsPage() {
     }
   }
 
-  const confirmWechatPayment = async (orderId: string, jobId: string) => {
-    const payment = await callApi<WechatPaymentQueryResponse>({
-      url: '/api/payment/wechat/query',
-      method: 'POST',
-      data: { orderId }
-    })
-    if (payment.status !== 'success') return false
-
-    const current = await callApi<MotionJob>({
-      url: `/api/toolbox/motion-effects/jobs/${jobId}/payment-status`
-    })
-    setJob(current)
-    if (current.paymentStatus !== 'paid') return false
-    await enqueueUploadedJob(current.id)
-    return true
-  }
-
-  const openWechatPayment = async (created: CheckoutResponse) => {
-    const paymentParams = created.paymentInfo?.paymentParams
-    if (!paymentParams) throw new Error('微信官方虚拟支付参数缺失，请稍后重试')
-
-    const result = await requestWechatPayment(paymentParams)
-    if (result.status === 'cancelled') {
-      Taro.showToast({ title: '已取消支付，可以稍后重新支付', icon: 'none' })
-      return
-    }
-    if (!result.success) {
-      throw new Error(result.message || '微信官方虚拟支付调起失败')
-    }
-
-    const confirmed = await confirmWechatPayment(created.order.id, created.job.id)
-    if (!confirmed) {
-      Taro.showToast({ title: '支付结果确认中，请稍后刷新', icon: 'none', duration: 3000 })
-    }
-  }
-
-  const createCheckout = async (jobId: string) => {
-    setPaying(true)
-    try {
-      const login = await Taro.login()
-      if (!login.code) throw new Error('获取微信登录状态失败，请重试')
-      const created = await callApi<CheckoutResponse>({
-        url: `/api/toolbox/motion-effects/jobs/${jobId}/order`,
-        method: 'POST',
-        data: { paymentProvider: 'wechat', loginCode: login.code }
-      })
-      setCheckout(created)
-      setJob(created.job)
-      await openWechatPayment(created)
-    } finally {
-      setPaying(false)
-    }
-  }
-
   const handleGenerate = async () => {
-    if (!job?.id || phase !== 'uploaded' || paying) return
+    if (!job?.id || phase !== 'uploaded') return
     try {
-      if (selectedPriceCents > 0) {
-        await createCheckout(job.id)
-      } else {
-        await enqueueUploadedJob(job.id)
-      }
+      await enqueueUploadedJob(job.id)
     } catch (error: any) {
       setPhase('uploaded')
       Taro.showToast({ title: error?.message || '提交失败', icon: 'none', duration: 3000 })
-    }
-  }
-
-  const handleRetryPayment = async () => {
-    if (!checkout || paying) return
-    try {
-      await createCheckout(checkout.job.id)
-    } catch (error: any) {
-      Taro.showToast({ title: error?.message || '微信官方虚拟支付调起失败', icon: 'none' })
-    }
-  }
-
-  const handleCheckPayment = async () => {
-    if (!job?.id || paying) return
-    setPaying(true)
-    try {
-      const orderId = checkout?.order.id
-      if (!orderId) throw new Error('支付订单不存在，请重新发起支付')
-      const confirmed = await confirmWechatPayment(orderId, job.id)
-      if (!confirmed) {
-        Taro.showToast({ title: '暂未收到支付结果，请稍后再试', icon: 'none' })
-      }
-    } catch (error: any) {
-      Taro.showToast({ title: error?.message || '支付状态查询失败', icon: 'none' })
-    } finally {
-      setPaying(false)
     }
   }
 
@@ -1264,23 +1108,16 @@ function PaidFingerMotionEffectsPage() {
       </View>
 
       <View className='motion-card'>
-        <Text className='motion-section-title'>选择下载规格</Text>
-        <Text className='motion-hint'>
-          预览免费。视频导出会持续占用服务器计算、临时存储和下载带宽，免费资源无法长期支撑，因此下载按规格收费。
-        </Text>
+        <Text className='motion-section-title'>选择清晰度</Text>
+        <Text className='motion-hint'>全部免费，两种清晰度都可以选。</Text>
         <View
           className={`motion-quality-option ${exportQuality === 'standard' ? 'motion-option-active' : ''}`}
           onClick={() => changeOption(() => setExportQuality('standard'))}
         >
           <View>
             <Text className='motion-option-title'>标准版 · 720p</Text>
-            <Text className='motion-option-desc'>
-              {signupFreeAvailable ? '注册账号首次标准导出免费' : '适合朋友圈和快速分享'}
-            </Text>
+            <Text className='motion-option-desc'>适合朋友圈和快速分享</Text>
           </View>
-          <Text className='motion-option-price'>
-            {signupFreeAvailable ? '首次免费' : formatPrice(prices.standardCents)}
-          </Text>
         </View>
         <View
           className={`motion-quality-option ${exportQuality === 'hd' ? 'motion-option-active' : ''}`}
@@ -1290,27 +1127,6 @@ function PaidFingerMotionEffectsPage() {
             <Text className='motion-option-title'>高清版 · 1080p</Text>
             <Text className='motion-option-desc'>更清晰，适合发布短视频</Text>
           </View>
-          <Text className='motion-option-price'>{formatPrice(prices.hdCents)}</Text>
-        </View>
-        <View
-          className={`motion-quality-option ${queueTier === 'priority' ? 'motion-option-priority' : ''}`}
-          onClick={() =>
-            changeOption(() =>
-              setQueueTier((current) => current === 'priority' ? 'standard' : 'priority')
-            )
-          }
-        >
-          <View>
-            <Text className='motion-option-title'>极速处理</Text>
-            <Text className='motion-option-desc'>进入独立优先队列，按真实任务顺序处理</Text>
-          </View>
-          <Text className='motion-option-price'>+{formatPrice(prices.priorityAddonCents)}</Text>
-        </View>
-        <View className='motion-price-total'>
-          <Text>本次预计</Text>
-          <Text className='motion-price-total-value'>
-            {selectedPriceCents === 0 ? '免费' : formatPrice(selectedPriceCents)}
-          </Text>
         </View>
       </View>
 
@@ -1507,35 +1323,9 @@ function PaidFingerMotionEffectsPage() {
           className={`motion-button motion-button-primary ${phase !== 'uploaded' || recording ? 'motion-button-disabled' : ''}`}
           onClick={handleGenerate}
         >
-          <Text>
-            {paying
-              ? '正在处理…'
-              : selectedPriceCents > 0
-                ? `支付 ${formatPrice(selectedPriceCents)} 并生成`
-                : '免费生成'}
-          </Text>
+          <Text>免费生成</Text>
         </View>
       </View>
-
-      {checkout && job?.paymentStatus !== 'paid' && (
-        <View className='motion-card motion-payment-card'>
-          <Text className='motion-section-title'>等待付款</Text>
-          <Text className='motion-payment-price'>
-            {formatPrice(checkout.order.totalAmountCents)}
-          </Text>
-          <Text className='motion-hint'>
-            支付成功后才会占用服务器算力开始生成。付款将在当前小程序内直接调起微信官方虚拟支付。
-          </Text>
-          <View className='motion-payment-actions'>
-            <View className='motion-button motion-button-secondary' onClick={handleRetryPayment}>
-              <Text>{paying ? '正在调起…' : '重新支付'}</Text>
-            </View>
-            <View className='motion-button motion-button-primary' onClick={handleCheckPayment}>
-              <Text>{paying ? '正在查询…' : '刷新支付状态'}</Text>
-            </View>
-          </View>
-        </View>
-      )}
 
       {job?.status === 'failed' && job.paymentStatus === 'paid' && (
         <View className='motion-card motion-payment-card'>
@@ -1613,7 +1403,5 @@ function PaidFingerMotionEffectsPage() {
 export default function FingerMotionEffectsPage() {
   usePageEnterTrace()
 
-  return WECHAT_FREE_RELEASE
-    ? <FreeReleaseInfo title='特效视频暂未开放' description='你可以继续使用功率分析及其他训练工具。' />
-    : <PaidFingerMotionEffectsPage />
+  return <FingerMotionEffectsContent />
 }

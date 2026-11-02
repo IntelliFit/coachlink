@@ -40,6 +40,7 @@ export default function FreeMembershipPage() {
         <Text className='free-release-copy'>智能计划导入：每月 {WECHAT_FREE_LIMITS.aiImportsMonthly} 次{quota ? `，本月剩余 ${quota.ai_import_balance} 次` : ''}。</Text>
         <Text className='free-release-copy'>训练视频空间：{quota ? `${Number(quota.storage_used_mb || 0).toFixed(1)} / ${quota.storage_total_mb}` : WECHAT_FREE_LIMITS.storageMb} MB。</Text>
         <Text className='free-release-copy'>功率分析基础用量：每日 {WECHAT_FREE_LIMITS.powerDaily} 次，支持原画质，单段视频 {WECHAT_FREE_LIMITS.powerVideoMb} MB / {WECHAT_FREE_LIMITS.powerDurationSeconds} 秒。</Text>
+        <Text className='free-release-copy'>手指光膜：免费生成，720p 和 1080p 都可用。</Text>
         {loading && <Text className='free-release-copy'>正在加载个人用量…</Text>}
         {error && <Text className='free-release-copy'>{error}</Text>}
         <View className='free-release-button' onClick={() => signedIn
