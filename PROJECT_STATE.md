@@ -1,3 +1,14 @@
+## 手指光膜网页端找回任务上线（2026-11-03，web fd52c754）
+
+- main fd52c754 = 749f6657 + 89d0b307，相对上一版线上 bafd0ca1，Web 只多这次的 7 个文件。dev 上 2c6ee402 是同样的改动。用户要求更新后发布。
+- Web：`coachlink-main` 3/3、`coachlink-dev` 1/1 都是 `coachlink@sha256:5e03b986d32b6cb0d0f23ea7feefb0a7d35dff79797b04bd6d821c9acd910ae0`（标签 fd52c75）。回滚目标 `b7adb6ffea46a6704d32986a994c9df78dec7b2b0994f1de9221a08c89619e34`（bafd0ca1）。Worker 没动。
+- 行为：刷新或关页后，生成中接着显示进度，成片显示下载，失败或过期提示一次后删记录，没传完的取消并释放名额。本地记录按账号分开存。只有接口明确说任务不存在才删记录；断网、5xx、未登录、换账号、网关 404 都保留。另一个标签页还在上传时不取消。旧的 `?paymentJob=` 分支已删。
+- 服务端：取消接口数据库失败返回 500（原来 409，客户端会当成不用管了）；读取后状态变了就返回最新任务。创建接口多返回 `ownerUserId`，只是加字段。
+- 构建：product-server `~/coachlink-motion-restore-fd52c75`，走 safe-docker-build。那里的旧源码树只同步过网页部分，差异补丁打不上，改为按提交清单逐文件比对，5541 个文件核对一致才构建。
+- 验证：`tests/motion-effects-web-restore.test.ts`、`tests/motion-effects-job-routes.test.ts` 通过。全量 vitest 1494/1495（既有 streetliftingLocationOverview，基准提交上同样失败）。本地用全假配置和模拟接口跑了真实页面的恢复场景。线上 dev 用不存在的任务走了真实页面。线上 main：健康检查、页面、不存在任务的查询和取消（都是 404）正常，页面脚本含新代码、不含 paymentJob，Pod 无重启，5 分钟内无 error 日志。
+- **没验证**：线上真实上传和生成（会写库）、登录账号的完整恢复流程、e2e（写正式库）。代码审查发现的 1 个高危 3 个中危都修了，修完没有再审查一轮。
+- 已知限制：同一账号或访客生成新视频后，上一个已完成视频的记录会被替换，没下载的就找不回了，和小程序一致。
+
 ## 手指光膜退出后恢复任务（2026-11-03，只发小程序）
 
 - main 5e7a34a1（基于 b40624af），dev aeeec079，这次的代码相同。只改小程序页面和本地记录，不改服务端，线上 Web（b7adb6ff）和 Worker 没动。
