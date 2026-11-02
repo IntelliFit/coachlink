@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ analyze: vi.fn(), check: vi.fn() }));
+const mocks = vi.hoisted(() => ({ analyze: vi.fn(), check: vi.fn(), vest: vi.fn() }));
 
 vi.mock('@/lib/getApiUserId', () => ({ getApiUserId: async () => 'user-1' }));
 vi.mock('@/lib/bojiDetector', async (importOriginal) => {
@@ -16,6 +16,10 @@ vi.mock('@/lib/bojiAbsCheck', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/bojiAbsCheck')>();
   return { ...actual, checkAbsWithVision: (...args: unknown[]) => mocks.check(...args) };
 });
+vi.mock('@/lib/bojiVestCheck', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/bojiVestCheck')>();
+  return { ...actual, checkVestWithVision: (...args: unknown[]) => mocks.vest(...args) };
+});
 
 import { POST } from './route';
 
@@ -26,6 +30,7 @@ const upload = (query = '') => new Request(`http://localhost/api/toolbox/boji/an
 beforeEach(() => {
   mocks.analyze.mockReset().mockResolvedValue({ report: { metrics: { abs: { status: 'ok' } } }, messages: {}, abdomen_crop: 'CROP' });
   mocks.check.mockReset().mockImplementation(async ({ analysis }: { analysis: unknown }) => ({ ...(analysis as object), checked: true }));
+  mocks.vest.mockReset().mockImplementation(async ({ analysis }: { analysis: unknown }) => ({ ...(analysis as object), vestChecked: true }));
 });
 
 describe('POST /api/toolbox/boji/analyze AI abs check', () => {
@@ -38,9 +43,14 @@ describe('POST /api/toolbox/boji/analyze AI abs check', () => {
     expect(JSON.stringify(body)).not.toContain('CROP');
   });
 
-  it('does not ask for the crop for the female profile', async () => {
-    await POST(upload('?sex=female'));
-    expect(mocks.analyze.mock.calls[0][4]).toEqual({ abdomenCrop: false });
+  it('sends the crop to the vest check for the female profile', async () => {
+    const res = await POST(upload('?sex=female'));
+    const body = await res.json();
+    expect(mocks.analyze.mock.calls[0][4]).toEqual({ abdomenCrop: true });
+    expect(mocks.vest.mock.calls[0][0]).toMatchObject({ cropBase64: 'CROP', sex: 'female' });
+    expect(mocks.check).not.toHaveBeenCalled();
+    expect(body.data.vestChecked).toBe(true);
+    expect(JSON.stringify(body)).not.toContain('CROP');
   });
 
   it('returns the engine result when the check throws', async () => {
