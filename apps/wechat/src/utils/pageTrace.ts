@@ -23,7 +23,7 @@ function randomId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-function readAnonId(): string {
+export function readAnonId(): string {
   try {
     const stored = Taro.getStorageSync(ANON_ID_KEY)
     if (typeof stored === 'string' && stored) return stored

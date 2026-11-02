@@ -1,5 +1,6 @@
 import { BaseService } from "@/lib/baseService";
 import { AdminNavDataDto, AdminNavDataResponseDto } from "../api/admin/admin-nav-data/entity";
+import type { CoachFunnelResponse } from "../api/admin/coach-funnel/route";
 import type {
     ListCoachOnboardingDto,
     ListCoachOnboardingResponseDto,
@@ -20,6 +21,14 @@ class AdminService extends BaseService {
 
     async listCoachOnboarding(reqData: ListCoachOnboardingDto = {}) {
         const res = await this.post<ListCoachOnboardingResponseDto>('coach-onboarding', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async getCoachFunnel(reqData: { days: number }) {
+        const res = await this.post<CoachFunnelResponse>('coach-funnel', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }

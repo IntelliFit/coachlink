@@ -1,7 +1,21 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { WECHAT_COACH_PURCHASE_PAUSED, WECHAT_PURCHASE_PAUSED_MESSAGE } from '@coachlink/core'
 import { View, Text, ScrollView } from '@tarojs/components'
-import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
+import Taro, { useDidShow, usePullDownRefresh, useUnload } from '@tarojs/taro'
+import {
+  buildCoachExitCandidate,
+  isSettledCoachSubscription,
+  type CoachBuyBlockedReason,
+  type CoachExitCandidate
+} from '@coachlink/core/src/coachFunnel'
+import {
+  clearCoachExitCandidate,
+  readCoachExitCandidate,
+  rememberCoachExitCandidate,
+  takeCoachExitQuestion,
+  trackCoachFunnel
+} from '../coachFunnel'
+import CoachExitSheet from '../components/CoachExitSheet'
 import {
   fetchCoach,
   fetchAggregatedInfo,
@@ -65,8 +79,50 @@ export default function CoachProfile() {
     months: number
   } | null>(null)
 
+  const [exitQuestion, setExitQuestion] = useState<CoachExitCandidate | null>(null)
+
   const coachDisplayName = aggregatedInfo?.coach?.name || coach?.name || ''
   const receivingAccountReady = (aggregatedInfo?.coach?.huifu_open_status || coach?.huifu_open_status) === 'opened'
+
+  // 转化埋点：每次进入页面只记一次；useDidShow 会反复触发 load，不能在 load 里无条件上报。
+  const funnelVisitRef = useRef<{ coachId: string; enteredAt: number; pricingTracked: boolean } | null>(null)
+  const funnelViewerRef = useRef('guest')
+  const exitContextRef = useRef({
+    name: '',
+    subscriptionStatus: null as string | null,
+    canBuy: undefined as boolean | undefined,
+    isOwnProfile: false
+  })
+  exitContextRef.current = {
+    name: coachDisplayName,
+    subscriptionStatus: userSubscription?.status ?? null,
+    canBuy: pageState === 'success' ? receivingAccountReady && products.length > 0 : undefined,
+    isOwnProfile: Boolean(coach?.user_id && coach.user_id === authService.getCurrentUser()?.id)
+  }
+
+  useUnload(() => {
+    const visit = funnelVisitRef.current
+    if (!visit) return
+    const pending = readCoachExitCandidate()
+    if (pending?.coachId === visit.coachId && pending.trigger === 'payment_cancel') return
+    const candidate = buildCoachExitCandidate({
+      coachId: visit.coachId,
+      coachName: exitContextRef.current.name,
+      enteredAt: visit.enteredAt,
+      now: Date.now(),
+      subscriptionStatus: exitContextRef.current.subscriptionStatus,
+      canBuy: exitContextRef.current.canBuy,
+      isOwnProfile: exitContextRef.current.isOwnProfile
+    })
+    if (candidate) rememberCoachExitCandidate(candidate)
+  })
+
+  useEffect(() => {
+    const visit = funnelVisitRef.current
+    if (activeTab !== TAB_PRICING || !visit || visit.pricingTracked) return
+    visit.pricingTracked = true
+    trackCoachFunnel('pricing_view', { coachId: visit.coachId, properties: { viewer: funnelViewerRef.current } })
+  }, [activeTab, pageState])
 
   const load = useCallback(async () => {
     const instance = Taro.getCurrentInstance()
@@ -133,6 +189,20 @@ export default function CoachProfile() {
       setReviews(reviewsRes || [])
       setReviewsLoaded(reviewsRes !== null)
       setPageState('success')
+
+      const viewer = userSub?.status ? 'subscriber' : user?.id ? 'member' : 'guest'
+      funnelViewerRef.current = viewer
+      if (funnelVisitRef.current?.coachId !== id) {
+        funnelVisitRef.current = { coachId: id, enteredAt: Date.now(), pricingTracked: false }
+        trackCoachFunnel('profile_view', { coachId: id, properties: { viewer } })
+      }
+      // 从支付结果页回来：已经买成了就不问；取消了当场问一句
+      if (isSettledCoachSubscription(userSub?.status)) {
+        clearCoachExitCandidate()
+      } else {
+        const question = takeCoachExitQuestion((candidate) => candidate.coachId === id && candidate.trigger === 'payment_cancel')
+        if (question) setExitQuestion(question)
+      }
     } catch (e) {
       console.error('教练详情加载失败:', e)
       setErrorMsg((e as Error).message || '加载失败，请重试')
@@ -287,14 +357,32 @@ export default function CoachProfile() {
       })
 
       if (!payment || !('orderId' in payment)) {
-        Taro.showToast({ title: (payment as any)?.message || '创建支付单失败，请稍后重试', icon: 'none' })
+        const message = (payment as any)?.message || '创建支付单失败，请稍后重试'
+        trackCoachFunnel('payment_fail', { coachId, properties: { message } })
+        Taro.showToast({ title: message, icon: 'none' })
         return
       }
 
       if (params.packageSwitch && payment.packageSwitchPolicy !== 'after_current') {
         throw new Error('支付服务尚未支持接续套餐，请稍后重试')
       }
+      trackCoachFunnel('payment_start', { coachId, properties: { price: payment.amount } })
       const paymentResult = await requestCoachWechatPayment(payment.paymentParams)
+      if (paymentResult.status === 'success') {
+        clearCoachExitCandidate()
+      } else {
+        trackCoachFunnel(paymentResult.status === 'cancelled' ? 'payment_cancel' : 'payment_fail', { coachId })
+        // 老学员取消续费不算「没订阅」
+        if (!isSettledCoachSubscription(userSubscription?.status)) {
+          rememberCoachExitCandidate({
+            coachId,
+            coachName: coachDisplayName,
+            leftAt: Date.now(),
+            trigger: 'payment_cancel',
+            canBuy: true
+          })
+        }
+      }
       navigateToPaymentWaiting({
         orderId: payment.orderId,
         amount: payment.amount,
@@ -303,7 +391,7 @@ export default function CoachProfile() {
     } finally {
       paymentStartingRef.current = false
     }
-  }, [coachDisplayName, coachId, navigateToPaymentWaiting, ensureWechatOpenid])
+  }, [coachDisplayName, coachId, navigateToPaymentWaiting, ensureWechatOpenid, userSubscription?.status])
 
   const handleSubscribe = () => {
     if (WECHAT_COACH_PURCHASE_PAUSED) {
@@ -345,15 +433,30 @@ export default function CoachProfile() {
     })
   }
 
+  const trackBuyClick = (product: Product, duration: DurationOption, blocked?: CoachBuyBlockedReason) => {
+    trackCoachFunnel('buy_click', {
+      coachId,
+      properties: {
+        viewer: funnelViewerRef.current,
+        product_id: product.id,
+        months: duration.months,
+        price: duration.price,
+        blocked
+      }
+    })
+  }
+
   const handleSelectProduct = async (product: Product, duration: DurationOption) => {
     if (WECHAT_COACH_PURCHASE_PAUSED) return
     const user = authService.getCurrentUser()
     if (!user?.id) {
+      trackBuyClick(product, duration, 'login_required')
       Taro.showToast({ title: '请先登录', icon: 'none' })
       Taro.navigateTo({ url: '/auth/login?returnTo=' + encodeURIComponent(`/discovery/coach-profile?id=${coachId}&tab=1`) })
       return
     }
     if (userSubscription?.status === 'waiting') {
+      trackBuyClick(product, duration, 'processing')
       Taro.showToast({
         title: '当前订阅正在处理中，请先查看订阅进度',
         icon: 'none',
@@ -363,6 +466,7 @@ export default function CoachProfile() {
     }
     const isDifferentPackage = showRenewBtn && product.id !== userSubscription?.product_id
     if (showRenewBtn && !renewMode && !isDifferentPackage) {
+      trackBuyClick(product, duration, 'already_subscribed')
       Taro.showToast({
         title: '您已订阅该教练，点击【续费】即可延长订阅并且可以续订',
         icon: 'none',
@@ -372,6 +476,7 @@ export default function CoachProfile() {
     }
 
     if (!receivingAccountReady) {
+      trackBuyClick(product, duration, 'account_not_ready')
       Taro.showToast({
         title: '教练汇付收款账户尚未开通，暂时不能购买/续费',
         icon: 'none',
@@ -379,6 +484,8 @@ export default function CoachProfile() {
       })
       return
     }
+
+    trackBuyClick(product, duration)
 
     if (showRenewBtn && (renewMode || isDifferentPackage)) {
       if (userSubscription?.id) {
@@ -633,6 +740,7 @@ export default function CoachProfile() {
           <ClButton className='cp-bar__btn' onClick={handleSubscribe}>{ctaLabel}</ClButton>
         </View>
       )}
+      {exitQuestion && <CoachExitSheet candidate={exitQuestion} onClose={() => setExitQuestion(null)} />}
     </View>
   )
 }

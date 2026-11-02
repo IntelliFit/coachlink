@@ -24,6 +24,8 @@ import type { CoachSubscriptionOrderRow } from '@/types/subscriptionOrders';
 import QuestionnaireForm from './QuestionnaireForm';
 import PaymentDialog from '@/components/payment/paymentDialog';
 import { useGuideStore } from '@/stores/useGuideStore';
+import { rememberCoachExitCandidate, trackCoachFunnel } from '@/lib/coachFunnelClient';
+import type { CoachBuyBlockedReason } from '@coachlink/core/src/coachFunnel';
 
 interface CoachSubscriptionProps {
     coach: CoachesRow;
@@ -159,6 +161,13 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         return res.subscriptionOrder;
     };
 
+    const trackBuyClick = (product: Product, duration: DurationOption, blocked?: CoachBuyBlockedReason) => {
+        trackCoachFunnel('buy_click', {
+            coachId: coach.id,
+            properties: { product_id: product.id, months: duration.months, price: duration.price, blocked },
+        });
+    };
+
     // 订阅流程处理
     const handleSelectProduct = async (product: Product, duration: DurationOption) => {
         setSelectedProduct(product);
@@ -170,6 +179,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
             // 登录保护：订阅/支付/购物车均需要登录
             if (!session?.user?.id) {
+                trackBuyClick(product, duration, 'login_required');
                 try {
                     const redirect = typeof window !== 'undefined'
                         ? `${window.location.pathname}${window.location.search}${window.location.hash || ''}`
@@ -182,11 +192,13 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             }
 
             if (activeSub && !renewMode && product.id === activeSub.product_id) {
+                trackBuyClick(product, duration, 'already_subscribed');
                 showToast({ severity: 'info', summary: '您已订阅该教练', detail: '点击上方【续费】即可延长订阅' });
                 return;
             }
 
             if (!receivingAccountReady) {
+                trackBuyClick(product, duration, 'account_not_ready');
                 showToast({
                     severity: 'warn',
                     summary: '教练收款账户尚未开通',
@@ -194,6 +206,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 });
                 return;
             }
+
+            trackBuyClick(product, duration);
 
             if (renewMode || activeSub) {
                 setRenewMode(true);
@@ -245,6 +259,12 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         } catch { }
         void handleSelectProduct(product, duration);
     }, [loading, products]);
+
+    // 支付弹窗每打开一次记一次发起付款
+    useEffect(() => {
+        if (!paymentDialogVisible) return;
+        trackCoachFunnel('payment_start', { coachId: coach.id, properties: { price: selectedDuration?.price } });
+    }, [paymentDialogVisible]);
 
     const handlePaymentSuccess = async () => {
         showToast({
@@ -563,6 +583,17 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 onCancel={() => {
                     setPaymentDialogVisible(false);
                     setIsOfflinePaymentMode(false); // 取消时重置状态
+                    trackCoachFunnel('payment_cancel', { coachId: coach.id });
+                    // 老学员取消续费不算「没订阅」
+                    if (!activeSub && !renewMode) {
+                        rememberCoachExitCandidate({
+                            coachId: coach.id,
+                            coachName: coach.name || '',
+                            leftAt: Date.now(),
+                            trigger: 'payment_cancel',
+                            canBuy: true,
+                        });
+                    }
                 }}
             />
         </div>

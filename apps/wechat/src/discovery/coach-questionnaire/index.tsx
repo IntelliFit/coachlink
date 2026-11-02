@@ -14,6 +14,7 @@ import {
 } from '@/services/paymentService'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
+import { clearCoachExitCandidate, rememberCoachExitCandidate, trackCoachFunnel } from '../coachFunnel'
 
 interface TrainingItem {
   id?: string
@@ -205,10 +206,18 @@ function CoachQuestionnaireForm() {
     })
 
     if (!payment.success || !payment.data?.orderId || !payment.data.paymentParams) {
+      trackCoachFunnel('payment_fail', { coachId, properties: { message: payment.message } })
       throw new Error(payment.message || '创建支付单失败，请稍后重试')
     }
 
+    trackCoachFunnel('payment_start', { coachId, properties: { price: payment.data.amount } })
     const paymentResult = await requestCoachWechatPayment(payment.data.paymentParams)
+    if (paymentResult.status === 'success') {
+      clearCoachExitCandidate()
+    } else {
+      trackCoachFunnel(paymentResult.status === 'cancelled' ? 'payment_cancel' : 'payment_fail', { coachId })
+      rememberCoachExitCandidate({ coachId, coachName, leftAt: Date.now(), trigger: 'payment_cancel', canBuy: true })
+    }
     navigateToPaymentWaiting({
       orderId: payment.data.orderId,
       amount: payment.data.amount,

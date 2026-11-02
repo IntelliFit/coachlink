@@ -1,7 +1,11 @@
 import React from 'react'
 import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import { View, Text, Input, Image, ScrollView } from '@tarojs/components'
-import Taro, { useReachBottom } from '@tarojs/taro'
+import Taro, { useDidShow, useReachBottom } from '@tarojs/taro'
+import { isSettledCoachSubscription, type CoachExitCandidate } from '@coachlink/core/src/coachFunnel'
+import { fetchMySubscriptions } from './coach-profile/service'
+import CoachExitSheet from './components/CoachExitSheet'
+import { takeCoachExitQuestion, trackCoachFunnel } from './coachFunnel'
 import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import { studentService } from '@/services/studentService'
@@ -60,6 +64,32 @@ function Discovery() {
   const [visibilityStatus, setVisibilityStatus] = React.useState<VisibilityStatus | null>(null)
   const [visibilityLoading, setVisibilityLoading] = React.useState(true)
   const hasMoreCoaches = rawHasMoreCoaches || coachBuffer.length > 0
+  const [exitQuestion, setExitQuestion] = React.useState<CoachExitCandidate | null>(null)
+  const lastListTrackRef = React.useRef(0)
+
+  useDidShow(() => {
+    // 切 Tab 来回不重复计数，10 分钟内算同一次浏览
+    const now = Date.now()
+    if (now - lastListTrackRef.current > 10 * 60 * 1000) {
+      lastListTrackRef.current = now
+      trackCoachFunnel('list_view')
+    }
+    const question = takeCoachExitQuestion()
+    if (!question) return
+    const user = authService.getCurrentUser()
+    if (!user?.id) {
+      setExitQuestion(question)
+      return
+    }
+    // 可能已经付过款（比如取消一次后又买了）：先核实，查不到就不问，宁可少问也不要问错人
+    fetchMySubscriptions(user.id)
+      .then((subscriptions) => {
+        const settled = subscriptions.some((sub) => sub.coach_id === question.coachId && isSettledCoachSubscription(sub.status))
+        if (!settled) setExitQuestion(question)
+      })
+      .catch(() => undefined)
+  })
+  const exitSheet = exitQuestion ? <CoachExitSheet candidate={exitQuestion} onClose={() => setExitQuestion(null)} /> : null
 
   React.useEffect(() => {
     const session = authService.getAuthSession({ normalize: true })
@@ -306,6 +336,7 @@ function Discovery() {
         )}
 
         <BottomNav />
+        {exitSheet}
       </View>
       </PageThemeRoot>
     )
@@ -386,6 +417,7 @@ function Discovery() {
       )}
 
       <BottomNav />
+      {exitSheet}
     </View>
     </PageThemeRoot>
   )

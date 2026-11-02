@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { buildCoachExitCandidate } from '@coachlink/core/src/coachFunnel';
+import { readCoachExitCandidate, rememberCoachExitCandidate, trackCoachFunnel } from '@/lib/coachFunnelClient';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -37,6 +39,55 @@ const CoachProfilePage: React.FC = () => {
     const { data: session } = useSession();
 
     const SUBSCRIBE_TAB_INDEX = 1; // 订阅价格现在在第二栏（index 1）
+
+    // 转化埋点：放在页面组件里（真实打开才执行），不受列表页预加载影响
+    const funnelVisitRef = useRef<{ coachId: string; enteredAt: number; pricingTracked: boolean } | null>(null);
+    const exitContextRef = useRef({ name: '', subscriptionStatus: null as string | null, isOwnProfile: false });
+    exitContextRef.current = {
+        name: coach?.name || '',
+        subscriptionStatus: userSubscription?.status ?? null,
+        isOwnProfile: Boolean(coach?.user_id && coach.user_id === session?.user?.id),
+    };
+
+    useEffect(() => {
+        if (!coach?.id || funnelVisitRef.current?.coachId === coach.id) return;
+        funnelVisitRef.current = { coachId: coach.id, enteredAt: Date.now(), pricingTracked: false };
+        trackCoachFunnel('profile_view', {
+            coachId: coach.id,
+            properties: { viewer: session?.user?.id ? 'member' : 'guest' },
+        });
+    }, [coach?.id, session?.user?.id]);
+
+    useEffect(() => {
+        const visit = funnelVisitRef.current;
+        if (activeTab !== SUBSCRIBE_TAB_INDEX || !visit || visit.pricingTracked) return;
+        visit.pricingTracked = true;
+        trackCoachFunnel('pricing_view', { coachId: visit.coachId });
+    }, [activeTab, coach?.id]);
+
+    useEffect(() => {
+        const rememberExit = () => {
+            const visit = funnelVisitRef.current;
+            if (!visit) return;
+            const pending = readCoachExitCandidate();
+            if (pending?.coachId === visit.coachId && pending.trigger === 'payment_cancel') return;
+            const candidate = buildCoachExitCandidate({
+                coachId: visit.coachId,
+                coachName: exitContextRef.current.name,
+                enteredAt: visit.enteredAt,
+                now: Date.now(),
+                subscriptionStatus: exitContextRef.current.subscriptionStatus,
+                isOwnProfile: exitContextRef.current.isOwnProfile,
+            });
+            if (candidate) rememberCoachExitCandidate(candidate);
+        };
+        // 站内路由跳转走卸载清理；普通链接、后退等整页离开不会卸载组件，要靠 pagehide
+        window.addEventListener('pagehide', rememberExit);
+        return () => {
+            window.removeEventListener('pagehide', rememberExit);
+            rememberExit();
+        };
+    }, []);
 
     const goToSubscribeTab = useCallback(() => {
         setActiveTab(SUBSCRIBE_TAB_INDEX);

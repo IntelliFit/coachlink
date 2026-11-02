@@ -13,6 +13,7 @@ import { TabPanel, TabView } from 'primereact/tabview';
 import { coachService } from '@/app/service/coachService';
 import { useToastContext } from '@/context/ToastContext';
 import CoachApplicationDialog from './CoachApplicationDialog';
+import CoachFunnelPanel from './CoachFunnelPanel';
 import CoachOnboardingTable from './CoachOnboardingTable';
 import ReviewNotesDialog, { type ReviewNotesMode } from './ReviewNotesDialog';
 import type { CoachApplicationRow } from '@/types';
@@ -323,6 +324,9 @@ export default function AdminCoachApplicationsPage() {
                 </TabPanel>
                 <TabPanel header="开店进度">
                     <CoachOnboardingTable />
+                </TabPanel>
+                <TabPanel header="教练转化">
+                    <CoachFunnelPanel />
                 </TabPanel>
             </TabView>
 

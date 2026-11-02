@@ -19,6 +19,10 @@ import ToolsSection from './sections/ToolsSection';
 import GearSection from './sections/GearSection';
 import ArticlesSection from './sections/ArticlesSection';
 import type { DiscoveryCoach, ProductFeedItem, PublicArticleListItem } from './sections/types';
+import CoachExitDialog from '@/components/coach/CoachExitDialog';
+import { takeCoachExitQuestion, trackCoachListView } from '@/lib/coachFunnelClient';
+import { isSettledCoachSubscription, type CoachExitCandidate } from '@coachlink/core/src/coachFunnel';
+import { subscriptionService } from '@/app/service/subscriptionService';
 
 interface VisibilityStatus {
     focusMode: boolean;
@@ -34,6 +38,35 @@ const FEATURED_COACH_NAMES = ['枭马葛', '马葛', 'XM'];
 const isFeaturedCoach = (name: string) => FEATURED_COACH_NAMES.some((n) => name.includes(n));
 
 function DiscoveryContentInner() {
+    const [exitQuestion, setExitQuestion] = useState<CoachExitCandidate | null>(null);
+
+    const { data: funnelSession, status: funnelSessionStatus } = useSession();
+
+    // 转化埋点：记录打开发现页，并在学员从教练页回来时问一句为什么没订阅
+    useEffect(() => {
+        trackCoachListView();
+    }, []);
+
+    useEffect(() => {
+        if (funnelSessionStatus === 'loading') return;
+        const question = takeCoachExitQuestion();
+        if (!question) return;
+        const studentId = funnelSession?.user?.id;
+        if (!studentId) {
+            setExitQuestion(question);
+            return;
+        }
+        // 可能已经付过款（比如取消一次后又买了）：先核实，查不到就不问，宁可少问也不要问错人
+        subscriptionService.getCoachSubscriptions({ studentId, onlyActive: false })
+            .then((res) => {
+                const settled = (res?.subscriptions || []).some(
+                    (sub) => sub.coach_id === question.coachId && isSettledCoachSubscription(sub.status),
+                );
+                if (res && !settled) setExitQuestion(question);
+            })
+            .catch(() => undefined);
+    }, [funnelSessionStatus]);
+
     const [coaches, setCoaches] = useState<DiscoveryCoach[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -213,9 +246,12 @@ function DiscoveryContentInner() {
         return map;
     }, [productFeed]);
 
+    const exitDialog = <CoachExitDialog candidate={exitQuestion} onClose={() => setExitQuestion(null)} />;
+
     if (visibilityStatus?.focusMode) {
         return (
             <div className="min-h-screen py-8 px-4">
+                {exitDialog}
                 <div className="max-w-6xl mx-auto">
                     <header className="mb-10">
                         <div className="flex items-center gap-4 mb-3">
@@ -244,6 +280,7 @@ function DiscoveryContentInner() {
 
     return (
         <div className="min-h-screen pb-20">
+            {exitDialog}
             <div className="mx-auto flex max-w-[1200px] flex-col gap-14 px-4 pt-8 md:gap-16 md:px-6 md:pt-12">
                 <DiscoveryHero
                     planCount={planTotal}

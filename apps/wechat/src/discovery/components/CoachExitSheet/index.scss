@@ -1,0 +1,88 @@
+.coach-exit {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 200;
+
+  &__mask {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: var(--cl-mask);
+  }
+
+  &__panel {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 40rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+    background: var(--cl-card);
+    border-radius: 32rpx 32rpx 0 0;
+  }
+
+  &__title {
+    display: block;
+    font-size: 32rpx;
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--cl-ink);
+  }
+
+  &__hint {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: var(--cl-ink-3);
+  }
+
+  &__options {
+    margin-top: 24rpx;
+  }
+
+  &__option {
+    padding: 24rpx;
+    margin-bottom: 16rpx;
+    font-size: 28rpx;
+    color: var(--cl-ink);
+    background: var(--cl-paper);
+    border: 2rpx solid var(--cl-line);
+    border-radius: 16rpx;
+
+    &:active {
+      opacity: 0.7;
+    }
+
+    &--on {
+      border-color: var(--cl-clay);
+    }
+  }
+
+  &__other {
+    margin-bottom: 16rpx;
+  }
+
+  &__input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 80rpx;
+    padding: 0 24rpx;
+    margin-bottom: 16rpx;
+    font-size: 28rpx;
+    color: var(--cl-ink);
+    background: var(--cl-paper);
+    border: 2rpx solid var(--cl-line);
+    border-radius: 16rpx;
+  }
+
+  &__skip {
+    padding: 16rpx;
+    font-size: 26rpx;
+    color: var(--cl-ink-3);
+    text-align: center;
+  }
+}
