@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePageEnterTrace } from '@/utils/pageTrace'
 import { Camera, Canvas, Text, View, Video } from '@tarojs/components'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
 import { authService } from '@/services/authService'
+import {
+  appStorageGetJSON,
+  appStorageKey,
+  appStorageRemove,
+  appStorageSetJSON
+} from '@/utils/appStorage'
 import {
   buildSharePath,
   createSharePayload,
@@ -16,6 +22,12 @@ import {
   type LiveHand,
   type LiveHeadOcclusion
 } from './livePreview'
+import {
+  isMotionJobGone,
+  motionRestoreNotice,
+  motionRestorePlan,
+  parseRememberedMotionJob
+} from './jobRestore'
 import { USER_FACING_CAMERA } from '../cameraTracking'
 import { BodyPointTracker } from '../games/bodyPointTracker'
 import './index.scss'
@@ -69,6 +81,9 @@ interface MotionJob {
   styleKey: string
   paymentStatus: 'unpaid' | 'pending' | 'paid' | 'free' | 'refunded'
   priceCents: number
+  motionSpeed?: MotionSpeed
+  glowStrength?: GlowStrength
+  surfaceDensity?: SurfaceDensity
   result?: {
     analyzedFrames: number
     handFrames: number
@@ -184,6 +199,7 @@ const SURFACE_DENSITY_OPTIONS: DetailOption<SurfaceDensity>[] = [
 const MAX_SIZE_MB = 100
 const MAX_DURATION_SECONDS = 30
 const TERMINAL: JobStatus[] = ['done', 'failed', 'expired']
+const POLL_FAILURE_NOTICE_AFTER = 5
 const TRANSFER_TIMEOUT = 15 * 60 * 1000
 const LIVE_CANVAS_ID = 'motionLiveCanvas'
 const LIVE_DETECT_INTERVAL_MS = 48
@@ -217,6 +233,29 @@ async function callApi<T>(options: {
     throw new Error(response.message || '请求失败')
   }
   return response.data
+}
+
+function lastJobStorageKey() {
+  let userId = ''
+  try {
+    userId = String(Taro.getStorageSync('user')?.id || '')
+  } catch {}
+  return userId ? appStorageKey('motion-effects', 'last-job', userId) : ''
+}
+
+function rememberMotionJob(jobId: string, uploaded: boolean) {
+  const key = lastJobStorageKey()
+  if (key) appStorageSetJSON(key, { v: 1, jobId, uploaded })
+}
+
+function forgetMotionJob() {
+  const key = lastJobStorageKey()
+  if (key) appStorageRemove(key)
+}
+
+function readRememberedMotionJob() {
+  const key = lastJobStorageKey()
+  return key ? parseRememberedMotionJob(appStorageGetJSON(key)) : null
 }
 
 function inferName(path: string) {
@@ -324,6 +363,7 @@ function uploadVideo(params: {
   jobId: string
   filePath: string
   onProgress: (value: number) => void
+  onTask: (task: any) => void
 }) {
   return new Promise<void>((resolve, reject) => {
     const token = String(Taro.getStorageSync('token') || '').trim()
@@ -355,6 +395,7 @@ function uploadVideo(params: {
       },
       fail: (error: any) => reject(new Error(error?.errMsg || '上传失败'))
     }) as any
+    params.onTask(task)
     task?.progress?.((result: any) => {
       params.onProgress(Math.max(1, Math.min(99, Number(result.progress || 0))))
     })
@@ -363,6 +404,10 @@ function uploadVideo(params: {
 
 function FingerMotionEffectsContent() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollFailuresRef = useRef(0)
+  const uploadTaskRef = useRef<any>(null)
+  const mountedRef = useRef(true)
+  const restoringRef = useRef(false)
   const cameraContextRef = useRef<any>(null)
   const frameListenerRef = useRef<any>(null)
   const visionSessionRef = useRef<any>(null)
@@ -384,6 +429,7 @@ function FingerMotionEffectsContent() {
   const [video, setVideo] = useState<SelectedVideo | null>(null)
   const [job, setJob] = useState<MotionJob | null>(null)
   const [phase, setPhase] = useState<Phase>('idle')
+  const [restored, setRestored] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [previewUrl, setPreviewUrl] = useState('')
   const [previewFilename, setPreviewFilename] = useState('')
@@ -409,7 +455,9 @@ function FingerMotionEffectsContent() {
   )
   const [exportQuality, setExportQuality] = useState<ExportQuality>('standard')
 
-  const optionsLocked = recording || phase !== 'idle' || Boolean(job)
+  // 失败或过期的任务已经结束，下一条视频可以换效果
+  const jobEnded = job?.status === 'failed' || job?.status === 'expired'
+  const optionsLocked = !jobEnded && (recording || phase !== 'idle' || Boolean(job))
 
   const sharePayload = useMemo(
     () =>
@@ -442,12 +490,24 @@ function FingerMotionEffectsContent() {
   }, [glowStrength, selectedStyle, surfaceDensity])
 
   useEffect(() => {
+    mountedRef.current = true
     openCoachLinkShareMenu()
+    void restoreLastJob()
     return () => {
+      mountedRef.current = false
       if (pollRef.current) clearInterval(pollRef.current)
+      pollRef.current = null
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+      // 没传完就离开：中断上传，prepareAndUploadVideo 会释放名额
+      uploadTaskRef.current?.abort?.()
+      uploadTaskRef.current = null
     }
   }, [])
+
+  // 从登录页回来时页面没有重新加载，也要接上这个账号的任务
+  useDidShow(() => {
+    void restoreLastJob()
+  })
 
   useEffect(() => {
     if (captureMode !== 'live' || !cameraReady) return
@@ -679,15 +739,20 @@ function FingerMotionEffectsContent() {
 
   const pollJob = (jobId: string) => {
     stopPolling()
-    pollRef.current = setInterval(async () => {
+    if (!mountedRef.current) return
+    pollFailuresRef.current = 0
+    const timer = setInterval(async () => {
       try {
         const current = await callApi<MotionJob>({
           url: `/api/toolbox/motion-effects/jobs/${jobId}`
         })
+        if (pollRef.current !== timer) return
+        pollFailuresRef.current = 0
         setJob(current)
         if (TERMINAL.includes(current.status)) {
           stopPolling()
           setPhase('done')
+          if (current.status !== 'done') forgetMotionJob()
           if (current.status === 'done') {
             try {
               await prepareCompletedVideo(current.id)
@@ -702,15 +767,29 @@ function FingerMotionEffectsContent() {
           }
         }
       } catch (error: any) {
-        stopPolling()
-        setPhase('idle')
-        Taro.showToast({
-          title: error?.message || '任务状态获取失败',
-          icon: 'none',
-          duration: 3000
-        })
+        if (pollRef.current !== timer) return
+        const gone = isMotionJobGone(error)
+        if (gone || !authService.isAuthenticated()) {
+          stopPolling()
+          if (gone) forgetMotionJob()
+          setJob(null)
+          setRestored(false)
+          setPhase('idle')
+          Taro.showToast({
+            title: error?.message || '任务状态获取失败',
+            icon: 'none',
+            duration: 3000
+          })
+          return
+        }
+        // 切到后台或网络抖动时请求会失败，任务还在服务端，继续刷新
+        pollFailuresRef.current += 1
+        if (pollFailuresRef.current === POLL_FAILURE_NOTICE_AFTER) {
+          Taro.showToast({ title: '网络不稳定，正在继续刷新进度', icon: 'none', duration: 3000 })
+        }
       }
     }, 1800)
+    pollRef.current = timer
   }
 
   const openLogin = () => {
@@ -731,9 +810,54 @@ function FingerMotionEffectsContent() {
     await callApi<MotionJob>({ url: `/api/toolbox/motion-effects/jobs/${target.id}/cancel`, method: 'POST' }).catch(() => undefined)
   }
 
+  const applyJobOptions = (target: MotionJob) => {
+    if (target.exportQuality) setExportQuality(target.exportQuality)
+    if (target.styleKey) setSelectedStyleKey(target.styleKey)
+    if (target.motionSpeed) setMotionSpeed(target.motionSpeed)
+    if (target.glowStrength) setGlowStrength(target.glowStrength)
+    if (target.surfaceDensity) setSurfaceDensity(target.surfaceDensity)
+  }
+
+  const restoreLastJob = async () => {
+    if (restoringRef.current || recordingRef.current || job || phase !== 'idle') return
+    if (!authService.isAuthenticated()) return
+    const remembered = readRememberedMotionJob()
+    if (!remembered) return
+    restoringRef.current = true
+    try {
+      const current = await callApi<MotionJob>({
+        url: `/api/toolbox/motion-effects/jobs/${remembered.jobId}`
+      })
+      if (!mountedRef.current) return
+      const plan = motionRestorePlan(current, remembered.uploaded)
+      if (plan === 'release') await releaseUnpaidJob(current)
+      if (plan === 'release' || plan === 'forget' || plan === 'notice') forgetMotionJob()
+      if (plan === 'release' || plan === 'forget') return
+      applyJobOptions(current)
+      setJob(current)
+      setRestored(true)
+      if (plan === 'poll') {
+        setPhase('queued')
+        pollJob(current.id)
+      } else if (plan === 'resume') {
+        setPhase('uploaded')
+      } else {
+        setPhase('done')
+        // 下载失败时页面会显示“重新加载成片”，不用在这里提示
+        if (plan === 'done') await prepareCompletedVideo(current.id).catch(() => undefined)
+      }
+    } catch (error) {
+      if (isMotionJobGone(error)) forgetMotionJob()
+    } finally {
+      restoringRef.current = false
+    }
+  }
+
   const handleReset = () => {
     void releaseUnpaidJob(job)
+    forgetMotionJob()
     stopPolling()
+    setRestored(false)
     setVideo(null)
     setJob(null)
     setPhase('idle')
@@ -754,6 +878,9 @@ function FingerMotionEffectsContent() {
 
     stopPolling()
     await releaseUnpaidJob(job)
+    // 没恢复成功时 job 为空，本地记录可能还指向生成中的任务，不能丢
+    if (job) forgetMotionJob()
+    setRestored(false)
     setVideo(nextVideo)
     setPreviewUrl('')
     setPreviewFilename('')
@@ -777,18 +904,31 @@ function FingerMotionEffectsContent() {
         surfaceDensity
       }
     })
+    if (!mountedRef.current) {
+      await releaseUnpaidJob(created.job)
+      return
+    }
+    rememberMotionJob(created.job.id, false)
     setJob(created.job)
     setPhase('uploading')
     try {
       await uploadVideo({
         jobId: created.job.id,
         filePath: nextVideo.tempFilePath,
-        onProgress: setUploadProgress
+        onProgress: setUploadProgress,
+        onTask: (task) => {
+          uploadTaskRef.current = task
+        }
       })
     } catch (uploadError) {
       await releaseUnpaidJob(created.job)
+      forgetMotionJob()
       throw uploadError
+    } finally {
+      uploadTaskRef.current = null
     }
+    rememberMotionJob(created.job.id, true)
+    if (!mountedRef.current) return
     setPhase('uploaded')
     Taro.showToast({ title: '原片已上传', icon: 'success' })
   }
@@ -805,7 +945,7 @@ function FingerMotionEffectsContent() {
       })
       return
     }
-    if (['creating', 'uploading', 'enqueueing', 'queued'].includes(phase)) {
+    if (restoringRef.current || ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase)) {
       Taro.showToast({ title: '当前任务处理中', icon: 'none' })
       return
     }
@@ -826,6 +966,7 @@ function FingerMotionEffectsContent() {
       }
       await prepareAndUploadVideo(nextVideo)
     } catch (error: any) {
+      if (!mountedRef.current) return
       const message = String(error?.errMsg || error?.message || '')
       if (message.includes('cancel')) return
       setPhase('idle')
@@ -850,6 +991,7 @@ function FingerMotionEffectsContent() {
       const recordedVideo = await createRecordedVideo(tempVideoPath)
       await prepareAndUploadVideo(recordedVideo)
     } catch (error: any) {
+      if (!mountedRef.current) return
       setPhase('idle')
       setJob(null)
       Taro.showToast({
@@ -876,7 +1018,7 @@ function FingerMotionEffectsContent() {
       Taro.showToast({ title: '相机还没准备好', icon: 'none' })
       return
     }
-    if (recordingRef.current || ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase)) {
+    if (recordingRef.current || restoringRef.current || ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase)) {
       return
     }
 
@@ -977,6 +1119,8 @@ function FingerMotionEffectsContent() {
           ? previewUrl
           : await prepareCompletedVideo(job.id, true)
       await Taro.saveVideoToPhotosAlbum({ filePath: localPath })
+      // 已经存好了，下次进来不用再下载一遍
+      forgetMotionJob()
       Taro.showToast({ title: '已保存到相册', icon: 'success' })
     } catch (error: any) {
       Taro.showToast({ title: error?.message || '保存失败', icon: 'none', duration: 3000 })
@@ -1074,6 +1218,18 @@ function FingerMotionEffectsContent() {
           系统只识别双手真正伸展的同名手指。弯曲或被遮挡的手指不会被硬塞进图形。
         </Text>
       </View>
+
+      {restored && job && (
+        <View className='motion-card motion-restore-card'>
+          <Text className='motion-restore-title'>{motionRestoreNotice(job)}</Text>
+          <View
+            className='motion-restore-action'
+            onClick={() => void Taro.pageScrollTo({ selector: '.motion-status', duration: 300 })}
+          >
+            <Text>查看</Text>
+          </View>
+        </View>
+      )}
 
       <View className='motion-card'>
         <Text className='motion-section-title'>1. 选择视觉风格</Text>
@@ -1318,6 +1474,9 @@ function FingerMotionEffectsContent() {
           </View>
           <Text className='motion-status-text'>{statusPresentation.title}</Text>
           <Text className='motion-status-detail'>{statusPresentation.detail}</Text>
+          {phase === 'queued' && (
+            <Text className='motion-status-detail'>可以先离开，回到这个页面会继续显示进度。</Text>
+          )}
         </View>
         <View
           className={`motion-button motion-button-primary ${phase !== 'uploaded' || recording ? 'motion-button-disabled' : ''}`}

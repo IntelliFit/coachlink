@@ -634,3 +634,11 @@
 - **统一规则**：读大请求体、且 nginx 不缓冲的路由不走 proxy，鉴权放路由里；上传收尾必须可重复调用，错误路径只删本次确认写坏的对象；诊断数字写到任务上，Pod 日志一发布就没了。
 - **改动前自检**：新上传路由走哪个 nginx location，是否在 proxy matcher 里？身体分段到达时读到的字节对吗？客户端超时后重试这个接口，结果还对吗，会删掉什么？
 - **典型案例**（2026-11-01）：`src/proxy.ts` matcher、`upload-chunk/route.ts`、`apps/wechat/src/toolbox/power-analysis/uploadRetry.ts`，测试见 `src/proxy.matcher.test.ts`、`upload-chunk/route.test.ts`。
+
+## 51) 服务端占着名额的任务只存在页面内存，退出后找不回也传不了新的（高风险）
+
+- **现象**：手指光膜要生成几分钟。小程序里生成中退出，回来看不到进度和成片；上传后没点生成就退出，再传会提示「已有一个视频正在生成」，最多卡 1 小时。切后台让一次轮询失败，页面也会退回初始状态。
+- **根因**：小程序把任务 id 只放在 React state。服务端同一账号只放行一个任务，又没有任务列表接口，页面一卸载就没有线索了。轮询的 catch 把「这次请求失败」当成「任务结束」。APP 早有本地记录和恢复，小程序没有对齐。
+- **统一规则**：服务端按账号占名额的长任务，客户端创建后立刻按账号把任务 id 写入本地，进入页面和 didShow 时恢复。只有服务端明确说任务不存在才删记录，断网和登录失效都要留着。没传完的任务要中断并释放名额。轮询失败不等于任务失败。
+- **改动前自检**：返回上一页、杀进程、切后台之后，用户怎么找回这个任务？服务端的名额什么时候释放？换账号会不会看到别人的任务？
+- **典型案例**（2026-11-02）：`apps/wechat/src/toolbox/motion-effects/jobRestore.ts`、同目录 `index.tsx`，测试 `tests/motion-effects-weapp-restore.test.ts`。对照实现在 `apps/mobile/src/screens/toolbox/motionEffectsModel.ts`。网页端 `src/app/toolbox/motion-effects/page.tsx` 同样还没有恢复。

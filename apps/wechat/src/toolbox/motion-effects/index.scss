@@ -442,6 +442,34 @@
   font-size: 24rpx;
 }
 
+.motion-restore-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+
+.motion-restore-title {
+  flex: 1;
+  min-width: 0;
+  color: #17211d;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.motion-restore-action {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 8rpx 32rpx;
+  border: 2rpx solid #cf6d4e;
+  border-radius: 9999rpx;
+  background: #ffffff;
+  color: #a64d35;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
 .motion-status {
   margin-top: 24rpx;
 }
