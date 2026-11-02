@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePageEnterTrace } from '@/utils/pageTrace'
 import { WECHAT_FREE_RELEASE, WECHAT_FREE_LIMITS, wechatReleaseHeaders } from '@coachlink/core'
 import { Input, Text, View, Video } from '@tarojs/components'
-import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, { useDidHide, useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
 import { authService } from '@/services/authService'
 import {
@@ -35,6 +35,13 @@ import {
 import PowerCurveChart, { type PowerCurvePoint } from './PowerCurveChart'
 import AssessmentSection, { type PowerAnalysisAssessment, type PowerAnalysisMeasurement } from './AssessmentSection'
 import { reportPowerClientEvent } from './clientEvents'
+import {
+  describePowerUploadFailure,
+  isPowerUploadFatalError,
+  retryPowerChunk,
+  throwIfFatalPowerChunkStatus,
+  type PowerUploadFailurePrompt
+} from './uploadRetry'
 import './index.scss'
 
 type PowerAnalysisQuality = 'compressed' | 'original'
@@ -210,7 +217,9 @@ const LAST_DOWNLOADABLE_JOB_STORAGE_KEY = 'power-analysis-last-downloadable-job-
 const VIDEO_TRANSFER_TIMEOUT_MS = 15 * 60 * 1000
 const WECHAT_CHOOSE_VIDEO_MAX_DURATION_SECONDS = 60
 const POWER_ANALYSIS_CHUNK_SIZE_BYTES = 4 * 1024 * 1024
-const POWER_ANALYSIS_CHUNK_RETRY_COUNT = 3
+const POWER_ANALYSIS_CHUNK_RETRY_COUNT = 4
+// Merging on the server took up to 40s for a 2MB video; matches the route's maxDuration.
+const POWER_ANALYSIS_COMPLETE_TIMEOUT_MS = 300000
 const POWER_ANALYSIS_UPLOAD_RETRY_COUNT = 2
 const POWER_ANALYSIS_FILE_STABILITY_CHECKS = 4
 const POWER_ANALYSIS_FILE_STABILITY_INTERVAL_MS = 160
@@ -445,11 +454,13 @@ async function callPowerApi<T>(options: {
   url: string
   method?: 'GET' | 'POST'
   data?: Record<string, unknown>
+  timeout?: number
 }) {
   const res = await request<T>({
     url: options.url,
     method: options.method || 'GET',
     data: options.data,
+    timeout: options.timeout,
     showErrorToast: false
   })
 
@@ -569,9 +580,8 @@ function parsePowerUploadResponse(data: unknown) {
 }
 
 async function uploadPowerAnalysisChunk(url: string, chunk: ArrayBuffer, token: string) {
-  let lastError: Error | null = null
-  for (let attempt = 0; attempt < POWER_ANALYSIS_CHUNK_RETRY_COUNT; attempt += 1) {
-    try {
+  await retryPowerChunk(
+    async () => {
       const response: any = await Taro.request({
         url,
         method: 'POST',
@@ -585,23 +595,17 @@ async function uploadPowerAnalysisChunk(url: string, chunk: ArrayBuffer, token: 
       } as any)
       const payload = parsePowerUploadResponse(response.data)
       if (response.statusCode < 200 || response.statusCode >= 300 || !payload?.success) {
-        const error = new Error(payload?.message || `视频分片上传失败（${response.statusCode}）`)
-        if ([401, 403, 409, 413].includes(Number(response.statusCode))) throw error
-        lastError = error
-      } else {
-        const receivedSize = Number(payload?.data?.receivedSize ?? -1)
-        if (receivedSize === chunk.byteLength) return
-        lastError = new Error(`服务端收到的分片不完整（应为 ${chunk.byteLength}，实际 ${receivedSize}）`)
+        const message = payload?.message || `视频分片上传失败（${response.statusCode}）`
+        throwIfFatalPowerChunkStatus(Number(response.statusCode), message)
+        throw new Error(message)
       }
-    } catch (error: any) {
-      lastError = error instanceof Error ? error : new Error('视频分片上传失败')
-      if (/用户未登录|会员|状态已变化|过大/.test(lastError.message)) throw lastError
-    }
-    if (attempt < POWER_ANALYSIS_CHUNK_RETRY_COUNT - 1) {
-      await waitForPowerUpload(300 * (attempt + 1))
-    }
-  }
-  throw lastError || new Error('视频分片上传失败')
+      const receivedSize = Number(payload?.data?.receivedSize ?? -1)
+      if (receivedSize !== chunk.byteLength) {
+        throw new Error(`服务端收到的分片不完整（应为 ${chunk.byteLength}，实际 ${receivedSize}）`)
+      }
+    },
+    { attempts: POWER_ANALYSIS_CHUNK_RETRY_COUNT, sleep: waitForPowerUpload }
+  )
 }
 
 async function uploadPowerAnalysisVideo(params: {
@@ -654,6 +658,7 @@ async function uploadPowerAnalysisVideo(params: {
       await callPowerApi<PowerAnalysisJobDto>({
         url: `/api/toolbox/power-analysis/jobs/${params.jobId}/upload-chunk?action=complete`,
         method: 'POST',
+        timeout: POWER_ANALYSIS_COMPLETE_TIMEOUT_MS,
         data: {
           uploadId,
           totalSize: fileSize,
@@ -665,7 +670,9 @@ async function uploadPowerAnalysisVideo(params: {
       return fileSize
     } catch (error: any) {
       lastError = error instanceof Error ? error : new Error('视频上传失败')
-      if (/用户未登录|会员|状态已变化|过大|次数/.test(lastError.message)) throw lastError
+      if (isPowerUploadFatalError(lastError) || /用户未登录|会员|状态已变化|过大|次数/.test(lastError.message)) {
+        throw lastError
+      }
       if (uploadAttempt < POWER_ANALYSIS_UPLOAD_RETRY_COUNT - 1) {
         params.onProgress(1)
         await waitForPowerUpload(500)
@@ -817,6 +824,8 @@ export default function WechatPowerAnalysisPage() {
     formReady &&
     phase === 'uploaded' &&
     job?.status === 'awaiting_upload'
+  // Choosing a video uploads it right away, so a chosen video with no job means the upload failed.
+  const uploadFailed = phase === 'idle' && Boolean(video) && !job
 
   useEffect(() => {
     phaseRef.current = phase
@@ -934,8 +943,21 @@ export default function WechatPowerAnalysisPage() {
   const uploadProgressRef = useRef(0)
   uploadProgressRef.current = uploadProgress
 
+  // Closing the mini-program from the background never unmounts the page, so job 3d7b960e
+  // left no trace. Report the first hide of each upload; the upload may still finish.
+  const hideReportedJobRef = useRef<string | null>(null)
+  useDidHide(() => {
+    const pending = jobRef.current
+    if (phaseRef.current !== 'uploading' || !pending || hideReportedJobRef.current === pending.id) return
+    hideReportedJobRef.current = pending.id
+    reportPowerClientEvent(pending.id, 'left_during_upload', { stage: 'hide', progress: uploadProgressRef.current })
+  })
+
+  const pageLeftRef = useRef(false)
+
   useEffect(() => {
     return () => {
+      pageLeftRef.current = true
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
       const pending = jobRef.current
       if (pending?.status !== 'awaiting_upload') return
@@ -1257,8 +1279,28 @@ export default function WechatPowerAnalysisPage() {
         setJob(null)
       }
 
+      // The upload outlives the page: don't open a dialog over wherever the user went next.
+      if (pageLeftRef.current) return
+
+      // A failure before the job exists is about the account or the limits, not the transfer.
+      const prompt: PowerUploadFailurePrompt = createdJobId
+        ? describePowerUploadFailure(message)
+        : { retryable: false, message }
+      if (prompt.retryable) {
+        Taro.showModal({
+          title: prompt.title,
+          content: prompt.content,
+          confirmText: '重新上传',
+          cancelText: '稍后再说',
+          success: (res) => {
+            if (res.confirm) void prepareUpload(preparedVideo)
+          }
+        })
+        return
+      }
+
       Taro.showToast({
-        title: message,
+        title: prompt.message,
         icon: 'none',
         duration: 3000
       })
@@ -1337,6 +1379,11 @@ export default function WechatPowerAnalysisPage() {
   const handleStart = async () => {
     if (!authService.isAuthenticated()) {
       promptLogin('登录后才可以开始分析并保存结果视频。')
+      return
+    }
+
+    if (uploadFailed && video) {
+      void prepareUpload(video)
       return
     }
 
@@ -2030,8 +2077,8 @@ export default function WechatPowerAnalysisPage() {
             <Text>重置</Text>
           </View>
         )}
-        <View className={`primary-action start-analysis-btn pa-footer__start ${canSubmit ? '' : 'disabled'}`} onClick={handleStart}>
-          <Text>{['creating', 'uploading'].includes(phase) ? '上传中' : isBusy ? '处理中' : video ? '开始分析' : '先选择视频'}</Text>
+        <View className={`primary-action start-analysis-btn pa-footer__start ${canSubmit || uploadFailed ? '' : 'disabled'}`} onClick={handleStart}>
+          <Text>{['creating', 'uploading'].includes(phase) ? '上传中' : isBusy ? '处理中' : uploadFailed ? '重新上传' : video ? '开始分析' : '先选择视频'}</Text>
         </View>
       </View>
     </View>

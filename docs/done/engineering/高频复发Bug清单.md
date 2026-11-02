@@ -626,3 +626,11 @@
 - **统一规则**：带数字框的表单页用页面自然滚动（`View` + `min-height: 100vh`），弹窗和卡片这类必须局部滚动的地方用 `View` + `overflow-y: auto`。数字框不放进任何 `ScrollView`，`tests/wechat-numeric-input-scroll.test.ts` 会沿函数和子组件查找并拦截。
 - **改动前自检**：这个数字框的祖先里有没有纵向 ScrollView，包括通过 `renderField()` 或子组件渲染的情况？只在模拟器验证过吗？这个问题必须在安卓真机上滚动后再聚焦才能确认。
 - **典型案例**：训练执行页（`b301fb38`）、计划编辑器（2026-08-07）、功率分析（2026-08-25）、力量计算器（2026-11-01）都是同一种改法。2026-11-01 又把其余 17 处一次改完，其中训练执行页卡片模式是 2026-10-28 新加的，等于问题又被带回了主流程。局部滚动的 `overflow-y: auto` 还没在真机确认，以体验版复测为准。
+
+## 50) 流式上传经过 proxy 丢请求体开头；上传收尾重试把好文件删掉（高风险）
+
+- **现象**：功率视频分片约 77% 的请求返回「第 N 个视频分片传输不完整」（14 天 519/675），不分机型和网络，同一文件隔一分钟又能传成功。另有 `The resource already exists`，之后这个任务的视频也没了。
+- **根因**：Next 16.0.1–16.0.4 跑完 `proxy.ts` 后没有等请求体复制结束（`requestData.body.finalize()` 没 await，16.0.5 起才 await）。nginx 配了 `proxy_request_buffering off` 时请求体还在到达，路由鉴权查库的这段时间里到达的字节进了副本，路由只读到后面的部分。第二个问题：`complete` 比客户端 30 秒超时慢时客户端会重传，第二次 `upsert:false` 报已存在，catch 里又把第一次存好的对象删了。
+- **统一规则**：读大请求体、且 nginx 不缓冲的路由不走 proxy，鉴权放路由里；上传收尾必须可重复调用，错误路径只删本次确认写坏的对象；诊断数字写到任务上，Pod 日志一发布就没了。
+- **改动前自检**：新上传路由走哪个 nginx location，是否在 proxy matcher 里？身体分段到达时读到的字节对吗？客户端超时后重试这个接口，结果还对吗，会删掉什么？
+- **典型案例**（2026-11-01）：`src/proxy.ts` matcher、`upload-chunk/route.ts`、`apps/wechat/src/toolbox/power-analysis/uploadRetry.ts`，测试见 `src/proxy.matcher.test.ts`、`upload-chunk/route.test.ts`。

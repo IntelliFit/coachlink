@@ -17,6 +17,11 @@
 - 未真机验证：头部跟随手感、声音、录制和保存视频。精简后的页面也没在开发者工具复测，精简前的版本走通过。
 - 发布 worktree：`D:\CodexWork\coachlink-happy-bird-release`。主 checkout 里还留着同样内容的未提交改动，开发者工具预览用的是它；本地 dev 拉取最新代码前要先清掉，否则未跟踪文件会冲突。
 
+## 功率视频上传失败已定位并本地修复（2026-11-01，未推送、未发布）
+
+- 根因：Next 16.0.1 跑完 proxy 不等请求体复制结束，加上 nginx `proxy_request_buffering off`，路由丢掉请求体开头。线上 14 天 519/675 个分片请求因此返回“传输不完整”，60 个任务拿不到视频。详情 memory/2026-11-01.md、DECISIONS.md。
+- 只需发布 Web 镜像（proxy matcher + upload-chunk 收尾可重试）即可修好所有小程序版本；小程序失败提示随下个版本。分支 claude/objective-ptolemy-608502。镜像未推送。
+
 ## 薄肌腹肌块数改为模型逐排判断并上线（2026-11-01）
 
 - 用户要求"先上线"。dev/main 推到 438219e1（含 58ab9430、438219e1 和此前只在 dev 的小程序修复 9e3f89f9）。网页代码相比线上只差 src/lib/bojiAbsCheck*.ts 和 analyze 路由。

@@ -14,6 +14,8 @@ interface RequestOptions {
   header?: Record<string, string>
   /** 当 success 为 false 时是否自动显示错误提示，默认 true */
   showErrorToast?: boolean
+  /** 请求超时（毫秒），默认 30 秒 */
+  timeout?: number
 }
 
 interface ApiResponse<T = any> {
@@ -201,7 +203,7 @@ function getNetworkFailureMessage(error: any) {
  * 当 API 返回 success:false 或请求异常时，会自动通过 Taro.showToast 显示错误信息（可通过 showErrorToast: false 关闭）
  */
 export async function request<T = any>(options: RequestOptions): Promise<ApiResponse<T>> {
-  const { url, method = 'GET', data, header = {}, showErrorToast: showErrorToastOpt = true } = options
+  const { url, method = 'GET', data, header = {}, showErrorToast: showErrorToastOpt = true, timeout = 30000 } = options
   const adminTrialRequest = url === '/api/payment/wechat/membership/create'
     && header['x-coachlink-xpay-admin-trial'] === '1' && isXPayTrialClient()
   if (method === 'POST' && isWechatPurchasePaused(url) && !adminTrialRequest) {
@@ -245,7 +247,7 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
         ...requestHeaders,
         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
       },
-      timeout: 30000
+      timeout
     })
 
     let activeToken = token
