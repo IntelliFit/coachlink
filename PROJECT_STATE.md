@@ -1,3 +1,12 @@
+## 手指光膜免费上线（2026-11-03，web b27e5f5e，只含这一项）
+
+- main b27e5f5e（基于 a9af0be8，内容同 dev c026f2a6 的 Web 和小程序部分）。dev 上其余未发布改动没有进这次发布，APP 端免费界面也只在 dev。
+- Web：`coachlink-main` 3/3、`coachlink-dev` 1/1 都切到 `coachlink@sha256:14b0fa5513c49d5327c9053b3b447c9cd0844b5751ded4a5eb94115beec92016`。切换前线上是 7e89b841（下一节写的 438219e1 已过时），回滚目标就是它。Worker 没动。
+- 线上只读验证（coachlink.fit、dev.coachlink.fit）：报价全 0；free-upload-url 未登录 401；order 410；页面显示「选择清晰度 / 全部免费」，无付款字样，控制台和 Pod 日志无错误。**没有跑真实生成**（会写正式库），e2e 未跑。
+- 小程序开发版 **2026.11.02.2357**（描述 release-b27e5f5-motion-free，总包 10,695,177 / 主包 1,973,308），待用户在公众平台提审。它包含从未提审的 Happy Bird 声音与高清（18dcc902），取代 2026.11.01.1833。
+- 风险：另一会话的 Web 镜像 `coachlink:8a43209`（女性腹肌复核）不含这次改动，未上线；直接切它会让 Web 恢复收费、小程序的 `free-upload-url` 变 404。两边要合并后重新打镜像。
+- 第一次构建与 8a43209 同时跑，节点卡顿约 50 分钟，构建超时失败（Turbopack 等 Node 进程超过 30s）。单独重跑 6 分钟完成。
+
 ## 体验版：本地全部改动合并（2026-11-02，只上传小程序，镜像未推）
 
 - dev ef42a54f：本地未提交的地图选点防覆盖 1a8bcc47、教练转化埋点与问卷 3383a54d、手指光膜全部免费 c026f2a6；此前本地未推的 APP 对齐 8f60a97c、哑铃弹弹放慢 b2a8e1af、训练中调整动作顺序 be9f56f2、即兴训练组视频对齐、数字输入不再漂浮 2013db39；origin/dev 的 Happy Bird 声音与高清 18dcc902、薄肌腹肌可见性与女性复核；分支 objective-ptolemy（分片上传丢片头）、distracted-ramanujan（引体/双力臂逐次判定与手部参照）、intelligent-nobel（离线评估脚本）。主目录 Happy Bird 未提交副本与 18dcc902 逐字节相同，已还原后由合并带入。
