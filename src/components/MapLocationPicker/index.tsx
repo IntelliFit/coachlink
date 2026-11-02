@@ -50,6 +50,8 @@ export interface MapLocationPickerProps {
   cityRequired?: boolean;
   /** 自定义类名 */
   className?: string;
+  /** 是否允许由省市区/地址文字放置标记，默认 true。设施点位传 false：只有点击或拖动地图才改坐标。 */
+  autoPlaceFromText?: boolean;
 }
 
 const defaultHint = (
@@ -77,6 +79,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
   hint = defaultHint,
   cityRequired = false,
   className = '',
+  autoPlaceFromText = true,
 }) => {
   const province = value.province ?? '';
   const city = value.city ?? '';
@@ -186,6 +189,7 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
             }}
             onRelocate={showRelocateButton ? onRelocate : undefined}
             height={mapHeight}
+            autoPlaceFromText={autoPlaceFromText}
           />
           {hint != null && <p className="text-xs text-surface-500 mt-2">{hint}</p>}
         </div>

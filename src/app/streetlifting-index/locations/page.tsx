@@ -744,6 +744,10 @@ export default function StreetliftingLocationsPage() {
                             addressLabel=""
                             mapLabel=""
                             requireCityForMap={false}
+                            autoPlaceFromText={false}
+                            hint={form.latitude == null || form.longitude == null
+                                ? "请在地图上点一下单杠所在处。不选也能保存，但只显示在列表里，不能导航。"
+                                : "定位点只会在你点击地图或拖动标记时改变，修改城市和地址文字不会移动它。"}
                             mapHeight="240px"
                             className="bg-surface-50 p-4 rounded-2xl border border-surface-100"
                         />

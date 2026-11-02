@@ -13,6 +13,7 @@ import {
   getCityZoom,
   getDefaultCenter,
 } from '@/lib/tianDiTuService';
+import { decidePinAction, type PinSource, type PinTrigger } from './pinPolicy';
 
 /** 可被 AbortController 取消的延迟，用于替代 setTimeout 的异步等待 */
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
@@ -43,6 +44,8 @@ interface TianDiTuMapPickerProps {
   onReverseGeocode?: (result: { province: string; city: string; county: string; address: string; latitude?: number; longitude?: number }) => void;
   onRelocate?: () => void; // 重新定位回调（调用父组件的自动定位）
   height?: string;         // 地图高度，默认 '400px'
+  /** 是否允许由省市区/地址文字放置标记，默认 true。为 false 时只有点击或拖动才会改变坐标，文字最多移动视野。 */
+  autoPlaceFromText?: boolean;
 }
 
 /**
@@ -60,7 +63,8 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
   onCityChange,
   onReverseGeocode,
   onRelocate,
-  height = '400px'
+  height = '400px',
+  autoPlaceFromText = true,
 }) => {
   /** 仅请求天地图接口时使用：省/市/区 拼接为无横杠字符串，如 "江苏省无锡市梁溪区" */
   const cityNameForApi = [provinceProp, cityProp, countyProp].filter(Boolean).join('');
@@ -90,13 +94,35 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
   const mapReadyRef = useRef(false);
   // 在 Phase 2 之前到达的位置暂存于此，Phase 2 统一消费
   const pendingLatLngRef = useRef<{ lat: number; lon: number } | null>(null);
-  
+  // 地图创建前到达的视野目标（不放标记），地图创建后消费
+  const pendingViewRef = useRef<{ lat: number; lon: number; zoom: number } | null>(null);
+  // 标记来源：只有由文字生成的标记才可以被后续文字移动
+  const pinSourceRef = useRef<PinSource>(latitude && longitude ? 'fixed' : 'none');
+  // 用户最后选定的位置：丢弃迟到的旧逆地理结果，避免它把坐标写回去
+  const latestPickRef = useRef<{ lat: number; lon: number } | null>(null);
+  const lastCoordsRef = useRef({ latitude, longitude });
+  const prevCityKeyRef = useRef([provinceProp, cityProp, countyProp].filter(Boolean).join(''));
+  const prevTextKeyRef = useRef(`${[provinceProp, cityProp, countyProp].filter(Boolean).join('')}|${address ?? ''}`);
+  // 地图事件在挂载时绑定，通过 ref 调用最新的回调，避免用旧表单值覆盖父组件
+  const onLocationChangeRef = useRef(onLocationChange);
+  onLocationChangeRef.current = onLocationChange;
+
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number } | null>(
     latitude && longitude ? { lat: latitude, lon: longitude } : null
   );
+
+  /** 用户点击或拖动选定位置：立刻写回坐标，地址由随后的逆地理编码补全，失败也不会丢掉这次选点。 */
+  const commitUserPick = (lat: number, lon: number) => {
+    pinSourceRef.current = 'fixed';
+    latestPickRef.current = { lat, lon };
+    setCurrentLocation({ lat, lon });
+    skipSyncEffectRef.current = true;
+    onLocationChangeRef.current({ latitude: lat, longitude: lon });
+    fetchAddressAndNotify(lat, lon);
+  };
 
   /** 根据经纬度调用逆地理编码，将 addressComponent 的 省/市/区 与 详细地址（address+poi）回传给父组件。
    * 天地图返回格式：addressComponent.province/city/county、address、poi 等。500ms 防抖，仅最后一次触发请求。 */
@@ -111,6 +137,8 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
       const { lat: lngLat, lon: lngLon } = pending;
       lastReverseGeocodeTimeRef.current = Date.now();
       reverseGeocode(lngLat, lngLon).then((result) => {
+      const latest = latestPickRef.current;
+      if (latest && (latest.lat !== lngLat || latest.lon !== lngLon)) return;
       const ac = result?.addressComponent as Record<string, unknown> | undefined;
       if (!ac && !result?.formatted_address) return;
 
@@ -195,6 +223,9 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
           return;
         }
         mapRef.current = map;
+        const pendingView = pendingViewRef.current;
+        pendingViewRef.current = null;
+        if (pendingView) panMap(pendingView.lon, pendingView.lat, pendingView.zoom);
       } catch (error) {
         setLoading(false);
         setLoadError(true);
@@ -221,9 +252,7 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
                 const lnglat = e.lnglat;
                 if (!lnglat) return;
                 placeMarker(lnglat.lng, lnglat.lat);
-                setCurrentLocation({ lat: lnglat.lat, lon: lnglat.lng });
-                skipSyncEffectRef.current = true;
-                fetchAddressAndNotify(lnglat.lat, lnglat.lng);
+                commitUserPick(lnglat.lat, lnglat.lng);
               } catch (err) {
                 console.error('处理地图点击失败:', err);
               }
@@ -333,9 +362,10 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
       const latVal = typeof pos.getLat === 'function' ? pos.getLat() : pos.lat;
       const lngVal = typeof pos.getLng === 'function' ? pos.getLng() : pos.lng;
       if (typeof latVal !== 'number' || typeof lngVal !== 'number') return;
-      skipSyncEffectRef.current = true;
-      setCurrentLocation({ lat: latVal, lon: lngVal });
-      fetchAddressAndNotify(latVal, lngVal);
+      // 拖动结束后取消排队中的文字定位，避免它把标记拉回去
+      cityLocateAbortRef.current?.abort();
+      geocodeAbortRef.current?.abort();
+      commitUserPick(latVal, lngVal);
     };
 
     try {
@@ -351,6 +381,23 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
     } catch (_) {}
   };
 
+  /** 只移动视野，不改变标记和坐标 */
+  const panMap = (lon: number, lat: number, zoom: number) => {
+    const T = (window as any).T;
+    if (mapRef.current && T?.LngLat) {
+      mapRef.current.centerAndZoom(new T.LngLat(lon, lat), zoom);
+    }
+  };
+
+  /** 判定这次文字变化该怎么处理；地图未就绪时也按同一规则判定 */
+  const decideForText = (trigger: PinTrigger) => decidePinAction({
+    trigger,
+    pinSource: pinSourceRef.current,
+    // 本 effect 先于坐标同步 effect 执行，这里比较到的是上一次渲染的坐标
+    coordsSuppliedTogether: latitude !== lastCoordsRef.current.latitude || longitude !== lastCoordsRef.current.longitude,
+    autoPlaceFromText,
+  });
+
   // 地理编码：keyWord 为「省+市+区+详细地址」拼接（无横杠），请求天地图接口
   const handleGeocode = async () => {
     if (!mapRef.current) return;
@@ -365,11 +412,12 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
       if (result && mapRef.current) {
         const { lat, lon } = result.location;
 
+        pinSourceRef.current = 'auto';
         placeMarker(lon, lat);
         setCurrentLocation({ lat, lon });
         // 通知父组件前先设置跳过标志，防止同步 effect 再次新建标记
         skipSyncEffectRef.current = true;
-        onLocationChange({ latitude: lat, longitude: lon });
+        onLocationChangeRef.current({ latitude: lat, longitude: lon });
       }
     } catch (error) {
       console.error('地理编码失败:', error);
@@ -380,10 +428,15 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
 
   // Effect 1：省/市/区变化 → 异步防抖后请求天地图（无横杠拼接）获取中心点，再定位并放置标记
   useEffect(() => {
+    const trigger: PinTrigger = prevCityKeyRef.current === cityNameForApi ? 'mount' : 'city';
+    prevCityKeyRef.current = cityNameForApi;
     if (skipCityLocateRef.current) {
       skipCityLocateRef.current = false;
       return;
     }
+
+    const action = decideForText(trigger);
+    if (action === 'none' || (action === 'pan' && !cityNameForApi)) return;
 
     const targetCityForApi = cityNameForApi || '北京市';
     const controller = new AbortController();
@@ -398,6 +451,13 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
       const [lon, lat] = center;
       const zoom = getCityZoom(cityNameForZoom);
 
+      if (action === 'pan') {
+        if (mapRef.current) panMap(lon, lat, zoom);
+        else pendingViewRef.current = { lat, lon, zoom };
+        return;
+      }
+
+      pinSourceRef.current = 'auto';
       if (!mapRef.current || !mapReadyRef.current) {
         pendingLatLngRef.current = { lat, lon };
         return;
@@ -405,7 +465,7 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
       skipSyncEffectRef.current = true;
       placeMarker(lon, lat);
       setCurrentLocation({ lat, lon });
-      onLocationChange({ latitude: lat, longitude: lon });
+      onLocationChangeRef.current({ latitude: lat, longitude: lon });
       const T = (window as any).T;
       if (mapRef.current) {
         mapRef.current.centerAndZoom(new T.LngLat(lon, lat), zoom);
@@ -422,6 +482,9 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
 
   // Effect 2：详细地址变化 → 异步防抖后地理编码（省/市/区 无横杠 + 地址），结果覆盖标记
   useEffect(() => {
+    const textKey = `${cityNameForApi}|${address ?? ''}`;
+    const trigger: PinTrigger = prevTextKeyRef.current === textKey ? 'mount' : 'address';
+    prevTextKeyRef.current = textKey;
     if (skipAddressGeocodeRef.current) {
       skipAddressGeocodeRef.current = false;
       return;
@@ -429,6 +492,7 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
     const msSinceReverse = Date.now() - lastReverseGeocodeTimeRef.current;
     if (msSinceReverse < 500) return;
     if (!cityNameForApi || !address) return;
+    if (decideForText(trigger) !== 'place') return;
 
     const controller = new AbortController();
     geocodeAbortRef.current = controller;
@@ -460,6 +524,8 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
 
   // 当父组件传入的选中位置（latitude/longitude）变化时，同步更新地图上的可拖动标记
   useEffect(() => {
+    lastCoordsRef.current = { latitude, longitude };
+
     // lat/lon 被清空（城市切换时父组件重置）：移除旧标记并清空坐标显示
     if (latitude == null || longitude == null) {
       if (markerRef.current && mapRef.current) {
@@ -467,6 +533,7 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
         markerRef.current = null;
       }
       pendingLatLngRef.current = null;
+      pinSourceRef.current = 'none';
       setCurrentLocation(null);
       return;
     }
@@ -479,6 +546,11 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
       skipSyncEffectRef.current = false;
       return;
     }
+
+    // 父组件给的坐标（已存点位、重新定位）以它为准，文字不能再移动
+    pinSourceRef.current = 'fixed';
+    cityLocateAbortRef.current?.abort();
+    geocodeAbortRef.current?.abort();
 
     // 如果地图渲染层还未就绪（Phase 2 未到），把坐标暂存；Phase 2 会消费它
     if (!mapReadyRef.current || !mapRef.current) {
