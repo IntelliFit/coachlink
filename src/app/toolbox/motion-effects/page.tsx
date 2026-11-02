@@ -20,11 +20,9 @@ import {
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import presets from "../../../../config/motion-effects-presets.json";
 import type {
   CreateMotionEffectUploadResponseDto,
-  MotionEffectCheckoutDto,
   MotionEffectJobDto,
 } from "@/app/api/toolbox/motion-effects/types";
 import {
@@ -627,7 +625,6 @@ const PENDING_JOB_KEY = "jiaolian_motion_effect_pending_job";
 
 export default function MotionEffectsPage() {
   const router = useRouter();
-  const { status: sessionStatus } = useSession();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const exportCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -664,32 +661,9 @@ export default function MotionEffectsPage() {
   const [ownerToken, setOwnerToken] = useState("");
   const [selectedStyleKey, setSelectedStyleKey] = useState("aurora");
   const [exportQuality, setExportQuality] = useState<"standard" | "hd">("standard");
-  const [queueTier, setQueueTier] = useState<"standard" | "priority">("standard");
-  const [signupFreeAvailable, setSignupFreeAvailable] = useState<boolean | null>(null);
-  const [checkout, setCheckout] = useState<MotionEffectCheckoutDto | null>(null);
-  const [prices, setPrices] = useState({
-    standardCents: 290,
-    hdCents: 490,
-    priorityAddonCents: 190,
-  });
   const clientIdRef = useRef("");
   const selectedStyle =
     MOTION_STYLES.find((style) => style.key === selectedStyleKey) || MOTION_STYLES[0];
-
-  useEffect(() => {
-    if (sessionStatus === "loading") return;
-    void fetch("/api/toolbox/motion-effects/quote", { cache: "no-store" })
-      .then((response) => readApi<{
-        signedIn: boolean;
-        signupFreeAvailable: boolean;
-        prices: typeof prices;
-      }>(response))
-      .then((data) => {
-        setPrices(data.prices);
-        setSignupFreeAvailable(data.signupFreeAvailable);
-      })
-      .catch(() => null);
-  }, [sessionStatus]);
 
   const handCoverage = stats.analyzedFrames
     ? Math.round((stats.handFrames / stats.analyzedFrames) * 100)
@@ -706,17 +680,6 @@ export default function MotionEffectsPage() {
           : "等待手指伸展",
     [stats.currentHands, stats.currentPairs],
   );
-  const signedIn = sessionStatus === "authenticated";
-  const freeStandardSelected =
-    signedIn && signupFreeAvailable === true && exportQuality === "standard";
-  const selectedPriceCents =
-    (freeStandardSelected
-      ? 0
-      : exportQuality === "hd"
-        ? prices.hdCents
-        : prices.standardCents) +
-    (queueTier === "priority" ? prices.priorityAddonCents : 0);
-
   const stopAnimation = useCallback(() => {
     if (animationFrameRef.current !== null) {
       window.cancelAnimationFrame(animationFrameRef.current);
@@ -950,7 +913,6 @@ export default function MotionEffectsPage() {
       setFileName(file.name);
       setSelectedFile(file);
       setServerJob(null);
-      setCheckout(null);
       setOwnerToken("");
       setDuration(0);
       setCurrentTime(0);
@@ -994,7 +956,7 @@ export default function MotionEffectsPage() {
         setServerJob(current);
         setStatusDetail(
           current.queueInfo?.jobsAhead
-            ? `已进入${current.queueTier === "priority" ? "极速" : "标准"}队列，前方还有 ${current.queueInfo.jobsAhead} 个真实任务。`
+            ? `已进入队列，前方还有 ${current.queueInfo.jobsAhead} 个真实任务。`
             : "视频正在生成，请保持页面打开。",
         );
         while (!["done", "failed", "expired"].includes(current.status)) {
@@ -1012,7 +974,6 @@ export default function MotionEffectsPage() {
           throw new Error(current.errorMessage || "特效视频生成失败，请重新尝试");
         }
         window.localStorage.removeItem(PENDING_JOB_KEY);
-        setCheckout(null);
         setExportProgress(100);
         setStatus("complete");
         setStatusDetail("MP4 已生成并保留原音频，可以直接下载。");
@@ -1045,7 +1006,6 @@ export default function MotionEffectsPage() {
             fileSizeBytes: selectedFile.size,
             durationSeconds: duration,
             exportQuality,
-            queueTier,
             styleKey: selectedStyleKey,
             bgmKey: "original",
           }),
@@ -1053,7 +1013,6 @@ export default function MotionEffectsPage() {
       );
       const nextOwnerToken = created.ownerToken || "";
       setOwnerToken(nextOwnerToken);
-      setSignupFreeAvailable(created.signupFreeAvailable);
       setServerJob(created.job);
       window.localStorage.setItem(
         PENDING_JOB_KEY,
@@ -1063,35 +1022,14 @@ export default function MotionEffectsPage() {
       await putFile(created.upload.uploadUrl, selectedFile, (value) => {
         setExportProgress(value * 0.35);
       });
-      const enqueueResponse = await fetch(
-        `/api/toolbox/motion-effects/jobs/${created.job.id}/enqueue`,
-        {
+      const queued = await readApi<MotionEffectJobDto>(
+        await fetch(`/api/toolbox/motion-effects/jobs/${created.job.id}/enqueue`, {
           method: "POST",
           headers: nextOwnerToken
             ? { "x-motion-owner-token": nextOwnerToken }
             : undefined,
-        },
+        }),
       );
-      if (enqueueResponse.status === 402) {
-        const paymentPayload = await enqueueResponse.json().catch(() => null);
-        const checkoutData = await readApi<MotionEffectCheckoutDto>(
-          await fetch(`/api/toolbox/motion-effects/jobs/${created.job.id}/order`, {
-            method: "POST",
-            headers: nextOwnerToken
-              ? { "x-motion-owner-token": nextOwnerToken }
-              : undefined,
-          }),
-        );
-        setCheckout(checkoutData);
-        setServerJob(checkoutData.job);
-        setStatus("ready");
-        setStatusDetail(
-          paymentPayload?.message ||
-            "预览免费；视频导出会占用服务器计算、临时存储和下载带宽，请完成支付。",
-        );
-        return;
-      }
-      const queued = await readApi<MotionEffectJobDto>(enqueueResponse);
       setServerJob(queued);
       await pollServerJob(created.job.id, nextOwnerToken);
     } catch (error) {
@@ -1105,57 +1043,10 @@ export default function MotionEffectsPage() {
     duration,
     exportQuality,
     pollServerJob,
-    queueTier,
     selectedFile,
     selectedStyleKey,
     serverExporting,
   ]);
-
-  const openCheckoutPayment = useCallback(() => {
-    const formHtml = checkout?.paymentInfo.formHtml;
-    if (!formHtml) return;
-    const paymentWindow = window.open("", "_blank");
-    if (!paymentWindow) {
-      setStatusDetail("浏览器拦截了支付窗口，请允许弹窗后重试。");
-      return;
-    }
-    paymentWindow.document.open();
-    paymentWindow.document.write(formHtml);
-    paymentWindow.document.close();
-    setStatusDetail("支付页面已打开。完成支付后回到本页，点击“我已支付，开始生成”。");
-  }, [checkout]);
-
-  const continueAfterPayment = useCallback(async () => {
-    if (!serverJob || serverExporting) return;
-    setServerExporting(true);
-    try {
-      const headers = ownerToken ? { "x-motion-owner-token": ownerToken } : undefined;
-      const paidJob = await readApi<MotionEffectJobDto>(
-        await fetch(
-          `/api/toolbox/motion-effects/jobs/${serverJob.id}/payment-status`,
-          { cache: "no-store", headers },
-        ),
-      );
-      setServerJob(paidJob);
-      if (paidJob.paymentStatus !== "paid") {
-        setStatusDetail("暂未收到支付结果；若刚支付完成，请等待几秒后再试。");
-        return;
-      }
-      const queued = await readApi<MotionEffectJobDto>(
-        await fetch(`/api/toolbox/motion-effects/jobs/${serverJob.id}/enqueue`, {
-          method: "POST",
-          headers,
-        }),
-      );
-      setServerJob(queued);
-      await pollServerJob(serverJob.id, ownerToken);
-    } catch (error) {
-      setStatus("error");
-      setStatusDetail(error instanceof Error ? error.message : "支付状态确认失败");
-    } finally {
-      setServerExporting(false);
-    }
-  }, [ownerToken, pollServerJob, serverExporting, serverJob]);
 
   const downloadServerVideo = useCallback(async () => {
     if (!serverJob?.canDownload) return;
@@ -1207,7 +1098,7 @@ export default function MotionEffectsPage() {
         );
         setServerJob(paidJob);
         if (paidJob.paymentStatus !== "paid") {
-          setStatusDetail("支付结果仍在确认中，请稍后点击“我已支付，开始生成”。");
+          setStatusDetail("支付结果仍在确认中，请稍后刷新本页。");
           return;
         }
         const queued = await readApi<MotionEffectJobDto>(
@@ -1531,9 +1422,7 @@ export default function MotionEffectsPage() {
                       ? `生成中 ${Math.round(exportProgress)}%`
                       : serverJob?.canDownload
                         ? "下载 MP4"
-                        : selectedPriceCents === 0
-                          ? "使用注册赠送生成"
-                          : `生成并下载 · ¥${(selectedPriceCents / 100).toFixed(1)}`}
+                        : "免费生成并下载"}
                   </button>
                   <button
                     type="button"
@@ -1591,9 +1480,9 @@ export default function MotionEffectsPage() {
             </section>
 
             <section className="rounded-[28px] border border-[#E5DDD7] dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-5 shadow-sm">
-              <h2 className="text-lg font-black">下载规格</h2>
+              <h2 className="text-lg font-black">选择清晰度</h2>
               <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-[#A0978B]">
-                预览免费。视频导出会持续占用服务器计算、临时存储和下载带宽，免费资源无法长期支撑，因此下载按规格收费。
+                全部免费，两种清晰度都可以选。
               </p>
               <div className="mt-4 space-y-2">
                 <button
@@ -1611,11 +1500,6 @@ export default function MotionEffectsPage() {
                       标准码率 · 带“教链”
                     </span>
                   </span>
-                  <span className="text-sm font-black text-[#A84A2E] dark:text-[#F0A88E]">
-                    {freeStandardSelected
-                      ? "注册赠送"
-                      : `¥${(prices.standardCents / 100).toFixed(1)}`}
-                  </span>
                 </button>
                 <button
                   type="button"
@@ -1632,94 +1516,9 @@ export default function MotionEffectsPage() {
                       高码率 · 风格细节更完整
                     </span>
                   </span>
-                  <span className="text-sm font-black text-[#A84A2E] dark:text-[#F0A88E]">
-                    ¥{(prices.hdCents / 100).toFixed(1)}
-                  </span>
                 </button>
-                <button
-                  type="button"
-                  aria-pressed={queueTier === "priority"}
-                  onClick={() =>
-                    setQueueTier((current) =>
-                      current === "priority" ? "standard" : "priority",
-                    )
-                  }
-                  className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left ${
-                    queueTier === "priority"
-                      ? "border-[#236654] bg-[#EDF7F2] dark:bg-[#1F3329]"
-                      : "border-slate-200 dark:border-[#37312B] bg-white dark:bg-[#211E1B]"
-                  }`}
-                >
-                  <span>
-                    <span className="block text-sm font-black">极速处理</span>
-                    <span className="mt-1 block text-xs text-slate-500 dark:text-[#A0978B]">
-                      进入独立优先队列，不影响真实队列统计
-                    </span>
-                  </span>
-                  <span className="text-sm font-black text-[#236654] dark:text-[#5DBB8E]">
-                    +¥{(prices.priorityAddonCents / 100).toFixed(1)}
-                  </span>
-                </button>
-              </div>
-              {!signedIn ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(
-                      `/login?returnTo=${encodeURIComponent("/toolbox/motion-effects")}`,
-                    )
-                  }
-                  className="mt-4 w-full rounded-2xl border border-[#DCCFC5] dark:border-[#4A423A] bg-white dark:bg-[#211E1B] px-4 py-3 text-sm font-black text-slate-800 dark:text-[#F2EEE8]"
-                >
-                  注册并领取一次 720p 免费下载
-                </button>
-              ) : signupFreeAvailable ? (
-                <div className="mt-4 rounded-2xl bg-emerald-50 dark:bg-[#1F3329] px-4 py-3 text-xs font-bold leading-5 text-emerald-800 dark:text-[#5DBB8E]">
-                  你的注册赠送次数尚未使用：标准队列 720p 本次免费；高清和极速处理仍需付费。
-                </div>
-              ) : (
-                <div className="mt-4 rounded-2xl bg-slate-50 dark:bg-[#2A2622] px-4 py-3 text-xs leading-5 text-slate-600 dark:text-[#CBC3B8]">
-                  注册赠送的免费下载已经使用，后续按所选规格付费。
-                </div>
-              )}
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 dark:border-[#2E2925] pt-4">
-                <span className="text-sm font-bold text-slate-600 dark:text-[#CBC3B8]">本次预计</span>
-                <span className="text-2xl font-black text-[#CF6D4E] dark:text-[#E08A6C]">
-                  {selectedPriceCents === 0
-                    ? "免费"
-                    : `¥${(selectedPriceCents / 100).toFixed(1)}`}
-                </span>
               </div>
             </section>
-
-            {checkout ? (
-              <section className="rounded-[28px] border border-[#F1C7B8] dark:border-[#5A3A2E] bg-[#FFF7F2] dark:bg-[#3A2820] p-5 shadow-sm">
-                <div className="text-xs font-black text-[#A84A2E] dark:text-[#F0A88E]">等待付款</div>
-                <div className="mt-2 text-xl font-black">
-                  ¥{checkout.order.totalAmountYuan.toFixed(2)}
-                </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-[#CBC3B8]">
-                  支付成功后才会占用服务器算力开始生成；渲染失败不会吞掉注册赠送次数。
-                </p>
-                <div className="mt-4 grid gap-2">
-                  <button
-                    type="button"
-                    onClick={openCheckoutPayment}
-                    className="rounded-2xl bg-[#B4553A] px-4 py-3 text-sm font-black text-white"
-                  >
-                    前往支付宝付款
-                  </button>
-                  <button
-                    type="button"
-                    onClick={continueAfterPayment}
-                    disabled={serverExporting}
-                    className="rounded-2xl border border-[#DCCFC5] dark:border-[#4A423A] bg-white dark:bg-[#211E1B] px-4 py-3 text-sm font-black text-slate-800 dark:text-[#F2EEE8] disabled:opacity-50"
-                  >
-                    我已支付，开始生成
-                  </button>
-                </div>
-              </section>
-            ) : null}
 
             <section className="rounded-[28px] border border-[#E5DDD7] dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-5 shadow-sm">
               <div className="flex items-start gap-3">
