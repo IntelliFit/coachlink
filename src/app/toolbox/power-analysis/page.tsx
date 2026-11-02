@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "primereact/button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
@@ -26,6 +26,8 @@ import {
   POWER_ANALYSIS_MODE_OPTIONS as MODE_OPTIONS,
   type PowerAnalysisSubject,
 } from "@coachlink/core/src/powerAnalysisModes";
+import { POWER_ANALYSIS_ROM_NOTE, romSummaryText } from "@coachlink/core/src/powerAnalysisRepRom";
+import RepRomRow from "./RepRomRow";
 import { buildProfileBodyMetricsPatch } from "@coachlink/core/src/bodyMetrics";
 import {
   isActivePowerAnalysisJobStatus,
@@ -881,6 +883,10 @@ export default function PowerAnalysisToolPage() {
 
                   {!resultIsCustom && <PowerCurves points={metrics.timeSeries} />}
 
+                  {metrics.romSummary && (
+                    <div className="text-sm font-bold text-surface-900">{romSummaryText(metrics.romSummary)}</div>
+                  )}
+
                   {!resultIsCustom && (
                   <div className="overflow-hidden rounded-xl border border-surface-200">
                     <table className="min-w-full text-sm">
@@ -897,23 +903,29 @@ export default function PowerAnalysisToolPage() {
                       </thead>
                       <tbody>
                         {metrics.reps.map((rep) => (
-                          <tr key={rep.repIndex} className="border-t border-surface-100">
-                            <td className="px-3 py-2 font-bold text-surface-900">#{rep.repIndex}</td>
-                            <td className="px-3 py-2 text-surface-700">{formatMetric(rep.displacementM, 2)} m</td>
-                            <td className="px-3 py-2 text-surface-700">{formatMetric(rep.ascentTimeS, 2)} s</td>
-                            <td className="px-3 py-2 text-surface-700">
-                              {rep.meanVelocityMps === undefined ? "-" : `${formatMetric(rep.meanVelocityMps, 2)} m/s`}
-                            </td>
-                            <td className="px-3 py-2 text-surface-700">{formatMetric(rep.maxVelocityMps, 2)} m/s</td>
-                            <td className="px-3 py-2 text-surface-700">{formatMetric(rep.avgPowerW, 0)} W</td>
-                            {!resultIsBarbell && (
-                              <td className="px-3 py-2 text-surface-700">{formatMetric(rep.horsepowerHp, 2)} hp</td>
-                            )}
-                          </tr>
+                          <Fragment key={rep.repIndex}>
+                            <tr className="border-t border-surface-100">
+                              <td className="px-3 py-2 font-bold text-surface-900">#{rep.repIndex}</td>
+                              <td className="px-3 py-2 text-surface-700">{formatMetric(rep.displacementM, 2)} m</td>
+                              <td className="px-3 py-2 text-surface-700">{formatMetric(rep.ascentTimeS, 2)} s</td>
+                              <td className="px-3 py-2 text-surface-700">
+                                {rep.meanVelocityMps === undefined ? "-" : `${formatMetric(rep.meanVelocityMps, 2)} m/s`}
+                              </td>
+                              <td className="px-3 py-2 text-surface-700">{formatMetric(rep.maxVelocityMps, 2)} m/s</td>
+                              <td className="px-3 py-2 text-surface-700">{formatMetric(rep.avgPowerW, 0)} W</td>
+                              {!resultIsBarbell && (
+                                <td className="px-3 py-2 text-surface-700">{formatMetric(rep.horsepowerHp, 2)} hp</td>
+                              )}
+                            </tr>
+                            {rep.rom && <RepRomRow rom={rep.rom} mode={metrics.mode} colSpan={resultIsBarbell ? 6 : 7} />}
+                          </Fragment>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                  )}
+                  {metrics.romSummary && (
+                    <div className="text-xs leading-5 text-surface-500">{POWER_ANALYSIS_ROM_NOTE}</div>
                   )}
                   {resultIsBarbell && (
                     <div className="text-xs leading-5 text-surface-500">

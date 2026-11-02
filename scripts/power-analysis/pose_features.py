@@ -153,6 +153,22 @@ def smooth(values: np.ndarray, window: int) -> np.ndarray:
     return result
 
 
+def median_filter(values: np.ndarray, window: int) -> np.ndarray:
+    """Centered NaN-aware rolling median, for isolated spikes a moving average would smear."""
+    window = max(1, int(window)) | 1
+    data = values.astype(np.float64)
+    if window <= 1 or data.size == 0:
+        return data
+    half = window // 2
+    result = np.full(data.shape, np.nan)
+    for index in range(data.size):
+        chunk = data[max(0, index - half):index + half + 1]
+        chunk = chunk[np.isfinite(chunk)]
+        if chunk.size:
+            result[index] = np.median(chunk)
+    return result
+
+
 def interpolate_gaps(values: np.ndarray, max_gap: int) -> np.ndarray:
     """Linearly fill NaN runs no longer than max_gap that have data on both sides."""
     result = values.astype(np.float64).copy()

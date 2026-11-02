@@ -21,6 +21,7 @@ import {
   POWER_ANALYSIS_CANCELABLE_JOB_STATUSES,
   POWER_ANALYSIS_CANCELED_MESSAGE,
 } from "@coachlink/core/src/powerAnalysisJobs";
+import { normalizeRepRom, normalizeRomSummary } from "@coachlink/core/src/powerAnalysisRepRom";
 import type {
   PowerAnalysisJobDto,
   PowerAnalysisQueueInfoDto,
@@ -335,6 +336,7 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
           "jointMinDeg",
           "jointMaxDeg",
         ]),
+        ...(normalizeRepRom(item.rom) ? { rom: normalizeRepRom(item.rom) } : {}),
       }))
     : [];
 
@@ -365,6 +367,7 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
     : undefined;
   const velocityLoss = Number(summary.velocityLossPct);
   const custom = mode === "custom" ? normalizePowerAnalysisCustomInfo(raw.custom) : undefined;
+  const romSummary = normalizeRomSummary(raw.romSummary);
   return {
     ...(raw.analyzerVersion ? { analyzerVersion: String(raw.analyzerVersion) } : {}),
     mode,
@@ -376,6 +379,7 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
         }
       : undefined,
     repCount: Number(raw.repCount ?? raw.rep_count ?? reps.length),
+    ...(romSummary ? { romSummary } : {}),
     summary: {
       avgPowerW: Number(summary.avgPowerW ?? summary.avg_power_w ?? 0),
       bestPowerW: Number(summary.bestPowerW ?? summary.best_power_w ?? 0),

@@ -18,7 +18,12 @@ def check_rom_consistency(ctx: RuleContext) -> Dict[str, Any]:
         return make_check(code, "每次幅度一致", "unavailable", "少于 3 次动作，无法比较幅度")
     displacements = np.array([float(rep.get("displacementM") or 0) for rep in ctx.reps])
     median = float(np.median(displacements))
-    short = [rep for rep, value in zip(ctx.reps, displacements) if median > 0 and value < 0.8 * median]
+    # A rep graded full at both ends is not "partial", whatever its travel read (see rep_rom).
+    short = [
+        rep
+        for rep, value in zip(ctx.reps, displacements)
+        if median > 0 and value < 0.8 * median and (rep.get("rom") or {}).get("grade") != "full"
+    ]
     if not short:
         return make_check(code, "每次幅度一致", "good", f"每次动作幅度接近（中位约 {median * 100:.0f} cm）", value=median * 100, unit="cm")
     for rep in short:
@@ -45,7 +50,8 @@ CHECKS: Dict[str, List[Callable[[RuleContext], Dict[str, Any]]]] = {
     ],
     "muscleup": [
         mc.check_bottom_extension,
-        lambda ctx: mc.check_lockout(ctx, "elbow", 150, 130, need_side=False),
+        mc.check_over_bar,
+        mc.check_muscleup_lockout,
         lambda ctx: mc.check_kipping(ctx, cap_warn=True),
         mc.check_shoulder_symmetry,
         check_rom_consistency,

@@ -32,6 +32,14 @@ import {
   POWER_ANALYSIS_ACTIVE_JOB_CONFLICT_CODE,
   type PowerAnalysisJobStatus
 } from '@coachlink/core/src/powerAnalysisJobs'
+import {
+  POWER_ANALYSIS_ROM_NOTE,
+  repRomDetail,
+  repRomGradeLabel,
+  romSummaryText,
+  type PowerAnalysisRepRom,
+  type PowerAnalysisRomSummary
+} from '@coachlink/core/src/powerAnalysisRepRom'
 import PowerCurveChart, { type PowerCurvePoint } from './PowerCurveChart'
 import AssessmentSection, { type PowerAnalysisAssessment, type PowerAnalysisMeasurement } from './AssessmentSection'
 import { reportPowerClientEvent } from './clientEvents'
@@ -63,6 +71,7 @@ interface PowerAnalysisRepMetric {
   holdTimeS?: number
   jointMinDeg?: number
   jointMaxDeg?: number
+  rom?: PowerAnalysisRepRom
 }
 
 /** What the generic analyzer followed for a custom movement. */
@@ -93,6 +102,7 @@ interface PowerAnalysisMetrics {
     velocityLossPct?: number | null
   }
   reps: PowerAnalysisRepMetric[]
+  romSummary?: PowerAnalysisRomSummary
   assessment?: PowerAnalysisAssessment
   measurement?: PowerAnalysisMeasurement
   custom?: PowerAnalysisCustomInfo
@@ -1957,6 +1967,10 @@ export default function WechatPowerAnalysisPage() {
                   </View>
                 )}
 
+                {metrics.romSummary && (
+                  <Text className='rep-rom-summary'>{romSummaryText(metrics.romSummary)}</Text>
+                )}
+
                 <View className='rep-list'>
                   {metrics.reps.map((rep) => (
                     <View key={rep.repIndex} className='rep-row'>
@@ -1979,11 +1993,23 @@ export default function WechatPowerAnalysisPage() {
                           位移 {formatMetric(rep.displacementM, 2)} m · 上升 {formatMetric(rep.ascentTimeS, 2)} s · 最大速度 {formatMetric(rep.maxVelocityMps, 2)} m/s
                           {typeof rep.pauseS === 'number' ? ` · 停顿 ${formatMetric(rep.pauseS, 2)} s` : ''}
                         </Text>
+                        {rep.rom && (
+                          <View className='rep-rom'>
+                            <Text className={`rep-rom-tag rep-rom-tag-${rep.rom.grade}`}>{repRomGradeLabel(rep.rom)}</Text>
+                            <Text className='rep-rom-detail'>
+                              {repRomDetail(rep.rom, metrics.mode)}
+                              {rep.rom.reasonZh ? `（${rep.rom.reasonZh}）` : ''}
+                            </Text>
+                          </View>
+                        )}
                       </View>
                       )}
                     </View>
                   ))}
                 </View>
+                {metrics.romSummary && (
+                  <Text className='barbell-power-note'>{POWER_ANALYSIS_ROM_NOTE}</Text>
+                )}
                 {resultIsCustom && (
                   <Text className='barbell-power-note'>
                     「{metrics.custom?.actionNameZh || '其他动作'}」按{metrics.custom?.primaryPartZh || '运动最大的部位'}计次，试验功能，不套用专项标准，不计算功率和评级。
