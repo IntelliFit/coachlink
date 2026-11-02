@@ -1,5 +1,4 @@
 import {
-  createHash,
   createHmac,
   randomBytes,
   timingSafeEqual,
@@ -54,6 +53,13 @@ export function getMotionEffectPrices() {
     ),
   };
 }
+
+/** 已安装的旧版 APP 和没刷新的网页按报价决定是否下单，报 0 元它们就会直接生成。 */
+export const FREE_MOTION_EFFECT_PRICES = {
+  standardCents: 0,
+  hdCents: 0,
+  priorityAddonCents: 0,
+};
 
 export function normalizeExportQuality(value: unknown): MotionEffectExportQuality {
   return value === "hd" ? "hd" : "standard";
@@ -133,37 +139,6 @@ export async function getAccessibleMotionEffectJob(
   return null;
 }
 
-export async function hasSignupFreeExport(userId: string) {
-  const { data, error } = await db
-    .from("tool_motion_effect_free_exports")
-    .select("user_id,status")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return !data;
-}
-
-export async function reserveSignupFreeExport(userId: string, jobId: string) {
-  const { error } = await db.from("tool_motion_effect_free_exports").insert({
-    user_id: userId,
-    job_id: jobId,
-    status: "reserved",
-  });
-  if (!error) return true;
-  if (String(error.code || "") === "23505") {
-    const { data, error: lookupError } = await db
-      .from("tool_motion_effect_free_exports")
-      .select("user_id,job_id,status")
-      .eq("user_id", userId)
-      .eq("job_id", jobId)
-      .eq("status", "reserved")
-      .maybeSingle();
-    if (lookupError) throw lookupError;
-    return Boolean(data);
-  }
-  throw error;
-}
-
 export async function releaseSignupFreeExport(jobId: string) {
   await db
     .from("tool_motion_effect_free_exports")
@@ -207,12 +182,21 @@ export function calculateMotionEffectPrice(params: {
   };
 }
 
-export function getGuestPaymentUserId() {
-  return String(process.env.ALIPAY_GUEST_USER_ID || "").trim();
+export const MAX_PAID_MOTION_RETRIES = 3;
+
+/** 已付款但生成失败的任务可以用原视频重新排队，不再收费。 */
+export function isPaidMotionRetry(row: { status?: string | null; payment_status?: string | null }) {
+  return row.status === "failed" && row.payment_status === "paid";
 }
 
-export function createOrderClaimHash(jobId: string, ownerTokenHash: string) {
-  return createHash("sha256")
-    .update(`${jobId}:${ownerTokenHash}`)
-    .digest("hex");
+export function paidMotionRetryCount(metadata: unknown) {
+  const count = Number((metadata as { paid_retry_count?: unknown } | null)?.paid_retry_count);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
+/** 只有还没发起过付款的任务能取消：一旦有订单，用户可能正在付款。 */
+export function canCancelMotionJob(row: { status?: string | null; payment_status?: string | null; payment_order_id?: string | null }) {
+  return ["awaiting_upload", "awaiting_payment"].includes(String(row.status))
+    && row.payment_status !== "paid"
+    && !row.payment_order_id;
 }
