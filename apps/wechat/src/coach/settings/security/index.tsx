@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Button } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -155,7 +155,7 @@ function CoachSecuritySettings() {
 
   return (
     <View className={`security-settings-page theme-${effectiveTheme}`}>
-      <ScrollView scrollY className="settings-scroll" style={{ paddingBottom: '70px' }}>
+      <View className="settings-scroll" style={{ paddingBottom: '70px' }}>
         <View className="settings-card">
           <Text className="card-title">修改密码</Text>
           
@@ -260,7 +260,7 @@ function CoachSecuritySettings() {
             </>
           )}
         </View>
-      </ScrollView>
+      </View>
       <BottomNav />
     </View>
   )

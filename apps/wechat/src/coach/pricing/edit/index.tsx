@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, Textarea, Button, ScrollView, Picker } from '@tarojs/components'
+import { View, Text, Textarea, Button, Picker } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
@@ -210,7 +210,7 @@ function CoachPricingEdit() {
 
   return (
     <View className={`pricing-edit-page theme-${effectiveTheme}`}>
-      <ScrollView scrollY className="edit-scroll">
+      <View className="edit-scroll">
         <View className="form-section">
           <View className={`receiving-warning-card ${receivingAccountReady ? 'ready' : 'pending'}`}>
             <View className="receiving-warning-main">
@@ -348,7 +348,7 @@ function CoachPricingEdit() {
             </View>
           </View>
         </View>
-      </ScrollView>
+      </View>
 
       <View className="footer-actions">
         <Button className="cancel-btn" onClick={() => Taro.navigateBack()}>

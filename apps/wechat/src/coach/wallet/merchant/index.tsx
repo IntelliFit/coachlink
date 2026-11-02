@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Image, Picker, ScrollView, Text, View } from '@tarojs/components'
+import { Button, Image, Picker, Text, View } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import {
@@ -162,7 +162,7 @@ function CoachWalletMerchant() {
 
   return (
     <View className={`merchant-page theme-${effectiveTheme}`}>
-      <ScrollView scrollY className="merchant-scroll">
+      <View className="merchant-scroll">
         <View className="notice-card">
           <Text className="notice-title">汇付收款账户</Text>
           <Text className="notice-desc">用于接收教练订阅和教练内容分账，并提现到本人银行卡。请填写与身份证、银行卡一致的信息。</Text>
@@ -313,7 +313,7 @@ function CoachWalletMerchant() {
             </View>
           </View>
         )}
-      </ScrollView>
+      </View>
     </View>
   )
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Textarea } from '@tarojs/components'
+import { View, Text, Textarea } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -138,7 +138,7 @@ export default function ActionEditPage() {
 
   return (
     <View className={`action-edit-page theme-${effectiveTheme}`}>
-      <ScrollView className='page-scroll' scrollY>
+      <View className='page-scroll'>
         <View className='page-content'>
           <View className='page-header'>
             <Text className='page-title'>{isEdit ? '编辑动作' : '新建动作'}</Text>
@@ -279,7 +279,7 @@ export default function ActionEditPage() {
             </View>
           </View>
         </View>
-      </ScrollView>
+      </View>
       <BottomNav />
     </View>
   )

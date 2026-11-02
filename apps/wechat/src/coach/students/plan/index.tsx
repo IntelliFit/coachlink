@@ -2310,7 +2310,7 @@ function CoachStudentPlan() {
   if (!instance) {
     return (
       <View className={`coach-student-plan-page theme-${effectiveTheme}`}>
-        <ScrollView scrollY className='page'>
+        <View className='page'>
           {/* 学员信息卡片 */}
           {studentData && (
             <View className='student-info-card'>
@@ -2408,7 +2408,7 @@ function CoachStudentPlan() {
               </View>
             </View>
           )}
-        </ScrollView>
+        </View>
       </View>
     )
   }
@@ -2590,7 +2590,7 @@ function CoachStudentPlan() {
   }
 
   return (
-    <ScrollView scrollY className={`coach-student-plan-page theme-${effectiveTheme}`}>
+    <View className={`coach-student-plan-page theme-${effectiveTheme}`}>
       <View className='page'>
         {/* 学员信息卡片 */}
         {studentData && (
@@ -3193,7 +3193,7 @@ function CoachStudentPlan() {
           <Text className='tip-text'>滑动到底部 · 已加载全部内容</Text>
         </View>
       </View>
-    </ScrollView>
+    </View>
   )
 }
 

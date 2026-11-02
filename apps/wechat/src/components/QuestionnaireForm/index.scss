@@ -13,8 +13,10 @@
   max-height: 60vh;
 }
 
+// 不用 ScrollView：安卓数字框的原生文字层会多上移一个滚动距离。
 .questionnaire-scroll {
   max-height: 60vh;
+  overflow-y: auto;
 }
 
 .questionnaire-form {

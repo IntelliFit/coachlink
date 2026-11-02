@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
+import { View, Text, Input, Image } from '@tarojs/components'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import PlanCompactWeekCalendar, { PlanCompactWeekDay } from '@/components/PlanCompactWeekCalendar'
@@ -472,7 +472,7 @@ export default function AssignPlanPage() {
   }
 
   return (
-    <ScrollView className={`assign-plan-page theme-${effectiveTheme}`} scrollY>
+    <View className={`assign-plan-page theme-${effectiveTheme}`}>
       <View className='assign-plan-page__inner'>
         <View className='assign-plan-hero'>
           <Text className='assign-plan-hero__eyebrow'>计划导入工作台</Text>
@@ -750,6 +750,6 @@ export default function AssignPlanPage() {
           <Text className='btn-text'>{saving ? '分配中...' : '确认分配计划'}</Text>
         </View>
       </View>
-    </ScrollView>
+    </View>
   )
 }

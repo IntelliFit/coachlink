@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ConfigProvider, Skeleton } from '@nutui/nutui-react-taro'
 import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
@@ -280,7 +280,7 @@ function ProfileDetail() {
     return (
         <ConfigProvider locale={zhCN}>
             <View className="profile-detail-page page-with-float-nav">
-                <ScrollView className="page-scroll" scrollY>
+                <View className="page-scroll">
                     <ProfileHeader
                         data={data}
                         onUpdate={fetchData}
@@ -364,7 +364,7 @@ function ProfileDetail() {
                             )}
                         </View>
                     </View>
-                </ScrollView>
+                </View>
                 <BottomNav />
             </View>
 

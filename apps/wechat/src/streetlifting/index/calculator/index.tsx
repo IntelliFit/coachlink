@@ -6,7 +6,7 @@ import { buildProfileBodyMetricsPatch } from '@coachlink/core/src/bodyMetrics'
 import { useMyBodyMetrics } from '@/hooks/useMyBodyMetrics'
 import { SaveBodyToProfileLink } from '@/components/SaveBodyToProfileLink'
 import { usePageEnterTrace } from '@/utils/pageTrace'
-import { View, Text, ScrollView, Button } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useDidHide, useUnload } from '@tarojs/taro'
 import {
@@ -948,7 +948,7 @@ export default function StreetliftingCalculator() {
 
   return (
     <View className={`calc-page theme-${effectiveTheme}${effectiveTheme === 'dark' ? ' cl-theme-dark' : ''}`}>
-      <ScrollView className='calc-scroll' scrollY>
+      <View className='calc-scroll'>
         <View className='calc-body'>
           <View className='calc-card'>
             <View className='calc-block'>
@@ -1103,7 +1103,7 @@ export default function StreetliftingCalculator() {
             </View>
           </View>
         </View>
-      </ScrollView>
+      </View>
 
       <View className='calc-footer'>
         <View className='calc-footer__clear' onClick={confirmClearDraft}>

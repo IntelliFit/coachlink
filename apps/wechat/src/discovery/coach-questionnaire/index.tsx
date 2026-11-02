@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { WECHAT_COACH_PURCHASE_PAUSED } from '@coachlink/core'
 import FreeReleaseInfo from '@/components/FreeReleaseInfo'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { Button, Checkbox, Radio, Skeleton } from '@nutui/nutui-react-taro'
 import { StableNutInput as Input } from '@/components/StableNutInput'
@@ -304,7 +304,7 @@ function CoachQuestionnaireForm() {
 
   return (
     <View className={`coach-questionnaire-page theme-${effectiveTheme}`}>
-      <ScrollView scrollY className='coach-questionnaire-scroll'>
+      <View className='coach-questionnaire-scroll'>
         <View className='coach-questionnaire-content'>
           <View className='coach-questionnaire-hero'>
             <Text className='coach-questionnaire-badge'>
@@ -492,7 +492,7 @@ function CoachQuestionnaireForm() {
             </View>
           )}
         </View>
-      </ScrollView>
+      </View>
 
       <View className='coach-questionnaire-footer'>
         <Button className='footer-btn' fill='outline' onClick={() => Taro.navigateBack()}>

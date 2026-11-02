@@ -4,13 +4,14 @@
 $calc-footer-height: 136rpx;
 
 .calc-page {
-  height: 100vh;
+  min-height: 100vh;
   background: var(--cl-paper);
   color: var(--cl-ink);
 }
 
+// 用页面自然滚动：放在固定高度的纵向 ScrollView 里，安卓数字框的原生文字层会多上移一个滚动距离。
 .calc-scroll {
-  height: 100vh;
+  min-height: 100vh;
 }
 
 .calc-body {

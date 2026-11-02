@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Textarea, Picker } from '@tarojs/components'
+import { View, Text, Textarea, Picker } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import { ArrowLeft } from '@nutui/icons-react-taro'
@@ -305,11 +305,11 @@ export default function AssessmentForm({ coachId, domain, onBack, onSubmit }: As
       <Text className="category-title">{CATEGORY_TITLES[categoryName] || categoryName}</Text>
       <Text className="category-desc">请根据您的实际情况填写</Text>
 
-      <ScrollView scrollY className="form-scroll">
+      <View className="form-scroll">
         {categoryFields.map(f => (
           <View key={f.name}>{renderField(f)}</View>
         ))}
-      </ScrollView>
+      </View>
 
       <View className="form-actions">
         <View className={`btn secondary ${currentStep === 0 ? 'disabled' : ''}`} onClick={currentStep === 0 ? undefined : handlePrev}>

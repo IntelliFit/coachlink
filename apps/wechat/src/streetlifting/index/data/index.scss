@@ -527,8 +527,10 @@
     line-height: 1.5;
   }
 
+  // 不用 ScrollView：安卓数字框的原生文字层会多上移一个滚动距离。
   .dialog-scroll {
     max-height: 55vh;
+    overflow-y: auto;
   }
 
   .form-row {

@@ -526,7 +526,7 @@ export default function StreetliftingData() {
         <View className='dialog-mask' onClick={() => { setFormOpen(false); resetForm() }}>
           <View className='dialog-box' onClick={(e) => e.stopPropagation()}>
             <Text className='dialog-title'>提交我的数据</Text>
-            <ScrollView scrollY className='dialog-scroll'>
+            <View className='dialog-scroll'>
               <View className='form-row'><Text className='label'>运动类型</Text>
                 <Picker mode='selector' range={SUBMIT_EXERCISE} rangeKey='label' value={SUBMIT_EXERCISE.findIndex((o) => o.value === form.exercise_type)} onChange={(e) => setForm((p) => ({ ...p, exercise_type: (SUBMIT_EXERCISE[Number(e.detail.value)]?.value || 'weighted_pullup') as 'weighted_pullup' | 'weighted_dips', pullup_type: '' }))}>
                   <View className='picker-val'>{SUBMIT_EXERCISE.find((o) => o.value === form.exercise_type)?.label}</View>
@@ -553,7 +553,7 @@ export default function StreetliftingData() {
               )}
               <View className='form-row'><Text className='label'>姓名/社媒(选填)</Text><Input className='input' value={form.user_name} onInput={(e) => setForm((p) => ({ ...p, user_name: e.detail.value }))} placeholder='选填' /></View>
               <View className='form-row'><Text className='label'>视频链接(选填)</Text><Input className='input' value={form.video_url} onInput={(e) => setForm((p) => ({ ...p, video_url: e.detail.value }))} placeholder='https://...' /></View>
-            </ScrollView>
+            </View>
             <View className='dialog-actions'>
               <Button className='btn-cancel' onClick={() => { setFormOpen(false); resetForm() }}>取消</Button>
               <Button className='btn-ok' onClick={handleSubmit} disabled={submitting}>提交</Button>

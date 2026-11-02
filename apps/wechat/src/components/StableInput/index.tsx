@@ -8,6 +8,8 @@ import { Input as TaroInput, type InputProps } from '@tarojs/components'
  * - 数字输入失焦后重建底层 input，避免第二次聚焦复用残留文字层；
  * - 页面和键盘位置调整完全沿用微信默认行为，避免原生文字层与页面滚动层错位；
  * - 文本输入和密码输入保留微信默认行为。
+ *
+ * 本组件解决不了文字飘到框外：数字框不要放进固定高度的纵向 ScrollView，表单页用页面自然滚动。
  */
 export function StableInput(props: InputProps) {
   const [nativeGeneration, setNativeGeneration] = React.useState(0)

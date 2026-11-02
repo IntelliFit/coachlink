@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Textarea, Button } from '@tarojs/components'
+import { View, Text, Textarea, Button } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
@@ -563,7 +563,7 @@ function CoachApplication() {
 
   return (
     <View className={`coach-application-page theme-${effectiveTheme}`}>
-      <ScrollView scrollY className="application-scroll" style={{ paddingBottom: '100px' }}>
+      <View className="application-scroll" style={{ paddingBottom: '100px' }}>
         {reviewInfo?.status && (
           <View className="review-status-card">
             <Text className="status-label">审核状态</Text>
@@ -966,7 +966,7 @@ function CoachApplication() {
             {reviewInfo?.status === 'pending' ? '更新申请' : '提交申请'}
           </Button>
         </View>
-      </ScrollView>
+      </View>
       <BottomNav />
     </View>
   )

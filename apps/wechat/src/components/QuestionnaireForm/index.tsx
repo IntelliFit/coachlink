@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Textarea } from '@tarojs/components'
+import { View, Text, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Dialog, Button, Checkbox, Radio, Skeleton } from '@nutui/nutui-react-taro'
 import { StableNutInput as Input } from '@/components/StableNutInput'
@@ -81,7 +81,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
       className="questionnaire-form-dialog"
     >
       <View className="questionnaire-dialog-content">
-        <ScrollView className="questionnaire-scroll" scrollY>
+        <View className="questionnaire-scroll">
         {loading ? (
           <View className="loading-container">
             <Skeleton animated rows={3} title={false} visible={false} />
@@ -251,7 +251,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             ))}
           </View>
         )}
-      </ScrollView>
+      </View>
         <View className="dialog-footer">
           <Button
             size="small"

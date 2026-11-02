@@ -200,7 +200,7 @@ export default function PlanLibPage() {
             </View>
             <View className='dialog-close' onClick={closeOneRMDialog}><Close /></View>
           </View>
-          <ScrollView className='dialog-body' scrollY>
+          <View className='dialog-body'>
             <Text className='dialog-desc'>
               这些动作按 RM / %1RM 安排重量。填了 1RM，训练时会自动算出每组重量；不填也能开始，训练时自己填重量即可。
             </Text>
@@ -224,7 +224,7 @@ export default function PlanLibPage() {
                 </View>
               ))}
             </View>
-          </ScrollView>
+          </View>
           <View className='dialog-footer'>
             <View className='btn-secondary' onClick={handleSkipOneRM}>
               <Text>跳过，直接应用</Text>

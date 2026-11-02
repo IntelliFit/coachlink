@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, Textarea, Button, ScrollView, Picker } from '@tarojs/components'
+import { View, Text, Textarea, Button, Picker } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import { Check } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
@@ -183,7 +183,7 @@ function CoachContentEdit() {
         <View style={{ width: '60px' }}></View>
       </View>
 
-      <ScrollView scrollY className="form-content">
+      <View className="form-content">
         <View className="form-item">
           <Text className="label">标题 *</Text>
           <Input
@@ -292,7 +292,7 @@ function CoachContentEdit() {
             </View>
           </View>
         </View>
-      </ScrollView>
+      </View>
 
       <View className="footer">
         <Button className="draft-btn" onClick={() => handleSave(true)} loading={saving}>

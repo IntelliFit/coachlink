@@ -3484,7 +3484,7 @@ function TrainingExecution() {
           return (
             <SwiperItem key={actionIdx} className="txv3-swiper__item">
               <View className={`txv3-card ${isFocused ? 'is-focused' : ''}`}>
-                <ScrollView scrollY className="txv3-card__scroll" showScrollbar={false} enhanced>
+                <View className="txv3-card__scroll">
                   <View className={`txv3-card__media ${info.imageUrl ? '' : 'is-empty'}`}>
                     {info.imageUrl ? (
                       <Image className="txv3-card__img" src={resolveWeappImageThumbnailUrl(info.imageUrl, 600)} mode="aspectFit" lazyLoad />
@@ -3553,7 +3553,7 @@ function TrainingExecution() {
                       </>
                     ) : isFocused ? renderNonStrength(action, actionIdx, info.actionType, info.actionMeta, false) : null}
                   </View>
-                </ScrollView>
+                </View>
               </View>
             </SwiperItem>
           )

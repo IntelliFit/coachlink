@@ -351,8 +351,10 @@
     }
 
     .dialog-body {
+      // 不用 ScrollView：安卓数字框的原生文字层会多上移一个滚动距离。
       flex: 1;
       max-height: 50vh;
+      overflow-y: auto;
       padding: 24rpx;
       box-sizing: border-box;
 

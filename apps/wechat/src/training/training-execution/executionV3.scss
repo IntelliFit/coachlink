@@ -1488,8 +1488,14 @@
     }
   }
 
+  // 不用 ScrollView：安卓数字框的原生文字层会多上移一个滚动距离。
   .txv3-card__scroll {
     height: 100%;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   .txv3-card__media {
