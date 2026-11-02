@@ -21,6 +21,7 @@ const HIDDEN_ROUTE_PREFIXES = [
   '/common/common/video-player',
   '/toolbox/motion-bean',
   '/toolbox/motion-effects',
+  '/toolbox/happy-bird',
   '/toolbox/pullup-rush',
   '/toolbox/pushup-dash',
   '/toolbox/scenario',

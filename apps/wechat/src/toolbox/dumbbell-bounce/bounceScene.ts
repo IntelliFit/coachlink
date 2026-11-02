@@ -63,7 +63,7 @@ function roundedRect(ctx: any, x: number, y: number, width: number, height: numb
   ctx.closePath()
 }
 
-function drawPlate(ctx: any, centerX: number, centerY: number, radius: number, side: 'left' | 'right', impact: number) {
+function drawPlate(ctx: any, centerX: number, centerY: number, radius: number, angle: number, impact: number) {
   ctx.save()
   ctx.beginPath()
   ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
@@ -82,7 +82,7 @@ function drawPlate(ctx: any, centerX: number, centerY: number, radius: number, s
   ctx.lineWidth = radius * 0.045
   ctx.strokeStyle = PLATE_RING
   for (let i = 0; i < 3; i += 1) {
-    const spoke = (Math.PI * 2 * i) / 3 + Math.PI / 6
+    const spoke = (Math.PI * 2 * i) / 3 + Math.PI / 6 + angle
     ctx.beginPath()
     ctx.moveTo(centerX + Math.cos(spoke) * radius * 0.2, centerY + Math.sin(spoke) * radius * 0.2)
     ctx.lineTo(centerX + Math.cos(spoke) * radius * 0.74, centerY + Math.sin(spoke) * radius * 0.74)
@@ -98,15 +98,20 @@ function drawPlate(ctx: any, centerX: number, centerY: number, radius: number, s
   ctx.fillStyle = PLATE_HUB_HOLE
   ctx.fill()
 
-  // 品牌字竖着印在片子朝内的一侧，左片从下往上读，右片从上往下读。
-  const textX = side === 'left' ? centerX + radius * 0.66 : centerX - radius * 0.66
-  ctx.translate(textX, centerY)
-  ctx.rotate(side === 'left' ? -Math.PI / 2 : Math.PI / 2)
+  // 品牌字印在片子上跟着转；片子圆心在屏幕外，对称印两处，转到哪都有一处露在画面里。
+  ctx.translate(centerX, centerY)
+  ctx.rotate(angle)
   ctx.font = `bold ${Math.round(radius * 0.13)}px sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
-  ctx.fillText(BRAND_TEXT, 0, 0)
+  ;[1, -1].forEach((direction) => {
+    ctx.save()
+    ctx.translate(direction * radius * 0.6, 0)
+    ctx.rotate((direction * -Math.PI) / 2)
+    ctx.fillText(BRAND_TEXT, 0, 0)
+    ctx.restore()
+  })
   ctx.restore()
 
   if (impact > 0) {
@@ -257,7 +262,7 @@ export function drawBounceScene(ctx: any, width: number, height: number, scene: 
   PLATES.forEach((plate) => {
     const impact = plate.side === 'left' ? leftImpact : rightImpact
     const shift = plate.side === 'left' ? -impact * knock : impact * knock
-    drawPlate(ctx, plate.x * scale + shift, plate.y * scale, plate.radius * scale, plate.side, impact)
+    drawPlate(ctx, plate.x * scale + shift, plate.y * scale, plate.radius * scale, scene.plateAngle[plate.side], impact)
   })
 
   drawDumbbell(

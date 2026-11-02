@@ -102,6 +102,7 @@ export default {
         'index',
         'motion-bean/index',
         'motion-effects/index',
+        'happy-bird/index',
         'pullup-rush/index',
         'pushup-dash/index',
         'dumbbell-bounce/index',
