@@ -11,6 +11,7 @@ import {
 import { buildBojiInsights } from '@/lib/bojiScores';
 import { checkAbsWithVision, getAbsCheckConfig } from '@/lib/bojiAbsCheck';
 import { createVisionAbsAsker } from '@/lib/bojiAbsCheckRunner';
+import { checkVestWithVision, VEST_CHECK_PROMPT } from '@/lib/bojiVestCheck';
 import type { ApiData } from '@/types/api';
 import { isBojiSex, type BojiAnalysisDto } from '@coachlink/core/src/bojiDetector';
 
@@ -26,7 +27,7 @@ function fail(status: number, message: string, headers?: Record<string, string>)
  * application/octet-stream）。网页和小程序共用。照片只转发给分析服务，不保存；
  * 只记录分数（tool_boji_scores），用于「超越 X%」和 PK。
  * 可选查询参数 challenge=<成绩 id>：应战好友发起的 PK；sex=female：女性档（马甲线、腰臀比）。
- * 男性档把腹部裁图（不含脸）交给视觉模型复核有没有腹肌和块数。
+ * 腹部裁图（不含脸）交给视觉模型复核：男性档看有没有腹肌和块数，女性档看肚子正面和马甲线。
  */
 export async function POST(request: NextRequest) {
   const userId = await getApiUserId(request);
@@ -57,18 +58,26 @@ export async function POST(request: NextRequest) {
     const sex = isBojiSex(requestedSex) ? requestedSex : 'male';
     const absCheck = getAbsCheckConfig();
     const { abdomen_crop: cropBase64, ...engineResult } = await analyzeWithBojiService(photo, config, fetch, sex, {
-      abdomenCrop: absCheck.enabled && sex === 'male',
+      abdomenCrop: absCheck.enabled,
     });
-    // 复核只会下调腹肌结果；任何一步失败都保留引擎结果
+    // 任何一步失败都保留引擎结果
     let analysis: BojiAnalysisDto = engineResult;
     try {
-      analysis = await checkAbsWithVision({
-        analysis: engineResult,
-        cropBase64,
-        sex,
-        ask: createVisionAbsAsker(absCheck.timeoutMs),
-        config: absCheck,
-      });
+      analysis = sex === 'female'
+        ? await checkVestWithVision({
+            analysis: engineResult,
+            cropBase64,
+            sex,
+            ask: createVisionAbsAsker(absCheck.timeoutMs, VEST_CHECK_PROMPT),
+            config: absCheck,
+          })
+        : await checkAbsWithVision({
+            analysis: engineResult,
+            cropBase64,
+            sex,
+            ask: createVisionAbsAsker(absCheck.timeoutMs),
+            config: absCheck,
+          });
     } catch (error) {
       console.error('[boji/ai-abs] check failed:', error instanceof Error ? error.message : 'unknown error');
     }

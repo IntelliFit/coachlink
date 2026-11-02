@@ -6,7 +6,7 @@ import { ABS_COUNT_PROMPT, type AskAbsModel } from '@/lib/bojiAbsCheck';
  * 通义系列关闭思考（实测 2–5 秒，开着要 14 秒）。失败、超时都返回 null，不抛错。
  * 不加系统提示：加「严谨、不恭维」那句后，验证集没腹肌判对率从 14/18 降到 12/18。
  */
-export function createVisionAbsAsker(timeoutMs: number): AskAbsModel {
+export function createVisionAbsAsker(timeoutMs: number, prompt: string = ABS_COUNT_PROMPT): AskAbsModel {
   return async (cropBase64) => {
     try {
       const { client, model } = getCoachlinkVisionLlm();
@@ -20,7 +20,7 @@ export function createVisionAbsAsker(timeoutMs: number): AskAbsModel {
             role: 'user',
             content: [
               { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${cropBase64}` } },
-              { type: 'text', text: ABS_COUNT_PROMPT },
+              { type: 'text', text: prompt },
             ],
           },
         ],
