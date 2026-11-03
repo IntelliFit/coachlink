@@ -85,6 +85,8 @@ describe('happy bird chunking', () => {
     expect(isHappyBirdChunkModule(`${root}/birdModel.ts?v=1`)).toBe(true);
     expect(isHappyBirdChunkModule(`${root}/index.tsx`)).toBe(false);
     expect(isHappyBirdChunkModule(`${root}/index.scss`)).toBe(false);
+    expect(isHappyBirdChunkModule('D:/repo/apps/wechat/src/toolbox/motion-bean/beanModel.ts')).toBe(true);
+    expect(isHappyBirdChunkModule('D:/repo/apps/wechat/src/toolbox/motion-bean/index.tsx')).toBe(false);
     expect(isHappyBirdChunkModule('D:/repo/apps/wechat/src/toolbox/dumbbell-bounce/bounceModel.ts')).toBe(false);
   });
 });

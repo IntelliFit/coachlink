@@ -26,10 +26,10 @@ export function isBojiChunkModule(id: string): boolean {
 
 export const HAPPY_BIRD_CHUNK_NAME = 'toolbox/happy-bird-common'
 
-/** 快乐小鸟拆成了多个模块，互相引用后同样会被 Taro 放进主包，这里也留在工具箱分包。 */
+/** 快乐小鸟和接豆派对拆成了多个模块、还共用录制和音效，同样会被 Taro 放进主包，这里也留在工具箱分包。 */
 export function isHappyBirdChunkModule(id: string): boolean {
   const file = id.split('?')[0]
-  return /[\\/]src[\\/]toolbox[\\/]happy-bird[\\/](?!index\.tsx$)[^\\/]+\.(ts|tsx)$/.test(file)
+  return /[\\/]src[\\/]toolbox[\\/](?:happy-bird|motion-bean)[\\/](?!index\.tsx$)[^\\/]+\.(ts|tsx)$/.test(file)
 }
 
 type ManualChunks = (id: string, api: unknown) => string | null | undefined

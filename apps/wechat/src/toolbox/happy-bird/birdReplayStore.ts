@@ -1,7 +1,9 @@
 import Taro from '@tarojs/taro'
 
-const REPLAY_KEY_PREFIX = 'happy_bird_latest_replay_v1'
-const BEST_KEY_PREFIX = 'happy_bird_best_score_v1'
+const DEFAULT_GAME = 'happy_bird'
+
+const replayKey = (game: string) => `${game}_latest_replay_v1:${currentUserId()}`
+const bestKey = (game: string) => `${game}_best_score_v1:${currentUserId()}`
 
 type CachedReplay = {
   savedAt: number
@@ -31,8 +33,8 @@ export function fileExists(filePath: string) {
 }
 
 /** 上一局回放存在小程序本地，重新进页面还能看；文件已被系统清理时返回空。 */
-export async function readLatestReplayPath() {
-  const key = `${REPLAY_KEY_PREFIX}:${currentUserId()}`
+export async function readLatestReplayPath(game = DEFAULT_GAME) {
+  const key = replayKey(game)
   try {
     const cached = Taro.getStorageSync(key) as CachedReplay | ''
     if (!cached || !cached.tempVideoPath) return ''
@@ -45,12 +47,12 @@ export async function readLatestReplayPath() {
 }
 
 /** 把临时视频转存到本地并替换上一局；转存失败时退回临时路径，当次仍可保存到相册。 */
-export function keepReplay(tempVideoPath: string) {
+export function keepReplay(tempVideoPath: string, game = DEFAULT_GAME) {
   return new Promise<string>((resolve) => {
     Taro.saveFile({
       tempFilePath: tempVideoPath,
       success: (result) => {
-        const key = `${REPLAY_KEY_PREFIX}:${currentUserId()}`
+        const key = replayKey(game)
         try {
           const previous = Taro.getStorageSync(key) as CachedReplay | ''
           Taro.setStorageSync(key, { savedAt: Date.now(), tempVideoPath: result.savedFilePath } satisfies CachedReplay)
@@ -71,17 +73,17 @@ export function keepReplay(tempVideoPath: string) {
 }
 
 /** 没联网或在线榜不可用时，历史最佳也不能丢。 */
-export function readLocalBest() {
+export function readLocalBest(game = DEFAULT_GAME) {
   try {
-    return Number(Taro.getStorageSync(`${BEST_KEY_PREFIX}:${currentUserId()}`)) || 0
+    return Number(Taro.getStorageSync(bestKey(game))) || 0
   } catch {
     return 0
   }
 }
 
-export function writeLocalBest(score: number) {
+export function writeLocalBest(score: number, game = DEFAULT_GAME) {
   try {
-    Taro.setStorageSync(`${BEST_KEY_PREFIX}:${currentUserId()}`, score)
+    Taro.setStorageSync(bestKey(game), score)
   } catch {
     // 只是方便下次显示，写失败不影响玩
   }
