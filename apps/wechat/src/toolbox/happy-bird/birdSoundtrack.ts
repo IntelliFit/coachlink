@@ -102,6 +102,18 @@ export function createSoundTimeline(fps: number) {
   }
 }
 
+const MIN_MERGE_TIMEOUT_MS = 60000
+const MAX_MERGE_TIMEOUT_MS = 8 * 60 * 1000
+
+/**
+ * 合成要把整段视频重新写一遍，耗时随视频长度增长；原来固定 60 秒，玩得久的局会直接超时、
+ * 退回无声。按每秒视频 1.5 秒放宽，再留 45 秒余量。
+ */
+export function mergeTimeoutMs(videoSeconds: number) {
+  const scaled = 45000 + Math.max(0, videoSeconds) * 1500
+  return Math.min(MAX_MERGE_TIMEOUT_MS, Math.max(MIN_MERGE_TIMEOUT_MS, scaled))
+}
+
 function addSamples(mix: Float32Array, source: Float32Array, sourceRate: number, atSeconds: number, gain: number, endSeconds = Infinity) {
   const ratio = sourceRate / SOUNDTRACK_SAMPLE_RATE
   const start = Math.round(atSeconds * SOUNDTRACK_SAMPLE_RATE)

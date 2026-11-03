@@ -1,12 +1,30 @@
 import Taro from '@tarojs/taro'
-import { renderSoundtrack, type SoundtrackPlan } from './birdSoundtrack'
+import { mergeTimeoutMs, renderSoundtrack, type SoundtrackPlan } from './birdSoundtrack'
 
 declare const wx: any
 
-const MERGE_TIMEOUT_MS = 60000
 const SOUNDTRACK_FILE = 'happy-bird-soundtrack.wav'
+const LOG_TAG = 'game-replay-audio'
 
 type MediaTrack = { kind: string; volume?: number }
+
+export type MergeStage = 'check' | 'merge' | 'soundtrack'
+
+export type MergeOptions = {
+  /** 写进实时日志的附加字段，比如页面里录制收尾花了多久。 */
+  logFields?: Record<string, number | string>
+  onStage?: (stage: MergeStage) => void
+}
+
+/** 真机上每一步花了多久写进小程序后台「实时日志」，慢或失败时能看到卡在哪。 */
+function realtimeLog(level: 'info' | 'warn', payload: Record<string, unknown>) {
+  try {
+    const manager = typeof wx !== 'undefined' ? wx.getRealtimeLogManager?.() : null
+    manager?.[level]?.(LOG_TAG, payload)
+  } catch {
+    // 日志只是排查用，写不进去不影响保存视频
+  }
+}
 
 function extractTracks(container: any, source: string) {
   return new Promise<MediaTrack[]>((resolve, reject) => {
@@ -41,14 +59,16 @@ function writeFile(path: string, data: ArrayBuffer) {
   })
 }
 
-function withTimeout<T>(work: Promise<T>) {
+async function withTimeout<T>(work: Promise<T>, timeoutMs: number) {
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('合成声音超时')), MERGE_TIMEOUT_MS)
+    timer = setTimeout(() => reject(new Error('合成声音超时')), timeoutMs)
   })
-  return Promise.race([work, timeout]).finally(() => {
+  try {
+    return await Promise.race([work, timeout])
+  } finally {
     if (timer) clearTimeout(timer)
-  })
+  }
 }
 
 function createContainer() {
@@ -73,12 +93,16 @@ async function mergeTracks(videoPath: string, audioPath: string) {
   }
 }
 
-/** 部分手机合成“成功”但没声音，所以再读一遍结果，确认真的有音频轨道。 */
-async function assertHasAudio(path: string) {
+/**
+ * 合成后只确认画面还在：有的手机读不出刚合成文件的音轨，以前为此把有声版扔掉、退回无声版。
+ * 现在读不出音轨也保留合成版，最坏和无声版一样，不会更差；读不出画面才算失败。
+ */
+async function inspectMerged(path: string) {
   const container = createContainer()
   try {
     const tracks = await extractTracks(container, path)
-    if (!tracks.some((track) => track.kind === 'audio')) throw new Error('合成后的视频里没有声音')
+    if (!tracks.some((track) => track.kind === 'video')) throw new Error('合成后的视频读不出画面')
+    return tracks.some((track) => track.kind === 'audio')
   } finally {
     container.destroy?.()
   }
@@ -88,15 +112,33 @@ async function assertHasAudio(path: string) {
  * 把游戏音效和音乐合进录好的视频，返回带声音的文件路径。
  * 失败时抛错，调用方保留原来的无声视频，不能让用户一局白录。
  */
-export async function addSoundtrackToVideo(videoPath: string, plan: SoundtrackPlan) {
-  const wav = renderSoundtrack(plan)
-  if (!wav) return videoPath
+export async function addSoundtrackToVideo(videoPath: string, plan: SoundtrackPlan, options: MergeOptions = {}) {
+  const timings: Record<string, number> = {}
+  const startedAt = Date.now()
+  const base = { ...options.logFields, videoSeconds: Math.round(plan.durationSeconds) }
   const audioPath = `${wx.env.USER_DATA_PATH}/${SOUNDTRACK_FILE}`
-  await writeFile(audioPath, wav)
   try {
-    const merged = await withTimeout(mergeTracks(videoPath, audioPath))
-    await withTimeout(assertHasAudio(merged))
+    options.onStage?.('soundtrack')
+    const wav = renderSoundtrack(plan)
+    if (!wav) return videoPath
+    await writeFile(audioPath, wav)
+    timings.soundtrackMs = Date.now() - startedAt
+
+    options.onStage?.('merge')
+    const mergeStartedAt = Date.now()
+    const merged = await withTimeout(mergeTracks(videoPath, audioPath), mergeTimeoutMs(plan.durationSeconds))
+    timings.mergeMs = Date.now() - mergeStartedAt
+
+    options.onStage?.('check')
+    const checkStartedAt = Date.now()
+    const audioFound = await withTimeout(inspectMerged(merged), mergeTimeoutMs(0))
+    timings.checkMs = Date.now() - checkStartedAt
+
+    realtimeLog('info', { ...base, ...timings, audioFound, totalMs: Date.now() - startedAt })
     return merged
+  } catch (error: any) {
+    realtimeLog('warn', { ...base, ...timings, error: String(error?.message || error), totalMs: Date.now() - startedAt })
+    throw error
   } finally {
     Taro.getFileSystemManager().unlink({ filePath: audioPath, fail: () => undefined })
   }

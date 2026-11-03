@@ -140,6 +140,8 @@ export default function HappyBirdPage() {
   const [runtimeDetail, setRuntimeDetail] = useState('正在启动头部识别')
   const [recording, setRecording] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [processingLabel, setProcessingLabel] = useState('')
+  const [processingSeconds, setProcessingSeconds] = useState(0)
   const [videoPath, setVideoPath] = useState('')
   const [saving, setSaving] = useState(false)
   const [ranking, setRanking] = useState<MotionGameRankingResult | null>(null)
@@ -184,9 +186,12 @@ export default function HappyBirdPage() {
     bestScore: bestScoreRef.current
   })
 
-  const withSoundtrack = async (videoPath: string, recorder: HappyBirdRecorder) => {
+  const withSoundtrack = async (videoPath: string, recorder: HappyBirdRecorder, stopMs: number) => {
     try {
-      return await addSoundtrackToVideo(videoPath, recorder.soundtrackPlan())
+      return await addSoundtrackToVideo(videoPath, recorder.soundtrackPlan(), {
+        logFields: { game: 'happy-bird', stopMs },
+        onStage: (stage) => setProcessingLabel(stage === 'check' ? '检查视频' : '合成声音')
+      })
     } catch (error: any) {
       console.warn('快乐小鸟合成声音失败:', error)
       Taro.showToast({ title: `声音没合成进去，已保存无声视频：${String(error?.message || '').slice(0, 24)}`, icon: 'none', duration: 3000 })
@@ -200,11 +205,16 @@ export default function HappyBirdPage() {
     recordingRef.current = false
     setRecording(false)
     setProcessing(true)
+    setProcessingLabel('整理画面')
+    const startedAt = Date.now()
+    setProcessingSeconds(0)
+    // 生成可能要几十秒，按秒显示进度，用户知道没卡住。
+    const secondsTimer = setInterval(() => setProcessingSeconds(Math.floor((Date.now() - startedAt) / 1000)), 1000)
     try {
       const result = await recorder.stop()
       if (unmountedRef.current) return
       if (result?.tempVideoPath) {
-        const finalPath = await withSoundtrack(result.tempVideoPath, recorder)
+        const finalPath = await withSoundtrack(result.tempVideoPath, recorder, Date.now() - startedAt)
         if (unmountedRef.current) return
         setVideoPath(await keepReplay(finalPath))
       } else {
@@ -215,6 +225,7 @@ export default function HappyBirdPage() {
         Taro.showToast({ title: error?.message || '视频生成失败', icon: 'none' })
       }
     } finally {
+      clearInterval(secondsTimer)
       await recorder.destroy()
       if (recorderRef.current === recorder) recorderRef.current = null
       if (!unmountedRef.current) setProcessing(false)
@@ -710,7 +721,7 @@ export default function HappyBirdPage() {
                     onClick={() => !processing && void saveVideo()}
                   >
                     <Text className='bird-btn__text'>
-                      {processing ? '视频生成中…' : saving ? '正在保存' : '保存视频'}
+                      {processing ? `${processingLabel || '视频生成'}中… ${processingSeconds}s` : saving ? '正在保存' : '保存视频'}
                     </Text>
                   </View>
                 ) : null}

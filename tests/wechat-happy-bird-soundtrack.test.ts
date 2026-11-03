@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createSoundTimeline,
+  mergeTimeoutMs,
   renderSoundtrack,
   soundForEvent,
   SOUNDTRACK_SAMPLE_RATE,
@@ -122,5 +123,22 @@ describe('happy bird soundtrack', () => {
     const samples = samplesOf(renderSoundtrack(plan({ durationSeconds: 1, cues: [{ ...COIN, at: 5 }] })));
     expect(samples.length).toBe(SOUNDTRACK_SAMPLE_RATE);
     expect(energy(samples, 0, 1)).toBe(0);
+  });
+});
+
+describe('happy bird merge timeout', () => {
+  it('never drops below a minute, so short rounds keep the old allowance', () => {
+    expect(mergeTimeoutMs(0)).toBe(60000);
+    expect(mergeTimeoutMs(5)).toBe(60000);
+  });
+
+  it('grows with the video, so a long round is not cut off at a fixed minute', () => {
+    expect(mergeTimeoutMs(60)).toBe(135000);
+    expect(mergeTimeoutMs(120)).toBeGreaterThan(mergeTimeoutMs(60));
+  });
+
+  it('is capped for the five-minute recording limit', () => {
+    expect(mergeTimeoutMs(300)).toBe(8 * 60 * 1000);
+    expect(mergeTimeoutMs(10_000)).toBe(8 * 60 * 1000);
   });
 });
