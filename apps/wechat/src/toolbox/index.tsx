@@ -3,7 +3,7 @@ import { Image, ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import dumbbellBounceCover from '@/assets/images/toolbox-games/dumbbell-bounce-game-v1.webp'
 import happyBirdCover from '@/assets/images/toolbox-games/happy-bird-game-v1.webp'
-import motionBeanCover from '@/assets/images/toolbox-games/motion-bean-game-v2.webp'
+import motionBeanCover from '@/assets/images/toolbox-games/motion-bean-game-v3.webp'
 import motionEffectsCover from '@/assets/images/toolbox-games/motion-effects-game-v2.webp'
 import barLocationsCover from '@/assets/images/toolbox-practical/practical-bar-locations-v2.webp'
 import communityDataCover from '@/assets/images/toolbox-practical/practical-community-data-v2.webp'
@@ -101,7 +101,7 @@ const MINI_GAMES: ToolboxEntry[] = [
   },
   {
     cover: motionBeanCover,
-    description: '身体一动接住小豆',
+    description: '用脸接豆子，躲开捣蛋豆',
     key: 'motion-bean',
     label: '接豆派对',
     url: '/toolbox/motion-bean/index'

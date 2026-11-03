@@ -1,1 +1,222 @@
-.motion-arcade-page--bean {}
+$bean-brand: #cf6d4e;
+
+.bean-page {
+  position: relative;
+  height: 100vh;
+  background: #000000;
+  overflow: hidden;
+}
+
+.bean-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000000;
+}
+
+.bean-camera,
+.bean-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bean-canvas {
+  z-index: 2;
+}
+
+.bean-rec {
+  position: absolute;
+  z-index: 3;
+  right: 24rpx;
+  top: 96rpx;
+  height: 48rpx;
+  padding: 0 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  border-radius: 9999rpx;
+  background: rgba(0, 0, 0, 0.56);
+}
+
+.bean-rec__dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 9999rpx;
+  background: #ff4d4f;
+  animation: bean-rec-blink 1s ease-in-out infinite;
+}
+
+.bean-rec__text {
+  font-size: 22rpx;
+  color: #ffffff;
+}
+
+@keyframes bean-rec-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.32;
+  }
+}
+
+.bean-note {
+  position: absolute;
+  z-index: 4;
+  left: 48rpx;
+  right: 48rpx;
+  top: 40%;
+  padding: 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  border-radius: 24rpx;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.bean-note__title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.bean-note__desc {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.76);
+  text-align: center;
+}
+
+.bean-controls {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  background: rgba(0, 0, 0, 0.56);
+}
+
+.bean-controls--bare {
+  left: 50%;
+  right: auto;
+  width: 192rpx;
+  margin-left: -96rpx;
+  padding: 0;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  background: transparent;
+}
+
+.bean-chips {
+  display: flex;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.bean-chip {
+  height: 56rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999rpx;
+  background: rgba(255, 255, 255, 0.12);
+  border: 2rpx solid transparent;
+}
+
+.bean-chip--on {
+  background: rgba(207, 109, 78, 0.32);
+  border-color: $bean-brand;
+}
+
+.bean-chip__text {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.bean-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.bean-btn {
+  flex: 1;
+  height: 96rpx;
+  box-sizing: border-box;
+  border-radius: 9999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.bean-btn--primary {
+  background: $bean-brand;
+}
+
+.bean-btn--secondary {
+  background: #ffffff;
+  border: 2rpx solid #ffffff;
+}
+
+.bean-btn--ghost {
+  height: 56rpx;
+  background: rgba(0, 0, 0, 0.56);
+  border: 2rpx solid rgba(255, 255, 255, 0.48);
+}
+
+.bean-btn--disabled {
+  opacity: 0.48;
+}
+
+.bean-btn__text {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.bean-btn--secondary .bean-btn__text {
+  color: #111111;
+}
+
+.bean-btn--ghost .bean-btn__text {
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.bean-link {
+  display: flex;
+  justify-content: center;
+  gap: 32rpx;
+}
+
+.bean-link__text {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.76);
+  text-decoration: underline;
+}
+
+.bean-hint {
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.64);
+  text-align: center;
+}
