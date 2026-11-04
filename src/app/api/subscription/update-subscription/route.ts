@@ -343,9 +343,10 @@ export async function POST(req: Request) {
         : updatedSubscription;
 
     if ((updateData as any)?.status === "active" && isCoachOfSubscription) {
-        // 每次确认收款是一个新的付费周期（旧订阅行可能被再次使用）；自动化会自己把结果发给教练。
+        // 每次确认收款是一个新的付费周期（旧订阅行可能被再次使用）；按确认前读到的那一版订阅区分，
+        // 双击或并发确认读到的是同一版，会落到同一个任务上。自动化会自己把结果发给教练。
         await autoMatchPlanForSubscription(id, userId, subscription.coach_id, {
-            periodKey: `coach_confirm:${(updateData as any).payment_confirmed_at}`,
+            periodKey: `coach_confirm:${(subscription as any).updated_at || subscription.created_at || id}`,
         });
     }
 

@@ -93,9 +93,23 @@ function hasAppliedOrder(subscription: { payment_data?: Json | null } | null | u
 }
 
 function withAppliedOrder(paymentData: Record<string, any>, previous: Json | null | undefined, orderId: string) {
-    const applied = asObject(previous)[APPLIED_ORDER_IDS_KEY];
-    const list = Array.isArray(applied) ? applied.filter((id: unknown) => id !== orderId) : [];
-    return { ...paymentData, [APPLIED_ORDER_IDS_KEY]: [...list, orderId].slice(-APPLIED_ORDER_IDS_LIMIT) };
+    return withOrderIdIn(APPLIED_ORDER_IDS_KEY, paymentData, previous, orderId);
+}
+
+function withOrderIdIn(key: string, paymentData: Record<string, any>, previous: Json | null | undefined, orderId: string) {
+    const existing = asObject(previous)[key];
+    const list = Array.isArray(existing) ? existing.filter((id: unknown) => id !== orderId) : [];
+    return { ...paymentData, [key]: [...list, orderId].slice(-APPLIED_ORDER_IDS_LIMIT) };
+}
+
+// Subscribe orders that only added weeks to a running subscription. A repeated
+// callback for the same order must take the renewal path again, not start a
+// first plan for a "new period".
+const EXTENDED_ORDER_IDS_KEY = "extended_subscription_order_ids";
+
+function extendedRunningSubscriptionWith(subscription: { payment_data?: Json | null }, orderId: string) {
+    const list = asObject(subscription.payment_data)[EXTENDED_ORDER_IDS_KEY];
+    return Array.isArray(list) && list.includes(orderId);
 }
 
 async function fetchSubscriptionById(subscriptionId: string): Promise<CoachSubscriptionRow> {
@@ -250,11 +264,13 @@ async function notifyCoachAfterSubscribePaid(
         });
     }
 
-    // 在跑的订阅又买了一次只是加了周数，和续费一样交给下一阶段逻辑。
+    // 在跑的订阅又买了一次只是加了周数，和续费一样交给下一阶段逻辑；
+    // 同时按首个周期的键再触发一次首个计划：之前失败或从没建过就补上，已完成或已有计划时什么都不做。
     if (extendedRunningSubscription) {
         await onRenewalPaid(subscriptionId).catch((automationError) => {
             console.warn("[subscriptionOrders] renewal automation failed:", automationError);
         });
+        await autoMatchPlanForSubscription(subscriptionId, coachUserId, order.coach_id);
         return;
     }
 
@@ -304,10 +320,9 @@ async function activateSubscribeOrder(
     };
 
     const existing = await fetchLatestSubscriptionForPair(order.student_id, order.coach_id);
-    // Already applied by a concurrent or earlier callback. Whether that run extended a running
-    // subscription is unknown here; the plan automation dedupes on the order and re-checks plans.
+    // Already applied by a concurrent or earlier callback: repeat what that run decided.
     if (existing && hasAppliedOrder(existing, order.id)) {
-        return { subscription: existing, extendedRunningSubscription: false };
+        return { subscription: existing, extendedRunningSubscription: extendedRunningSubscriptionWith(existing, order.id) };
     }
     if (existing) {
         const isRunning = String(existing.status || "").toLowerCase() === "active" &&
@@ -319,6 +334,12 @@ async function activateSubscribeOrder(
                 ...subscriptionPayload,
                 start_date: current.start_date,
                 subscribed_weeks: Number(current.subscribed_weeks || 0) + Number(order.purchased_weeks || 0),
+                payment_data: withOrderIdIn(
+                    EXTENDED_ORDER_IDS_KEY,
+                    asObject(subscriptionPayload.payment_data as Json),
+                    current.payment_data as Json,
+                    order.id,
+                ) as Json,
             }
             : { ...subscriptionPayload });
         return { subscription, extendedRunningSubscription: isRunning };

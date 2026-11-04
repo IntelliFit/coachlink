@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { getAuthUser } from "@/lib/auth";
 import { isStaleRunningJob, onSubscriptionActivated } from "@/lib/coachingAutomation";
@@ -83,8 +83,9 @@ export async function GET(req: Request) {
 /**
  * Re-runs a failed first-plan job. The job re-checks the subscription and
  * existing plans, so retrying after the coach already created a plan is a
- * no-op ("plan_instance_exists"). The coach gets the outcome as a system
- * message as well as in this response.
+ * no-op ("plan_instance_exists"). The AI run can take minutes, longer than a
+ * proxy keeps the request open, so it continues after the 202 and the coach
+ * gets the outcome as a system message.
  */
 export async function POST(req: Request) {
   const current = await getCurrentCoach(req);
@@ -112,12 +113,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: "该任务不是失败状态，无需重试" }, { status: 409 });
   }
 
-  const result = await onSubscriptionActivated(String(job.subscription_id), "coach_retry", {
-    periodKey: job.input_snapshot?.periodKey || null,
+  after(async () => {
+    try {
+      await onSubscriptionActivated(String(job.subscription_id), "coach_retry", {
+        periodKey: job.input_snapshot?.periodKey || null,
+      });
+    } catch (retryError) {
+      console.error(`[automation-jobs] coach retry failed (jobId=${jobId}):`, retryError);
+    }
   });
   return NextResponse.json({
-    success: result.success,
-    message: result.success ? "首个训练计划已生成" : `未生成计划：${result.reason || "未知原因"}`,
-    data: result,
-  });
+    success: true,
+    message: "已开始重新生成首个训练计划，结果会通过系统消息通知你",
+    data: { jobId },
+  }, { status: 202 });
 }

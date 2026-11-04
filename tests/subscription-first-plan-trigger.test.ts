@@ -97,14 +97,29 @@ describe('first plan trigger after a subscribe order is paid', () => {
     expect(automation.autoMatch).toHaveBeenCalledWith('sub-1', 'coach-user', 'coach-1', { periodKey: 'order-2' });
   });
 
-  it('treats a purchase on a running subscription as a renewal', async () => {
+  it('treats a purchase on a running subscription as a renewal and re-checks the first period', async () => {
     db.tables.coach_subscriptions = [subscription()];
     db.tables.coach_subscription_orders.push(subscribeOrder('order-3'));
 
     await finalizeSubscriptionOrder({ orderId: 'order-3', confirmedBy: 'system' });
 
     expect(automation.onRenewalPaid).toHaveBeenCalledWith('sub-1');
-    expect(automation.autoMatch).not.toHaveBeenCalled();
+    // Plain first-period key: re-runs a failed first plan, no-op when it succeeded or a plan exists.
+    expect(automation.autoMatch).toHaveBeenCalledWith('sub-1', 'coach-user', 'coach-1');
+    expect(automation.autoMatch).not.toHaveBeenCalledWith('sub-1', 'coach-user', 'coach-1', { periodKey: 'order-3' });
+  });
+
+  it('keeps the renewal path when the callback for that order repeats', async () => {
+    db.tables.coach_subscriptions = [subscription()];
+    db.tables.coach_subscription_orders.push(subscribeOrder('order-3'));
+    await finalizeSubscriptionOrder({ orderId: 'order-3', confirmedBy: 'system' });
+    db.tables.coach_subscription_orders[0].status = 'pending_payment';
+
+    await finalizeSubscriptionOrder({ orderId: 'order-3', confirmedBy: 'system' });
+
+    expect(db.tables.coach_subscriptions[0].subscribed_weeks).toBe(12);
+    expect(automation.onRenewalPaid).toHaveBeenCalledTimes(2);
+    expect(automation.autoMatch).not.toHaveBeenCalledWith('sub-1', 'coach-user', 'coach-1', { periodKey: 'order-3' });
   });
 
   it('leaves the plan result message to the automation', async () => {

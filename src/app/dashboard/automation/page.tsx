@@ -305,7 +305,8 @@ export default function CoachAutomationPage() {
     }
   };
 
-  // AI 生成要跑一两分钟，按钮保持转圈直到结果回来。
+  // 服务端收到后在后台跑（AI 要几分钟），结果通过系统消息告诉教练。
+  // 这时任务可能还没被认领，立刻重新拉列表会又显示成失败，所以本地先标成执行中。
   const retryInitialPlan = async (jobId: string) => {
     setRetryingId(jobId);
     setMessage(null);
@@ -316,9 +317,12 @@ export default function CoachAutomationPage() {
         body: JSON.stringify({ action: "retry", jobId }),
       });
       const json = await response.json();
-      // loadData 开头会清空提示，先刷新列表再显示结果。
-      await loadData();
-      setMessage(json?.message || (json?.success ? "首个训练计划已生成" : "重新生成失败"));
+      if (response.ok && json?.success) {
+        setJobs((current) => current.map((job) => (
+          job.id === jobId ? { ...job, status: "running", error_message: null } : job
+        )));
+      }
+      setMessage(json?.message || (json?.success ? "已开始重新生成" : "重新生成失败"));
     } catch (error: any) {
       setMessage(error?.message || "重新生成失败");
     } finally {

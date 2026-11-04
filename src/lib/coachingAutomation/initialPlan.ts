@@ -90,22 +90,34 @@ export async function onSubscriptionActivated(
   if (!context) return { success: false, reason: "subscription_not_found" };
 
   const periodKey = String(options.periodKey || "").trim() || null;
-  const job = await createAutomationJob({
-    type: "initial_plan",
-    triggerSource,
-    idempotencyKey: initialPlanIdempotencyKey(context.subscriptionId, periodKey),
-    subscriptionId: context.subscriptionId,
-    coachId: context.coachId,
-    studentId: context.studentId,
-    inputSnapshot: { policy, periodKey },
-  });
+  let job: AutomationJobRow;
+  try {
+    job = await createAutomationJob({
+      type: "initial_plan",
+      triggerSource,
+      idempotencyKey: initialPlanIdempotencyKey(context.subscriptionId, periodKey),
+      subscriptionId: context.subscriptionId,
+      coachId: context.coachId,
+      studentId: context.studentId,
+      inputSnapshot: { policy, periodKey },
+    });
 
-  if (job.status === "succeeded" || job.status === "needs_coach_review") {
-    return { success: true, reason: "already_handled", duplicate: true, jobId: job.id, planInstanceId: job.plan_instance_id };
-  }
-  // 支付回调、轮询和返回页可能同时到达；只有抢到任务的那一路生成计划，否则会生成两份。
-  if (!(await claimAutomationJob(job, RERUNNABLE_STATUSES))) {
-    return { success: false, reason: "in_progress", duplicate: true, jobId: job.id };
+    if (job.status === "succeeded" || job.status === "needs_coach_review") {
+      return { success: true, reason: "already_handled", duplicate: true, jobId: job.id, planInstanceId: job.plan_instance_id };
+    }
+    // 支付回调、轮询和返回页可能同时到达；只有抢到任务的那一路生成计划，否则会生成两份。
+    if (!(await claimAutomationJob(job, RERUNNABLE_STATUSES))) {
+      return { success: false, reason: "in_progress", duplicate: true, jobId: job.id };
+    }
+  } catch (error: any) {
+    // 任务都没建起来时没有失败记录可查，也不会被后台重试捡到，只能直接告诉教练。
+    const message = error?.message || String(error);
+    console.error(`[automation] initial plan job could not start (subscriptionId=${subscriptionId}):`, error);
+    await notifyCoach(
+      context,
+      `新学员已付款，但首个训练计划任务没能启动：${message}。请前往 ${STUDENTS_LINK} 为 TA 创建训练计划。`,
+    );
+    return { success: false, reason: message, error: message };
   }
 
   const attempts = Number(job.output_snapshot?.attempts || 0) + 1;
@@ -211,26 +223,20 @@ async function runInitialPlan(params: {
     fallback: plan.ai_generation_log?.fallback || null,
   };
 
-  if (initialStatus === "draft") {
-    await notifyCoach(
-      context,
-      `系统已为新学员生成首个训练计划草稿：${plan.name || "未命名计划"}。请前往 ${STUDENTS_LINK} 确认后发布。${notes}`,
-    );
-    await markAutomationJob(job.id, "needs_coach_review", {
-      planInstanceId: plan.id,
-      needsCoachConfirmation: true,
-      outputSnapshot,
-    });
-  } else {
-    await notifyCoach(
-      context,
-      `新学员的训练计划已自动发放：${plan.name || "未命名计划"}，学员现在可以在今日训练查看。${notes}`,
-    );
-    await markAutomationJob(job.id, "succeeded", {
-      planInstanceId: plan.id,
-      outputSnapshot,
-    });
-  }
+  // 计划已经建好：记录状态失败也不能再走失败分支告诉教练「没有计划」。任务会留在 running，
+  // 过期后被后台重试捡到，那时会因为已有计划而跳过。
+  const draft = initialStatus === "draft";
+  await markAutomationJob(job.id, draft ? "needs_coach_review" : "succeeded", {
+    planInstanceId: plan.id,
+    ...(draft ? { needsCoachConfirmation: true } : {}),
+    outputSnapshot,
+  }).catch((error) => console.error(`[automation] mark initial plan job failed (jobId=${job.id}):`, error));
+  await notifyCoach(
+    context,
+    draft
+      ? `系统已为新学员生成首个训练计划草稿：${plan.name || "未命名计划"}。请前往 ${STUDENTS_LINK} 确认后发布。${notes}`
+      : `新学员的训练计划已自动发放：${plan.name || "未命名计划"}，学员现在可以在今日训练查看。${notes}`,
+  );
 
   return { success: true, jobId: job.id, planInstanceId: plan.id };
 }

@@ -21,6 +21,9 @@ vi.mock("@/lib/supabaseClient", () => {
         const s = mocks.store;
         if (ctx.table === "coach_automation_jobs") {
             if (ctx.op === "update") {
+                if (s.failFinalMark && ctx.payload?.status !== "running") {
+                    return { data: null, error: new Error("write failed") };
+                }
                 const job = s.jobs[filterValue(ctx, "eq", "id")];
                 const status = filterValue(ctx, "eq", "status");
                 const updatedAt = filterValue(ctx, "eq", "updated_at");
@@ -273,6 +276,32 @@ describe("onSubscriptionActivated", () => {
         expect(onlyJob()).toMatchObject({ status: "skipped" });
         expect(coachMessages()).toHaveLength(1);
         expect(coachMessages()[0]).toContain("关闭了自动生成首个计划");
+    });
+
+    it("tells the coach when the job itself cannot be created", async () => {
+        const { createAutomationJob } = await import("./jobs");
+        vi.mocked(createAutomationJob).mockRejectedValueOnce(new Error("connection reset"));
+
+        const result = await onSubscriptionActivated(SUB, "test");
+
+        expect(result).toMatchObject({ success: false, reason: "connection reset" });
+        expect(mocks.createAi).not.toHaveBeenCalled();
+        expect(coachMessages()).toHaveLength(1);
+        expect(coachMessages()[0]).toContain("任务没能启动：connection reset");
+    });
+
+    it("reports success, not failure, when only the final status write fails", async () => {
+        mocks.createAi.mockImplementationOnce(async () => {
+            // The plan exists from here on; the final job status write fails.
+            mocks.store.failFinalMark = true;
+            return { id: "plan-1", name: "小王的计划", ai_generation_log: null };
+        });
+
+        const result = await onSubscriptionActivated(SUB, "test");
+
+        expect(result).toMatchObject({ success: true, planInstanceId: "plan-1" });
+        expect(coachMessages()).toHaveLength(1);
+        expect(coachMessages()[0]).toContain("已自动发放");
     });
 
     it("saves a draft and asks the coach to publish it in draft mode", async () => {
