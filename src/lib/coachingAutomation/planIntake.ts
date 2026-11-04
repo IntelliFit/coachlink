@@ -16,11 +16,12 @@ import {
     MAX_FOLLOW_UPS,
     buildCoachNotice,
     buildIntakeQuestions,
-    buildIntakeReplyPrompt,
+    buildIntakeReplyRequest,
     buildStudentConfirmation,
     estimateOneRmFromAnswer,
     findMissingPlanInputs,
     formatIntakeQuestionMessage,
+    isIntakeReplyShape,
     normalizeIntakeReply,
     type PlanActionInfo,
     type PlanIntakeHeldAnswer,
@@ -35,6 +36,7 @@ const INTAKE_REPLY_KIND = "plan_intake_reply";
 const ASSISTANT_LABEL = "教练计划助理";
 const PROCESSING_LEASE_MS = 2 * 60 * 1000;
 const REPLY_LLM_TIMEOUT_MS = 20_000;
+const REPLY_LLM_ATTEMPTS = 2;
 const MAX_STUDENT_MESSAGES_FOR_REPLY = 10;
 
 const db = () => serviceRoleSupabase as any;
@@ -285,21 +287,27 @@ async function loadStudentMessagesSince(roomId: string, studentId: string, since
     }>;
 }
 
+// 空内容、坏 JSON、别的 JSON 都重试一次；仍不行就抛错，状态不前进，学员下条消息时连同这条重读。
+// 不能当成“没回答”：那样会把这条消息标成已处理，答案就丢了。
 async function extractReply(questions: PlanIntakeQuestion[], messages: string[]) {
     const { client, model } = getCoachlinkFastLlm();
-    const completion = await client.chat.completions.create(
-        {
-            model,
-            messages: [{ role: "user", content: buildIntakeReplyPrompt({ questions, studentMessages: messages }) }],
-            response_format: { type: "json_object" },
-            temperature: 0,
-            max_tokens: 800,
-        } as any,
-        { timeout: REPLY_LLM_TIMEOUT_MS },
-    );
-    const text = completion.choices?.[0]?.message?.content || "";
-    if (!text) throw new Error("LLM 返回空内容");
-    return normalizeIntakeReply(parseJsonResponse<any>(text, "plan-intake-reply"), questions);
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < REPLY_LLM_ATTEMPTS; attempt++) {
+        try {
+            const completion = await client.chat.completions.create(
+                buildIntakeReplyRequest({ model, questions, studentMessages: messages }) as any,
+                { timeout: REPLY_LLM_TIMEOUT_MS },
+            );
+            const text = completion.choices?.[0]?.message?.content || "";
+            if (!text) throw new Error("LLM 返回空内容");
+            const raw = parseJsonResponse<any>(text, "plan-intake-reply");
+            if (!isIntakeReplyShape(raw)) throw new Error("LLM 返回的 JSON 不是回复提取结果");
+            return normalizeIntakeReply(raw, questions, { studentMessages: messages });
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError;
 }
 
 async function insertSelfReportedRecords(params: {
