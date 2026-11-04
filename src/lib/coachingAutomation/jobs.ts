@@ -54,6 +54,38 @@ export function isTerminalJob(job: AutomationJobRow | null | undefined) {
   return job?.status === "succeeded" || job?.status === "skipped" || job?.status === "needs_coach_review";
 }
 
+/** A running job older than this is treated as orphaned (pod restarted mid-run) and may be claimed again. */
+export const STALE_RUNNING_JOB_MS = 15 * 60 * 1000;
+
+export function isStaleRunningJob(job: AutomationJobRow, nowMs = Date.now()) {
+  if (job.status !== "running") return false;
+  const startedMs = Date.parse(String(job.started_at || job.updated_at || ""));
+  return !Number.isFinite(startedMs) || nowMs - startedMs > STALE_RUNNING_JOB_MS;
+}
+
+/**
+ * Moves a job to running only if nobody else changed it since it was read.
+ * Two triggers for one subscription (payment callback + polling, coach retry)
+ * both get the same row from createAutomationJob; only one wins this update.
+ */
+export async function claimAutomationJob(
+  job: AutomationJobRow,
+  claimableStatuses: AutomationJobStatus[],
+): Promise<boolean> {
+  const claimable = claimableStatuses.includes(job.status) || isStaleRunningJob(job);
+  if (!claimable) return false;
+
+  const now = new Date().toISOString();
+  let query = table()
+    .update({ status: "running", started_at: now, updated_at: now, finished_at: null, error_message: null })
+    .eq("id", job.id)
+    .eq("status", job.status);
+  query = job.updated_at ? query.eq("updated_at", job.updated_at) : query.is("updated_at", null);
+  const { data, error } = await query.select("id");
+  if (error) throw error;
+  return Array.isArray(data) && data.length > 0;
+}
+
 export async function markAutomationJob(
   jobId: string,
   status: AutomationJobStatus,

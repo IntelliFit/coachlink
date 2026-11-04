@@ -198,6 +198,27 @@ export async function registerNodeRuntime() {
         console.warn("[BackgroundJobs] missing MOBILE_PUSH_CRON_SECRET/CRON_SECRET; skip mobile push job");
     }
 
+    // First plans whose job never finished (pod replaced mid-run, or a failure
+    // that may be gone now) are retried here. Opt-in like the expiry check
+    // below (set INITIAL_PLAN_RETRY_INTERVAL_MS, e.g. 600000, in the deployment
+    // only): it creates plans in the live database.
+    startIntervalJob(
+        "InitialPlan Retry",
+        readIntervalMs("INITIAL_PLAN_RETRY_INTERVAL_MS", 0),
+        () => {
+            import("@/lib/coachingAutomation/initialPlan")
+                .then(({ retryUnfinishedInitialPlans }) => retryUnfinishedInitialPlans())
+                .then((results) => {
+                    if (results.length > 0) {
+                        console.log(`[InitialPlanRetry] retried ${results.length} jobs: ${results.map((r) => r.reason || "ok").join(", ")}`);
+                    }
+                })
+                .catch((error) => {
+                    console.error("[InitialPlanRetry] background run error:", error);
+                });
+        },
+    );
+
     // Subscription expiry used to be fired from every signed-in visitor's
     // browser. It now runs here, in-process, so it needs no cron secret. It is
     // opt-in (set SUBSCRIPTION_EXPIRY_CHECK_INTERVAL_MS, e.g. 3600000, in the

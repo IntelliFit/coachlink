@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { getAuthUser } from "@/lib/auth";
+import { isStaleRunningJob, onSubscriptionActivated } from "@/lib/coachingAutomation";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
 async function getCurrentCoach(req: Request) {
@@ -77,4 +78,53 @@ export async function GET(req: Request) {
       drafts: drafts || [],
     },
   });
+}
+
+/**
+ * Re-runs a failed first-plan job. The job re-checks the subscription and
+ * existing plans, so retrying after the coach already created a plan is a
+ * no-op ("plan_instance_exists"). The AI run can take minutes, longer than a
+ * proxy keeps the request open, so it continues after the 202 and the coach
+ * gets the outcome as a system message.
+ */
+export async function POST(req: Request) {
+  const current = await getCurrentCoach(req);
+  if (current.error) return current.error;
+
+  const body = await req.json().catch(() => null);
+  const jobId = String(body?.jobId || "").trim();
+  if (body?.action !== "retry" || !jobId) {
+    return NextResponse.json({ success: false, message: "缺少要重试的任务" }, { status: 400 });
+  }
+
+  const { data: job, error } = await (serviceRoleSupabase as any)
+    .from("coach_automation_jobs")
+    .select("*")
+    .eq("id", jobId)
+    .eq("coach_id", current.coach!.id)
+    .maybeSingle();
+  if (error) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+  }
+  if (!job?.subscription_id || job.type !== "initial_plan") {
+    return NextResponse.json({ success: false, message: "只能重试首个训练计划任务" }, { status: 404 });
+  }
+  if (job.status !== "failed" && !isStaleRunningJob(job)) {
+    return NextResponse.json({ success: false, message: "该任务不是失败状态，无需重试" }, { status: 409 });
+  }
+
+  after(async () => {
+    try {
+      await onSubscriptionActivated(String(job.subscription_id), "coach_retry", {
+        periodKey: job.input_snapshot?.periodKey || null,
+      });
+    } catch (retryError) {
+      console.error(`[automation-jobs] coach retry failed (jobId=${jobId}):`, retryError);
+    }
+  });
+  return NextResponse.json({
+    success: true,
+    message: "已开始重新生成首个训练计划，结果会通过系统消息通知你",
+    data: { jobId },
+  }, { status: 202 });
 }

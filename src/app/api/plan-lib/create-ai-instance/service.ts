@@ -1,6 +1,6 @@
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { TrainingItem } from "@/types/questionnaires";
-import { fillTemplate, matchPlan } from "./match";
+import { fillTemplate, findClosestPlans, matchPlan } from "./match";
 import { sendDirectMessage } from "@/lib/chat";
 import { randomInt } from "crypto";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
@@ -24,6 +24,17 @@ export class ApiError extends Error {
     }
 }
 
+/** 生成期间（LLM 可能跑几分钟）这个订阅已经有了当前计划，例如教练手动建了一份。 */
+export class PlanAlreadyExistsError extends ApiError {
+    planInstanceId: string;
+    constructor(planInstanceId: string) {
+        super("该学员已有当前训练计划，已停止自动创建", 409);
+        this.planInstanceId = planInstanceId;
+    }
+}
+
+const CURRENT_PLAN_STATUSES = ["active", "paused", "draft", "scheduled"];
+
 export interface CreateAiInstanceParams {
     actorUserId: string;
     actorCoachId: string;
@@ -34,6 +45,8 @@ export interface CreateAiInstanceParams {
     delayedActivation?: boolean; // 是否延迟激活（2分钟后才显示给学员）
     initialStatus?: "active" | "draft" | "scheduled";
     useLLM?: boolean;
+    /** 写入前再查一次：已有当前计划就抛 PlanAlreadyExistsError，而不是把它归档掉。 */
+    skipIfCurrentPlanExists?: boolean;
 }
 
 function getLlmFailureMessage(error: unknown): string {
@@ -56,6 +69,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         delayedActivation = false,
         initialStatus: requestedInitialStatus,
         useLLM = false,
+        skipIfCurrentPlanExists = false,
     } = params;
 
     const { data: subscription, error: subscriptionError } = await supabase
@@ -80,7 +94,10 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         throw new ApiError("当前学员订阅非活跃状态，无法生成计划", 400);
     }
 
-    const answers = subscription.subscribe_data as unknown as TrainingItem[];
+    // 教练没有问卷时订阅的 subscribe_data 是 [] 或 null，按空问卷生成。
+    const answers = (Array.isArray(subscription.subscribe_data)
+        ? subscription.subscribe_data
+        : []) as unknown as TrainingItem[];
 
     // 获取学员体重与姓名
     const { data: profile } = await supabase
@@ -199,16 +216,19 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
                 : "[create-ai-instance] 使用规则匹配生成计划",
         );
 
-        const templates = await matchPlan(answers, actorUserId);
+        const ruleMatch = await pickRuleMatchedTemplate(answers, actorUserId);
 
-        if (!templates || templates.length === 0) {
-            throw new ApiError("没有匹配的训练计划", 400);
+        if (!ruleMatch) {
+            // 一并带上 AI 失败原因：这条错误会写进自动化任务并发给教练，否则看不出 AI 那一步为什么也没成。
+            throw new ApiError(
+                llmFallbackReason
+                    ? `没有匹配的训练计划：AI 生成失败（${llmFallbackReason}），教练模板库里也没有带训练动作的模板`
+                    : "没有匹配的训练计划：教练模板库里没有带训练动作的模板",
+                400,
+            );
         }
 
-        // 多模板匹配时：随机选择一个模板（满足“适合该学员的模板有多个就随机选一个”）
-        const selectTemplate = templates.length === 1
-            ? templates[0]
-            : templates[randomInt(0, templates.length)];
+        const selectTemplate = ruleMatch.template;
 
         selectedTemplateId = selectTemplate.id;
         selectedTemplateMeta = selectTemplate;
@@ -228,8 +248,9 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         if (llmFallbackReason) {
             aiGenerationLog = {
                 fallback: {
-                    mode: "rule_match",
+                    mode: ruleMatch.mode,
                     reason: llmFallbackReason,
+                    templateId: selectTemplate.id,
                     createdAt: new Date().toISOString(),
                 },
             };
@@ -280,6 +301,23 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
     // DB 约束 check_plan_status 不允许 pending，延迟展示使用 scheduled。
     // Automation can also create draft plans for coach review.
     const initialStatus = requestedInitialStatus ?? (delayedActivation ? "scheduled" : "active");
+
+    if (skipIfCurrentPlanExists) {
+        // 自动任务开头查过一次，但 LLM 可能跑了几分钟；2026-10-10 期间教练建的计划被这里的归档覆盖了。
+        const { data: currentPlan, error: currentPlanError } = await supabase
+            .from("coach_plan_instances")
+            .select("id")
+            .eq("coach_subscription_id", subscriptionId)
+            .in("status", CURRENT_PLAN_STATUSES)
+            .limit(1)
+            .maybeSingle();
+        if (currentPlanError) {
+            throw new ApiError(`查询当前计划失败: ${currentPlanError.message}`, 500);
+        }
+        if (currentPlan?.id) {
+            throw new PlanAlreadyExistsError(String(currentPlan.id));
+        }
+    }
 
     if (initialStatus === "active") {
         await archiveCurrentPlanInstancesForSubscription({
@@ -400,6 +438,34 @@ function collectTrainingActionIds(trainingDays: any[]): Set<string> {
 
 function hasAnyTrainingAction(trainingDays: any[]): boolean {
     return collectTrainingActionIds(trainingDays).size > 0;
+}
+
+// 原始模板里的 one-filter 动作在 actions[] 里，填充前不能用 hasAnyTrainingAction 判断。
+function templateHasActions(template: any): boolean {
+    const days = Array.isArray(template?.training_days) ? template.training_days : [];
+    return days.some((day: any) => (day?.actionSets || []).some((set: any) =>
+        Boolean(set?.actionId || set?.action_id) || (Array.isArray(set?.actions) && set.actions.length > 0)
+    ));
+}
+
+/**
+ * 规则匹配：先按问卷标签 + 每周次数精确匹配，为空时取最接近的模板。
+ * 精确匹配要求模板 week_days 含学员选的次数；2026-10-17 学员选 4 练、模板全是 2/3 练，于是整个任务失败。
+ * 多个候选时随机选一个（“适合该学员的模板有多个就随机选一个”）。
+ */
+async function pickRuleMatchedTemplate(
+    answers: TrainingItem[],
+    coachUserId: string,
+): Promise<{ template: any; mode: "rule_match" | "closest_match" } | null> {
+    const pick = (templates: any[]) => templates[templates.length === 1 ? 0 : randomInt(0, templates.length)];
+
+    const exact = ((await matchPlan(answers, coachUserId)) || []).filter(templateHasActions);
+    if (exact.length > 0) return { template: pick(exact), mode: "rule_match" };
+
+    const closest = ((await findClosestPlans(answers, coachUserId)) || []).filter(templateHasActions);
+    if (closest.length > 0) return { template: pick(closest), mode: "closest_match" };
+
+    return null;
 }
 
 function shuffleArray<T>(arr: T[]): T[] {

@@ -2,6 +2,7 @@ import type OpenAI from "openai";
 import {
     getCoachlinkLlm,
     getCoachlinkPlanLlm,
+    getCoachlinkPlanScriptLlm,
 } from "@/lib/coachlinkLlm";
 
 type DeepSeekOptions = {
@@ -13,6 +14,10 @@ type DeepSeekOptions = {
      * 最大输出 tokens，默认 6000，防止 8 周计划被截断
      */
     maxTokens?: number;
+    /**
+     * 输出整段多周计划脚本时用 planScript 客户端（超时更宽），其余用默认 plan 客户端。
+     */
+    llm?: "plan" | "planScript";
 };
 
 /**
@@ -25,9 +30,12 @@ export async function callDeepSeek(
     const {
         useReasoner = false,
         maxTokens = 6000,
+        llm = "plan",
     } = options;
 
-    const { client, model, provider } = getCoachlinkPlanLlm();
+    const { client, model, provider } = llm === "planScript"
+        ? getCoachlinkPlanScriptLlm()
+        : getCoachlinkPlanLlm();
     const resolvedModel = model;
 
     void useReasoner;

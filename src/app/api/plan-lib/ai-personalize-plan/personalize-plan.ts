@@ -12,14 +12,17 @@ import {
     validateTrainingDaysAgainstIntent,
 } from "./questionnaire-intent";
 
+// 多周计划脚本走 planScript 客户端：通用 plan 客户端 90 秒超时，8 周脚本两次都超时过（2026-10-10）。
 const STAGE_B_PRIMARY_OPTIONS = {
     useReasoner: false,
     maxTokens: 12000,
+    llm: "planScript",
 } as const;
 
 const STAGE_B_RETRY_OPTIONS = {
     useReasoner: false,
     maxTokens: 16000,
+    llm: "planScript",
 } as const;
 
 const DEFAULT_PHASE_WEEKS_WITHOUT_TEMPLATE = 8;
