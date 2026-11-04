@@ -1,3 +1,11 @@
+## 快乐小鸟回放声音改为直接写入（2026-11-04，只发小程序）
+
+- 用户反馈上架版合成声音很慢（约两分钟）且失败。原因：createMediaContainer 会把整段视频重新编码，真机上要几分钟，那次也没完成。
+- 5f8adc64：不再用合成接口。游戏音效和音乐混成 22.05kHz 16 位单声道 PCM，按 QuickTime `sowt` 直接写进录制器输出的 MP4：原 moov 原地改名 free，末尾追加音频 mdat 和新 moov，画面字节不动（`apps/wechat/src/toolbox/happy-bird/mp4PcmTrack.ts`，`tests/wechat-mp4-pcm-track.test.ts` 用 ffmpeg 生成的真实 MP4 逐采样核对）。分片或读不懂的文件保存无声版，并把顶层结构写进实时日志（标签 game-replay-audio）。不用麦克风，不用改隐私指引。
+- 同批：a02c3ada（生成进度秒数、实时日志），9de7f47b（另一会话：头部跟踪更稳、小鸟跟眼睛）。
+- 用户在体验版 **2026.11.04.1333**（总包 10,685,875 / 主包 1,976,047，描述 test-5f8adc6-replay-pcm-audio）真机确认有声音。未提审；提审用这一版。其他机型和抖音上传未单独验证。
+- 构建注意：发布 worktree 的 `dist-release/debug.log` 被开发者工具占着删不掉，这次输出到 `dist-pcm`；`WEAPP_OUTPUT_ROOT` 不能跨盘（会拼成 D:\...\E:\...）。
+
 ## 手指光膜网页端找回任务上线（2026-11-03，web fd52c754）
 
 - main fd52c754 = 749f6657 + 89d0b307，相对上一版线上 bafd0ca1，Web 只多这次的 7 个文件。dev 上 2c6ee402 是同样的改动。用户要求更新后发布。
