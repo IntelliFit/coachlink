@@ -1,4 +1,6 @@
+import type OpenAI from "openai";
 import {
+    getCoachlinkLlm,
     getCoachlinkPlanLlm,
 } from "@/lib/coachlinkLlm";
 
@@ -29,13 +31,13 @@ export async function callDeepSeek(
     const resolvedModel = model;
 
     void useReasoner;
-    const body = {
+    const body: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
         messages: [{ role: "user" as const, content: prompt }],
         model: resolvedModel,
         max_tokens: maxTokens,
         response_format: { type: "json_object" as const },
         temperature: 0.2,
-    } as Parameters<typeof client.chat.completions.create>[0];
+    };
 
     const completion = await client.chat.completions.create(body);
 

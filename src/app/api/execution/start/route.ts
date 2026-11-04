@@ -490,7 +490,15 @@ export async function POST(request: NextRequest) {
                         plannedWeightInput = Number(result.displayWeight);
                         load = normalizeToKg(Number(result.displayWeight), result.displayUnit || "kg");
                     }
-                    if (result.displayText) plannedIntensity = result.displayText;
+                    if (result.displayText) {
+                        plannedIntensity = result.displayText;
+                    } else if (
+                        intensityConfig?.relativeIntensity?.type === "rm" &&
+                        /^\d+(?:\.\d+)?$/.test(String(plannedIntensity ?? "").trim())
+                    ) {
+                        // 强度只存了 RM 数字；算出公斤数后也要带单位，否则学员看到“102.5kg · 5次 · 5”。
+                        plannedIntensity = `${intensityConfig.relativeIntensity.value}RM`;
+                    }
                 } else if (plannedWeightUnit === "lbs" && plannedWeightInput !== null) {
                     load = toKg(plannedWeightInput, "lbs");
                 }
