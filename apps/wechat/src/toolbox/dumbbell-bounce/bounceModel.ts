@@ -110,7 +110,7 @@ export type BounceSim = {
   /** 已经撞够次数，正在往下掉；掉落中碰到片子不再计数。 */
   falling: boolean
   hits: number
-  /** 每块片子上一次计数时的模拟时间（秒），用来画撞击闪光和震动。 */
+  /** 每块片子上一次计数时的模拟时间（秒），用来画撞击闪光。 */
   lastHitAt: Record<PlateSide, number>
   /** 累积的未消化时间，保证固定步长。 */
   pending: number
@@ -349,25 +349,6 @@ export function runToEnd(start: BounceSim) {
   return { hits: sim.hits, seconds: sim.time }
 }
 
-const JOLT_SECONDS = 0.28
-const JOLT_DAMPING_SECONDS = 0.08
-const JOLT_FREQUENCY = 13
-/** 原视频里撞击时脸部最多顿约 8 像素（画面宽 580），约 1.4% 画面宽。 */
-const JOLT_AMPLITUDE = 0.014
-
-/** 撞击带来的画面震动（世界单位）：朝被撞的反方向猛顿一下，很快衰减。 */
-export function joltOffset(sinceHit: Record<PlateSide, number>) {
-  const fromLeft = sinceHit.left <= sinceHit.right
-  const seconds = fromLeft ? sinceHit.left : sinceHit.right
-  if (seconds < 0 || seconds >= JOLT_SECONDS) return { x: 0, y: 0 }
-  const envelope = JOLT_AMPLITUDE * Math.exp(-seconds / JOLT_DAMPING_SECONDS)
-  const phase = 2 * Math.PI * JOLT_FREQUENCY * seconds
-  return {
-    x: (fromLeft ? 1 : -1) * envelope * Math.cos(phase),
-    y: envelope * 0.5 * Math.sin(phase)
-  }
-}
-
 /** 画面需要的全部状态；实时画布和合成录制都只看这一份快照。 */
 export type BounceScene = {
   body: Pick<DumbbellBody, 'angle' | 'x' | 'y'>
@@ -375,7 +356,7 @@ export type BounceScene = {
   exerciseLabel: string
   hits: number
   plateAngle: Record<PlateSide, number>
-  /** 距离左右片子上一次撞击过去的秒数，用于闪光、数字放大和画面震动。 */
+  /** 距离左右片子上一次撞击过去的秒数，用于闪光和数字放大。 */
   sinceHit: Record<PlateSide, number>
   resultAgeMs: number
   status: BounceStatus

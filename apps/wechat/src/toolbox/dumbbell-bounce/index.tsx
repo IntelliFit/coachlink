@@ -44,7 +44,7 @@ const REPLAY_FRAME_INTERVAL_MS = 1000 / BOUNCE_REPLAY_FPS
  * 视频停在这里，游戏照常弹完，建议开快进。
  */
 const REPLAY_MAX_SECONDS = 600
-/** 快进时撞得很密，手机震动和画面震动会连成一片，至少间隔这么久才震一次。 */
+/** 快进时撞得很密，手机震动会连成一片，至少间隔这么久才震一次。 */
 const HIT_VIBRATE_GAP_MS = 150
 /** 还没开始时哑铃挂在两片上方。 */
 const IDLE_SIM = createSim({ angle: 0, spin: 0, vx: 0, vy: 0, x: 0.5, y: WORLD_HEIGHT * 0.26 }, 1)
@@ -101,8 +101,6 @@ export default function DumbbellBouncePage() {
   const [processing, setProcessing] = useState(false)
   const [videoPath, setVideoPath] = useState('')
   const [saving, setSaving] = useState(false)
-  // 每撞一下加 1，奇偶切换两个方向相反的 CSS 动画，既能重播又正好对应左右片子轮流撞。
-  const [joltTick, setJoltTick] = useState(0)
 
   const statusRef = useRef<BounceStatus>('idle')
   const speedRef = useRef<BounceSpeed>(initialPrefs.speed)
@@ -198,7 +196,6 @@ export default function DumbbellBouncePage() {
       simRef.current = advanceSim(simRef.current, delta, speedRef.current)
       if (simRef.current.hits > before && now - lastVibrateAtRef.current >= HIT_VIBRATE_GAP_MS) {
         lastVibrateAtRef.current = now
-        setJoltTick((tick) => tick + 1)
         void Taro.vibrateShort({ type: 'medium' }).catch(() => undefined)
       }
       if (simRef.current.ended) finishRound()
@@ -370,28 +367,27 @@ export default function DumbbellBouncePage() {
     <PageThemeRoot>
       <View className='bounce-page'>
         <View className='bounce-stage'>
-          <View className={`bounce-camera-wrap ${joltTick > 0 ? `bounce-camera-wrap--jolt-${joltTick % 2}` : ''}`}>
-            <Camera
-              className='bounce-camera'
-              devicePosition={USER_FACING_CAMERA.devicePosition}
-              flash='off'
-              mode='normal'
-              frameSize={USER_FACING_CAMERA.frameSize}
-              resolution={USER_FACING_CAMERA.resolution}
-              onInitDone={() => {
-                setCameraReady(true)
-                setCameraError('')
-                Taro.nextTick(() => {
-                  setupCanvas()
-                  startFrameStream()
-                })
-              }}
-              onError={(event: any) => {
-                setCameraReady(false)
-                setCameraError(event?.detail?.errMsg || '相机启动失败，请检查权限')
-              }}
-            />
-          </View>
+          {/* 原生相机不能加 transform：缩放后超出画面顶边的那条会在真机上画出乱码。 */}
+          <Camera
+            className='bounce-camera'
+            devicePosition={USER_FACING_CAMERA.devicePosition}
+            flash='off'
+            mode='normal'
+            frameSize={USER_FACING_CAMERA.frameSize}
+            resolution={USER_FACING_CAMERA.resolution}
+            onInitDone={() => {
+              setCameraReady(true)
+              setCameraError('')
+              Taro.nextTick(() => {
+                setupCanvas()
+                startFrameStream()
+              })
+            }}
+            onError={(event: any) => {
+              setCameraReady(false)
+              setCameraError(event?.detail?.errMsg || '相机启动失败，请检查权限')
+            }}
+          />
           <Canvas type='2d' id={CANVAS_ID} className='bounce-canvas' />
           {recording ? (
             <View className='bounce-rec'>

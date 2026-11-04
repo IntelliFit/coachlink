@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceSim,
   createRound,
-  joltOffset,
   MAX_HITS,
   PLATES,
   repsFromScene,
@@ -104,13 +103,6 @@ describe('dumbbell bounce', () => {
     let sim = first;
     while (!sim.ended) sim = advanceSim(sim, 1000);
     expect(advanceSim(sim, 5000)).toBe(sim);
-  });
-
-  it('jolts the picture right after a hit, away from the plate that was hit, then settles', () => {
-    expect(joltOffset({ left: 0, right: 5 }).x).toBeGreaterThan(0);
-    expect(joltOffset({ left: 5, right: 0 }).x).toBeLessThan(0);
-    expect(joltOffset({ left: 5, right: 5 })).toEqual({ x: 0, y: 0 });
-    expect(joltOffset({ left: Infinity, right: Infinity })).toEqual({ x: 0, y: 0 });
   });
 
   it('only reports reps once the dumbbell has been released', () => {
