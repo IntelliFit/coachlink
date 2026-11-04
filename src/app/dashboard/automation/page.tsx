@@ -227,6 +227,7 @@ export default function CoachAutomationPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const pendingDrafts = useMemo(
@@ -301,6 +302,26 @@ export default function CoachAutomationPage() {
       setMessage(error?.message || "应用失败");
     } finally {
       setApplyingId(null);
+    }
+  };
+
+  // AI 生成要跑一两分钟，按钮保持转圈直到结果回来。
+  const retryInitialPlan = async (jobId: string) => {
+    setRetryingId(jobId);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/coach/automation-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retry", jobId }),
+      });
+      const json = await response.json();
+      setMessage(json?.message || (json?.success ? "首个训练计划已生成" : "重新生成失败"));
+      await loadData();
+    } catch (error: any) {
+      setMessage(error?.message || "重新生成失败");
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -540,8 +561,19 @@ export default function CoachAutomationPage() {
                             <div className="mt-1 truncate text-surface-300">{job.idempotency_key}</div>
                           )}
                         </div>
-                        <div className="text-xs font-bold text-surface-400 md:text-right">
+                        <div className="flex flex-col gap-2 text-xs font-bold text-surface-400 md:items-end md:text-right">
                           {formatTime(job.updated_at || job.created_at)}
+                          {job.type === "initial_plan" && job.status === "failed" && (
+                            <button
+                              type="button"
+                              onClick={() => retryInitialPlan(job.id)}
+                              disabled={retryingId !== null}
+                              className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-surface-200 bg-white px-3 text-xs font-bold text-surface-700 transition hover:border-[#CF6D4E] hover:text-[#CF6D4E] disabled:opacity-60"
+                            >
+                              {retryingId === job.id ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                              {retryingId === job.id ? "生成中" : "重新生成"}
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

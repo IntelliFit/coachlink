@@ -348,10 +348,13 @@ export async function fillTemplate(
 
         for (const actionSet of day.actionSets) {
             if (actionSet.type === "one-filter") {
-                const question = actionSet.question;
-                const userSelection =
-                    optionNameMapUserSelection[question.question];
-                const selectedAction = actionSet.actions[userSelection];
+                const selectedAction = pickFilterAction(
+                    actionSet.actions,
+                    optionNameMapUserSelection[actionSet.question?.question],
+                );
+                if (!selectedAction) {
+                    continue;
+                }
                 // 计算具体重量
                 computeActionWeight(
                     selectedAction,
@@ -374,6 +377,16 @@ export async function fillTemplate(
 
         day.actionSets = specificActionSet;
     }
+}
+
+// 学员问卷没答这道筛选题（换了问卷、最接近模板兜底、无问卷）时用第一个选项，不能把 undefined 塞进计划。
+function pickFilterAction(
+    actions: CoachPlanAction[] | undefined,
+    userSelection: number | undefined,
+): CoachPlanAction | undefined {
+    if (!Array.isArray(actions) || actions.length === 0) return undefined;
+    if (typeof userSelection === "number" && actions[userSelection]) return actions[userSelection];
+    return actions[0];
 }
 
 function extractWeeklyTrainingDays(questionnaire: TrainingItem[]): number | null {

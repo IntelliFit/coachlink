@@ -236,10 +236,11 @@ async function notifyCoachPendingConfirmation(order: CoachSubscriptionOrderRow) 
 
 async function notifyCoachAfterSubscribePaid(
     subscriptionId: string,
-    coachId: string,
+    order: CoachSubscriptionOrderRow,
     confirmedBy: PaymentConfirmedBy,
+    extendedRunningSubscription: boolean,
 ) {
-    const coachUserId = await fetchCoachOwnerUserId(coachId);
+    const coachUserId = await fetchCoachOwnerUserId(order.coach_id);
     if (!coachUserId) return;
 
     if (confirmedBy === "system") {
@@ -249,17 +250,18 @@ async function notifyCoachAfterSubscribePaid(
         });
     }
 
-    const matchRes = await autoMatchPlanForSubscription(
-        subscriptionId,
-        coachUserId,
-        coachId,
-    );
-    const matchMsg = matchRes.success
-        ? "系统已自动匹配并发放训练计划，学员现在可以查看计划。"
-        : `自动匹配失败（${matchRes.reason || "未知原因"}），请前往 [我的学员](/dashboard/students) 手动创建计划。`;
+    // 在跑的订阅又买了一次只是加了周数，和续费一样交给下一阶段逻辑。
+    if (extendedRunningSubscription) {
+        await onRenewalPaid(subscriptionId).catch((automationError) => {
+            console.warn("[subscriptionOrders] renewal automation failed:", automationError);
+        });
+        return;
+    }
 
-    await sendSystemMessage(coachUserId, {
-        content: `该学员订阅的计划分配结果：${matchMsg}`,
+    // 学员再次购买会复用旧订阅行；按订单区分周期，否则上一周期已完成的首个计划任务会挡住这次。
+    // 自动化会自己把结果（已发放、草稿、失败原因）发给教练。
+    await autoMatchPlanForSubscription(subscriptionId, coachUserId, order.coach_id, {
+        periodKey: order.id,
     });
 }
 
@@ -280,7 +282,7 @@ async function activateSubscribeOrder(
     order: CoachSubscriptionOrderRow,
     confirmedBy: PaymentConfirmedBy,
     alipayOrderId?: string | null,
-): Promise<CoachSubscriptionRow> {
+): Promise<{ subscription: CoachSubscriptionRow; extendedRunningSubscription: boolean }> {
     const paymentConfirmedAt = new Date().toISOString();
     const subscriptionPayload: Record<string, unknown> = {
         tier: order.tier,
@@ -302,7 +304,11 @@ async function activateSubscribeOrder(
     };
 
     const existing = await fetchLatestSubscriptionForPair(order.student_id, order.coach_id);
-    if (existing && hasAppliedOrder(existing, order.id)) return existing;
+    // Already applied by a concurrent or earlier callback. Whether that run extended a running
+    // subscription is unknown here; the plan automation dedupes on the order and re-checks plans.
+    if (existing && hasAppliedOrder(existing, order.id)) {
+        return { subscription: existing, extendedRunningSubscription: false };
+    }
     if (existing) {
         const isRunning = String(existing.status || "").toLowerCase() === "active" &&
             Number(existing.subscribed_weeks || 0) > 0;
@@ -315,14 +321,14 @@ async function activateSubscribeOrder(
                 subscribed_weeks: Number(current.subscribed_weeks || 0) + Number(order.purchased_weeks || 0),
             }
             : { ...subscriptionPayload });
-        return subscription;
+        return { subscription, extendedRunningSubscription: isRunning };
     }
 
     const created = await upsertSubscriptionRow(order.student_id, order.coach_id, {
         ...subscriptionPayload,
         payment_data: withAppliedOrder(asObject(subscriptionPayload.payment_data as Json), null, order.id) as Json,
     });
-    return created;
+    return { subscription: created, extendedRunningSubscription: false };
 }
 
 async function applyRenewOrder(
@@ -607,9 +613,14 @@ export async function finalizeSubscriptionOrder(
         }
     }
 
-    subscription = order.order_type === "renew"
-        ? await applyRenewOrder(order, input.confirmedBy, input.alipayOrderId)
-        : await activateSubscribeOrder(order, input.confirmedBy, input.alipayOrderId);
+    let extendedRunningSubscription = false;
+    if (order.order_type === "renew") {
+        subscription = await applyRenewOrder(order, input.confirmedBy, input.alipayOrderId);
+    } else {
+        const activated = await activateSubscribeOrder(order, input.confirmedBy, input.alipayOrderId);
+        subscription = activated.subscription;
+        extendedRunningSubscription = activated.extendedRunningSubscription;
+    }
 
     const paymentConfirmedAt = new Date().toISOString();
     const { data: paidOrder, error: orderError } = await serviceRoleSupabase
@@ -638,8 +649,9 @@ export async function finalizeSubscriptionOrder(
     if (order.order_type === "subscribe") {
         await notifyCoachAfterSubscribePaid(
             subscription.id,
-            order.coach_id,
+            order,
             input.confirmedBy,
+            extendedRunningSubscription,
         );
     } else if (order.order_type === "renew" && asObject(order.payment_data).package_switch_policy !== 'after_current' &&
         (!order.product_id || order.product_id === subscription.product_id) &&

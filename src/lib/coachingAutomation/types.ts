@@ -51,6 +51,8 @@ export interface AutomationJobRow {
   input_snapshot?: any;
   output_snapshot?: any;
   error_message?: string | null;
+  started_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface FeedbackPatchResult {

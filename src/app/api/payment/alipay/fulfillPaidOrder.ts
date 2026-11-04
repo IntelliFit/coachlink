@@ -808,17 +808,13 @@ export async function fulfillSubscriptionOnPaid(
         });
 
         if (order.order_type === "subscription" || order.order_type === "coach_subscription") {
-            const matchRes = await autoMatchPlanForSubscription(
+            // 再次购买会复用旧订阅行，按这笔支付区分周期；自动化会自己把结果发给教练。
+            await autoMatchPlanForSubscription(
                 subscriptionId,
                 coach.user_id,
                 sub.coach_id,
+                { periodKey: order.id },
             );
-            const matchMsg = matchRes.success
-                ? "系统已自动匹配并发放训练计划，学员现在可以查看计划。"
-                : `自动匹配失败（${matchRes.reason || "未知原因"}），请前往 [我的学员](/dashboard/students) 手动创建计划。`;
-            await sendSystemMessage(coach.user_id, {
-                content: `该学员订阅的计划分配结果：${matchMsg}`,
-            });
         }
     } catch (error) {
         console.error("[fulfillPaidOrder] send coach system message:", error);

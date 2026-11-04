@@ -650,3 +650,11 @@
 - **统一规则**：判断「是否存在关系」用 `.limit(1)` 看数组长度，不用 `maybeSingle()`。按目标用户查数据时，权限不成立只能返回空或报错，不能退回查调用者本人。
 - **改动前自检**：这个查询在一对多的关系里（复购、续费、多教练）会不会返回多行？权限判断失败后，代码接下来读的是谁的数据？
 - **典型案例**（2026-11-04）：`src/app/api/student/get-current-1rm/route.ts` 的 `isCoachOfStudent`。受影响的调用方：`get-instance`、`create-ai-instance`（含自动托管首个计划和下一阶段）、`batch-operation`（AI 助手）。
+
+## 58) 长时间生成前查「已有计划」，写入时不再查；幂等键按订阅行定死，复购拿不到新计划（高风险）
+
+- **现象**：2026-10-10 自动托管首个计划跑了 197 秒（LLM 两次超时后走规则兜底），这期间这名学员已经有了一份 AI 个性化计划；自动任务最后写入时把它归档，学员拿到的是兜底计划。另一类：学员订阅结束后再次购买，复用旧订阅行，`initial_plan:<订阅id>` 任务已是成功状态，系统直接返回成功并告诉教练「已自动发放」，实际没有新计划。
+- **根因**：`onSubscriptionActivated` 在开头查一次 `coach_plan_instances`，几分钟后 `createAiInstanceForSubscription` 先归档当前计划再插入，中间没有再查（check-then-act）。两路触发（支付回调、轮询、返回页）同时到达时都通过了「计划不存在」检查。幂等键只按订阅 id，而订阅行在复购时会被重新激活。
+- **统一规则**：自动创建计划在写入前（归档之前）再查一次当前计划，有就停（`skipIfCurrentPlanExists` → `PlanAlreadyExistsError`）。自动化任务用 `claimAutomationJob` 按 `status + updated_at` 条件更新抢占，抢不到的一路直接返回。会被复用的订阅行，幂等键带上这次付费的订单 id（`periodKey`）。失败、跳过和超过 15 分钟仍是 running 的任务可以重跑。
+- **改动前自检**：从「检查」到「写入」之间会不会隔着 LLM 调用或其他慢操作？同一事件会不会被两路同时触发？幂等键对应的对象会不会被复用（复购、重新激活）？任务卡在 running（进程被替换）时谁来重跑？
+- **典型案例**（2026-11-04）：`src/lib/coachingAutomation/initialPlan.ts`、`jobs.ts`（`claimAutomationJob`）、`src/app/api/plan-lib/create-ai-instance/service.ts`、`src/lib/subscriptionOrders.ts`。测试 `src/lib/coachingAutomation/initialPlan.test.ts`、`create-ai-instance/service.test.ts`、`tests/subscription-first-plan-trigger.test.ts`。

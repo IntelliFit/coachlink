@@ -343,12 +343,9 @@ export async function POST(req: Request) {
         : updatedSubscription;
 
     if ((updateData as any)?.status === "active" && isCoachOfSubscription) {
-        const matchRes = await autoMatchPlanForSubscription(id, userId, subscription.coach_id);
-        const matchMsg = matchRes.success
-            ? "系统已自动匹配训练计划，学员将在约2分钟后看到计划。"
-            : `自动匹配失败（${matchRes.reason || "未知原因"}），请在学员页手动创建计划。`;
-        await sendSystemMessage(userId, {
-            content: `该学员订阅的计划分配结果：${matchMsg}`,
+        // 每次确认收款是一个新的付费周期（旧订阅行可能被再次使用）；自动化会自己把结果发给教练。
+        await autoMatchPlanForSubscription(id, userId, subscription.coach_id, {
+            periodKey: `coach_confirm:${(updateData as any).payment_confirmed_at}`,
         });
     }
 

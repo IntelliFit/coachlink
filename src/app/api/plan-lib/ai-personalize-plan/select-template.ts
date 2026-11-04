@@ -33,22 +33,56 @@ export async function selectTemplateWithLLM(
         ),
     });
 
-    const rawJson = await callDeepSeek(prompt, {
-        useReasoner: false,
-        maxTokens: 2000,
-    });
-
-    const result = parseJsonResponse<{
-        template_id: string | null;
-        reasoning: string;
-        confidence: number;
-    }>(rawJson, "select-template");
+    const options = { useReasoner: false, maxTokens: 2000 };
+    // 选模板只需要一个 ID：JSON 坏了先按 ID 读，读不出再问一次，不让整条 AI 链路因此改走规则匹配。
+    const result =
+        readTemplateSelection(await callDeepSeek(prompt, options), availableTemplates) ??
+        readTemplateSelection(
+            await callDeepSeek(`${prompt}\n\n${STAGE_A_RETRY_HINT}`, options),
+            availableTemplates,
+        );
+    if (!result) {
+        throw new Error("AI 选模板返回的 JSON 两次都无法解析");
+    }
 
     return {
         templateId: result.template_id ?? null,
         source: result.template_id ? (availableTemplates.find((tpl) => tpl.id === result.template_id)?.source || "template") : "none",
         reasoning: result.reasoning || "未提供推理",
         confidence: result.confidence ?? 0.5,
+    };
+}
+
+type TemplateSelectionJson = {
+    template_id: string | null;
+    reasoning?: string;
+    confidence?: number;
+};
+
+const STAGE_A_RETRY_HINT =
+    "上一次的输出不是合法 JSON。请只返回一个合法 JSON 对象，属性名和字符串都用英文双引号，不要注释，不要 markdown。";
+
+function readTemplateSelection(raw: string, templates: TemplateSummary[]): TemplateSelectionJson | null {
+    try {
+        return parseJsonResponse<TemplateSelectionJson>(raw, "select-template");
+    } catch {
+        return salvageTemplateSelection(raw, templates);
+    }
+}
+
+/** JSON 不合法时（如 2026-10-04 的 "Expected double-quoted property name"）按候选 ID 读出选择。 */
+export function salvageTemplateSelection(raw: string, templates: TemplateSummary[]): TemplateSelectionJson | null {
+    const text = String(raw || "");
+    if (/["'“”]?template_id["'“”]?\s*:\s*null/.test(text)) {
+        return { template_id: null, reasoning: "AI 认为没有可借用的骨架（JSON 不完整，已按字段读取）", confidence: 0.5 };
+    }
+    const id = text.match(/["'“”]?template_id["'“”]?\s*:\s*["'“”]([^"'“”]+)["'“”]/)?.[1]?.trim();
+    if (!id || !templates.some((template) => template.id === id)) return null;
+    const reasoning = text.match(/["'“”]?reasoning["'“”]?\s*:\s*["'“”]([^"'“”]*)["'“”]/)?.[1]?.trim();
+    return {
+        template_id: id,
+        reasoning: reasoning || "AI 选择了该骨架（JSON 不完整，已按 template_id 读取）",
+        confidence: 0.5,
     };
 }
 
