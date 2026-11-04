@@ -219,6 +219,24 @@ export async function registerNodeRuntime() {
         },
     );
 
+    // Plan-assistant questions the student never answered: mark them expired
+    // and tell the coach. Opt-in (PLAN_INTAKE_EXPIRY_INTERVAL_MS, e.g. 3600000,
+    // in the deployment only): it writes jobs and sends coach notices.
+    startIntervalJob(
+        "PlanIntake Expiry",
+        readIntervalMs("PLAN_INTAKE_EXPIRY_INTERVAL_MS", 0),
+        () => {
+            import("@/lib/coachingAutomation/planIntake")
+                .then(({ expireStalePlanIntakes }) => expireStalePlanIntakes())
+                .then((expired) => {
+                    if (expired > 0) console.log(`[PlanIntakeExpiry] expired ${expired} intakes`);
+                })
+                .catch((error) => {
+                    console.error("[PlanIntakeExpiry] background run error:", error);
+                });
+        },
+    );
+
     // Subscription expiry used to be fired from every signed-in visitor's
     // browser. It now runs here, in-process, so it needs no cron secret. It is
     // opt-in (set SUBSCRIPTION_EXPIRY_CHECK_INTERVAL_MS, e.g. 3600000, in the

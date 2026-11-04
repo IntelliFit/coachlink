@@ -7,6 +7,7 @@
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { toBeijingDateKey } from "@/lib/beijingTime";
 import { sendDirectMessage, sendSystemMessage } from "@/lib/chat";
+import { maybeCreateCoachAiAutoReply } from "@/lib/coachAiAutoReply";
 import { getCoachlinkFastLlm } from "@/lib/coachlinkLlm";
 import { parseJsonResponse } from "@/lib/deepseek";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
@@ -24,6 +25,7 @@ import {
     formatIntakeQuestionMessage,
     isIntakeReplyShape,
     normalizeIntakeReply,
+    painSentences,
     type PlanActionInfo,
     type PlanIntakeHeldAnswer,
     type PlanIntakeQuestion,
@@ -391,6 +393,67 @@ async function draftRevisionLine(params: {
     }
 }
 
+const MAX_LATE_MESSAGE_CHARS = 200;
+
+function describeLateMessages(messages: Array<{ content: string }>): string {
+    const quoted = messages
+        .map((m) => String(m.content || "").replace(/\s+/g, " ").trim().slice(0, MAX_LATE_MESSAGE_CHARS))
+        .filter(Boolean)
+        .map((text) => `「${text}」`)
+        .join("；");
+    return `学员在计划助理处理期间又发了：${quoted}。计划助理没有处理这几条，请留意。`;
+}
+
+/** 过了回复窗口：标记过期，并告诉教练哪些项学员没回答。被别的请求抢先写过就不重复通知。 */
+async function closeExpiredIntake(job: IntakeJob, coachUserId: string | null, studentId: string | null) {
+    const intake = job.output_snapshot?.intake as PlanIntakeState;
+    const pending = intake.questions.filter((q) => intake.pendingQuestionIds.includes(q.id));
+    const saved = await writeIntakeState(job, {
+        ...intake,
+        status: "expired",
+        closedAt: new Date().toISOString(),
+        processing: null,
+    });
+    if (!saved || !coachUserId || pending.length === 0) return;
+
+    const { data: profile } = studentId
+        ? await db().from("user_profiles").select("nickname, full_name").eq("user_id", studentId).maybeSingle()
+        : { data: null };
+    const labels = pending.map((q) => (q.kind === "one_rm" ? q.actionName : q.kind === "body_weight" ? "体重" : q.prompt));
+    await sendSystemMessage(coachUserId, {
+        content: `学员「${displayName(profile)}」${INTAKE_REPLY_WINDOW_DAYS} 天内没有回答计划助理的 ${pending.length} 项：${labels.join("、")}。这些组仍按相对强度显示，首练后会按训练记录自动校准；需要的话可以直接私信学员确认。`,
+    } as any).catch((error: unknown) => console.error("[plan-intake] notify coach about expiry failed:", error));
+}
+
+/**
+ * 定时把过了回复窗口、学员一直没回的计划助理标记过期并通知教练（instrumentation 里按需开启）。
+ * 只看最近 30 天创建的任务，避免扫全表。
+ */
+export async function expireStalePlanIntakes(limit = 200): Promise<number> {
+    const nowMs = Date.now();
+    const since = new Date(nowMs - 30 * 24 * 3600 * 1000).toISOString();
+    const { data, error } = await db()
+        .from("coach_automation_jobs")
+        .select("id, updated_at, output_snapshot, plan_instance_id, subscription_id, coach_id, student_id")
+        .in("type", ["initial_plan", "next_phase"])
+        .gte("created_at", since)
+        .order("created_at", { ascending: true })
+        .limit(limit);
+    if (error) throw new Error(`读取计划助理任务失败: ${error.message}`);
+
+    let expired = 0;
+    for (const job of (data || []) as Array<IntakeJob & { coach_id: string | null; student_id: string | null }>) {
+        const intake = job.output_snapshot?.intake as PlanIntakeState | undefined;
+        if (intake?.status !== "awaiting_reply" || !isExpired(intake, nowMs)) continue;
+        const { data: coach } = job.coach_id
+            ? await db().from("coaches").select("user_id").eq("id", job.coach_id).maybeSingle()
+            : { data: null };
+        await closeExpiredIntake(job, coach?.user_id ? String(coach.user_id) : null, job.student_id);
+        expired += 1;
+    }
+    return expired;
+}
+
 type IntakeRoom = {
     roomMembers: string[];
     senderUserId: string;
@@ -423,7 +486,13 @@ export async function hasAwaitingPlanIntake(params: IntakeRoom): Promise<boolean
     const coach = await resolveIntakeCoach(params);
     if (!coach) return false;
     const job = await findAwaitingIntakeJob(coach.coachId, params.senderUserId);
-    return Boolean(job && !isExpired(job.output_snapshot?.intake as PlanIntakeState, Date.now()));
+    if (!job) return false;
+    if (isExpired(job.output_snapshot?.intake as PlanIntakeState, Date.now())) {
+        // 过期的问题不再处理；顺手标记过期并告诉教练（定时任务没开时也能收尾）。
+        await closeExpiredIntake(job, coach.coachUserId, params.senderUserId);
+        return false;
+    }
+    return true;
 }
 
 /**
@@ -446,7 +515,7 @@ export async function handlePlanIntakeReply(params: IntakeRoom & {
 
         const nowMs = Date.now();
         if (isExpired(intake, nowMs)) {
-            await writeIntakeState(job, { ...intake, status: "expired", closedAt: new Date().toISOString(), processing: null });
+            await closeExpiredIntake(job, coach.coachUserId, params.senderUserId);
             return { handled };
         }
         const leaseMs = intake.processing?.at ? nowMs - new Date(intake.processing.at).getTime() : Infinity;
@@ -539,7 +608,10 @@ async function processClaimedReply(args: {
     }
     const lastMessageAt = messages[messages.length - 1].created_at;
     const reply = await extractReply(pending, messages.map((m) => m.content));
-    if (!reply.related) {
+    // 只提到伤病、没回答问题：仍由计划助理转告教练（不算追问、问题保持打开）；
+    // 其余没回答问题的消息交给教练或 AI 自动回复。
+    const riskOnly = !reply.related && Boolean(reply.riskNotes);
+    if (!reply.related && !riskOnly) {
         await writeIntakeState(job, { ...intake, processing: null, lastProcessedMessageAt: lastMessageAt });
         return { handled: false, hasNewerMessages: false };
     }
@@ -574,8 +646,9 @@ async function processClaimedReply(args: {
     const heldIds = new Set(answers.held.map((h) => h.questionId));
     // 负重动作已回答、只差体重时，动作本身不再问；体重问题没回答会留在 remaining 里。
     const remaining = pending.filter((q) => !resolvedIds.has(q.id) && !heldIds.has(q.id));
-    const askForRemaining = remaining.length > 0 && intake.followUpsSent < MAX_FOLLOW_UPS;
-    const closed = !askForRemaining;
+    const askForRemaining = !riskOnly && remaining.length > 0 && intake.followUpsSent < MAX_FOLLOW_UPS;
+    // 追问一次后不再催，但问题保持打开：学员之后一条一条补的答案照样记（窗口内）。
+    const closed = remaining.length === 0;
     // 关闭时还没拿到体重的回答，转告教练而不是丢掉。
     const uncalibrated = closed
         ? [...answers.uncalibrated, ...resolveOneRmAnswers({
@@ -692,16 +765,32 @@ async function processClaimedReply(args: {
         openAnswers,
         otherNotes: reply.otherNotes,
         riskNotes: reply.riskNotes,
-        remainingCount: closed ? remaining.length : 0,
+        remainingCount: askForRemaining ? 0 : remaining.length,
         recordFailed,
     });
+
+    // 处理期间又到的消息：问题还开着就再处理一轮；已经关闭的，原文转告教练并交给 AI 自动回复，
+    // 不能因为「处理中算已处理」而谁都没看到（例如随后补一句“我膝盖有旧伤”）。
+    const lateMessages = await loadStudentMessagesSince(roomId, studentId, lastMessageAt);
+    const lateLine = closed && lateMessages.length > 0 ? describeLateMessages(lateMessages) : null;
+    const latePain = closed ? painSentences(lateMessages.map((m) => m.content)) : [];
+    if (latePain.length > 0) {
+        await writeIntakeState(saved, nextIntake, { needs_coach_confirmation: true }).catch(() => undefined);
+    }
     await sendSystemMessage(coachUserId, {
-        content: draftLine ? `${notice}\n${draftLine}` : notice,
+        content: [notice, draftLine, lateLine].filter(Boolean).join("\n"),
         // 可能包含伤病等健康信息，锁屏推送只显示这句概括。
         content_metadata: { push_preview: "学员回复了计划助理的问题，请查看。" },
     } as any).catch((error: unknown) => console.error("[plan-intake] notify coach failed:", error));
 
-    const hasNewerMessages = !closed &&
-        (await loadStudentMessagesSince(roomId, studentId, lastMessageAt)).length > 0;
-    return { handled: true, hasNewerMessages };
+    if (lateLine) {
+        await maybeCreateCoachAiAutoReply({
+            room: { id: roomId, members: [studentId, coachUserId] },
+            senderUserId: studentId,
+            messageType: "text",
+            content: lateMessages[lateMessages.length - 1].content,
+        });
+    }
+
+    return { handled: true, hasNewerMessages: !closed && lateMessages.length > 0 };
 }

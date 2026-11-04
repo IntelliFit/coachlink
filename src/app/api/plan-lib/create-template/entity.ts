@@ -1,14 +1,14 @@
 import { CoachPlanTemplateRow } from "@/types";
-import { Json } from "@/types/database.types";
 import { TrainingOptionQuestion } from "@/types/questionnaires";
 
+// 训练日和动作里混有问卷题、动作数组这类 interface 值，归不进 Json 索引签名；额外字段本来就不限类型。
 export interface CoachPlanAction {
     // action-lib 中的编号
     type: 'no-filter';
     actionId: string
     setName: string
     params: any;
-    [key: string]: Json | undefined
+    [key: string]: any
 }
 
 export interface CoachPlanActionWithOneFilter {
@@ -16,7 +16,7 @@ export interface CoachPlanActionWithOneFilter {
     question: Omit<TrainingOptionQuestion, ''>;
     actions: CoachPlanAction[];
     dayIndex: number;
-    [key: string]: Json | undefined
+    [key: string]: any
 }
 
 // 计划日创建信息，包含动作组
@@ -25,7 +25,7 @@ export interface CoachPlanTrainingDay {
     note?: string;
     actionSets?: (CoachPlanAction | CoachPlanActionWithOneFilter)[];
     dayIndex: number;
-    [key: string]: Json | undefined
+    [key: string]: any
 }
 
 export interface CoachPlanTrainingImplementationDay {
@@ -33,7 +33,7 @@ export interface CoachPlanTrainingImplementationDay {
     note?: string;
     actionSets?: CoachPlanAction[];
     dayIndex: number;
-    [key: string]: Json | undefined
+    [key: string]: any
 }
 
 // 请求参数的接口类型

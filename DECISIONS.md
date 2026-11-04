@@ -1673,3 +1673,4 @@
 - 模板编辑器的 AI 助手改为 local 模式，基于编辑器当前草稿（含未保存修改），确认后只回填编辑器。`apply-batch-operation` 必须带 `baseTrainingDays`：与数据库当前内容指纹不一致时返回 409 `PLAN_CHANGED`（`update-template` 不更新 `updated_at`，所以比内容），写入时再按读到的 `updated_at` 条件更新并刷新它。
 - 小程序 AI 修改器与 Web 一致：`auto` 引擎、多轮对话（带历史和累计差异）、显示追问和查询回答。AI 的 1RM 调整和 Web 一样跟着计划保存：自动保存成功后才写学员动作库；只调 1RM、计划不变时直接写。
 - Web 两个脚本编辑器“应用脚本”改为 `mergePlanScriptPlan`：按 dayIndex 合并回原训练日，脚本里删掉的天才删除。
+- （同日合并后）计划助理追问一次后不再催，但问题保持打开到 7 天窗口结束，之后补的答案照样记；只提伤病、没回答问题的消息也由计划助理处理（标记待教练确认、通知教练、回复学员已转告），不占追问次数；处理期间又到、而问题已关闭的消息原文转告教练并交给 AI 自动回复。过期在学员再发消息时标记并通知教练哪些项没回答；定时清理 `expireStalePlanIntakes` 需部署设 `PLAN_INTAKE_EXPIRY_INTERVAL_MS` 才开启。

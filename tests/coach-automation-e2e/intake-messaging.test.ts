@@ -119,7 +119,7 @@ describe("two messages sent within a second", () => {
     // BUG INTAKE-LATE-MESSAGE-DROPPED（见 bug 清单）：第一条把问题全答完、计划助理关闭时，
     // 处理期间到达的第二条（这里是伤病）被当成“已处理”，却没进任何模型，也没转告教练。
     // 修好后去掉 .fails。
-    it.fails("BUG INTAKE-LATE-MESSAGE-DROPPED: a message that arrives while the first one closes the intake still gets handled", async () => {
+    it("a message that arrives while the first one closes the intake still gets handled", async () => {
         resetWorld({ studentPrs: PRS_EXCEPT_SQUAT_AND_BENCH, studentProfile: { weight: 75 }, autoReplyEnabled: true });
         world.llm.intakeReply = scriptedReply;
         const gate = createGate();
@@ -155,10 +155,9 @@ describe("subscription activated twice", () => {
         expect(coachToStudent().map((m) => m.content_metadata?.kind)).toEqual(["plan_instance_created", "plan_intake_questions"]);
     });
 
-    // BUG INITIAL-PLAN-DOUBLE-RUN（见 bug 清单）：两次激活同时进来（支付回调、轮询、返回页
-    // 可能同时 finalize 订单），第二次拿到 running 的任务照样往下跑：两份计划、两条“计划已发放”、
-    // 两条计划助理问题。修好后去掉 .fails。
-    it.fails("BUG INITIAL-PLAN-DOUBLE-RUN: two concurrent activations create one plan and ask once", async () => {
+    // 曾经的 BUG INITIAL-PLAN-DOUBLE-RUN：两次激活同时进来（支付回调、轮询、返回页可能同时
+    // finalize 订单）会建两份计划、问两遍。现在任务先原子抢占（claimAutomationJob），只跑一次。
+    it("two concurrent activations create one plan and ask once", async () => {
         resetWorld({ studentProfile: { weight: 75 } });
         await Promise.all([activateSubscription(), activateSubscription()]);
 
@@ -203,7 +202,8 @@ describe("coach has AI auto-reply on", () => {
         let calls = 0;
         world.llm.intakeReply = (input) => {
             calls += 1;
-            if (calls === 1) throw new Error("model timeout (scripted)");
+            // extractReply 失败会重试一次，两次都失败才交给 AI 自动回复。
+            if (calls <= 2) throw new Error("model timeout (scripted)");
             return scriptedReply(input);
         };
         await activateSubscription();
@@ -297,9 +297,8 @@ describe("intake expiry after 7 days", () => {
         expect(aiAutoReplies()).toHaveLength(1);
     });
 
-    // bug 清单 INTAKE-EXPIRY-NOT-CLOSED：过期只在读取时判断，状态永远停在 awaiting_reply，
-    // 教练也收不到“学员 7 天没回复”的提醒。
-    it("current behavior: an expired intake keeps status awaiting_reply", async () => {
+    // 过期后学员再发消息：标记过期并告诉教练哪些项没回答；这条消息交给原有流程，不再调用提取模型。
+    it("closes an expired intake on the next message and tells the coach what is missing", async () => {
         resetWorld({ studentPrs: PRS_EXCEPT_SQUAT_AND_BENCH, studentProfile: { weight: 75 } });
         await activateSubscription();
         const noticesBefore = systemNotices().length;
@@ -307,7 +306,24 @@ describe("intake expiry after 7 days", () => {
         advanceDays(8);
         await studentSends("在吗");
         await runAfterTasks();
-        expect(intakeState().status).toBe("awaiting_reply");
-        expect(systemNotices()).toHaveLength(noticesBefore);
+        expect(intakeState().status).toBe("expired");
+        expect(llmCalls("fast")).toHaveLength(0);
+        expect(systemNotices()).toHaveLength(noticesBefore + 1);
+        expect(String(systemNotices().at(-1)?.content)).toContain("7 天内没有回答计划助理的 2 项");
+    });
+
+    it("the opt-in sweep expires silent intakes once and notifies the coach once", async () => {
+        resetWorld({ studentPrs: PRS_EXCEPT_SQUAT_AND_BENCH, studentProfile: { weight: 75 } });
+        await activateSubscription();
+        const noticesBefore = systemNotices().length;
+        const { expireStalePlanIntakes } = await import("@/lib/coachingAutomation/planIntake");
+
+        advanceDays(6);
+        expect(await expireStalePlanIntakes()).toBe(0);
+        advanceDays(2);
+        expect(await expireStalePlanIntakes()).toBe(1);
+        expect(await expireStalePlanIntakes()).toBe(0);
+        expect(intakeState().status).toBe("expired");
+        expect(systemNotices()).toHaveLength(noticesBefore + 1);
     });
 });

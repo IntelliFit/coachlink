@@ -491,7 +491,7 @@ const DUMBBELL_PAIR_PATTERN = /加起来|一共|总共|两只|两个哑铃|一�
 const PAIN_PATTERN = /疼|痛|受伤|拉伤|扭伤|骨折|手术|麻(?!烦)|头晕|晕倒|高血压|心脏|糖尿病|哮喘|怀孕|孕期|injur|pain|hurt/i;
 const NOT_PAIN_PATTERN = /(不|没|没有|不会|不怎么)(太)?(疼|痛)|酸痛|肌肉痛|酸胀|痛快/g;
 
-function painSentences(messages: string[]): string[] {
+export function painSentences(messages: string[]): string[] {
     return messages
         .flatMap((text) => String(text || "").split(/[\r\n。！？；!?;，,]+/))
         .map((sentence) => sentence.trim())

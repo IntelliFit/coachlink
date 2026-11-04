@@ -42,33 +42,16 @@ npx vitest run tests/coach-automation-e2e
 | EXEC-RM-LABEL | `src/app/api/execution/start/route.ts:493` | RM 强度算出公斤数时 `planned_intensity` 仍是 `强度` 的裸数字，小程序显示“102.5kg · 5次 · 5”。改为 `5RM`（与固定重量分支一致）。影响所有按 RM 开的计划，不只自动托管 | `intake-loop` 新学员场景断言 `intensity: "5RM"` |
 | DEEPSEEK-MISSING-IMPORT | `src/lib/deepseek.ts:77` | `callDeepSeekChat` 用了没导入的 `getCoachlinkLlm`，运行时 ReferenceError，`/api/knowledge/ai/ask` 每次都落到兜底文案；另有 `choices`/`usage` 两个流式联合类型错误。384326a0 让 send-message 引用计划助理，把这个文件带进了 typecheck 门禁，`npm run typecheck` 因此变红。补导入、请求体标成非流式 | `npm run typecheck` |
 
-### 未修复（在别的会话正在改的文件里，用 `it.fails` 写成规格，修好后去掉 `.fails`）
+### 合并后已修复（2026-11-04，dev）
 
-**INITIAL-PLAN-DOUBLE-RUN**：同一订阅并发激活两次，生成两份计划。
-- 位置：`src/lib/coachingAutomation/initialPlan.ts:49-54`、`jobs.ts:38`、`jobs.ts:53`。`createAutomationJob` 遇到已存在的幂等键返回旧任务；`isTerminalJob` 只拦 succeeded/skipped/needs_coach_review，第二个调用拿到 `pending`/`running` 的任务照样往下跑。
-- 触发：`finalizeSubscriptionOrder`（`src/lib/subscriptionOrders.ts:595` 读状态、之后无条件更新为 paid、`:639` 再 await 生成计划）不是原子的，支付回调、轮询、返回页同时到达时两路都会调用 `autoMatchPlanForSubscription`；生成计划要几十秒，窗口很大。
-- 结果：两条 `coach_plan_instances`（第一份被第二次的 `archiveCurrentPlanInstancesForSubscription` 归档）、学员收到两条“计划已制定完成”和两条计划助理问题、教练两条通知；任务快照取最后写入的那次。
-- 建议：用 CAS 认领任务：`update({ status: "running", started_at }).eq("id", job.id).in("status", ["pending", "failed"])`（再加上 running 超过若干分钟可重领），返回 0 行就直接返回“正在生成”。
-- 规格：`intake-messaging.test.ts` “BUG INITIAL-PLAN-DOUBLE-RUN”。
+- **INITIAL-PLAN-DOUBLE-RUN**：任务先原子抢占（`claimAutomationJob`，来自 first-plan-reliability 分支），并发激活只跑一次。规格改为普通测试 “two concurrent activations create one plan and ask once”。
+- **INTAKE-LATE-MESSAGE-DROPPED**：第一条处理完时再查一遍新消息；问题还开着就再处理一轮，已经关闭的把原文转告教练（含伤病关键词时标记待确认），并把最后一条交给 AI 自动回复。
+- **INTAKE-CLOSES-WHILE-ANSWERING**：追问一次后不再催，但问题保持打开到 7 天窗口结束，之后补的答案照样记。
 
-**INTAKE-LATE-MESSAGE-DROPPED**：第一条消息还在提取时到达的第二条，在第一条关闭计划助理后被丢掉。
-- 位置：`src/lib/coachingAutomation/planIntake.ts:394`、`:400`（租约被占或 CAS 失败直接返回 `handled: true`），`:632`（只有没关闭时才检查新消息）。
-- 输入：A“深蹲100公斤5个，卧推80公斤5个”答完全部问题；A 在模型里时 B“对了，我右膝盖有旧伤”到达。
-- 结果：B 的 after() 看到租约返回 handled，send-message 不触发 AI 分身；A 关闭计划助理且不再看 B。B 没进任何模型，教练没收到提醒，AI 分身开着也一样。A 的提取报错时同理：A 退回 AI 分身，B 什么都没有。
-- 建议：抢不到租约时不要直接算 handled：等租约释放（上限约 `REPLY_LLM_TIMEOUT_MS` + 余量），按 id 重读任务；`lastProcessedMessageAt >= 本条 created_at` 才返回 handled，仍在等待就继续认领处理，已关闭就返回 `handled: false` 交给 AI 分身。
-- 规格：`intake-messaging.test.ts` “BUG INTAKE-LATE-MESSAGE-DROPPED”。
+### 产品决定（已按下面实现）
 
-**INTAKE-CLOSES-WHILE-ANSWERING**：学员一条答一项时，追问一次后就关闭，最后一项被丢掉。
-- 位置：`src/lib/coachingAutomation/planIntake.ts:518-519`（`closed = !(remaining > 0 && followUpsSent < MAX_FOLLOW_UPS)`）。
-- 输入：问深蹲/卧推/硬拉；学员依次发“深蹲100 5个”“卧推80 5个”“硬拉140 5个”。
-- 结果：第一条后追问剩余两项；第二条只答卧推就关闭（教练收到“还有 1 项没回答”，学员不知道已关闭）；第三条的硬拉不记录，AI 分身没开时学员也得不到回应。
-- 建议：`MAX_FOLLOW_UPS` 只限制“再追问”，不限制“继续收”：剩余项没答完就保持 `awaiting_reply`（不再发追问），直到答完或 7 天到期。
-- 规格：`intake-loop.test.ts` “BUG INTAKE-CLOSES-WHILE-ANSWERING”。
-
-### 需要产品决定（现状写成 `current behavior` 测试）
-
-- **INTAKE-PAIN-ONLY**（`planIntakeModel.ts:351`，`related = answeredAnything`）：只说伤病、没回答任何问题的消息不算回复，`riskNotes` 被丢弃，任务不标记待教练确认。AI 分身开着时由它按通用安全规则回复；没开时学员没有回应、教练没有提醒。全自动托管下教练未必在看聊天，建议只要有 `riskNotes` 就标记任务并通知教练。
-- **INTAKE-EXPIRY-NOT-CLOSED**（`planIntake.ts:363`、`:390`）：过期只在读取时判断，状态永远停在 `awaiting_reply`；`:390` 写 expired 的分支实际走不到（send-message 只在 `hasAwaitingPlanIntake` 为真时才调用）。教练被告知“学员回复后会通知你”，但学员 7 天不回时不会收到任何提醒。
+- **INTAKE-PAIN-ONLY**：只提伤病、没回答问题的消息由计划助理处理：标记任务待教练确认、通知教练、回复学员“已转告教练”；问题保持打开，不占追问次数。
+- **INTAKE-EXPIRY-NOT-CLOSED**：过期后学员再发消息时（`hasAwaitingPlanIntake`）标记过期并告诉教练哪些项没回答；另有定时清理 `expireStalePlanIntakes`，部署里设 `PLAN_INTAKE_EXPIRY_INTERVAL_MS`（如 3600000）才开启。
 
 ### 其他
 

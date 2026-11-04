@@ -132,7 +132,8 @@ export function extraction(partial: Record<string, unknown> = {}) {
 function parseIntakePrompt(prompt: string): Omit<IntakeReplyInput, "q"> {
     const questions: IntakeQuestionView[] = [];
     for (const line of prompt.split("\n")) {
-        const match = line.match(/^- id=(\S+) \| 类型=([^|]+?)(?: \| 动作=([^|]+?))?(?: \| (?:问题=)?(.*))?$/);
+        // 题目行：「- 第1题 | id=… | 动作重量 | 动作=… | 说明」，旧格式是「- id=… | 类型=…」。
+        const match = line.match(/^- (?:第\d+题 \| )?id=(\S+) \| (?:类型=)?([^|]+?)(?: \| 动作=([^|]+?))?(?: \| (?:问题=)?(.*))?$/);
         if (!match) continue;
         questions.push({
             id: match[1],
@@ -141,7 +142,10 @@ function parseIntakePrompt(prompt: string): Omit<IntakeReplyInput, "q"> {
             prompt: match[2].trim() === "开放问题" ? match[4]?.trim() : undefined,
         });
     }
-    const messages = [...prompt.matchAll(/^\[学员消息\d+\] (.*)$/gm)].map((m) => m[1]);
+    const legacyMessages = [...prompt.matchAll(/^\[学员消息\d+\] (.*)$/gm)].map((m) => m[1]);
+    // 现在学员消息以 JSON 字符串数组放在「学员发来的消息…」那段后面。
+    const jsonBlock = prompt.match(/学员发来的消息[^\n]*\n(\[[\s\S]*?\n\])\n/);
+    const messages = jsonBlock ? (JSON.parse(jsonBlock[1]) as string[]) : legacyMessages;
     return { questions, messages };
 }
 
@@ -187,7 +191,9 @@ function advanceClock(ms: number) {
     vi.setSystemTime(new Date(Date.now() + ms));
 }
 
-async function handleLlm(kind: string, body: any): Promise<ReturnType<typeof completion>> {
+async function handleLlm(requestedKind: string, body: any): Promise<ReturnType<typeof completion>> {
+    // Stage B 用单独的长脚本客户端（planScript），在场景里它和选模板一样算「计划模型」。
+    const kind = requestedKind === "planScript" ? "plan" : requestedKind;
     const prompt = String(body?.messages?.map((m: any) => m?.content).join("\n\n") || "");
     world.llmCalls.push({ kind, prompt });
 

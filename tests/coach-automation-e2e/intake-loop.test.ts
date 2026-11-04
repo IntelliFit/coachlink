@@ -238,7 +238,7 @@ describe("bodyweight lift with missing bodyweight", () => {
 describe("student answers one question per message", () => {
     // BUG INTAKE-CLOSES-WHILE-ANSWERING（见 bug 清单）：追问一次（MAX_FOLLOW_UPS=1）后，
     // 下一条只答了一部分就关闭计划助理，学员接着发来的最后一项被丢掉。修好后去掉 .fails。
-    it.fails("BUG INTAKE-CLOSES-WHILE-ANSWERING: records the last answer that comes after the follow-up", async () => {
+    it("records the last answer that comes after the follow-up", async () => {
         resetWorld({ studentPrs: [{ actionId: IDS.pullup, e1rm: 25 }], studentProfile: { weight: 75 } });
         world.llm.intakeReply = ({ q, messages }) => {
             const text = messages.join("\n");
@@ -333,22 +333,24 @@ describe("pain mention", () => {
         expect(planInstance().training_days).toEqual(planBefore.training_days);
     });
 
-    // 现状（bug 清单 INTAKE-PAIN-ONLY）：只说伤病、没回答任何问题时，规范化后 related=false，
-    // 计划助理不处理；教练没开 AI 分身时，学员得不到任何回应，教练也收不到提醒。
-    it("current behavior: a pain-only message is not handled by the intake", async () => {
+    // 只说伤病、没回答任何问题：计划助理仍转告教练并标记待确认，问题保持打开、不算追问。
+    it("passes a pain-only message to the coach and keeps the questions open", async () => {
         resetWorld({ studentPrs: withoutPr(IDS.bench), studentProfile: { weight: 75 } });
         world.llm.intakeReply = () => extraction({ riskNotes: "右肩疼，想先不练卧推" });
 
         await activateSubscription();
-        const noticesBefore = systemNotices().length;
-        const repliesBefore = coachToStudent().length;
+        const pendingBefore = intakeState().pendingQuestionIds;
         await studentSends("最近右肩有点疼，卧推能先不做吗");
         await runAfterTasks();
 
-        expect(intakeState().status).toBe("awaiting_reply");
-        expect(initialPlanJob().needs_coach_confirmation).toBe(false);
-        expect(coachToStudent()).toHaveLength(repliesBefore);
-        expect(systemNotices()).toHaveLength(noticesBefore);
+        const intake = intakeState();
+        expect(intake.status).toBe("awaiting_reply");
+        expect(intake.pendingQuestionIds).toEqual(pendingBefore);
+        expect(intake.followUpsSent).toBe(0);
+        expect(intake.riskNotes).toEqual(["右肩疼，想先不练卧推"]);
+        expect(initialPlanJob().needs_coach_confirmation).toBe(true);
+        expect(String(coachToStudent().at(-1)?.content)).toContain("身体情况我已经转告教练");
+        expect(lastCoachNotice()).toContain("⚠ 提到身体问题：右肩疼，想先不练卧推");
     });
 });
 
