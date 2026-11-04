@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         tier,
         orderId,
         monthlyPrice,
-        status = "active",
+        status: requestedStatus,
         subscribeData,
         // 新增产品字段
         productId,
@@ -40,13 +40,17 @@ export async function POST(req: NextRequest) {
 
     // This client creates a pending purchase only. Huifu's verified payment
     // notification activates service; a purchase capability cannot grant it.
-    if (await isWechatFreeRequest(req) && status !== 'inactive') {
+    if (await isWechatFreeRequest(req) && requestedStatus !== 'inactive') {
         return NextResponse.json({
             success: false,
             message: "请先创建待支付订阅并完成支付",
             data: null,
         }, { status: 400 });
     }
+
+    // 其他客户端也只创建待支付的订阅，传来的 status 一律不用：服务只能由已验签的支付通知
+    // （或教练确认线下收款）开通。以前默认 active，网页/App 不付款也能开通并触发自动排计划。
+    const status = "inactive";
 
     // 参数验证
     if (!coachId || !tier || monthlyPrice === undefined) {
@@ -187,33 +191,6 @@ export async function POST(req: NextRequest) {
             message: "创建订阅失败",
             data: null,
         }, { status: 500 });
-    }
-
-    // 异步触发自动匹配计划（后台任务，不阻塞响应）
-    // 如果匹配失败，静默处理，教练可以手动创建计划
-    if (subscription.status === "active" && subscribeData) {
-        // 获取教练ID（需要从coachId转换为coaches表的id）
-        const { data: coach } = await supabase
-            .from("coaches")
-            .select("id, user_id")
-            .eq("id", coachId)
-            .single();
-
-        if (coach?.id) {
-            // 异步执行，不等待结果
-            import("@/app/api/plan-lib/auto-match-plan/service").then(({ autoMatchPlanForSubscription }) => {
-                autoMatchPlanForSubscription(
-                    subscription.id,
-                    userId, // actorUserId
-                    coach.id, // actorCoachId
-                ).catch((err) => {
-                    // 静默处理错误，只记录日志
-                    console.error("[create-subscription] 自动匹配计划失败（已静默处理）:", err);
-                });
-            }).catch((err) => {
-                console.error("[create-subscription] 加载自动匹配模块失败:", err);
-            });
-        }
     }
 
     // 重要！必须申请接口范型位 ApiData<返回参数的接口类型>

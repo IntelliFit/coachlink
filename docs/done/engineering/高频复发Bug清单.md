@@ -698,3 +698,11 @@
 - **统一规则**：模型输出解析失败、字段形状不对，要重试并最终抛错（让调用方走降级），不能等同于“没有信息”；写入会长期生效的数字（PR 峰值、体重）前，在学员原文里核对数字和单位。
 - **改动前自检**：这个“没结果”分支，是真的没有信息，还是模型/网络出错？出错时这条输入还能被再读到吗？写进去的数字能在原文里找到吗？单位对吗？
 - **典型案例**（2026-11-04）：`src/lib/coachingAutomation/planIntake.ts` 的 `extractReply`、`planIntakeModel.ts` 的 `normalizeIntakeReply`；评测 `scripts/plan-intake-eval`，测试 `planIntakeReply.test.ts`。
+
+## 64) 订阅状态由客户端传：不付款也能开通服务（高风险）
+
+- **现象**：`POST /api/subscription/create-subscription` 的 `status` 取自请求体且默认 `active`。网页或 App 登录用户不传 status 或传 active，就能拿到进行中的订阅；自动托管上线后还会立刻触发 AI 排计划、计划助理私信。
+- **根因**：只有微信免付费版本做了「只能建待支付订阅」的拦截，其他客户端直接信任请求体；真实客户端其实都传 `inactive`，问题一直没暴露。
+- **统一规则**：订阅、会员、额度这类「开通服务」的状态只能由服务端在验签的支付通知、管理员或教练确认收款时写入，创建接口一律写待支付，不读客户端的 status。
+- **改动前自检**：这个接口写入的状态或金额，客户端能不能直接指定？不付款、改请求体能得到什么？它会不会触发下游自动化（排计划、发消息、结算）？
+- **典型案例**（2026-11-04）：`src/app/api/subscription/create-subscription/route.ts`，测试 `route.test.ts` 与 `src/lib/wechatCoachPurchaseRestore.test.ts`。
