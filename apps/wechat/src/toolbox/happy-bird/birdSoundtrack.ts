@@ -26,8 +26,8 @@ export type SoundtrackPlan = {
 }
 
 export const MUSIC_VOLUME = 0.34
-// 44.1kHz 是各家手机音频编码器都支持的采样率，合成时最不容易失败。
-export const SOUNDTRACK_SAMPLE_RATE = 44100
+// 音轨不压缩直接写进视频，22.05kHz 每分钟约 2.6MB；音效本身就是这个采样率，音乐更低，不损失音质。
+export const SOUNDTRACK_SAMPLE_RATE = 22050
 
 const MAX_PEAK = 0.95
 
@@ -102,18 +102,6 @@ export function createSoundTimeline(fps: number) {
   }
 }
 
-const MIN_MERGE_TIMEOUT_MS = 60000
-const MAX_MERGE_TIMEOUT_MS = 8 * 60 * 1000
-
-/**
- * 合成要把整段视频重新写一遍，耗时随视频长度增长；原来固定 60 秒，玩得久的局会直接超时、
- * 退回无声。按每秒视频 1.5 秒放宽，再留 45 秒余量。
- */
-export function mergeTimeoutMs(videoSeconds: number) {
-  const scaled = 45000 + Math.max(0, videoSeconds) * 1500
-  return Math.min(MAX_MERGE_TIMEOUT_MS, Math.max(MIN_MERGE_TIMEOUT_MS, scaled))
-}
-
 function addSamples(mix: Float32Array, source: Float32Array, sourceRate: number, atSeconds: number, gain: number, endSeconds = Infinity) {
   const ratio = sourceRate / SOUNDTRACK_SAMPLE_RATE
   const start = Math.round(atSeconds * SOUNDTRACK_SAMPLE_RATE)
@@ -126,8 +114,7 @@ function addSamples(mix: Float32Array, source: Float32Array, sourceRate: number,
   }
 }
 
-/** 混成 WAV；一个声音都没有时返回 null，不必合成。 */
-export function renderSoundtrack(plan: SoundtrackPlan): ArrayBuffer | null {
+function mixSoundtrack(plan: SoundtrackPlan): Float32Array | null {
   if (plan.durationSeconds <= 0 || (!plan.cues.length && plan.musicFrom === null)) return null
   const mix = new Float32Array(Math.ceil(plan.durationSeconds * SOUNDTRACK_SAMPLE_RATE))
 
@@ -149,5 +136,18 @@ export function renderSoundtrack(plan: SoundtrackPlan): ArrayBuffer | null {
 
   const peak = mix.reduce((max, value) => Math.max(max, Math.abs(value)), 0)
   const scale = peak > MAX_PEAK ? MAX_PEAK / peak : 1
-  return encodeWav(scale === 1 ? mix : mix.map((value) => value * scale), SOUNDTRACK_SAMPLE_RATE)
+  return scale === 1 ? mix : mix.map((value) => value * scale)
+}
+
+/** 混成 16 位 PCM，直接写进视频；一个声音都没有时返回 null，不必写。 */
+export function renderSoundtrackPcm(plan: SoundtrackPlan): Int16Array | null {
+  const mix = mixSoundtrack(plan)
+  if (!mix) return null
+  return Int16Array.from(mix, (value) => Math.round(Math.max(-1, Math.min(1, value)) * 32767))
+}
+
+/** 同一条音轨的 WAV 版，测试里拿来检查波形。 */
+export function renderSoundtrack(plan: SoundtrackPlan): ArrayBuffer | null {
+  const mix = mixSoundtrack(plan)
+  return mix ? encodeWav(mix, SOUNDTRACK_SAMPLE_RATE) : null
 }
