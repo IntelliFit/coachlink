@@ -316,6 +316,7 @@ export function BatchOperationDialog({
         const next: BatchOperationContextOptions = {
             subscriptionId: contextOptions?.subscriptionId,
             subjectUserId: contextOptions?.subjectUserId,
+            lockedThroughDayIndex: contextOptions?.lockedThroughDayIndex,
             ...contextToggles,
         };
         if (targetActionType === 'student') {
@@ -965,6 +966,8 @@ export function BatchOperationDialog({
                 body: JSON.stringify({
                     templateId,
                     updatedTrainingDays: daysToApply,
+                    // 服务端据此确认数据库里仍是预览时的那一版，避免覆盖期间保存的修改
+                    baseTrainingDays: previewData.originalTrainingDays,
                     targetActionType,
                 }),
             });

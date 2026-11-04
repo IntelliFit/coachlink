@@ -1,41 +1,12 @@
 import Taro from '@tarojs/taro'
 import { API_BASE_URL, BaseService } from '../../utils/request'
-
-type BatchOperationPreviewResult = {
-  originalTrainingDays?: any[]
-  updatedTrainingDays?: any[]
-  modifications?: Array<{
-    dayIndex?: number
-    actionName?: string
-    field?: string
-    oldValue?: any
-    newValue?: any
-  }>
-  pendingActions?: any[]
-  message?: string
-}
-
-function parseBatchOperationMessages(rawData: any) {
-  const text = typeof rawData === 'string'
-    ? rawData
-    : rawData instanceof ArrayBuffer
-      ? String.fromCharCode(...new Uint8Array(rawData))
-      : JSON.stringify(rawData || '')
-
-  const messages: any[] = []
-  text.split(/\r?\n/).forEach((line) => {
-    const trimmed = line.trim()
-    if (!trimmed.startsWith('data:')) return
-    const jsonText = trimmed.replace(/^data:\s*/, '')
-    if (!jsonText) return
-    try {
-      messages.push(JSON.parse(jsonText))
-    } catch (error) {
-      console.warn('[planLibService] parse batch-operation sse line failed:', error, jsonText.slice(0, 120))
-    }
-  })
-  return messages
-}
+import {
+  interpretBatchOperationMessages,
+  parseBatchOperationMessages,
+  type AiPlanAssistantModification,
+  type AiPlanAssistantResult,
+  type AiPlanAssistantTurn
+} from './aiPlanAssistant'
 
 class PlanLibService extends BaseService {
   /** 计划模板列表 */
@@ -261,13 +232,20 @@ class PlanLibService extends BaseService {
     return null
   }
 
-  /** AI 修改器预览：复用 Web 的 batch-operation，本地应用结果后再由编辑器保存 */
-  async previewBatchOperationLocal(data: {
+  /**
+   * AI 修改器一轮对话：复用 Web 的 batch-operation，结果可能是修改预览、追问或查询回答。
+   * 预览只在本地应用，仍由编辑器保存。引擎用 auto：含条件分支动作的计划会回退代码引擎，
+   * 强制 plan_script 会直接失败。
+   */
+  async runAiPlanAssistant(data: {
     trainingDays: any[]
     instruction: string
     subscriptionId?: string
     subjectUserId?: string
-  }): Promise<BatchOperationPreviewResult | null> {
+    conversationHistory?: AiPlanAssistantTurn[]
+    modificationContext?: AiPlanAssistantModification[]
+    lockedThroughDayIndex?: number
+  }): Promise<AiPlanAssistantResult> {
     let token = ''
     try {
       token = Taro.getStorageSync('token') || ''
@@ -282,10 +260,13 @@ class PlanLibService extends BaseService {
         trainingDays: data.trainingDays || [],
         instruction: data.instruction,
         targetActionType: 'coach',
-        editEngine: 'plan_script',
+        editEngine: 'auto',
+        conversationHistory: data.conversationHistory?.length ? data.conversationHistory.slice(-24) : undefined,
+        modificationContext: data.modificationContext?.length ? data.modificationContext.slice(-160) : undefined,
         contextOptions: {
           subscriptionId: data.subscriptionId,
           subjectUserId: data.subjectUserId,
+          lockedThroughDayIndex: data.lockedThroughDayIndex || 0,
           includePlanBody: true,
           includeActionLibrary: true,
           includeStudentProfile: true,
@@ -312,26 +293,7 @@ class PlanLibService extends BaseService {
       throw new Error(message)
     }
 
-    const messages = parseBatchOperationMessages(response.data)
-    const errorMessage = [...messages].reverse().find((message) => message?.type === 'error')?.message
-    if (errorMessage) throw new Error(errorMessage)
-
-    const preview = [...messages].reverse().find((message) => message?.type === 'preview_result')
-    if (!preview?.updatedTrainingDays) {
-      throw new Error('AI 暂未返回可预览的计划修改')
-    }
-
-    if (Array.isArray(preview.pendingActions) && preview.pendingActions.length > 0) {
-      throw new Error('AI 修改包含动作库外的新动作，请先在 Web 端完成动作确认后再应用')
-    }
-
-    return {
-      originalTrainingDays: preview.originalTrainingDays,
-      updatedTrainingDays: preview.updatedTrainingDays,
-      modifications: preview.modifications || [],
-      pendingActions: preview.pendingActions || [],
-      message: preview.message
-    }
+    return interpretBatchOperationMessages(parseBatchOperationMessages(response.data))
   }
 
   /** 暂停计划 */

@@ -88,7 +88,225 @@ function parseIntensityToken(token: string): Record<string, any> {
         };
     }
 
+    const lbsMatch = trimmed.match(/^@(\d+(?:\.\d+)?)(?:lbs?|磅)$/);
+    if (lbsMatch) {
+        const value = Number(lbsMatch[1]);
+        return {
+            load: value,
+            loadUnit: "lbs",
+            intensityConfig: {
+                fixedWeight: { value, unit: "lbs" },
+            },
+        };
+    }
+
     throw new Error(`无法解析强度标记：${token}`);
+}
+
+// 备注里的换行写成字面量 \n（反斜杠本身写成 \\）：原样换行会让下一行被当成动作行，变成假的待确认动作。
+function encodeScriptText(text: string): string {
+    return String(text ?? "").trim().replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\n");
+}
+
+function decodeScriptText(text: string): string {
+    return String(text ?? "").replace(/\\(\\|n)/g, (_, escaped) => (escaped === "n" ? "\n" : "\\")).trim();
+}
+
+function isConditionalActionSet(actionSet: any): boolean {
+    return actionSet?.type === "one-filter" || Array.isArray(actionSet?.actions);
+}
+
+function readParamNumber(params: any, keys: string[]): number | null {
+    for (const key of keys) {
+        const value = params?.[key];
+        if (value === null || value === undefined || value === "") continue;
+        const n = Number(value);
+        if (Number.isFinite(n)) return n;
+    }
+    return null;
+}
+
+type ScriptSetParts = {
+    name: string;
+    volume: string;
+    intensity: string;
+    rest: string;
+    note: string;
+};
+
+function formatVolumePart(params: any): string {
+    const sets = readParamNumber(params, ["组数", "sets"]);
+    const setRangeMin = readParamNumber(params, ["组数下限"]);
+    const setRangeMax = readParamNumber(params, ["组数上限"]);
+    const reps = readParamNumber(params, ["次数", "reps"]);
+    const durationSeconds = readParamNumber(params, ["持续时间", "durationSeconds", "duration_seconds"]);
+    if (setRangeMin !== null && setRangeMax !== null && setRangeMin !== setRangeMax) {
+        if (durationSeconds !== null) return `${setRangeMin}-${setRangeMax}x${durationSeconds}s`;
+        if (reps !== null) return `${setRangeMin}-${setRangeMax}x${reps}`;
+        return "";
+    }
+    if (sets === null) return "";
+    if (durationSeconds !== null) return `${sets}x${durationSeconds}s`;
+    if (reps !== null) return `${sets}x${reps}`;
+    return "";
+}
+
+function formatIntensityPart(params: any): string {
+    const relative = params?.intensityConfig?.relativeIntensity;
+    const fixedWeight = params?.intensityConfig?.fixedWeight;
+    if (relative?.type === "rm" && typeof relative.value === "number") return `@${relative.value}rm`;
+    if (relative?.type === "percentage" && typeof relative.value === "number") return `@${relative.value}%`;
+    if (typeof fixedWeight?.value === "number" && Number.isFinite(fixedWeight.value)) {
+        return `@${fixedWeight.value}${fixedWeight.unit === "lbs" ? "lbs" : "kg"}`;
+    }
+
+    const legacy = params?.["强度"];
+    if (typeof legacy === "number" && Number.isFinite(legacy)) return `@${legacy}rm`;
+    if (typeof legacy === "string") {
+        const percent = legacy.match(/^\s*(\d+(?:\.\d+)?)\s*%/);
+        if (percent) return `@${Number(percent[1])}%`;
+        const rm = legacy.match(/^\s*(\d+(?:\.\d+)?)\s*rm\s*$/i);
+        if (rm) return `@${Number(rm[1])}rm`;
+    }
+
+    // 旧数据只把固定重量存在 load / weight 上，没有 intensityConfig。
+    const load = readParamNumber(params, ["load", "weight"]);
+    if (load !== null && load > 0) return `@${load}${params?.loadUnit === "lbs" ? "lbs" : "kg"}`;
+    return "";
+}
+
+function formatActionSetParts(set: any, actionNameById: Record<string, string>): ScriptSetParts {
+    const rest = readParamNumber(set?.params, ["休息时间", "rest_seconds", "restSeconds"]);
+    const note = typeof set?.params?.note === "string" ? encodeScriptText(set.params.note) : "";
+    return {
+        name: actionNameById[String(set?.actionId)] || set?.params?.action_name || set?.setName || "未命名动作",
+        volume: formatVolumePart(set?.params),
+        intensity: formatIntensityPart(set?.params),
+        rest: rest !== null ? `r${rest}` : "",
+        note,
+    };
+}
+
+function formatDayNotePart(day: any): string {
+    const note = encodeScriptText(day?.note || "");
+    if (day?.type === "rest") return note && note !== "休息日" ? note : "";
+    return note;
+}
+
+const VOLUME_PARAM_KEYS = ["组数", "组数下限", "组数上限", "次数", "持续时间", "sets", "reps", "durationSeconds", "duration_seconds"];
+const INTENSITY_PARAM_KEYS = ["强度", "intensityConfig", "load", "weight", "loadUnit"];
+const REST_PARAM_KEYS = ["休息时间", "rest_seconds", "restSeconds"];
+
+/**
+ * 脚本只表达 组数/次数/强度/休息/备注。同一动作的脚本片段没变时保留原始参数，
+ * 这样推荐负重、loadUnit、字符串强度、有氧/习惯参数等脚本写不出的字段不会丢。
+ */
+function mergeScriptActionSet(base: any, parsed: any, actionNameById: Record<string, string>): any {
+    const before = formatActionSetParts(base, actionNameById);
+    const after = formatActionSetParts(parsed, actionNameById);
+    const parsedParams = parsed?.params || {};
+    const params: Record<string, any> = { ...(base?.params || {}) };
+    const take = (keys: string[]) => {
+        for (const key of keys) delete params[key];
+        for (const key of keys) {
+            const value = parsedParams[key];
+            if (value !== null && value !== undefined) params[key] = value;
+        }
+    };
+
+    if (before.volume !== after.volume) take(VOLUME_PARAM_KEYS);
+    if (before.intensity !== after.intensity) {
+        const recommendedLoad = base?.params?.intensityConfig?.recommendedLoad;
+        const hadWeight = base?.params?.weight !== undefined;
+        take(INTENSITY_PARAM_KEYS);
+        if (recommendedLoad && params.intensityConfig?.relativeIntensity) {
+            params.intensityConfig = { ...params.intensityConfig, recommendedLoad };
+        }
+        if (hadWeight && typeof params.load === "number") params.weight = params.load;
+        // 只改了 RM/百分比时保留原来的重量单位；改成固定重量时以脚本写的单位为准
+        if (!params.intensityConfig?.fixedWeight && base?.params?.loadUnit && !params.loadUnit) {
+            params.loadUnit = base.params.loadUnit;
+        }
+    }
+    if (before.rest !== after.rest) take(REST_PARAM_KEYS);
+    if (before.note !== after.note) params.note = parsedParams.note ?? "";
+
+    return { ...base, params };
+}
+
+/**
+ * 把一个脚本补丁日合并回原训练日：日级字段（id 等）保留，同一动作按位置（其次按出现顺序）
+ * 继承原参数，换掉或新增的动作直接使用补丁内容。
+ */
+export function mergePlanScriptDayPatch(
+    originalDay: FormPlanTrainingDay | null | undefined,
+    patchedDay: FormPlanTrainingDay,
+    actionNameById: Record<string, string>,
+): FormPlanTrainingDay {
+    if (!originalDay) return patchedDay;
+    const baseSets: any[] = originalDay.type === "training" ? ((originalDay.actionSets as any[]) || []) : [];
+    const used = new Set<number>();
+    const pickBase = (set: any, index: number) => {
+        const actionId = String(set?.actionId || "");
+        const canUse = (candidate: any, candidateIndex: number) =>
+            !used.has(candidateIndex) &&
+            !isConditionalActionSet(candidate) &&
+            String(candidate?.actionId || "") === actionId;
+        if (baseSets[index] && canUse(baseSets[index], index)) {
+            used.add(index);
+            return baseSets[index];
+        }
+        const found = baseSets.findIndex((candidate, candidateIndex) => canUse(candidate, candidateIndex));
+        if (found < 0) return null;
+        used.add(found);
+        return baseSets[found];
+    };
+
+    const actionSets = ((patchedDay.actionSets as any[]) || []).map((set, index) => {
+        const base = pickBase(set, index);
+        return base ? mergeScriptActionSet(base, set, actionNameById) : set;
+    });
+    const sameNote = formatDayNotePart(originalDay) === formatDayNotePart(patchedDay) &&
+        originalDay.type === patchedDay.type;
+
+    return {
+        ...originalDay,
+        dayIndex: patchedDay.dayIndex,
+        type: patchedDay.type,
+        note: sameNote ? originalDay.note : patchedDay.note,
+        actionSets,
+    } as FormPlanTrainingDay;
+}
+
+/**
+ * 脚本编辑器“应用整份脚本”：脚本里的天按 dayIndex 合并回原训练日（保留脚本写不出的字段），
+ * 脚本里删掉的天随之删除。
+ */
+export function mergePlanScriptPlan(
+    trainingDays: FormPlanTrainingDay[],
+    scriptDays: FormPlanTrainingDay[],
+    actionNameById: Record<string, string>,
+): FormPlanTrainingDay[] {
+    const originals = new Map(
+        (trainingDays || []).map((day) => [Number(day?.dayIndex || 0), day]),
+    );
+    return (scriptDays || []).map((day) =>
+        mergePlanScriptDayPatch(originals.get(Number(day?.dayIndex || 0)), day, actionNameById),
+    );
+}
+
+export function mergePlanScriptDayPatches(
+    trainingDays: FormPlanTrainingDay[],
+    patchedDays: FormPlanTrainingDay[],
+    actionNameById: Record<string, string>,
+): FormPlanTrainingDay[] {
+    const patches = new Map(
+        (patchedDays || []).map((day) => [Number(day?.dayIndex || 0), day]),
+    );
+    return (trainingDays || []).map((day) => {
+        const patch = patches.get(Number(day?.dayIndex || 0));
+        return patch ? mergePlanScriptDayPatch(day, patch, actionNameById) : day;
+    });
 }
 
 function normalizeScriptActionNameForExactMatch(name: string): string {
@@ -192,7 +410,7 @@ function parseActionLine(
 
     const noteSplit = working.split(/\s+#/);
     if (noteSplit.length > 1) {
-        note = noteSplit.slice(1).join(" #").trim();
+        note = decodeScriptText(noteSplit.slice(1).join(" #"));
         working = noteSplit[0].trim();
     }
 
@@ -296,80 +514,30 @@ export function formatTemplateToPlanScript(params: {
             currentWeek = weekIndex;
         }
 
+        const dayNote = formatDayNotePart(day);
         if (day.type === "rest") {
-            const note = day.note?.trim() && day.note.trim() !== "休息日"
-                ? ` #${day.note.trim()}`
-                : "";
-            lines.push(`D${dayOfWeek} off${note}`);
+            lines.push(`D${dayOfWeek} off${dayNote ? ` #${dayNote}` : ""}`);
             continue;
         }
 
         lines.push(`D${dayOfWeek}`);
-        if (day.note?.trim()) {
-            lines.push(`!${day.note.trim()}`);
+        if (dayNote) {
+            lines.push(`!${dayNote}`);
         }
 
         for (const actionSet of day.actionSets || []) {
-            if ((actionSet as any).type !== "no-filter") {
+            // 旧数据的普通动作可能没有 type；只有带 actions 的 one-filter 才是条件分支。
+            if (isConditionalActionSet(actionSet)) {
                 throw new Error("当前脚本模式暂不支持条件分支动作，请先使用普通编辑器处理该训练日。");
             }
-            const set = actionSet as any;
-            const actionName =
-                actionNameById[String(set.actionId)] ||
-                set.params?.action_name ||
-                set.setName ||
-                "未命名动作";
-            const parts = [actionName];
-            const sets = set.params?.["组数"];
-            const setRangeMin = set.params?.["组数下限"];
-            const setRangeMax = set.params?.["组数上限"];
-            const reps = set.params?.["次数"];
-            const durationSeconds = set.params?.["持续时间"];
-            if (
-                typeof setRangeMin === "number" &&
-                typeof setRangeMax === "number" &&
-                setRangeMin !== setRangeMax
-            ) {
-                if (typeof durationSeconds === "number") {
-                    parts.push(`${setRangeMin}-${setRangeMax}x${durationSeconds}s`);
-                } else if (typeof reps === "number") {
-                    parts.push(`${setRangeMin}-${setRangeMax}x${reps}`);
-                }
-            } else if (typeof sets === "number") {
-                if (typeof durationSeconds === "number") {
-                    parts.push(`${sets}x${durationSeconds}s`);
-                } else if (typeof reps === "number") {
-                    parts.push(`${sets}x${reps}`);
-                }
-            }
-
-            const relative = set.params?.intensityConfig?.relativeIntensity;
-            const fixedWeight = set.params?.intensityConfig?.fixedWeight;
-            if (relative?.type === "rm" && typeof relative.value === "number") {
-                parts.push(`@${relative.value}rm`);
-            } else if (
-                relative?.type === "percentage" &&
-                typeof relative.value === "number"
-            ) {
-                parts.push(`@${relative.value}%`);
-            } else if (
-                typeof fixedWeight?.value === "number" &&
-                Number.isFinite(fixedWeight.value)
-            ) {
-                parts.push(`@${fixedWeight.value}${fixedWeight.unit || "kg"}`);
-            } else if (typeof set.params?.["强度"] === "number") {
-                parts.push(`@${set.params["强度"]}rm`);
-            }
-
-            if (typeof set.params?.["休息时间"] === "number") {
-                parts.push(`r${set.params["休息时间"]}`);
-            }
-
-            if (typeof set.params?.note === "string" && set.params.note.trim()) {
-                parts.push(`#${set.params.note.trim()}`);
-            }
-
-            lines.push(parts.join(" "));
+            const parts = formatActionSetParts(actionSet, actionNameById);
+            lines.push([
+                parts.name,
+                parts.volume,
+                parts.intensity,
+                parts.rest,
+                parts.note ? `#${parts.note}` : "",
+            ].filter(Boolean).join(" "));
         }
 
         lines.push("");
@@ -430,7 +598,7 @@ export function parsePlanScript({
             currentDay = {
                 dayIndex: toDayIndex(currentWeek, dayOfWeek),
                 type: "rest",
-                note: restDayMatch[2]?.trim() || "休息日",
+                note: decodeScriptText(restDayMatch[2] || "") || "休息日",
                 actionSets: [],
             };
             days.set(currentDay.dayIndex, currentDay);
@@ -456,7 +624,7 @@ export function parsePlanScript({
         }
 
         if (line.startsWith("!")) {
-            currentDay.note = line.slice(1).trim();
+            currentDay.note = decodeScriptText(line.slice(1));
             continue;
         }
 

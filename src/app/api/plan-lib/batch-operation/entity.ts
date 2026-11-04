@@ -29,6 +29,8 @@ export interface BatchOperationContextOptions {
     includeCoachTemplates?: boolean;
     includeTemplateMatch?: boolean;
     includeFeedbacks?: boolean;
+    // 学员计划中已有训练记录的最后一天（dayIndex，0 表示无锁定）；这些天只允许改参数
+    lockedThroughDayIndex?: number;
 }
 
 // 请求参数
@@ -122,7 +124,7 @@ export type SSEMessage =
     | { type: 'need_clarification'; question: string; suggestions?: string[] }  // 指令信息不完整，需用户补全；suggestions 为推荐选项供前端展示
     | { type: 'new_actions_detected'; actions: NewActionDetected[]; message: string }  // 计划中含动作库外动作，询问是否创建
     | { type: 'stats'; tokenUsage?: { prompt: number; completion: number; total: number }; duration?: number }  // 统计信息(开发模式)
-    | { type: 'preview_result'; success: boolean; originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[]; pendingActions?: PendingActionCandidate[]; oneRmAdjustments?: OneRmAdjustmentPreview[]; message: string }  // 预览结果(不保存)
+    | { type: 'preview_result'; success: boolean; originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[]; pendingActions?: PendingActionCandidate[]; oneRmAdjustments?: OneRmAdjustmentPreview[]; restoredLockedDayIndexes?: number[]; message: string }  // 预览结果(不保存)；restoredLockedDayIndexes 为已训练日被还原结构的 dayIndex
     | { type: 'query_result'; answer: string }  // 查询结果（AI 直接回答）
     | { type: 'assistant_message'; content: string } // 修改完成后的自然语言摘要，也进入真实对话历史
     | { type: 'error'; message: string };  // 错误信息（用户友好格式）
