@@ -316,8 +316,9 @@ export default function CoachAutomationPage() {
         body: JSON.stringify({ action: "retry", jobId }),
       });
       const json = await response.json();
-      setMessage(json?.message || (json?.success ? "首个训练计划已生成" : "重新生成失败"));
+      // loadData 开头会清空提示，先刷新列表再显示结果。
       await loadData();
+      setMessage(json?.message || (json?.success ? "首个训练计划已生成" : "重新生成失败"));
     } catch (error: any) {
       setMessage(error?.message || "重新生成失败");
     } finally {
