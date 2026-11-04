@@ -27,6 +27,8 @@ import {
 } from '../games/bodyPointTracker'
 import {
   mapHeadTravelToStage,
+  HEAD_TRAVEL_DEFAULTS,
+  HEAD_TRAVEL_IN_ROUND,
   updateHeadTravel,
   type HeadTravelRange
 } from '../games/headTravelMapper'
@@ -577,7 +579,8 @@ export default function HappyBirdPage() {
     const head = projectHeadAnchorToStage({ ...snapshot, y: snapshot.eyeY ?? snapshot.y }, frameSize, stageSizeRef.current)
     // 'holding' 是短暂没检测到（运动模糊等），高度沿用上次，游戏不因此卡顿。
     if (snapshot.lockState === 'locked') {
-      headTravelRef.current = updateHeadTravel(headTravelRef.current, head.y, Date.now())
+      const travelOptions = gameRef.current.status === 'playing' ? HEAD_TRAVEL_IN_ROUND : HEAD_TRAVEL_DEFAULTS
+      headTravelRef.current = updateHeadTravel(headTravelRef.current, head.y, Date.now(), travelOptions)
       inputRef.current = {
         targetY: mapHeadTravelToStage(headTravelRef.current, head.y),
         tracking: true
