@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   createSoundTimeline,
-  mergeTimeoutMs,
   renderSoundtrack,
+  renderSoundtrackPcm,
   soundForEvent,
   SOUNDTRACK_SAMPLE_RATE,
   type SoundtrackPlan
@@ -91,10 +91,10 @@ describe('happy bird soundtrack', () => {
     expect(renderSoundtrack(plan({ durationSeconds: 0, cues: [{ ...COIN, at: 0 }] }))).toBeNull();
   });
 
-  it('writes a 44.1kHz WAV exactly as long as the video', () => {
+  it('renders at the soundtrack rate, exactly as long as the video', () => {
     const wav = renderSoundtrack(plan({ cues: [{ ...COIN, at: 1 }] })) as ArrayBuffer;
     const view = new DataView(wav);
-    expect(view.getUint32(24, true)).toBe(44100);
+    expect(view.getUint32(24, true)).toBe(SOUNDTRACK_SAMPLE_RATE);
     expect(samplesOf(wav).length).toBe(4 * SOUNDTRACK_SAMPLE_RATE);
   });
 
@@ -126,19 +126,14 @@ describe('happy bird soundtrack', () => {
   });
 });
 
-describe('happy bird merge timeout', () => {
-  it('never drops below a minute, so short rounds keep the old allowance', () => {
-    expect(mergeTimeoutMs(0)).toBe(60000);
-    expect(mergeTimeoutMs(5)).toBe(60000);
+describe('happy bird soundtrack PCM', () => {
+  it('produces the same samples as the WAV, ready to write into the video', () => {
+    const p = plan({ cues: [{ ...COIN, at: 0.5 }], musicFrom: 1, musicTo: 3 });
+    const pcm = renderSoundtrackPcm(p) as Int16Array;
+    expect(Array.from(pcm)).toEqual(Array.from(samplesOf(renderSoundtrack(p))));
   });
 
-  it('grows with the video, so a long round is not cut off at a fixed minute', () => {
-    expect(mergeTimeoutMs(60)).toBe(135000);
-    expect(mergeTimeoutMs(120)).toBeGreaterThan(mergeTimeoutMs(60));
-  });
-
-  it('is capped for the five-minute recording limit', () => {
-    expect(mergeTimeoutMs(300)).toBe(8 * 60 * 1000);
-    expect(mergeTimeoutMs(10_000)).toBe(8 * 60 * 1000);
+  it('returns null when there is nothing to hear', () => {
+    expect(renderSoundtrackPcm(plan())).toBeNull();
   });
 });

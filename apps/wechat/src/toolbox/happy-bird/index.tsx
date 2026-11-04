@@ -190,7 +190,7 @@ export default function HappyBirdPage() {
     try {
       return await addSoundtrackToVideo(videoPath, recorder.soundtrackPlan(), {
         logFields: { game: 'happy-bird', stopMs },
-        onStage: (stage) => setProcessingLabel(stage === 'check' ? '检查视频' : '合成声音')
+        onStage: () => setProcessingLabel('写入声音')
       })
     } catch (error: any) {
       console.warn('快乐小鸟合成声音失败:', error)
