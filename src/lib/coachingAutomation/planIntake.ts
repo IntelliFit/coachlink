@@ -10,6 +10,7 @@ import { sendDirectMessage, sendSystemMessage } from "@/lib/chat";
 import { getCoachlinkFastLlm } from "@/lib/coachlinkLlm";
 import { parseJsonResponse } from "@/lib/deepseek";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { draftPlanRevisionFromIntake } from "./planIntakeRevision";
 import { buildProfileOneRmInputs, resolveProfileBodyWeight } from "./profileOneRm";
 import {
     INTAKE_REPLY_WINDOW_DAYS,
@@ -223,18 +224,37 @@ export async function startPlanIntake(params: {
     };
 }
 
+/** 计划助理私信只是补充信息，出错不能让生成计划的任务失败。 */
+export async function startPlanIntakeSafely(params: {
+    context: AutomationContext;
+    planInstanceId: string;
+    planPublished: boolean;
+}): Promise<PlanIntakeState> {
+    try {
+        return await startPlanIntake(params);
+    } catch (error) {
+        console.error(`[plan-intake] start failed (planInstanceId=${params.planInstanceId}):`, error);
+        return {
+            ...emptyState(params.planInstanceId, "failed"),
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+
 type IntakeJob = {
     id: string;
     updated_at: string;
     output_snapshot: Record<string, any> | null;
     plan_instance_id: string | null;
+    subscription_id: string | null;
 };
 
 async function findAwaitingIntakeJob(coachId: string, studentId: string): Promise<IntakeJob | null> {
     const { data, error } = await db()
         .from("coach_automation_jobs")
-        .select("id, updated_at, output_snapshot, plan_instance_id")
-        .eq("type", "initial_plan")
+        .select("id, updated_at, output_snapshot, plan_instance_id, subscription_id")
+        // 首个计划和自动发布的下一阶段计划都会私信学员
+        .in("type", ["initial_plan", "next_phase"])
         .eq("coach_id", coachId)
         .eq("student_id", studentId)
         .order("created_at", { ascending: false })
@@ -259,7 +279,7 @@ async function writeIntakeState(
         .update({ output_snapshot: outputSnapshot, updated_at: now, ...extra })
         .eq("id", job.id)
         .eq("updated_at", job.updated_at)
-        .select("id, updated_at, output_snapshot, plan_instance_id");
+        .select("id, updated_at, output_snapshot, plan_instance_id, subscription_id");
     if (error) {
         console.error("[plan-intake] write state failed:", error);
         return null;
@@ -330,6 +350,37 @@ async function insertSelfReportedRecords(params: {
     }));
     const { error } = await db().from("personal_records_history").insert(rows);
     if (error) throw new Error(`写入 1RM 记录失败: ${error.message}`);
+}
+
+/** 学员补充了文字信息时生成计划调整草稿；返回追加到教练通知里的一行，失败时降级为只通知。 */
+async function draftRevisionLine(params: {
+    job: IntakeJob;
+    coachId: string;
+    coachUserId: string;
+    studentId: string;
+    planInstanceId: string;
+    notes: string[];
+    riskNotes: string[];
+}): Promise<string | null> {
+    if (params.notes.length === 0 && params.riskNotes.length === 0) return null;
+    if (!params.job.subscription_id) return null;
+    try {
+        const result = await draftPlanRevisionFromIntake({
+            planInstanceId: params.planInstanceId,
+            subscriptionId: params.job.subscription_id,
+            coachId: params.coachId,
+            coachUserId: params.coachUserId,
+            studentId: params.studentId,
+            intakeJobId: params.job.id,
+            notes: params.notes,
+            riskNotes: params.riskNotes,
+        });
+        if (result.status !== "drafted") return null;
+        return `已按这些信息生成计划调整草稿（${result.summary}），只改学员还没练的天。请到 [自动化](/dashboard/automation) 确认后应用。`;
+    } catch (error) {
+        console.error("[plan-intake] draft plan revision failed:", error);
+        return null;
+    }
 }
 
 type IntakeRoom = {
@@ -612,21 +663,34 @@ async function processClaimedReply(args: {
         }),
     });
 
+    const openAnswers = reply.openAnswers.map((a) => ({
+        prompt: questionById.get(a.questionId)?.prompt || "问题",
+        answer: a.answer,
+    }));
+    const draftLine = await draftRevisionLine({
+        job,
+        coachId,
+        coachUserId,
+        studentId,
+        planInstanceId: intake.planInstanceId,
+        notes: [...openAnswers.map((a) => `${a.prompt} → ${a.answer}`), ...(reply.otherNotes ? [reply.otherNotes] : [])],
+        riskNotes: reply.riskNotes ? [reply.riskNotes] : [],
+    });
+    const notice = buildCoachNotice({
+        studentName: displayName(profile),
+        newRecords,
+        uncalibrated,
+        unknownLabels,
+        openAnswers,
+        otherNotes: reply.otherNotes,
+        riskNotes: reply.riskNotes,
+        remainingCount: closed ? remaining.length : 0,
+        recordFailed,
+    });
     await sendSystemMessage(coachUserId, {
-        content: buildCoachNotice({
-            studentName: displayName(profile),
-            newRecords,
-            uncalibrated,
-            unknownLabels,
-            openAnswers: reply.openAnswers.map((a) => ({
-                prompt: questionById.get(a.questionId)?.prompt || "问题",
-                answer: a.answer,
-            })),
-            otherNotes: reply.otherNotes,
-            riskNotes: reply.riskNotes,
-            remainingCount: closed ? remaining.length : 0,
-            recordFailed,
-        }),
+        content: draftLine ? `${notice}\n${draftLine}` : notice,
+        // 可能包含伤病等健康信息，锁屏推送只显示这句概括。
+        content_metadata: { push_preview: "学员回复了计划助理的问题，请查看。" },
     } as any).catch((error: unknown) => console.error("[plan-intake] notify coach failed:", error));
 
     const hasNewerMessages = !closed &&

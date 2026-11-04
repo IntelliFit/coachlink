@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
     sendSystemMessage: vi.fn(),
     llmCreate: vi.fn(),
     current1RM: vi.fn(),
+    draftRevision: vi.fn(),
 }));
 
 function filterValue(ctx: SupabaseExecContext, kind: string, column: string) {
@@ -71,6 +72,10 @@ vi.mock("@/app/api/student/get-current-1rm/route", () => ({
     getCurrent1RMRecords: mocks.current1RM,
 }));
 
+vi.mock("./planIntakeRevision", () => ({
+    draftPlanRevisionFromIntake: mocks.draftRevision,
+}));
+
 import { handlePlanIntakeReply, hasAwaitingPlanIntake, startPlanIntake } from "./planIntake";
 
 const context = { subscriptionId: "sub-1", coachId: COACH_ID, studentId: STUDENT, coachUserId: COACH_USER };
@@ -95,6 +100,7 @@ beforeEach(() => {
     mocks.sendDirectMessage.mockReset().mockResolvedValue(true);
     mocks.sendSystemMessage.mockReset().mockResolvedValue(true);
     mocks.llmCreate.mockReset();
+    mocks.draftRevision.mockReset().mockResolvedValue({ status: "skipped", reason: "no_change" });
     mocks.current1RM.mockReset().mockResolvedValue([
         { actionId: "bench", actionName: "卧推", current1RM: 100 },
     ]);
@@ -160,6 +166,7 @@ describe("handlePlanIntakeReply", () => {
             id: "job-1",
             updated_at: "2026-11-04T05:00:00.000+00:00",
             plan_instance_id: PLAN_ID,
+            subscription_id: "sub-1",
             output_snapshot: { planId: PLAN_ID, intake },
         };
         mocks.store.messages = [{ content: "体重75，负重引体挂20公斤能做3个，家里有门框单杠", created_at: new Date(Date.now() + 1000).toISOString() }];
@@ -241,6 +248,43 @@ describe("handlePlanIntakeReply", () => {
         const intake = mocks.store.job.output_snapshot.intake;
         expect(intake.status).toBe("awaiting_reply");
         expect(intake.processing).toBeNull();
+    });
+
+    it("turns text answers into a plan draft and tells the coach where to apply it", async () => {
+        await seedAwaitingJob();
+        mocks.draftRevision.mockResolvedValue({ status: "drafted", draftId: "draft-1", summary: "按学员私信补充调整：引体换成哑铃划船" });
+        llmReturns({ related: true, openAnswers: [{ questionId: "open:0", answer: "没有单杠" }], otherNotes: "只有哑铃" });
+
+        await handlePlanIntakeReply(replyParams("没有单杠，家里只有哑铃"));
+
+        expect(mocks.draftRevision).toHaveBeenCalledWith(expect.objectContaining({
+            planInstanceId: PLAN_ID,
+            subscriptionId: "sub-1",
+            coachId: COACH_ID,
+            coachUserId: COACH_USER,
+            studentId: STUDENT,
+            notes: ["家里有单杠吗？ → 没有单杠", "只有哑铃"],
+            riskNotes: [],
+        }));
+        const notice = mocks.sendSystemMessage.mock.calls[0][1];
+        expect(notice.content).toContain("已按这些信息生成计划调整草稿（按学员私信补充调整：引体换成哑铃划船）");
+        expect(notice.content_metadata.push_preview).toBe("学员回复了计划助理的问题，请查看。");
+    });
+
+    it("still notifies the coach when drafting fails, and skips drafting for numbers only", async () => {
+        await seedAwaitingJob();
+        mocks.draftRevision.mockRejectedValue(new Error("llm down"));
+        llmReturns({ related: true, openAnswers: [{ questionId: "open:0", answer: "没有单杠" }] });
+        await handlePlanIntakeReply(replyParams("没有单杠"));
+        expect(mocks.sendSystemMessage).toHaveBeenCalledTimes(1);
+        expect(mocks.sendSystemMessage.mock.calls[0][1].content).not.toContain("调整草稿");
+
+        mocks.sendSystemMessage.mockClear();
+        mocks.draftRevision.mockClear();
+        await seedAwaitingJob();
+        llmReturns({ related: true, bodyWeightKg: 70 });
+        await handlePlanIntakeReply(replyParams("体重70"));
+        expect(mocks.draftRevision).not.toHaveBeenCalled();
     });
 
     it("does nothing without an awaiting intake", async () => {

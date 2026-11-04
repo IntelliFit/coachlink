@@ -5,6 +5,7 @@ import { buildArchiveEntitlementPatch } from "@/lib/subscriptionEntitlement";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { activateQueuedPackageIfReady } from '@/lib/subscriptionPackageQueue';
 import { createAutomationJob, isTerminalJob, markAutomationJob } from "./jobs";
+import { startPlanIntakeSafely } from "./planIntake";
 import { resolveAutomationPolicy } from "./policy";
 
 /** Remaining paid service weeks, by the same rule as the student's training gate; 0 when inactive. */
@@ -164,6 +165,17 @@ export async function onPlanProgressChanged(instanceId: string, triggerSource = 
       useLLM: true,
     });
     const archivePreviousPhaseError = await archiveCompletedPreviousPhase(instance.id);
+    // 下一阶段可能换了新动作：同样请计划助理问清缺的 1RM。
+    const intake = await startPlanIntakeSafely({ context, planInstanceId: nextPlan.id, planPublished: true });
+    const askedCount = intake.status === "awaiting_reply" ? intake.questions.length : 0;
+    if (context.coachUserId) {
+      const intakeLine = askedCount > 0
+        ? `计划助理已私信学员确认 ${askedCount} 项信息（1RM、体重或疑问），学员回复后会通知你。`
+        : "";
+      await sendSystemMessage(context.coachUserId, {
+        content: `学员「${await getStudentDisplayName(context.studentId)}」的下一阶段计划已自动发布：${nextPlan.name || "未命名计划"}。${intakeLine}`,
+      }).catch((error) => console.error("[automation] notify coach about next phase failed:", error));
+    }
 
     await markAutomationJob(job.id, "succeeded", {
       planInstanceId: nextPlan.id,
@@ -173,6 +185,7 @@ export async function onPlanProgressChanged(instanceId: string, triggerSource = 
         status: "active",
         archivedPreviousPlanId: instance.id,
         archivePreviousPhaseError,
+        intake,
       },
     });
     return { success: true, jobId: job.id, planInstanceId: nextPlan.id };

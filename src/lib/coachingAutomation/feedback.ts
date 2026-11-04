@@ -2,6 +2,7 @@ import { sendSystemMessage } from "@/lib/chat";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { createAutomationJob, isTerminalJob, markAutomationJob } from "./jobs";
 import { buildFeedbackAdjustmentPatch } from "./feedbackPatch";
+import { loadLockedDayIndexes, mergeKeepingLockedDays } from "./planDayLock";
 import { resolveAutomationPolicy } from "./policy";
 
 async function applyUpdatedTrainingDays(instanceId: string, updatedTrainingDays: any[]) {
@@ -177,10 +178,26 @@ export async function applyAdjustmentDraft(draftId: string, coachUserId: string)
   if (draft.status === "applied") return draft;
   if (draft.status !== "draft") throw new Error("draft_not_applicable");
 
-  const updatedTrainingDays = draft.proposed_patch?.updatedTrainingDays;
-  if (!Array.isArray(updatedTrainingDays)) {
+  const draftTrainingDays = draft.proposed_patch?.updatedTrainingDays;
+  if (!Array.isArray(draftTrainingDays)) {
     throw new Error("draft_has_no_applicable_training_days");
   }
+
+  // 草稿生成后学员可能又练了几天：应用时按当前计划重新锁住已练过的天，不能整份覆盖。
+  const { data: currentPlan, error: planError } = await (serviceRoleSupabase as any)
+    .from("coach_plan_instances")
+    .select("training_days, start_execution_day")
+    .eq("id", draft.plan_instance_id)
+    .maybeSingle();
+  if (planError || !currentPlan) throw new Error(planError?.message || "plan_instance_not_found");
+  const updatedTrainingDays = mergeKeepingLockedDays({
+    originalDays: Array.isArray(currentPlan.training_days) ? currentPlan.training_days : [],
+    revisedDays: draftTrainingDays,
+    lockedDayIndexes: await loadLockedDayIndexes(draft.plan_instance_id),
+    startExecutionDay: currentPlan.start_execution_day,
+    baseDayKeys: Array.isArray(draft.proposed_patch?.baseDayKeys) ? draft.proposed_patch.baseDayKeys : null,
+  });
+  if (!updatedTrainingDays) throw new Error("draft_stale_day_count_changed");
 
   await applyUpdatedTrainingDays(draft.plan_instance_id, updatedTrainingDays);
   const now = new Date().toISOString();

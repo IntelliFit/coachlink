@@ -650,3 +650,11 @@
 - **统一规则**：判断「是否存在关系」用 `.limit(1)` 看数组长度，不用 `maybeSingle()`。按目标用户查数据时，权限不成立只能返回空或报错，不能退回查调用者本人。
 - **改动前自检**：这个查询在一对多的关系里（复购、续费、多教练）会不会返回多行？权限判断失败后，代码接下来读的是谁的数据？
 - **典型案例**（2026-11-04）：`src/app/api/student/get-current-1rm/route.ts` 的 `isCoachOfStudent`。受影响的调用方：`get-instance`、`create-ai-instance`（含自动托管首个计划和下一阶段）、`batch-operation`（AI 助手）。
+
+## 58) 应用 AI 调整草稿时整份覆盖计划：冲掉已练过的天和教练后来的修改（高风险）
+
+- **现象**：训练反馈生成的调整草稿，过几天由教练点「应用」后，学员这几天已经练过的训练日被换成草稿里的旧内容；教练在草稿生成后手动改过的天也被还原。
+- **根因**：`applyAdjustmentDraft` 直接把草稿里的 `updatedTrainingDays` 写回 `coach_plan_instances.training_days`，只在生成草稿时锁过已练的天，应用时没有按当前计划重新判断，也不知道草稿改了哪几天。
+- **统一规则**：草稿应用必须与当前计划合并：已有执行记录（completed / in_progress / abandoned）的天和起始日之前的天保留当前内容；草稿记下生成时每天的处方键（`baseDayKeys`），只替换草稿真正改过的天；天数不一致直接拒绝。
+- **改动前自检**：这份数据从生成到写回之间，学员或教练还能改它吗？写回时是整份覆盖还是按天合并？已练过的天受不受结构锁保护？
+- **典型案例**（2026-11-04）：`src/lib/coachingAutomation/planDayLock.ts`、`feedback.ts` 的 `applyAdjustmentDraft`，测试 `feedbackApply.test.ts`、`planDayLock.test.ts`。
