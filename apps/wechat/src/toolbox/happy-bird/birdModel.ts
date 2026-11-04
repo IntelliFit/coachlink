@@ -40,7 +40,8 @@ import { burst, createRandom, floatText, pushFx, ring, type StepContext } from '
 export * from './birdTypes'
 
 const MAX_STEP_MS = 64
-const BIRD_FOLLOW_TAU_MS = 60
+// 识别结果已经滤过波，这里只抹掉 15–30fps 识别之间的台阶，所以很短。
+const BIRD_FOLLOW_TAU_MS = 35
 const GO_MS = 700
 const INVINCIBLE_AFTER_HIT_MS = 1500
 const INVINCIBLE_AFTER_SHIELD_MS = 900

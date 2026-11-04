@@ -573,7 +573,8 @@ export default function HappyBirdPage() {
   const handleSnapshot = (snapshot: BodyTrackingSnapshot) => {
     if (!snapshot.locked) return
     const frameSize = { height: snapshot.frameHeight, width: snapshot.frameWidth }
-    const head = projectHeadAnchorToStage(snapshot, frameSize, stageSizeRef.current)
+    // 跟眼睛那一条线，不跟脸框中心：用力张嘴时脸框被下巴撑大，中心会往下跑。
+    const head = projectHeadAnchorToStage({ ...snapshot, y: snapshot.eyeY ?? snapshot.y }, frameSize, stageSizeRef.current)
     // 'holding' 是短暂没检测到（运动模糊等），高度沿用上次，游戏不因此卡顿。
     if (snapshot.lockState === 'locked') {
       headTravelRef.current = updateHeadTravel(headTravelRef.current, head.y, Date.now())
@@ -596,6 +597,7 @@ export default function HappyBirdPage() {
     })
     trackerRef.current = new BodyPointTracker({
       anchorMode: 'head',
+      logLabel: 'happy-bird',
       headLockConfirmFrames: 3,
       headLostGraceMs: 720,
       onLockChange: (locked) => {

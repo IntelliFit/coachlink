@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro'
+import { realtimeLog } from '../games/realtimeLog'
 import { mergeTimeoutMs, renderSoundtrack, type SoundtrackPlan } from './birdSoundtrack'
 
 declare const wx: any
@@ -14,16 +15,6 @@ export type MergeOptions = {
   /** 写进实时日志的附加字段，比如页面里录制收尾花了多久。 */
   logFields?: Record<string, number | string>
   onStage?: (stage: MergeStage) => void
-}
-
-/** 真机上每一步花了多久写进小程序后台「实时日志」，慢或失败时能看到卡在哪。 */
-function realtimeLog(level: 'info' | 'warn', payload: Record<string, unknown>) {
-  try {
-    const manager = typeof wx !== 'undefined' ? wx.getRealtimeLogManager?.() : null
-    manager?.[level]?.(LOG_TAG, payload)
-  } catch {
-    // 日志只是排查用，写不进去不影响保存视频
-  }
 }
 
 function extractTracks(container: any, source: string) {
@@ -134,10 +125,11 @@ export async function addSoundtrackToVideo(videoPath: string, plan: SoundtrackPl
     const audioFound = await withTimeout(inspectMerged(merged), mergeTimeoutMs(0))
     timings.checkMs = Date.now() - checkStartedAt
 
-    realtimeLog('info', { ...base, ...timings, audioFound, totalMs: Date.now() - startedAt })
+    // 每一步花了多久写进实时日志，慢或失败时能看到卡在哪。
+    realtimeLog('info', LOG_TAG, { ...base, ...timings, audioFound, totalMs: Date.now() - startedAt })
     return merged
   } catch (error: any) {
-    realtimeLog('warn', { ...base, ...timings, error: String(error?.message || error), totalMs: Date.now() - startedAt })
+    realtimeLog('warn', LOG_TAG, { ...base, ...timings, error: String(error?.message || error), totalMs: Date.now() - startedAt })
     throw error
   } finally {
     Taro.getFileSystemManager().unlink({ filePath: audioPath, fail: () => undefined })

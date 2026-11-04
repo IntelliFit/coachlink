@@ -457,6 +457,7 @@ export default function MotionBeanPage() {
     })
     trackerRef.current = new BodyPointTracker({
       anchorMode: 'head',
+      logLabel: 'motion-bean',
       headLockConfirmFrames: 3,
       headLostGraceMs: 720,
       onLockChange: (locked) => {
