@@ -39,7 +39,7 @@ import {
     replaceActionInDays,
 } from '@/lib/planBatchUtils';
 import { buildTemplateExportFilename, formatTemplateToText } from '@/lib/planExportText';
-import { formatTemplateToPlanScript, parsePlanScript } from '@/lib/planScript';
+import { formatTemplateToPlanScript, mergePlanScriptPlan, parsePlanScript } from '@/lib/planScript';
 
 
 const EditPlanPage = () => {
@@ -554,10 +554,13 @@ const EditPlanPage = () => {
                 script: scriptDraft,
                 actions,
             });
-            setDays(parsed.days);
-            setWeekDays(makeWeekDays(parsed.days));
+            // 合并回原训练日，保留脚本写不出的字段（推荐负重、重量单位、有氧参数、日 id 等）
+            const actionNameById = Object.fromEntries(actions.map((action) => [action.id, action.name]));
+            const mergedDays = mergePlanScriptPlan(days, parsed.days, actionNameById);
+            setDays(mergedDays);
+            setWeekDays(makeWeekDays(mergedDays));
             setDescription(parsed.description || '');
-            setSelectedDayIndex(parsed.days.length > 0 ? parsed.days[0].dayIndex : null);
+            setSelectedDayIndex(mergedDays.length > 0 ? mergedDays[0].dayIndex : null);
             setScriptError(null);
             setScriptDialogVisible(false);
             showToast({ severity: 'success', summary: '脚本已应用', detail: `已根据计划脚本更新 ${parsed.days.length} 天内容` });
@@ -621,12 +624,24 @@ const EditPlanPage = () => {
         showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
     };
 
+    const handleAiApplyLocal = (updatedTrainingDays: any[]) => {
+        const converted: FormPlanTrainingDay[] = (updatedTrainingDays || []).map((day: any) => ({
+            ...day,
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+        })).sort((a: FormPlanTrainingDay, b: FormPlanTrainingDay) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+    };
+
     const handleAiBatchOperationSuccess = async () => {
-        showToast({ severity: 'success', summary: 'AI 修改器成功', detail: '训练计划已更新' });
+        // 不重新从数据库加载：那会丢掉编辑器里尚未保存的修改和刚回填的 AI 草稿。
+        showToast({ severity: 'success', summary: 'AI 修改器成功', detail: '修改已应用到编辑器，请点击保存' });
         setAiBatchDialogVisible(false);
         setOriginalDaysBeforeAi(null);
         setAiModificationKeys(null);
-        await loadTemplate();
+        await loadActions();
     };
 
     const handleAiPreviewResult = (data: { originalTrainingDays: any; updatedTrainingDays: any; modifications: any[] }) => {
@@ -1004,7 +1019,11 @@ const EditPlanPage = () => {
                     <BatchOperationDialog
                         visible={aiBatchDialogVisible}
                         onHide={() => setAiBatchDialogVisible(false)}
-                        templateId={params.id as string}
+                        // 基于编辑器里的当前草稿（含未保存修改）修改，确认后只回填编辑器，由“保存”统一写库
+                        mode="local"
+                        initialTrainingDays={days}
+                        onApplyLocal={handleAiApplyLocal}
+                        historyScopeKey={`coach-template:${String(params.id)}`}
                         targetActionType="coach"
                         historyTitle={name || '教练计划模板'}
                         editEngine="auto"

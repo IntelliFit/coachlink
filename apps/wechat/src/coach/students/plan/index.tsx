@@ -7,6 +7,15 @@ import PlanCompactWeekCalendar from '@/components/PlanCompactWeekCalendar'
 import PlanReferenceOneRMPanel from '@/components/PlanReferenceOneRMPanel'
 import { coachService } from '@/services/coach/coachService'
 import { planLibService } from '@/services/coach/planLibService'
+import {
+  buildOneRmUpdates,
+  describeAiPlanAssistantTurn,
+  mergeOneRmAdjustments,
+  type AiPlanAssistantModification,
+  type AiPlanAssistantOneRm,
+  type AiPlanAssistantTurn
+} from '@/services/coach/aiPlanAssistant'
+import { buildFeedbackAdjustmentInstruction } from '@coachlink/core/src/planFeedbackInstruction'
 import { actionLibService } from '@/services/coach/actionLibService'
 import { authService } from '@/services/authService'
 import { chatService } from '@/services/chatService'
@@ -406,6 +415,14 @@ function CoachStudentPlan() {
   const [aiModifierError, setAiModifierError] = useState('')
   const [aiModifierPreviewDays, setAiModifierPreviewDays] = useState<TrainingDay[] | null>(null)
   const [aiModifierPreviewSummary, setAiModifierPreviewSummary] = useState('')
+  // 多轮对话：历史、累计差异和 1RM 调整都随下一轮发给服务端
+  const [aiModifierTurns, setAiModifierTurns] = useState<AiPlanAssistantTurn[]>([])
+  const [aiModifierModifications, setAiModifierModifications] = useState<AiPlanAssistantModification[]>([])
+  const [aiModifierOneRm, setAiModifierOneRm] = useState<AiPlanAssistantOneRm[]>([])
+  const [aiModifierSuggestions, setAiModifierSuggestions] = useState<string[]>([])
+  // 已应用到编辑器、等计划保存成功后再写入学员动作库的 1RM 调整
+  const pendingAiOneRmRef = useRef<AiPlanAssistantOneRm[]>([])
+  const flushPendingAiOneRmRef = useRef<() => Promise<void>>(async () => {})
 
   // 1RM 配置
   const [oneRMValues, setOneRMValues] = useState<Record<string, number | null>>({})
@@ -1120,6 +1137,8 @@ function CoachStudentPlan() {
           savedInstance = update.instance
         }
         serverTrainingDaysRef.current = payloadDays as any[]
+        // 计划已保存，再写入随 AI 修改挂起的 1RM 调整
+        void flushPendingAiOneRmRef.current()
         if (visibleReverts.length > 0) {
           Taro.showToast({
             title: `第${visibleReverts.join('、')}天已有训练记录，已保留原样`,
@@ -2513,11 +2532,16 @@ function CoachStudentPlan() {
       Taro.showToast({ title: '历史计划仅支持查看', icon: 'none' })
       return
     }
-    const preset = (instruction || aiFeedbackDraft || '').trim()
+    // 从反馈卡片打开时只预填固定指令；反馈原文由服务端作为“学员原话”引用，不进教练指令。
+    const preset = (instruction || (feedbacks.length ? buildFeedbackAdjustmentInstruction(feedbacks.length) : '')).trim()
     setAiModifierInstruction(preset)
     setAiModifierError('')
     setAiModifierPreviewDays(null)
     setAiModifierPreviewSummary('')
+    setAiModifierTurns([])
+    setAiModifierModifications([])
+    setAiModifierOneRm([])
+    setAiModifierSuggestions([])
     setShowAiModifierDialog(true)
   }
 
@@ -2527,33 +2551,47 @@ function CoachStudentPlan() {
       setAiModifierError('请输入要让 AI 修改计划的要求')
       return
     }
-    if (!trainingDays.length) {
+    // 已有预览时继续在预览草稿上修改，并带上之前的对话
+    const baseDays = aiModifierPreviewDays?.length ? aiModifierPreviewDays : trainingDays
+    if (!baseDays.length) {
       setAiModifierError('当前计划为空，无法进行 AI 修改')
       return
     }
 
     setAiModifierLoading(true)
     setAiModifierError('')
-    setAiModifierPreviewDays(null)
-    setAiModifierPreviewSummary('')
+    setAiModifierSuggestions([])
     try {
-      const result = await planLibService.previewBatchOperationLocal({
-        trainingDays,
+      const result = await planLibService.runAiPlanAssistant({
+        trainingDays: baseDays,
         instruction,
         subscriptionId,
-        subjectUserId: studentData?.student_id
+        subjectUserId: studentData?.student_id,
+        conversationHistory: aiModifierTurns,
+        modificationContext: aiModifierModifications,
+        lockedThroughDayIndex
       })
-      if (!result?.updatedTrainingDays?.length) {
-        throw new Error('AI 暂未返回可应用的计划修改')
+      setAiModifierTurns((prev) => [
+        ...prev,
+        { role: 'user', content: instruction },
+        { role: 'assistant', content: describeAiPlanAssistantTurn(result) }
+      ])
+      setAiModifierInstruction('')
+      if (result.kind === 'clarification') {
+        setAiModifierSuggestions(result.suggestions)
+        return
       }
+      if (result.kind === 'answer') return
+
       const normalizedDays = (result.updatedTrainingDays as TrainingDay[]).map((day) => ({
         ...day,
         actionSets: Array.isArray(day.actionSets) ? day.actionSets : []
       }))
-      const modifications = result.modifications || []
       setAiModifierPreviewDays(normalizedDays)
+      setAiModifierModifications((prev) => [...prev, ...result.modifications])
+      setAiModifierOneRm((prev) => mergeOneRmAdjustments(prev, result.oneRmAdjustments))
       setAiModifierPreviewSummary(
-        result.message || (modifications.length ? `AI 已生成 ${modifications.length} 处修改预览` : 'AI 已生成计划修改预览')
+        result.message || (result.modifications.length ? `AI 已生成 ${result.modifications.length} 处修改预览` : 'AI 已生成计划修改预览')
       )
     } catch (error: any) {
       console.error('[coach/students/plan] ai modifier failed:', error)
@@ -2562,6 +2600,34 @@ function CoachStudentPlan() {
       setAiModifierLoading(false)
     }
   }
+
+  // AI 的全局 1RM 调整与 Web 一样跟着计划保存：先挂起，计划自动保存成功后再写学员动作库。
+  // 自动保存失败时不写，避免学员 1RM 已变而计划没变。
+  const flushPendingAiOneRm = async () => {
+    const pending = pendingAiOneRmRef.current
+    if (!subscriptionId || pending.length === 0) return
+    pendingAiOneRmRef.current = []
+    try {
+      const { updates, unresolved } = buildOneRmUpdates(pending, studentActions)
+      if (updates.length > 0) {
+        const res = await coachService.batchUpdateStudent1RM({ subscriptionId, updates })
+        if (!res) throw new Error('1RM 调整保存失败')
+        const refreshRes = await coachService.getStudentActions({ subscriptionId })
+        if (refreshRes?.actions) setStudentActions(refreshRes.actions as StudentAction[])
+      }
+      Taro.showToast({
+        title: updates.length > 0
+          ? `已同步 ${updates.length} 个动作的1RM${unresolved.length ? `，${unresolved.length} 个未找到学员动作` : ''}`
+          : `${unresolved.length} 个1RM调整未找到学员动作，未同步`,
+        icon: 'none'
+      })
+    } catch (error) {
+      console.error('[coach/students/plan] sync ai 1RM failed:', error)
+      pendingAiOneRmRef.current = mergeOneRmAdjustments(pending, pendingAiOneRmRef.current)
+      Taro.showToast({ title: '1RM 调整同步失败，下次保存计划时重试', icon: 'none' })
+    }
+  }
+  flushPendingAiOneRmRef.current = flushPendingAiOneRm
 
   const handleApplyAiModifierPreview = () => {
     if (isReadonlyPlanView) return
@@ -2576,17 +2642,24 @@ function CoachStudentPlan() {
       nextDays: previewDays,
       lockedThroughDayIndex
     })
+    const planChanged = JSON.stringify(normalizedDays) !== JSON.stringify(trainingDays)
+    pendingAiOneRmRef.current = mergeOneRmAdjustments(pendingAiOneRmRef.current, aiModifierOneRm)
     setTrainingDays(normalizedDays)
     setSelectedDayIndex(normalizedDays.find((day) => day.type === 'training')?.dayIndex || normalizedDays[0]?.dayIndex || 1)
     setShowAiModifierDialog(false)
     setAiModifierPreviewDays(null)
     setAiModifierPreviewSummary('')
+    setAiModifierTurns([])
+    setAiModifierModifications([])
+    setAiModifierOneRm([])
     Taro.showToast({
       title: restoredDayIndexes.length > 0
         ? `AI 修改已应用；${describeLockedRange(lockedThroughDayIndex)}已有训练记录，结构保持原样`
         : 'AI 修改已应用，请保存计划',
       icon: 'none'
     })
+    // 计划没变（只调 1RM）或没有可自动保存的计划时，不会有保存来带出 1RM，直接写入
+    if (!planChanged || !instanceId) void flushPendingAiOneRm()
   }
 
   return (
@@ -2716,7 +2789,7 @@ function CoachStudentPlan() {
                 <Text className='feedback-ai-title'>一键生成沟通建议</Text>
                 <Text className='feedback-ai-text'>{aiFeedbackDraft}</Text>
                 <View className='feedback-actions'>
-                  <View className='feedback-action-btn secondary' onClick={() => handleOpenAiModifier(aiFeedbackDraft)}>
+                  <View className='feedback-action-btn secondary' onClick={() => handleOpenAiModifier(buildFeedbackAdjustmentInstruction(feedbacks.length))}>
                     <Text className='action-btn-text'>用反馈改计划</Text>
                   </View>
                   <View className='feedback-action-btn primary' onClick={() => void handleContactStudent({ draft: aiFeedbackDraft })}>
@@ -3140,12 +3213,37 @@ function CoachStudentPlan() {
               </View>
               <View className='ai-modifier-body'>
                 <Text className='ai-modifier-hint'>
-                  复用 Web 的计划 AI 修改器。先生成预览，确认后只应用到当前编辑器，仍需点击保存计划。
+                  复用 Web 的计划 AI 修改器。先生成预览，可以继续追加要求，确认后只应用到当前编辑器，仍需点击保存计划。
                 </Text>
+                {aiModifierTurns.length > 0 ? (
+                  <View className='ai-modifier-preview'>
+                    <Text className='ai-modifier-preview-title'>对话</Text>
+                    {aiModifierTurns.slice(-6).map((turn, index) => (
+                      <Text key={`${index}-${turn.role}`} className='ai-modifier-preview-text'>
+                        {turn.role === 'user' ? '你：' : 'AI：'}{turn.content}
+                      </Text>
+                    ))}
+                    {aiModifierSuggestions.length > 0 ? (
+                      <View className='ai-modifier-footer'>
+                        {aiModifierSuggestions.map((suggestion) => (
+                          <View
+                            key={suggestion}
+                            className='ai-modifier-btn secondary'
+                            onClick={() => setAiModifierInstruction(suggestion)}
+                          >
+                            <Text>{suggestion}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
                 <Textarea
                   className='ai-modifier-textarea'
                   value={aiModifierInstruction}
-                  placeholder='例如：根据最近反馈，把第 2 周引体强度下调到 8RM，并把总量减少一组。'
+                  placeholder={aiModifierPreviewDays?.length
+                    ? '继续修改，例如：第 3 周再减一组。'
+                    : '例如：根据最近反馈，把第 2 周引体强度下调到 8RM，并把总量减少一组。'}
                   maxlength={2000}
                   autoHeight
                   onInput={(event) => {
@@ -3160,6 +3258,11 @@ function CoachStudentPlan() {
                   <View className='ai-modifier-preview'>
                     <Text className='ai-modifier-preview-title'>预览结果</Text>
                     <Text className='ai-modifier-preview-text'>{aiModifierPreviewSummary}</Text>
+                    {aiModifierOneRm.map((item) => (
+                      <Text key={item.actionId} className='ai-modifier-preview-meta'>
+                        1RM：{item.actionName} {item.currentOneRM}kg → {item.nextOneRM}kg（计划保存后写入学员动作库）
+                      </Text>
+                    ))}
                     <Text className='ai-modifier-preview-meta'>
                       {aiModifierPreviewDays?.length || 0} 天计划已准备应用
                     </Text>
@@ -3177,10 +3280,16 @@ function CoachStudentPlan() {
                     void handleRunAiModifier()
                   }}
                 >
-                  <Text>{aiModifierLoading ? '生成中...' : aiModifierPreviewDays?.length ? '重新生成' : '生成预览'}</Text>
+                  <Text>{aiModifierLoading ? '生成中...' : aiModifierPreviewDays?.length ? '继续修改' : aiModifierTurns.length ? '发送' : '生成预览'}</Text>
                 </View>
                 {aiModifierPreviewDays?.length ? (
-                  <View className='ai-modifier-btn primary' onClick={handleApplyAiModifierPreview}>
+                  <View
+                    className={`ai-modifier-btn primary ${aiModifierLoading ? 'disabled' : ''}`}
+                    onClick={() => {
+                      if (aiModifierLoading) return
+                      handleApplyAiModifierPreview()
+                    }}
+                  >
                     <Text>应用到编辑器</Text>
                   </View>
                 ) : null}

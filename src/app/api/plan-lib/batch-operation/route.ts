@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
-import ivm from "isolated-vm";
 import {
     BatchOperationDto,
     SSEMessage,
@@ -23,9 +22,27 @@ import {
     isWeeklyScheduleMoveInstruction,
     tryApplyDeterministicBatchEdit,
 } from "@/lib/batchOperationDeterministic";
-import { formatTemplateToPlanScript, parsePlanScript } from "@/lib/planScript";
+import {
+    formatTemplateToPlanScript,
+    mergePlanScriptDayPatches,
+    parsePlanScript,
+} from "@/lib/planScript";
 import { resolveOneRmAdjustments, type OneRmAdjustmentDraft } from "@/lib/oneRmAdjustments";
 import { applyLoadAdjustments, type LoadAdjustmentDraft } from "@/lib/loadAdjustments";
+import {
+    analyzeModifications,
+    describeNoChangeTurn,
+    findUnresolvedOneRmDrafts,
+    normalizeItemType,
+    normalizeTrainingDaysForEditor,
+} from "@/lib/planAssistantEdits";
+import { executeCodeInVM } from "@/lib/planCodeSandbox";
+import {
+    LIVE_SUBSCRIPTION_STATUSES,
+    isLiveSubscriptionStatus,
+    normalizeLockedThroughDayIndex,
+} from "@/lib/planAssistantContext";
+import { describeLockedRange, mergeLockedPlanDays } from "@coachlink/core/src/planEditLock";
 import { createPlanEditSseResponse } from "@/lib/planEditSse";
 import {
     compileDetailedLongPlanDeterministically,
@@ -217,316 +234,6 @@ function extractPlainPlanScript(raw: string): string {
     return (firstScriptLine >= 0 ? lines.slice(firstScriptLine).join("\n") : candidate).trim();
 }
 
-/**
- * 在隔离的虚拟机中安全执行 TypeScript 代码
- */
-async function executeCodeInVM(
-    code: string,
-    trainingDays: any[],
-    actions: Array<{ id: string; name: string }>,
-    timeout = 10000,
-    memoryLimit = 128
-): Promise<{ success: boolean; result?: any; error?: string }> {
-    try {
-        // 创建隔离的虚拟机实例
-        const isolate = new ivm.Isolate({ memoryLimit });
-        const context = await isolate.createContext();
-
-        // 注入数据到虚拟机上下文
-        const jail = context.global;
-        await jail.set('global', jail.derefInto());
-
-        // 将 trainingDays 和 actions 注入到虚拟机
-        await jail.set(
-            'trainingDaysJSON',
-            new ivm.ExternalCopy(JSON.stringify(trainingDays)).copyInto()
-        );
-        await jail.set(
-            'actionsJSON',
-            new ivm.ExternalCopy(JSON.stringify(actions)).copyInto()
-        );
-
-        // 准备执行的代码
-        const scriptCode = `
-            // 解析输入数据
-            const trainingDays = JSON.parse(trainingDaysJSON);
-            const actions = JSON.parse(actionsJSON);
-            
-            // 辅助函数
-            const normalizeActionName = (name) => String(name || '')
-                .toLowerCase()
-                .replace(/[\\s\\-_()（）【】\\[\\]·,，.。]/g, '');
-
-            const findActionByName = (name) => {
-                const target = normalizeActionName(name);
-                if (!target) return null;
-                // 严格匹配：仅允许“规范化后全等”
-                return actions.find(a => normalizeActionName(a.name) === target) || null;
-            };
-            
-            const findActionById = (id) => {
-                return actions.find(a => a.id === id);
-            };
-
-            // 优先命中动作库；未命中则返回待确认的临时 actionId（后续走人工确认创建）
-            const ensureActionIdByName = (name) => {
-                const matched = findActionByName(name);
-                if (matched?.id) return matched.id;
-                const normalized = normalizeActionName(name);
-                return normalized ? ('pending:' + normalized.slice(0, 48)) : 'pending:unnamed';
-            };
-            
-            // 用户代码
-            ${code}
-            
-            // 返回结果
-            JSON.stringify(trainingDays);
-        `;
-
-        // 编译并执行代码
-        const script = await isolate.compileScript(scriptCode);
-        const result = await script.run(context, { timeout });
-
-        // 解析结果
-        const updatedTrainingDays = JSON.parse(result);
-
-        return {
-            success: true,
-            result: updatedTrainingDays
-        };
-    } catch (error: any) {
-        return {
-            success: false,
-            error: error.message || '代码执行失败'
-        };
-    }
-}
-
-/**
- * 分析训练计划的修改差异
- */
-function analyzeModifications(
-    original: any[],
-    updated: any[],
-    actions: Array<{ id: string; name: string }>
-): ModificationDiff[] {
-    const modifications: ModificationDiff[] = [];
-    const actionMap = new Map(actions.map(a => [a.id, a.name]));
-
-    for (let i = 0; i < Math.max(original.length, updated.length); i++) {
-        const origDay = original[i];
-        const updDay = updated[i];
-
-        // 检查训练日是否被删除
-        if (origDay && !updDay) {
-            modifications.push({
-                dayIndex: origDay.dayIndex || i + 1,
-                actionName: '整个训练日',
-                field: '删除',
-                oldValue: origDay.type === 'training' ? '训练日' : '休息日',
-                newValue: '已删除'
-            });
-            continue;
-        }
-
-        // 检查训练日是否被添加
-        if (!origDay && updDay) {
-            modifications.push({
-                dayIndex: updDay.dayIndex || i + 1,
-                actionName: '整个训练日',
-                field: '添加',
-                oldValue: '无',
-                newValue: updDay.type === 'training' ? '训练日' : '休息日'
-            });
-            continue;
-        }
-
-        if (!origDay || !updDay) continue;
-
-        const dayIndex = updDay.dayIndex || i + 1;
-
-        // 检查训练日类型变化
-        if (origDay.type !== updDay.type) {
-            modifications.push({
-                dayIndex,
-                actionName: '训练日类型',
-                field: 'type',
-                oldValue: origDay.type === 'training' ? '训练日' : '休息日',
-                newValue: updDay.type === 'training' ? '训练日' : '休息日'
-            });
-        }
-
-        // 检查备注变化
-        if (origDay.note !== updDay.note) {
-            modifications.push({
-                dayIndex,
-                actionName: '备注',
-                field: 'note',
-                oldValue: origDay.note || '无',
-                newValue: updDay.note || '无'
-            });
-        }
-
-        // 检查动作集变化
-        const origSets = origDay.actionSets || [];
-        const updSets = updDay.actionSets || [];
-
-        for (let j = 0; j < Math.max(origSets.length, updSets.length); j++) {
-            const origSet = origSets[j];
-            const updSet = updSets[j];
-
-            if (!origSet && updSet) {
-                // 新增动作
-                const actionName = actionMap.get(updSet.actionId) || updSet.params?.action_name || '未知动作';
-                modifications.push({
-                    dayIndex,
-                    actionName,
-                    field: '添加动作',
-                    oldValue: '无',
-                    newValue: `${actionName} (${updSet.params?.sets || 0}组 × ${updSet.params?.reps || 0}次)`
-                });
-            } else if (origSet && !updSet) {
-                // 删除动作
-                const actionName = actionMap.get(origSet.actionId) || origSet.params?.action_name || '未知动作';
-                modifications.push({
-                    dayIndex,
-                    actionName,
-                    field: '删除动作',
-                    oldValue: `${actionName} (${origSet.params?.sets || 0}组 × ${origSet.params?.reps || 0}次)`,
-                    newValue: '已删除'
-                });
-            } else if (origSet && updSet) {
-                const actionName = actionMap.get(updSet.actionId) || updSet.params?.action_name || '未知动作';
-
-                // 检查动作ID变化(替换)
-                if (origSet.actionId !== updSet.actionId) {
-                    const oldActionName = actionMap.get(origSet.actionId) || origSet.params?.action_name || '未知动作';
-                    const newActionName = actionMap.get(updSet.actionId) || updSet.params?.action_name || '未知动作';
-                    modifications.push({
-                        dayIndex,
-                        actionName: oldActionName,
-                        field: '替换动作',
-                        oldValue: oldActionName,
-                        newValue: newActionName
-                    });
-                }
-
-                // 检查参数变化
-                const origParams = origSet.params || {};
-                const updParams = updSet.params || {};
-
-                if (origParams.sets !== updParams.sets) {
-                    modifications.push({
-                        dayIndex,
-                        actionName,
-                        field: '组数',
-                        oldValue: origParams.sets || 0,
-                        newValue: updParams.sets || 0
-                    });
-                }
-
-                if (origParams.reps !== updParams.reps) {
-                    modifications.push({
-                        dayIndex,
-                        actionName,
-                        field: '次数',
-                        oldValue: origParams.reps || 0,
-                        newValue: updParams.reps || 0
-                    });
-                }
-
-                const origFixedLoad = firstDefinedNumber(
-                    origParams.load,
-                    origParams.weight,
-                    origParams.intensityConfig?.fixedWeight?.value,
-                );
-                const updFixedLoad = firstDefinedNumber(
-                    updParams.load,
-                    updParams.weight,
-                    updParams.intensityConfig?.fixedWeight?.value,
-                );
-                if (origFixedLoad !== updFixedLoad && (origFixedLoad != null || updFixedLoad != null)) {
-                    modifications.push({
-                        dayIndex,
-                        actionName,
-                        field: '重量',
-                        oldValue: `${origFixedLoad || 0}kg`,
-                        newValue: `${updFixedLoad || 0}kg`
-                    });
-                }
-
-                if (origParams.rest_seconds !== updParams.rest_seconds) {
-                    modifications.push({
-                        dayIndex,
-                        actionName,
-                        field: '休息时间',
-                        oldValue: `${origParams.rest_seconds || 0}秒`,
-                        newValue: `${updParams.rest_seconds || 0}秒`
-                    });
-                }
-
-                const origIC = origParams.intensityConfig;
-                const updIC = updParams.intensityConfig;
-                const origRI = origIC?.relativeIntensity;
-                const updRI = updIC?.relativeIntensity;
-
-                if (origRI?.type !== updRI?.type || origRI?.value !== updRI?.value) {
-                    const fmtIntensity = (ri?: { type?: string; value?: number }) => {
-                        if (!ri) return '无';
-                        return ri.type === 'percentage' ? `${ri.value}%` : `${ri.value}RM`;
-                    };
-                    modifications.push({
-                        dayIndex,
-                        actionName,
-                        field: '强度',
-                        oldValue: fmtIntensity(origRI),
-                        newValue: fmtIntensity(updRI)
-                    });
-                } else {
-                    const origLegacyRM = origParams['强度'];
-                    const updLegacyRM = updParams['强度'];
-                    if (origLegacyRM !== updLegacyRM && (origLegacyRM != null || updLegacyRM != null)) {
-                        modifications.push({
-                            dayIndex,
-                            actionName,
-                            field: '强度',
-                            oldValue: origLegacyRM != null ? `${origLegacyRM}RM` : '无',
-                            newValue: updLegacyRM != null ? `${updLegacyRM}RM` : '无'
-                        });
-                    }
-                }
-
-                const origRecLoad = origIC?.recommendedLoad;
-                const updRecLoad = updIC?.recommendedLoad;
-                if (origRecLoad?.value !== updRecLoad?.value || origRecLoad?.unit !== updRecLoad?.unit) {
-                    if (origRecLoad != null || updRecLoad != null) {
-                        modifications.push({
-                            dayIndex,
-                            actionName,
-                            field: '推荐负重',
-                            oldValue: origRecLoad ? `${origRecLoad.value}${origRecLoad.unit}` : '无',
-                            newValue: updRecLoad ? `${updRecLoad.value}${updRecLoad.unit}` : '无'
-                        });
-                    }
-                }
-
-                if (origParams.note !== updParams.note && (origParams.note != null || updParams.note != null)) {
-                    modifications.push({
-                        dayIndex,
-                        actionName,
-                        field: '备注',
-                        oldValue: origParams.note || '无',
-                        newValue: updParams.note || '无'
-                    });
-                }
-            }
-        }
-    }
-
-    return modifications;
-}
-
-const ITEM_TYPES: ItemType[] = ["STRENGTH", "CARDIO", "DIET", "HABIT"];
 type TargetActionType = "coach" | "student";
 
 type ActionOwnerConfig = {
@@ -549,12 +256,6 @@ function getPlanOwnerConfig(targetActionType: TargetActionType): PlanOwnerConfig
     return targetActionType === "student"
         ? { table: "student_plan_favorites", ownerColumn: "user_id" }
         : { table: "coach_plan_templates", ownerColumn: "coach_id" };
-}
-
-function normalizeItemType(input?: unknown): ItemType {
-    const raw = String(input ?? "").toUpperCase();
-    if (ITEM_TYPES.includes(raw as ItemType)) return raw as ItemType;
-    return "STRENGTH";
 }
 
 function inferItemTypeFromSet(actionSet: any): ItemType {
@@ -658,77 +359,6 @@ function collectPendingActions(
     return Array.from(byTempId.values()).sort((a, b) => a.suggestedName.localeCompare(b.suggestedName, "zh-CN"));
 }
 
-function firstDefinedNumber(...values: any[]): number | null {
-    for (const value of values) {
-        if (value === null || value === undefined || value === "") continue;
-        const n = Number(value);
-        if (!Number.isNaN(n)) return n;
-    }
-    return null;
-}
-
-function normalizeStrengthParamsForEditor(params: any): any {
-    const src = params || {};
-    const next = { ...src };
-
-    const sets = firstDefinedNumber(src["组数"], src.sets);
-    const reps = firstDefinedNumber(src["次数"], src.reps);
-    const duration = firstDefinedNumber(src["持续时间"], src.durationSeconds, src.duration_seconds);
-    const restSeconds = firstDefinedNumber(src["休息时间"], src.rest_seconds, src.restSeconds);
-    const load = firstDefinedNumber(
-        src.load,
-        src.weight,
-        src.fixedWeight,
-        src.intensityConfig?.fixedWeight?.value,
-        src.intensityConfig?.fixedWeight,
-    );
-
-    if (sets !== null) next["组数"] = sets;
-    if (reps !== null) next["次数"] = reps;
-    if (duration !== null) next["持续时间"] = duration;
-    if (restSeconds !== null) next["休息时间"] = restSeconds;
-    if (load !== null) next.load = load;
-    if (src.note !== undefined) next.note = src.note;
-    if (src.action_name !== undefined) next.action_name = src.action_name;
-
-    return next;
-}
-
-function normalizeActionSetForEditor(actionSet: any, actionTypeMap: Map<string, ItemType>): any {
-    if (!actionSet || typeof actionSet !== "object") return actionSet;
-    if (actionSet.type === "one-filter" && Array.isArray(actionSet.actions)) {
-        return {
-            ...actionSet,
-            actions: actionSet.actions.map((inner: any) => normalizeActionSetForEditor(inner, actionTypeMap)),
-        };
-    }
-
-    const actionId = String(actionSet.actionId || "");
-    const inferredType = normalizeItemType(actionSet.itemType || actionTypeMap.get(actionId) || "STRENGTH");
-    const next = {
-        ...actionSet,
-        itemType: inferredType,
-    };
-
-    if (inferredType === "STRENGTH") {
-        next.params = normalizeStrengthParamsForEditor(actionSet.params);
-    }
-    return next;
-}
-
-function normalizeTrainingDaysForEditor(trainingDays: any[], actions: any[]): any[] {
-    const actionTypeMap = new Map<string, ItemType>();
-    for (const action of actions || []) {
-        actionTypeMap.set(action.id, normalizeItemType(action.type));
-    }
-    return (trainingDays || []).map((day) => ({
-        ...day,
-        actionSets: (day?.actionSets || []).map((set: any) =>
-            normalizeActionSetForEditor(set, actionTypeMap),
-        ),
-    }));
-}
-
 type PlanScriptEditResult = {
     success: boolean;
     actionPlan?: string;
@@ -788,16 +418,19 @@ async function resolveSubjectUserIdForOneRmAdjustments(params: {
         return userId;
     }
 
+    // 只有仍在有效订阅中的教练能调整学员 1RM；前任教练的旧订阅不算。
     const subscriptionId = String(contextOptions?.subscriptionId || "").trim();
     if (subscriptionId) {
         const { data: subscription } = await supabase
             .from("coach_subscriptions")
-            .select("student_id, coach_id, coaches(user_id)")
+            .select("student_id, coach_id, status, coaches(user_id)")
             .eq("id", subscriptionId)
             .maybeSingle();
         const coachInfo = subscription?.coaches as any;
         const isOwner = coachInfo?.user_id === userId || String(subscription?.coach_id || "") === userId;
-        return isOwner ? String(subscription?.student_id || "") || null : null;
+        return isOwner && isLiveSubscriptionStatus(subscription?.status)
+            ? String(subscription?.student_id || "") || null
+            : null;
     }
 
     const hintedSubjectUserId = String(contextOptions?.subjectUserId || "").trim();
@@ -805,8 +438,9 @@ async function resolveSubjectUserIdForOneRmAdjustments(params: {
 
     const { data: ownedRows } = await supabase
         .from("coach_subscriptions")
-        .select("student_id, coach_id, coaches(user_id)")
+        .select("student_id, coach_id, status, coaches(user_id)")
         .eq("student_id", hintedSubjectUserId)
+        .in("status", [...LIVE_SUBSCRIPTION_STATUSES])
         .limit(20);
 
     const isOwner = (ownedRows || []).some((row: any) => {
@@ -822,16 +456,16 @@ async function resolveOneRmPreviewAdjustments(params: {
     targetActionType: TargetActionType;
     contextOptions?: BatchOperationDto["contextOptions"];
     actions: any[];
-}): Promise<OneRmAdjustmentPreview[]> {
+}): Promise<{ adjustments: OneRmAdjustmentPreview[]; hasSubject: boolean }> {
     const drafts = params.drafts || [];
-    if (drafts.length === 0) return [];
+    if (drafts.length === 0) return { adjustments: [], hasSubject: true };
 
     const subjectUserId = await resolveSubjectUserIdForOneRmAdjustments({
         userId: params.userId,
         targetActionType: params.targetActionType,
         contextOptions: params.contextOptions,
     });
-    if (!subjectUserId) return [];
+    if (!subjectUserId) return { adjustments: [], hasSubject: false };
 
     const { getCurrent1RMRecords } = await import("@/app/api/student/get-current-1rm/route");
     const rmRecords = await getCurrent1RMRecords(params.userId, {
@@ -866,7 +500,7 @@ async function resolveOneRmPreviewAdjustments(params: {
         }
     }
 
-    return resolveOneRmAdjustments({
+    const adjustments = resolveOneRmAdjustments({
         drafts,
         actions: (params.actions || []).map((action: any) => ({
             id: String(action.id),
@@ -879,6 +513,7 @@ async function resolveOneRmPreviewAdjustments(params: {
         studentActionIdByCanonicalActionId,
         studentActionIdByActionName,
     });
+    return { adjustments, hasSubject: true };
 }
 
 type PlanScriptPatchScope = {
@@ -922,7 +557,15 @@ function collectExplicitPlanScope(instruction: string, maxWeek: number) {
     }
 
     for (const match of text.matchAll(/\bD([1-7])\b/gi)) days.add(Number(match[1]));
-    for (const match of text.matchAll(/第\s*([1-7])\s*天/g)) days.add(Number(match[1]));
+    // “第2周第3天”“每周第3天”里的第3天是周内第几天；单独的“第3天”与执行记录、反馈的写法一致，
+    // 指计划的第 3 天。
+    const absoluteDays = new Set<number>();
+    const weekRelative = weeks.size > 0 || /(每|各)\s*(一|个)?\s*(周|星期|礼拜)/.test(text);
+    for (const match of text.matchAll(/第\s*(\d{1,3})\s*天/g)) {
+        const value = Number(match[1]);
+        if (weekRelative && value >= 1 && value <= 7) days.add(value);
+        else if (!weekRelative && value >= 1) absoluteDays.add(value);
+    }
     const chineseDayMap: Record<string, number> = {
         一: 1,
         二: 2,
@@ -935,7 +578,7 @@ function collectExplicitPlanScope(instruction: string, maxWeek: number) {
     };
     for (const match of text.matchAll(/周([一二三四五六日天])/g)) days.add(chineseDayMap[match[1]]);
 
-    return { weeks, days };
+    return { weeks, days, absoluteDays };
 }
 
 function collectActionIdsMentionedInInstruction(instruction: string, actions: any[]): Set<string> {
@@ -1011,15 +654,19 @@ function selectPlanScriptPatchScope(
         scoped = scoped.filter((day) => explicit.days.has(getDayWeek(Number(day?.dayIndex || 0)).dayOfWeek));
         reasons.push(`训练日 D${Array.from(explicit.days).sort((a, b) => a - b).join("、D")}`);
     }
-    if (explicit.weeks.size === 0 && explicit.days.size === 0 && mentionedActionIds.size > 0) {
+    if (explicit.absoluteDays.size > 0) {
+        scoped = scoped.filter((day) => explicit.absoluteDays.has(Number(day?.dayIndex || 0)));
+        reasons.push(`计划第 ${Array.from(explicit.absoluteDays).sort((a, b) => a - b).join("、")} 天`);
+    }
+    const hasExplicitScope = explicit.weeks.size > 0 || explicit.days.size > 0 || explicit.absoluteDays.size > 0;
+    if (!hasExplicitScope && mentionedActionIds.size > 0) {
         scoped = scoped.filter((day) =>
             (day?.actionSets || []).some((set: any) => actionSetContainsId(set, mentionedActionIds)),
         );
         reasons.push("指令中提到的动作所在训练日");
     }
     if (
-        explicit.weeks.size === 0 &&
-        explicit.days.size === 0 &&
+        !hasExplicitScope &&
         mentionedActionIds.size === 0 &&
         preferredDays.size > 0 &&
         /(继续|再|这些|刚才|它们|同样|一点|一些|上次|上轮)/.test(instruction)
@@ -1029,7 +676,7 @@ function selectPlanScriptPatchScope(
     }
 
     // 没有明确范围时只发送训练日。休息日无需交给模型重写，可显著缩短长周期计划输入。
-    if (explicit.weeks.size === 0 && explicit.days.size === 0 && mentionedActionIds.size === 0 && reasons.length === 0) {
+    if (!hasExplicitScope && mentionedActionIds.size === 0 && reasons.length === 0) {
         scoped = scoped.filter((day) => day?.type !== "rest");
         reasons.push("全部训练日（不含休息日）");
     }
@@ -1038,13 +685,6 @@ function selectPlanScriptPatchScope(
         days: scoped.sort((a, b) => Number(a?.dayIndex || 0) - Number(b?.dayIndex || 0)),
         reason: reasons.join(" + ") || "当前计划",
     };
-}
-
-function mergePlanScriptDayPatches(trainingDays: any[], patchedDays: any[]): any[] {
-    const patches = new Map(
-        (patchedDays || []).map((day) => [Number(day?.dayIndex || 0), day]),
-    );
-    return (trainingDays || []).map((day) => patches.get(Number(day?.dayIndex || 0)) || day);
 }
 
 function splitPlanScriptPatchChunks(
@@ -1284,7 +924,8 @@ async function runPlanScriptPatchEdit(params: {
             actionNameById,
         });
         const relevantActionLibrary = buildPatchActionLibrary(actions, chunk, effectiveInstruction);
-        const boundedContext = String(contextPrompt || "").slice(0, 3500);
+        // 调用方传入的是按段精简的上下文（学员关键数据、锁定、反馈在前），不再整体截断。
+        const boundedContext = String(contextPrompt || "");
         const planWeekCount = Math.max(1, Math.ceil(trainingDays.length / 7));
         const patchPrompt = `你是 coachlink 的 PlanScript 局部补丁编辑器。请执行用户指令，但不要重写整份计划。
 
@@ -1304,7 +945,7 @@ ${scope.reason}；第 ${chunkIndex + 1}/${chunks.length} 段；允许修改 dayI
 ## 本段相关动作库
 ${relevantActionLibrary}
 
-${boundedContext ? `## 相关业务上下文（已截短）\n${boundedContext}\n\n` : ""}## 当前本段 PlanScript
+${boundedContext ? `## 相关业务上下文（按段精简）\n${boundedContext}\n\n` : ""}## 当前本段 PlanScript
 ${chunkScript}
 
 ## 用户修改指令
@@ -1419,7 +1060,7 @@ ${effectiveInstruction}`;
                         message: "已忽略本段边界外的重复日期，仅合并允许范围内的修改",
                     });
                 }
-                updatedTrainingDays = mergePlanScriptDayPatches(updatedTrainingDays, inScopeDays);
+                updatedTrainingDays = mergePlanScriptDayPatches(updatedTrainingDays, inScopeDays, actionNameById);
                 changedPatchDays += inScopeDays.length;
                 for (const adjustment of parsed.oneRmAdjustments) {
                     const key = `${adjustment.actionName}|${adjustment.targetOneRM ?? ""}|${adjustment.deltaKg ?? ""}`;
@@ -1493,6 +1134,7 @@ async function runPlanScriptEdit(params: {
     latestInstruction: string;
     preferredDayIndexes?: number[];
     contextPrompt: string;
+    compactContextPrompt: string;
     deterministicReason?: string;
     sendMessage: (message: SSEMessage) => void;
     signal: AbortSignal;
@@ -1506,6 +1148,7 @@ async function runPlanScriptEdit(params: {
         latestInstruction,
         preferredDayIndexes = [],
         contextPrompt,
+        compactContextPrompt,
         deterministicReason,
         sendMessage,
         signal,
@@ -1637,7 +1280,7 @@ ${outputFormatPrompt}`,
             effectiveInstruction,
             scopeInstruction: latestInstruction,
             preferredDayIndexes,
-            contextPrompt,
+            contextPrompt: compactContextPrompt,
             sendMessage,
             signal,
         });
@@ -1919,8 +1562,10 @@ export async function POST(req: NextRequest) {
                         templateId,
                         contextOptions,
                         supabase,
+                        actions,
                     });
-                    const baselineContextBuild = previewInputOnly
+                    // 基线上下文只给“仅预览输入”对比开关效果用，正常修改轮不必再查一遍。
+                    const baselineContextBuild = !previewInputOnly
                         ? null
                         : await buildBatchOperationContext({
                             userId,
@@ -1941,6 +1586,8 @@ export async function POST(req: NextRequest) {
                             supabase,
                         });
                     const contextPrompt = contextBuild.prompt;
+                    const compactContextPrompt = contextBuild.compactPrompt;
+                    const lockedThroughDayIndex = normalizeLockedThroughDayIndex(contextOptions?.lockedThroughDayIndex);
                     const fixedInjected = [
                         '用户指令',
                         ...(includePlanBody ? ['计划/模板本体'] : []),
@@ -1955,6 +1602,98 @@ export async function POST(req: NextRequest) {
                         unavailable: contextBuild.unavailable,
                         message: `已启用上下文 ${contextBuild.enabled.length} 项`,
                     });
+
+                    /**
+                     * 三条修改链路（明确规则 / PlanScript / 代码）的统一收尾：规范成编辑器口径、
+                     * 还原已训练日的结构改动、计算真实差异；计划和 1RM 都没变时不报成功。
+                     */
+                    const finishModificationTurn = async (result: {
+                        updatedTrainingDays: any[];
+                        oneRmDrafts?: OneRmAdjustmentDraft[];
+                        resolvedOneRm?: { adjustments: OneRmAdjustmentPreview[]; hasSubject: boolean };
+                        resultMessage: (modificationCount: number, oneRmCount: number) => string;
+                        newActionsHint: string;
+                    }) => {
+                        const normalizedDays = normalizeTrainingDaysForEditor(
+                            result.updatedTrainingDays || [],
+                            actions,
+                            trainingDays,
+                        );
+                        // 两边都按编辑器口径比较；只规范化结果会把补 itemType、weight→load 这类改写当成修改。
+                        // 发给前端的 originalTrainingDays 仍是原样，模板应用前的版本比对依赖它。
+                        const normalizedOriginal = normalizeTrainingDaysForEditor(originalTrainingDays, actions, originalTrainingDays);
+                        const locked = mergeLockedPlanDays({
+                            savedDays: normalizedOriginal,
+                            nextDays: normalizedDays,
+                            lockedThroughDayIndex,
+                        });
+                        const updatedDays = locked.days;
+                        const modifications = analyzeModifications(normalizedOriginal, updatedDays, actions);
+                        const oneRm = result.resolvedOneRm ?? await resolveOneRmPreviewAdjustments({
+                            drafts: result.oneRmDrafts,
+                            userId,
+                            targetActionType,
+                            contextOptions,
+                            actions,
+                        });
+                        const unresolvedOneRmNames = findUnresolvedOneRmDrafts(result.oneRmDrafts, oneRm.adjustments);
+                        const lockNote = locked.restoredDayIndexes.length > 0
+                            ? `第${locked.restoredDayIndexes.join('、')}天已有训练记录，本轮对这些天的增删/调换动作或训练/休息切换已还原；${describeLockedRange(lockedThroughDayIndex)}只能调整参数。`
+                            : '';
+
+                        const noChange = describeNoChangeTurn({
+                            modificationCount: modifications.length,
+                            resolvedOneRmCount: oneRm.adjustments.length,
+                            unresolvedOneRmNames,
+                            hasOneRmSubject: oneRm.hasSubject,
+                        });
+                        if (noChange) {
+                            sendMessage({
+                                type: 'need_clarification',
+                                question: lockNote ? `${lockNote}${noChange}` : noChange,
+                            });
+                            return;
+                        }
+
+                        const knownActionIds = new Set(actions.map((a: any) => a.id));
+                        const pendingActions = collectPendingActions(updatedDays, knownActionIds);
+                        const newActionsDetected: NewActionDetected[] = pendingActions.map((p) => ({
+                            actionId: p.tempActionId,
+                            suggestedName: p.suggestedName,
+                        }));
+                        if (newActionsDetected.length > 0) {
+                            const namesList = newActionsDetected
+                                .map((a) => a.suggestedName || a.actionId)
+                                .join('、');
+                            sendMessage({
+                                type: 'new_actions_detected',
+                                actions: newActionsDetected,
+                                message: `修改计划中包含以下不在您动作库中的动作：${namesList}。${result.newActionsHint}`,
+                            });
+                        }
+
+                        const notes = [
+                            lockNote,
+                            unresolvedOneRmNames.length > 0
+                                ? `${unresolvedOneRmNames.join('、')} 的 1RM 调整未生效（${oneRm.hasSubject ? '没有找到当前 1RM 或动作对不上' : '当前没有关联学员'}）。`
+                                : '',
+                        ].filter(Boolean);
+                        sendMessage({
+                            type: 'assistant_message',
+                            content: [buildModificationSummary(modifications), ...notes].join('\n'),
+                        });
+                        sendMessage({
+                            type: 'preview_result',
+                            success: true,
+                            originalTrainingDays,
+                            updatedTrainingDays: updatedDays,
+                            modifications,
+                            pendingActions,
+                            oneRmAdjustments: oneRm.adjustments,
+                            restoredLockedDayIndexes: locked.restoredDayIndexes,
+                            message: `${result.resultMessage(modifications.length, oneRm.adjustments.length)}${isDevelopment ? ` (总耗时 ${Date.now() - startTime}ms)` : ''}`,
+                        });
+                    };
 
                     if (previewInputOnly) {
                         const previewIntentPrompt = `你是一个训练计划助手。请分析用户的指令，判断他们是想要：
@@ -2121,8 +1860,13 @@ ${currentInstruction}
                         }, signal);
 
                         const intentContent = intentCompletion.choices[0]?.message?.content;
-                        const intentResult = intentContent ? JSON.parse(intentContent) : { intent: 'modify' };
-                        userIntent = intentResult.intent as 'query' | 'modify';
+                        let parsedIntent: unknown = null;
+                        try {
+                            parsedIntent = intentContent ? JSON.parse(intentContent)?.intent : null;
+                        } catch {
+                            // 模型偶发返回非 JSON；按修改处理，后续还有完整性检查和“无实际修改”保护。
+                        }
+                        userIntent = parsedIntent === 'query' ? 'query' : 'modify';
                     }
 
                     // 根据意图走不同流程
@@ -2268,52 +2012,11 @@ ${currentInstruction}
                             type: 'action_plan',
                             plan: deterministicResult.actionPlan || '已根据明确规则应用批量修改',
                         });
-
-                        const modifications = analyzeModifications(
-                            originalTrainingDays,
-                            deterministicResult.updatedTrainingDays,
-                            actions.map(a => ({ id: a.id, name: a.name })),
-                        );
-
-                        const knownActionIds = new Set(actions.map((a: any) => a.id));
-                        const pendingActions = collectPendingActions(
-                            deterministicResult.updatedTrainingDays || [],
-                            knownActionIds,
-                        );
-                        const newActionsDetected: NewActionDetected[] = pendingActions.map((p) => ({
-                            actionId: p.tempActionId,
-                            suggestedName: p.suggestedName,
-                        }));
-                        if (newActionsDetected.length > 0) {
-                            const namesList = newActionsDetected
-                                .map((a) => a.suggestedName || a.actionId)
-                                .join('、');
-                            sendMessage({
-                                type: 'new_actions_detected',
-                                actions: newActionsDetected,
-                                message: `修改计划中包含以下不在您动作库中的动作：${namesList}。请先在动作库中创建这些动作后再应用，或确认是否仍要应用计划。`
-                            });
-                        }
-
-                        const normalizedUpdatedTrainingDays = normalizeTrainingDaysForEditor(
-                            deterministicResult.updatedTrainingDays || [],
-                            actions,
-                        );
-                        const totalDuration = Date.now() - startTime;
-
-                        sendMessage({
-                            type: 'assistant_message',
-                            content: buildModificationSummary(modifications),
-                        });
-                        sendMessage({
-                            type: 'preview_result',
-                            success: true,
-                            originalTrainingDays,
-                            updatedTrainingDays: normalizedUpdatedTrainingDays,
-                            modifications,
-                            pendingActions,
-                            oneRmAdjustments: [],
-                            message: `分析完成，共发现 ${modifications.length} 处修改${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`,
+                        await finishModificationTurn({
+                            updatedTrainingDays: deterministicResult.updatedTrainingDays || [],
+                            resolvedOneRm: { adjustments: [], hasSubject: true },
+                            resultMessage: (count) => `分析完成，共发现 ${count} 处修改`,
+                            newActionsHint: '请先在动作库中创建这些动作后再应用，或确认是否仍要应用计划。',
                         });
                         return;
                     }
@@ -2343,6 +2046,7 @@ ${currentInstruction}
                                 latestInstruction: currentInstruction,
                                 preferredDayIndexes: Array.from(new Set(modificationContext.map((item) => item.dayIndex))),
                                 contextPrompt,
+                                compactContextPrompt,
                                 deterministicReason: deterministicResult.matched ? deterministicResult.reason : undefined,
                                 sendMessage,
                                 signal,
@@ -2352,42 +2056,6 @@ ${currentInstruction}
                                 sendMessage({
                                     type: "action_plan",
                                     plan: scriptResult.actionPlan || "已根据计划脚本完成修改",
-                                });
-
-                                const modifications = analyzeModifications(
-                                    originalTrainingDays,
-                                    scriptResult.updatedTrainingDays,
-                                    actions.map(a => ({ id: a.id, name: a.name })),
-                                );
-                                const knownActionIds = new Set(actions.map((a: any) => a.id));
-                                const pendingActions = collectPendingActions(
-                                    scriptResult.updatedTrainingDays || [],
-                                    knownActionIds,
-                                );
-                                const newActionsDetected: NewActionDetected[] = pendingActions.map((p) => ({
-                                    actionId: p.tempActionId,
-                                    suggestedName: p.suggestedName,
-                                }));
-                                if (newActionsDetected.length > 0) {
-                                    const namesList = newActionsDetected
-                                        .map((a) => a.suggestedName || a.actionId)
-                                        .join('、');
-                                    sendMessage({
-                                        type: 'new_actions_detected',
-                                        actions: newActionsDetected,
-                                        message: `修改计划中包含以下不在您动作库中的动作：${namesList}。可以先确认并创建这些动作，再应用计划。`
-                                    });
-                                }
-                                const normalizedUpdatedTrainingDays = normalizeTrainingDaysForEditor(
-                                    scriptResult.updatedTrainingDays || [],
-                                    actions,
-                                );
-                                const oneRmAdjustments = await resolveOneRmPreviewAdjustments({
-                                    drafts: scriptResult.oneRmAdjustments,
-                                    userId,
-                                    targetActionType,
-                                    contextOptions,
-                                    actions,
                                 });
                                 if (isDevelopment && scriptResult.totalTokens) {
                                     sendMessage({
@@ -2401,19 +2069,12 @@ ${currentInstruction}
                                     });
                                 }
 
-                                sendMessage({
-                                    type: 'assistant_message',
-                                    content: buildModificationSummary(modifications),
-                                });
-                                sendMessage({
-                                    type: "preview_result",
-                                    success: true,
-                                    originalTrainingDays,
-                                    updatedTrainingDays: normalizedUpdatedTrainingDays,
-                                    modifications,
-                                    pendingActions,
-                                    oneRmAdjustments,
-                                    message: `脚本编辑完成，共发现 ${modifications.length} 处修改${scriptResult.appliedLoadAdjustments ? `，并结构化应用 ${scriptResult.appliedLoadAdjustments} 条负荷调整` : ""}${oneRmAdjustments.length > 0 ? `，并调整 ${oneRmAdjustments.length} 个动作的全局1RM` : ""}${isDevelopment ? ` (总耗时 ${Date.now() - startTime}ms)` : ""}`,
+                                await finishModificationTurn({
+                                    updatedTrainingDays: scriptResult.updatedTrainingDays,
+                                    oneRmDrafts: scriptResult.oneRmAdjustments,
+                                    resultMessage: (count, oneRmCount) =>
+                                        `脚本编辑完成，共发现 ${count} 处修改${scriptResult.appliedLoadAdjustments ? `，并结构化应用 ${scriptResult.appliedLoadAdjustments} 条负荷调整` : ""}${oneRmCount > 0 ? `，并调整 ${oneRmCount} 个动作的全局1RM` : ""}`,
+                                    newActionsHint: '可以先确认并创建这些动作，再应用计划。',
                                 });
                                 return;
                             }
@@ -2459,12 +2120,13 @@ interface ActionSet {
     setName?: string;
     params: {
         action_name?: string;   // 可选，展示用名称
-        sets?: number;          // 组数（STRENGTH 常用）
-        reps?: number;          // 次数（STRENGTH 常用）
+        '组数'?: number;        // 组数（STRENGTH 常用）；计划中的规范键，不要写 sets
+        '次数'?: number;        // 次数（STRENGTH 常用）；不要写 reps
+        '持续时间'?: number;    // 计时类动作每组秒数
+        '休息时间'?: number;    // 组间休息秒；不要写 rest_seconds
         weight?: number;       // 旧字段兼容：固定重量 kg
         load?: number;         // 当前计划显示/使用的重量 kg
         loadUnit?: 'kg' | 'lbs';
-        rest_seconds?: number;  // 组间休息秒
         note?: string;
         intensityConfig?: IntensityConfig; // 强度配置（RM、百分比、固定重量、推荐负重）
         '强度'?: number;        // 旧格式兼容：RM 值（如 5 表示 5RM）
@@ -2501,9 +2163,10 @@ interface IntensityConfig {
 - 可用 \`findActionById(actionId)?.type\` 获取类型，取值为 'STRENGTH'|'CARDIO'|'DIET'|'HABIT'，若无则用 'STRENGTH'
 
 ### 动作类型与 params 规则（与智能导入一致）
-- **STRENGTH（力量）**：使用 sets、reps、weight、rest_seconds；可配 intensityConfig（如 RM、百分比）
-- **CARDIO（有氧）**：sets/reps/weight 通常为 null，用 params 中的 customData 或 note 表达距离/时长/配速等
-- **DIET / HABIT**：同上，以 customData 或 note 为主
+- **STRENGTH（力量）**：使用 '组数'、'次数'（或 '持续时间'）、'休息时间'、load；可配 intensityConfig（如 RM、百分比）。读写都用中文键，例如 \`set.params['组数'] = 5\`
+- **CARDIO（有氧）**：不写组数/次数/重量，用 params 中的 '距离'、'配速'、'持续时间' 或 note 表达距离/时长/配速等
+- **DIET / HABIT**：以 '食物清单'、'热量'、'目标数值' 等中文键或 note 为主
+- 力量动作换成有氧/饮食/习惯动作时，新建 params，不要沿用力量参数
 
 ### 重要约束
 1. **新动作不能误配**：若找不到“规范化后全等”的已有动作，或用户明确说“新增/新动作/不存在动作库”，必须使用 \`ensureActionIdByName("动作名")\` 获取 actionId（未命中时会返回 \`pending:xxx\`），并在 params 中写 \`action_name\` 原名。
@@ -2521,7 +2184,7 @@ interface IntensityConfig {
 
 ## 可用的辅助函数
 - \`findActionByName(name: string)\`: 仅“规范化后全等”匹配，匹配失败返回 null
-- \`findActionById(id: string)\`: 通过 id 查找动作
+- \`findActionById(id: string)\`: 通过 id 查找动作，返回 \`{ id, name, type }\`
 - \`ensureActionIdByName(name: string)\`: 优先返回已存在动作 id；若未命中返回 \`pending:xxx\`（后续会触发人工确认创建）
 
 ## 当前可用的动作列表（仅允许使用以下 id）
@@ -2637,7 +2300,7 @@ ${effectiveModificationInstruction}
                             executionResult = await executeCodeInVM(
                                 aiResponse.code || '',
                                 trainingDays,
-                                actions.map(a => ({ id: a.id, name: a.name }))
+                                actions,
                             );
 
                             if (executionResult.success) {
@@ -2650,16 +2313,27 @@ ${effectiveModificationInstruction}
                                     })),
                                 });
                                 executionResult.result = loadAdjustmentResult.updatedTrainingDays;
-                                const originalSnapshot = JSON.stringify(trainingDays);
-                                const resultSnapshot = JSON.stringify(executionResult.result);
+                                const oneRmDrafts = Array.isArray(aiResponse.oneRmAdjustments) ? aiResponse.oneRmAdjustments : [];
                                 const oneRmAdjustments = await resolveOneRmPreviewAdjustments({
-                                    drafts: Array.isArray(aiResponse.oneRmAdjustments) ? aiResponse.oneRmAdjustments : [],
+                                    drafts: oneRmDrafts,
                                     userId,
                                     targetActionType,
                                     contextOptions,
                                     actions,
                                 });
-                                if (originalSnapshot === resultSnapshot && oneRmAdjustments.length === 0 && loadAdjustmentResult.adjustments.length === 0) {
+                                // 按规范化后的语义比较：只把 sets 抄成 组数 这类改写不算修改。
+                                const semanticChanges = analyzeModifications(
+                                    normalizeTrainingDaysForEditor(trainingDays, actions, trainingDays),
+                                    normalizeTrainingDaysForEditor(executionResult.result || [], actions, trainingDays),
+                                    actions,
+                                );
+                                // 只提了 1RM 调整却没落成时不再重试：重试会逼模型改计划来过检查，
+                                // 交给收尾步骤向教练说明哪条没生效。
+                                if (
+                                    semanticChanges.length === 0 &&
+                                    oneRmAdjustments.adjustments.length === 0 &&
+                                    oneRmDrafts.length === 0
+                                ) {
                                     lastError = deterministicResult.matched && deterministicResult.reason
                                         ? `${deterministicResult.reason}\n另外，上一次生成的代码执行成功但没有对 trainingDays 产生任何修改。请严格按用户指令定位并实际改写数组。`
                                         : '上一次生成的代码执行成功，但没有对 trainingDays 产生任何修改。请严格按用户指令定位目标训练日/动作，并实际改写数组。';
@@ -2680,6 +2354,7 @@ ${effectiveModificationInstruction}
                                 }
                                 // 执行成功，跳出重试循环
                                 executionResult.oneRmAdjustments = oneRmAdjustments;
+                                executionResult.oneRmDrafts = oneRmDrafts;
                                 executionResult.loadAdjustmentCount = loadAdjustmentResult.adjustments.length;
                                 break;
                             } else {
@@ -2715,52 +2390,14 @@ ${effectiveModificationInstruction}
                         throw new Error('操作执行失败，已尝试多次修正但仍存在问题。请尝试更清晰地描述你的需求，或者手动编辑计划。');
                     }
 
-                    // 6. 分析修改差异
-                    const modifications = analyzeModifications(
-                        originalTrainingDays,
-                        executionResult.result,
-                        actions.map(a => ({ id: a.id, name: a.name }))
-                    );
-
-                    // 6.1 检测修改计划中是否包含不在动作库中的动作
-                    const knownActionIds = new Set(actions.map((a: any) => a.id));
-                    const pendingActions = collectPendingActions(executionResult.result || [], knownActionIds);
-                    const newActionsDetected: NewActionDetected[] = pendingActions.map((p) => ({
-                        actionId: p.tempActionId,
-                        suggestedName: p.suggestedName,
-                    }));
-                    if (newActionsDetected.length > 0) {
-                        const namesList = newActionsDetected
-                            .map((a) => a.suggestedName || a.actionId)
-                            .join('、');
-                        sendMessage({
-                            type: 'new_actions_detected',
-                            actions: newActionsDetected,
-                            message: `修改计划中包含以下不在您动作库中的动作：${namesList}。请先在动作库中创建这些动作后再应用，或确认是否仍要应用计划。`
-                        });
-                    }
-
-                    const normalizedUpdatedTrainingDays = normalizeTrainingDaysForEditor(
-                        executionResult.result || [],
-                        actions,
-                    );
-
-                    const totalDuration = Date.now() - startTime;
-
-                    sendMessage({
-                        type: 'assistant_message',
-                        content: buildModificationSummary(modifications),
-                    });
-                    // 7. 发送预览结果(不保存到数据库)
-                    sendMessage({
-                        type: 'preview_result',
-                        success: true,
-                        originalTrainingDays,
-                        updatedTrainingDays: normalizedUpdatedTrainingDays,
-                        modifications,
-                        pendingActions,
-                        oneRmAdjustments: executionResult.oneRmAdjustments || [],
-                        message: `分析完成，共发现 ${modifications.length} 处修改${executionResult.loadAdjustmentCount ? `，并结构化应用 ${executionResult.loadAdjustmentCount} 条负荷调整` : ''}${(executionResult.oneRmAdjustments || []).length > 0 ? `，并调整 ${(executionResult.oneRmAdjustments || []).length} 个动作的全局1RM` : ''}${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`
+                    // 6. 分析差异并发送预览结果(不保存到数据库)
+                    await finishModificationTurn({
+                        updatedTrainingDays: executionResult.result || [],
+                        oneRmDrafts: executionResult.oneRmDrafts,
+                        resolvedOneRm: executionResult.oneRmAdjustments,
+                        resultMessage: (count, oneRmCount) =>
+                            `分析完成，共发现 ${count} 处修改${executionResult.loadAdjustmentCount ? `，并结构化应用 ${executionResult.loadAdjustmentCount} 条负荷调整` : ''}${oneRmCount > 0 ? `，并调整 ${oneRmCount} 个动作的全局1RM` : ''}`,
+                        newActionsHint: '请先在动作库中创建这些动作后再应用，或确认是否仍要应用计划。',
                     });
 
         }, formatBatchOperationError);

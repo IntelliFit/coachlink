@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ItemType } from "@/types";
+import { trainingDaysFingerprint } from "@/lib/planAssistantEdits";
 
 const ITEM_TYPES: ItemType[] = ["STRENGTH", "CARDIO", "DIET", "HABIT"];
 type TargetActionType = "coach" | "student";
@@ -79,10 +80,13 @@ export async function POST(req: NextRequest) {
         const {
             templateId,
             updatedTrainingDays,
+            baseTrainingDays,
             targetActionType = "coach",
         } = body as {
             templateId?: string;
             updatedTrainingDays?: any[];
+            // AI 预览开始时的计划；与数据库当前版本不一致说明期间有人保存过，不能覆盖
+            baseTrainingDays?: any[];
             targetActionType?: TargetActionType;
         };
 
@@ -145,15 +149,65 @@ export async function POST(req: NextRequest) {
 
         const { table: planTable, ownerColumn: planOwnerColumn } =
             getPlanOwnerConfig(targetActionType);
-        // 更新数据库（通过动作校验后）
-        const { error: updateError } = await supabase
+
+        if (!Array.isArray(baseTrainingDays)) {
+            return NextResponse.json(
+                { success: false, message: "缺少预览基线，请重新生成 AI 修改后再应用" },
+                { status: 400 },
+            );
+        }
+        const { data: currentPlan, error: currentError } = await supabase
             .from(planTable)
-            .update({ training_days: updatedTrainingDays })
+            .select("training_days, updated_at")
+            .eq("id", templateId)
+            .eq(planOwnerColumn, userId)
+            .maybeSingle();
+        if (currentError) {
+            return NextResponse.json(
+                { success: false, message: "读取当前计划失败" },
+                { status: 500 },
+            );
+        }
+        if (!currentPlan) {
+            return NextResponse.json(
+                { success: false, message: "无法找到训练计划模板" },
+                { status: 404 },
+            );
+        }
+        if (trainingDaysFingerprint(currentPlan.training_days) !== trainingDaysFingerprint(baseTrainingDays)) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    code: "PLAN_CHANGED",
+                    message: "计划在 AI 预览之后已被修改（可能在其他页面或设备保存过），为避免覆盖，本次未应用。请重新打开计划后再让 AI 修改。",
+                },
+                { status: 409 },
+            );
+        }
+
+        // 更新数据库（通过动作和版本校验后）；按读到的 updated_at 条件更新，缩小并发覆盖窗口
+        let updateQuery = supabase
+            .from(planTable)
+            .update({ training_days: updatedTrainingDays, updated_at: new Date().toISOString() })
             .eq('id', templateId)
             .eq(planOwnerColumn, userId);
+        updateQuery = currentPlan.updated_at
+            ? updateQuery.eq('updated_at', currentPlan.updated_at)
+            : updateQuery.is('updated_at', null);
+        const { data: updatedRows, error: updateError } = await updateQuery.select('id');
 
         if (updateError) {
             throw new Error('保存失败: ' + updateError.message);
+        }
+        if (!updatedRows || updatedRows.length === 0) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    code: "PLAN_CHANGED",
+                    message: "计划刚刚被其他操作保存，为避免覆盖，本次未应用。请重新打开计划后再让 AI 修改。",
+                },
+                { status: 409 },
+            );
         }
 
         return NextResponse.json({

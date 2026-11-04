@@ -79,16 +79,8 @@ function findActionByDraft(draft: LoadAdjustmentDraft, actions: LoadAdjustmentAc
     const actionNameKey = normalizeActionNameKey(draft.actionName);
     if (!actionNameKey) return null;
 
-    const exactByName = actions.find((action) => normalizeActionNameKey(action.name) === actionNameKey);
-    if (exactByName) return exactByName;
-
-    const partials = actions.filter((action) => {
-        const key = normalizeActionNameKey(action.name);
-        return key.includes(actionNameKey) || actionNameKey.includes(key);
-    });
-    if (partials.length === 0) return null;
-
-    return partials.sort((a, b) => b.name.length - a.name.length)[0];
+    // 只认规范化后全等的动作名：包含匹配会把“杠铃深蹲”落到“杠铃深蹲暂停”，改错动作的负荷。
+    return actions.find((action) => normalizeActionNameKey(action.name) === actionNameKey) || null;
 }
 
 function getCurrentLoadKg(params: any): number | null {

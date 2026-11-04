@@ -39,6 +39,7 @@ import {
     isPlanDayLocked,
     mergeLockedPlanDays,
 } from '@coachlink/core/src/planEditLock';
+import { buildFeedbackAdjustmentInstruction } from '@coachlink/core/src/planFeedbackInstruction';
 import {
     appendActionToDays,
     deleteActionInDays,
@@ -51,7 +52,7 @@ import type { TrainingItem } from '@/types/questionnaires';
 import type { FeedbackItem } from '@/app/api/coach/get-student-feedbacks/entity';
 import StudentFeedbackPanel from './components/StudentFeedbackPanel';
 import { BatchOperationDialog } from '@/components/BatchOperationDialog';
-import { formatTemplateToPlanScript, parsePlanScript } from '@/lib/planScript';
+import { formatTemplateToPlanScript, mergePlanScriptPlan, parsePlanScript } from '@/lib/planScript';
 import type { OneRmAdjustmentPreview } from '@/app/api/plan-lib/batch-operation/entity';
 import { addBeijingDays, toBeijingDateKey } from '@/lib/beijingTime';
 
@@ -878,9 +879,12 @@ const StudentPlanPage = () => {
                 script: scriptDraft,
                 actions,
             });
-            setDays(parsed.days);
+            // 合并回原训练日，保留脚本写不出的字段（推荐负重、重量单位、有氧参数、日 id 等）
+            const actionNameById = Object.fromEntries(actions.map((action) => [action.id, action.name]));
+            const mergedDays = mergePlanScriptPlan(days, parsed.days, actionNameById);
+            setDays(mergedDays);
             setDescription(parsed.description || '');
-            setSelectedDayIndex(parsed.days.length > 0 ? parsed.days[0].dayIndex : null);
+            setSelectedDayIndex(mergedDays.length > 0 ? mergedDays[0].dayIndex : null);
             setScriptError(null);
             setScriptDialogVisible(false);
             if (instanceExists && instanceId) {
@@ -1445,25 +1449,11 @@ const StudentPlanPage = () => {
         }
     };
 
-    // 根据学员反馈自动打开 AI 修改器
+    // 根据学员反馈自动打开 AI 修改器。反馈原文不拼进教练指令：学员写的话会被当成教练命令执行，
+    // 服务端会把当前计划的反馈作为“学员原话”引用数据放进上下文。
     const handleAiSuggestFromFeedbacks = () => {
         if (studentFeedbacks.length === 0) return;
-
-        const DIFFICULTY_MAP: Record<number, string> = {
-            1: '太轻松', 2: '轻松', 3: '刚好', 4: '有点难', 5: '太难了',
-        };
-
-        const feedbackSummary = studentFeedbacks
-            .slice(0, 10) // 最多取最近10条
-            .map((fb) => {
-                const diffLabel = fb.difficulty_rating ? `（难度：${DIFFICULTY_MAP[fb.difficulty_rating] || fb.difficulty_rating}）` : '';
-                return `- 第${fb.day_index}天${diffLabel}：${fb.content}`;
-            })
-            .join('\n');
-
-        const instruction = `以下是学员最近的训练反馈，请根据这些反馈对计划进行合理调整：\n\n${feedbackSummary}\n\n请根据以上反馈，适当调整训练计划中的动作、组数、次数或重量，使计划更适合学员当前状态。`;
-
-        setAiFeedbackInstruction(instruction);
+        setAiFeedbackInstruction(buildFeedbackAdjustmentInstruction(studentFeedbacks.length));
         setAiBatchDialogVisible(true);
     };
 
@@ -2029,6 +2019,7 @@ const StudentPlanPage = () => {
                     contextOptions={{
                         subscriptionId: params.id as string,
                         subjectUserId: studentData?.student_id,
+                        lockedThroughDayIndex,
                         // 默认仅必要：学员档案+问卷（知道是谁、要什么）；动作库必选以便改计划；其余由用户自行勾选
                         includeStudentProfile: true,
                         includeStudentQuestionnaire: true,
