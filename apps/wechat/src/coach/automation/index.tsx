@@ -163,6 +163,33 @@ function canApplyDraft(draft: any) {
   return Array.isArray(draft?.proposed_patch?.updatedTrainingDays)
 }
 
+// 与 Web 自动化页一致：首个计划任务里「计划助理」私信学员的进度
+function describePlanIntake(intake: any): string | null {
+  if (!intake?.status) return null
+  const asked = Array.isArray(intake.questions) ? intake.questions.length : 0
+  const recorded = Array.isArray(intake.recorded) ? intake.recorded.length : 0
+  const hasRisk = Array.isArray(intake.riskNotes) && intake.riskNotes.length > 0
+  // 过期只在学员再发消息时才写回，这里按发出时间（7 天）先显示
+  const askedMs = intake.askedAt ? new Date(intake.askedAt).getTime() : 0
+  const status = intake.status === 'awaiting_reply' && askedMs && Date.now() - askedMs > 7 * 24 * 3600 * 1000
+    ? 'expired'
+    : intake.status
+  switch (status) {
+    case 'awaiting_reply':
+      return `计划助理已私信学员确认 ${asked} 项，等待回复`
+    case 'answered':
+      return `学员已回复计划助理，记录 ${recorded} 项数据${hasRisk ? '，提到身体问题待你确认' : ''}`
+    case 'not_needed':
+      return '档案信息齐全，未私信学员'
+    case 'expired':
+      return '计划助理的问题学员未回复（已过期）'
+    case 'failed':
+      return '计划助理私信未发出'
+    default:
+      return null
+  }
+}
+
 export default function CoachAutomationPage() {
   const { effectiveTheme } = useTheme()
   const [policy, setPolicy] = useState<Policy>(DEFAULT_POLICY)
@@ -380,6 +407,9 @@ export default function CoachAutomationPage() {
                 <StatusBadge status={job.status} />
               </View>
               <Text className='job-message'>{job.error_message || job.output_snapshot?.reason || job.trigger_source || '-'}</Text>
+              {describePlanIntake(job.output_snapshot?.intake) && (
+                <Text className='job-message'>{describePlanIntake(job.output_snapshot?.intake)}</Text>
+              )}
               <Text className='job-time'>{formatTime(job.updated_at || job.created_at)}</Text>
             </View>
           ))}

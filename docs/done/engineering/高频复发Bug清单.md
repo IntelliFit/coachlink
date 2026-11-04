@@ -642,3 +642,11 @@
 - **统一规则**：服务端按账号占名额的长任务，客户端创建后立刻按账号把任务 id 写入本地，进入页面和 didShow 时恢复。只有服务端明确说任务不存在才删记录，断网和登录失效都要留着。没传完的任务要中断并释放名额。轮询失败不等于任务失败。
 - **改动前自检**：返回上一页、杀进程、切后台之后，用户怎么找回这个任务？服务端的名额什么时候释放？换账号会不会看到别人的任务？
 - **典型案例**（2026-11-02）：`apps/wechat/src/toolbox/motion-effects/jobRestore.ts`、同目录 `index.tsx`，测试 `tests/motion-effects-weapp-restore.test.ts`。对照实现在 `apps/mobile/src/screens/toolbox/motionEffectsModel.ts`。网页端 `src/app/toolbox/motion-effects/page.tsx` 同样还没有恢复。
+
+## 57) 查学员数据时权限判断失败就悄悄查调用者自己：教练的 1RM 被当成学员基准（高风险）
+
+- **现象**：复购学员（和同一教练有两条订阅）的计划页、AI 生成计划、计划编辑 AI 助手里，重量按教练本人的 1RM 算；AI 助手做「1RM 深蹲 -= 2.5」时还会把由此算出的值写回学员动作库。
+- **根因**：`getCurrent1RMRecords` 用 `coach_subscriptions` 联表 `.maybeSingle()` 判断「调用者是不是该学员的教练」。多条订阅时 `maybeSingle()` 报错返回 null，被当成无权限；无权限分支又没有返回，`queryUserId` 停在调用者自己。同一函数里按 `student_id + status=active` 取问卷也用了 `maybeSingle()`，学员同时有两个进行中订阅时问卷兜底整个丢掉。
+- **统一规则**：判断「是否存在关系」用 `.limit(1)` 看数组长度，不用 `maybeSingle()`。按目标用户查数据时，权限不成立只能返回空或报错，不能退回查调用者本人。
+- **改动前自检**：这个查询在一对多的关系里（复购、续费、多教练）会不会返回多行？权限判断失败后，代码接下来读的是谁的数据？
+- **典型案例**（2026-11-04）：`src/app/api/student/get-current-1rm/route.ts` 的 `isCoachOfStudent`。受影响的调用方：`get-instance`、`create-ai-instance`（含自动托管首个计划和下一阶段）、`batch-operation`（AI 助手）。

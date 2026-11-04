@@ -14,6 +14,28 @@ const isInvalidActionName = (value?: string | null) => {
     return !text || isUuid(text) || isLegacyQuestionnaireIndex(text);
 };
 
+async function isCoachOfStudent(coachUserId: string, studentId: string): Promise<boolean> {
+    // 用 limit(1) 而不是 maybeSingle()：复购学员和同一教练有多条订阅，
+    // maybeSingle() 遇到多行会报错并返回 null，被误判成无权限。
+    const { data: viaCoachRow } = await supabase
+        .from("coach_subscriptions")
+        .select("id, coaches!inner(user_id)")
+        .eq("coaches.user_id", coachUserId)
+        .eq("student_id", studentId)
+        .limit(1);
+    if (Array.isArray(viaCoachRow) && viaCoachRow.length > 0) return true;
+
+    // 调用方拿不到教练 users.id 时会传 coaches.id（自动托管 coachUserId 为空的兜底），
+    // coach_subscriptions.coach_id 就是 coaches.id，直接比对。
+    const { data: legacyRow } = await supabase
+        .from("coach_subscriptions")
+        .select("id")
+        .eq("coach_id", coachUserId)
+        .eq("student_id", studentId)
+        .limit(1);
+    return Array.isArray(legacyRow) && legacyRow.length > 0;
+}
+
 /**
  * 核心业务函数：获取并聚合用户的 1RM 记录
  */
@@ -53,24 +75,13 @@ export async function getCurrent1RMRecords(
             // 不能只跳过校验而继续使用 currentUserId，否则教练查看学员计划时
             // 会把教练自己的 1RM 当成学员基准。
             queryUserId = targetUserId;
+        } else if (await isCoachOfStudent(currentUserId, targetUserId)) {
+            queryUserId = targetUserId;
         } else {
-            // 联合查询：检查当前用户是否为该学员的教练
-            const { data: isCoach } = await supabase
-                .from("coach_subscriptions")
-                .select(`
-        id,
-        coaches!inner(user_id)
-      `)
-                .eq("coaches.user_id", currentUserId)
-                .eq("student_id", targetUserId)
-                .maybeSingle();
-
-            if (isCoach) {
-                queryUserId = targetUserId;
-            } else {
-                console.warn(`Unauthorized access attempt by ${currentUserId} to ${targetUserId}`);
-                // 如果没有权限，默认查回自己，或者可以直接抛出错误
-            }
+            // 不能退回查询调用者自己：教练看学员计划时会把教练本人的 1RM 当成学员基准，
+            // AI 调整还会把由此算出的值写回学员动作库。
+            console.warn(`Unauthorized access attempt by ${currentUserId} to ${targetUserId}`);
+            return [];
         }
     }
 
@@ -188,12 +199,14 @@ export async function getCurrent1RMRecords(
     const [prRows, studentActionRows, questionnaireResult] = await Promise.all([
         fetchPrRows(),
         fetchStudentActionRows(),
+        // 学员可能同时有多个进行中的订阅；maybeSingle() 遇到多行会丢掉问卷兜底。
         supabase
             .from("coach_subscriptions")
             .select("subscribe_data, updated_at")
             .eq("student_id", queryUserId)
             .eq("status", "active")
-            .maybeSingle(),
+            .order("updated_at", { ascending: false })
+            .limit(1),
     ]);
 
     const studentActionNameById = new Map<string, string>();
@@ -274,10 +287,13 @@ export async function getCurrent1RMRecords(
 
     // 4. 问卷 RM（仅作为最后兜底，不覆盖历史峰值）
     const questionnaireRMMap: Record<string, number> = {};
-    const subscribeData = questionnaireResult.data?.subscribe_data as any[];
-    const rmItem = subscribeData?.find((item) => item.type === "rm");
+    const latestActiveSubscription = (questionnaireResult.data as any[] | null)?.[0];
+    const subscribeData = latestActiveSubscription?.subscribe_data as any[];
+    const rmItem = Array.isArray(subscribeData)
+        ? subscribeData.find((item) => item?.type === "rm")
+        : undefined;
     const questionnaireUpdatedAtIso =
-        (questionnaireResult.data as any)?.updated_at as string | undefined;
+        latestActiveSubscription?.updated_at as string | undefined;
 
     if (rmItem?.userInputs) {
         Object.entries(rmItem.userInputs).forEach(([id, val]) => {

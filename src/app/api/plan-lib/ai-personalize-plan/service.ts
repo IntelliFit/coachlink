@@ -87,6 +87,7 @@ export async function generatePersonalizedPlan(
             autoComputeActions: [],
             studentId,
             coachId: actorUserId,
+            profileOneRmInputs: input.profileOneRmInputs,
         });
 
         return {
@@ -158,6 +159,7 @@ export async function generatePersonalizedPlan(
         autoComputeActions: autoComputeActions || [],
         studentId,
         coachId: actorUserId,
+        profileOneRmInputs: input.profileOneRmInputs,
     });
 
     const aiGenerationLog = {

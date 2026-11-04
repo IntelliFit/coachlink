@@ -25,6 +25,8 @@ export interface PersonalizePlanResult {
     planScript?: string;
     reasoning: string;
     changesSummary: string;
+    /** 制定计划时信息不足、需要私信向学员确认的问题 */
+    openQuestions?: string[];
 }
 
 export interface PRRecordSummary {
@@ -59,6 +61,8 @@ export interface GeneratePersonalizedPlanInput {
     subscribedWeeks?: number | null;
     questionnaireAnswers: TrainingItem[];
     studentBodyWeight: number | null;
+    /** 档案运动数据卡里的 1RM，算重量时的最低优先级兜底 */
+    profileOneRmInputs?: Record<string, number>;
     studentProfile: {
         goal?: string | null;
         trainingAge?: string | null;

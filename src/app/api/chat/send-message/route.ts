@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { getApiUserId } from '@/lib/getApiUserId';
 import supabase from '@/lib/supabaseClient';
 import { maybeCreateCoachAiAutoReply } from '@/lib/coachAiAutoReply';
+import { handlePlanIntakeReply, hasAwaitingPlanIntake } from '@/lib/coachingAutomation/planIntake';
 import { resolveAuthorizedChatVideoReferences } from '@/lib/resolveChatVideoReferences';
 import { normalizePrivateChatMembers } from '@/lib/chatMembers';
 import type { ApiData } from '@/types/api';
@@ -280,7 +281,7 @@ export async function POST(req: Request) {
         );
     }
 
-    await maybeCreateCoachAiAutoReply({
+    const autoReplyInput = {
         room: {
             id: roomId,
             members: chatRoom.members,
@@ -288,7 +289,35 @@ export async function POST(req: Request) {
         senderUserId: userId,
         messageType,
         content: messageData.content || '',
+    };
+    const intakeRoom = {
+        roomMembers: chatRoom.members,
+        senderUserId: userId,
+        messageType,
+        content: messageData.content || '',
+    };
+    const awaitingPlanIntake = await hasAwaitingPlanIntake(intakeRoom).catch((intakeError) => {
+        console.error('[send-message] plan intake lookup failed:', intakeError);
+        return false;
     });
+
+    if (awaitingPlanIntake) {
+        // 学员可能在回复计划助理的问题：模型提取放到响应之后，不拖慢发送。
+        // 计划助理处理了这条就不再触发 AI 自动回复，避免学员收到两条。
+        after(async () => {
+            const intakeReply = await handlePlanIntakeReply({
+                ...intakeRoom,
+                roomId,
+                messageId: message.id,
+            }).catch((intakeError) => {
+                console.error('[send-message] plan intake reply failed:', intakeError);
+                return { handled: false };
+            });
+            if (!intakeReply.handled) await maybeCreateCoachAiAutoReply(autoReplyInput);
+        });
+    } else {
+        await maybeCreateCoachAiAutoReply(autoReplyInput);
+    }
 
     return NextResponse.json<ApiData<SendMessageResponseDto>>({
         success: true,

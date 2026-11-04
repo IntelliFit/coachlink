@@ -156,12 +156,14 @@ ${hasTemplate
 12. 返回结果必须至少包含 1 个带动作行的训练日。
 13. 严禁写出 \`D2 off !备注\` 这种格式；\`!备注\` 默认用于训练日备注。休息日如果要写说明，请使用 \`D2 off #备注\`。
 14. 学员“已购周数”只代表长期订阅权益，不代表本次单阶段计划必须铺满全部周数。严禁为了对齐已购 40 周，把短骨架重复扩写成 40 周计划。
+15. open_questions：只列出“缺了会明显影响计划安全或执行”的信息，例如问卷提到伤病但没说清部位和程度、器械条件不明、每周次数与可训练时间矛盾。最多 2 条，每条一句话、直接问学员、口语化。问卷和档案里已经回答过的不要再问；动作 1RM 和体重由系统另外询问，不要放进来。没有就返回空数组。
 
 必须返回 JSON（不要 markdown 代码块，不要额外解释）：
 {
   "plan_script": "W1\\nD1\\n深蹲 5x5 @5rm r180\\n...",
   "reasoning": "调整理由（中文）",
-  "changes_summary": "改动摘要（中文）"
+  "changes_summary": "改动摘要（中文）",
+  "open_questions": []
 }`;
 }
 
@@ -231,12 +233,32 @@ async function generatePlanScriptAttempt(params: {
         throw new Error(`AI 生成结果违反问卷硬约束：${intentViolations.join("；")}`);
     }
 
+    const openQuestions = normalizeOpenQuestions(result.open_questions);
+
     return {
         trainingDays,
         planScript,
         reasoning: result.reasoning || "未提供推理",
         changesSummary: result.changes_summary || "未提供改动摘要",
+        ...(openQuestions.length > 0 ? { openQuestions } : {}),
     };
+}
+
+const MAX_OPEN_QUESTIONS = 2;
+const MAX_OPEN_QUESTION_CHARS = 80;
+
+export function normalizeOpenQuestions(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
+    const questions: string[] = [];
+    for (const item of value) {
+        const text = String(typeof item === "string" ? item : "").replace(/\s+/g, " ").trim();
+        if (!text || text.length > MAX_OPEN_QUESTION_CHARS || seen.has(text)) continue;
+        seen.add(text);
+        questions.push(text);
+        if (questions.length >= MAX_OPEN_QUESTIONS) break;
+    }
+    return questions;
 }
 
 async function requestPlanScriptResult(params: {
@@ -248,6 +270,7 @@ async function requestPlanScriptResult(params: {
     plan_script: string;
     reasoning: string;
     changes_summary: string;
+    open_questions?: unknown;
 }> {
     const { input, targetWeeks, questionnaireIntentSection, correctionHint } = params;
 
@@ -287,6 +310,7 @@ async function requestPlanScriptResult(params: {
                 plan_script: string;
                 reasoning: string;
                 changes_summary: string;
+                open_questions?: unknown;
             }>(rawJson, `personalize-plan-${attempt.label}`);
         } catch (error) {
             lastError = error;

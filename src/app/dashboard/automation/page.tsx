@@ -188,6 +188,33 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// 首个计划任务里「计划助理」私信学员确认 1RM / 体重 / 疑问的进度
+function describePlanIntake(intake: any): string | null {
+  if (!intake?.status) return null;
+  const asked = Array.isArray(intake.questions) ? intake.questions.length : 0;
+  const recorded = Array.isArray(intake.recorded) ? intake.recorded.length : 0;
+  const hasRisk = Array.isArray(intake.riskNotes) && intake.riskNotes.length > 0;
+  // 过期只在学员再发消息时才写回，这里按发出时间（7 天）先显示
+  const askedMs = intake.askedAt ? new Date(intake.askedAt).getTime() : 0;
+  const status = intake.status === "awaiting_reply" && askedMs && Date.now() - askedMs > 7 * 24 * 3600 * 1000
+    ? "expired"
+    : intake.status;
+  switch (status) {
+    case "awaiting_reply":
+      return `计划助理已私信学员确认 ${asked} 项，等待回复`;
+    case "answered":
+      return `学员已回复计划助理，记录 ${recorded} 项数据${hasRisk ? "，提到身体问题待你确认" : ""}`;
+    case "not_needed":
+      return "档案信息齐全，未私信学员";
+    case "expired":
+      return "计划助理的问题学员未回复（已过期）";
+    case "failed":
+      return "计划助理私信未发出";
+    default:
+      return null;
+  }
+}
+
 function canApplyDraft(draft: AdjustmentDraft) {
   return Array.isArray(draft.proposed_patch?.updatedTrainingDays);
 }
@@ -506,6 +533,9 @@ export default function CoachAutomationPage() {
                         <StatusBadge status={job.status} />
                         <div className="min-w-0 text-xs font-semibold text-surface-500">
                           <div className="truncate">{job.error_message || job.output_snapshot?.reason || job.trigger_source || "-"}</div>
+                          {describePlanIntake(job.output_snapshot?.intake) && (
+                            <div className="mt-1 truncate text-[#CF6D4E]">{describePlanIntake(job.output_snapshot?.intake)}</div>
+                          )}
                           {job.idempotency_key && (
                             <div className="mt-1 truncate text-surface-300">{job.idempotency_key}</div>
                           )}

@@ -14,6 +14,7 @@ import {
     generatePersonalizedPlan,
 } from "../ai-personalize-plan/service";
 import { AiPersonalizeError } from "../ai-personalize-plan/service";
+import { buildProfileOneRmInputs, resolveProfileBodyWeight } from "@/lib/coachingAutomation/profileOneRm";
 
 export class ApiError extends Error {
     status: number;
@@ -88,7 +89,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         .eq("user_id", subscription.student_id)
         .single();
 
-    const studentBodyWeight = profile?.weight || null;
+    const studentBodyWeight = resolveProfileBodyWeight(profile);
     const studentNameRaw = (profile?.nickname || profile?.full_name || "学员").trim();
     const studentName = studentNameRaw || "学员";
 
@@ -98,6 +99,9 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         .select("id, name, canonical_action_id, enableAutoWeightCompute, includesBodyWeight")
         .eq("coach_id", actorUserId)
         .eq("enableAutoWeightCompute", true);
+
+    // 档案运动数据卡里填过的主项 1RM（深蹲/卧推/硬拉/负重引体等），没有更新的记录时用来算重量
+    const profileOneRmInputs = buildProfileOneRmInputs(profile?.sport_cards, autoComputeActions || []);
 
     let trainingDays: any[] = [];
     let selectedTemplateId: string | null = null;
@@ -152,11 +156,12 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
                 subscribedWeeks: Number(subscription.subscribed_weeks || 0) || null,
                 questionnaireAnswers: answers,
                 studentBodyWeight,
+                profileOneRmInputs,
                 studentProfile: {
                     goal: profile?.fitness_goal,
                     trainingAge: profile?.fitness_level,
                     height: profile?.height,
-                    weight: profile?.weight,
+                    weight: studentBodyWeight,
                     age: profile?.age,
                     gender: profile?.gender,
                     lifestyle: profile?.lifestyle,
@@ -214,6 +219,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
             autoComputeActions: autoComputeActions || [],
             studentId: subscription.student_id,
             coachId: actorUserId,
+            profileOneRmInputs,
         });
 
         trainingDays = (selectTemplate.training_days as any[]) || [];

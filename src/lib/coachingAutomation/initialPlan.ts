@@ -2,7 +2,24 @@ import { createAiInstanceForSubscription } from "@/app/api/plan-lib/create-ai-in
 import { sendSystemMessage } from "@/lib/chat";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { createAutomationJob, isTerminalJob, markAutomationJob } from "./jobs";
+import { startPlanIntake } from "./planIntake";
+import type { PlanIntakeState } from "./planIntakeModel";
 import { resolveAutomationPolicy } from "./policy";
+import type { AutomationContext } from "./types";
+
+// 计划助理私信只是补充信息，出错不能让首个计划任务失败。
+async function startIntakeSafely(
+  context: AutomationContext,
+  planInstanceId: string,
+  planPublished: boolean,
+): Promise<PlanIntakeState | { status: "failed"; questions: []; error: string }> {
+  try {
+    return await startPlanIntake({ context, planInstanceId, planPublished });
+  } catch (error) {
+    console.error(`[automation] plan intake failed (planInstanceId=${planInstanceId}):`, error);
+    return { status: "failed", questions: [], error: error instanceof Error ? error.message : String(error) };
+  }
+}
 
 export interface AutomationActionResult {
   success: boolean;
@@ -82,19 +99,31 @@ export async function onSubscriptionActivated(
       useLLM: true,
     });
 
+    const intake = await startIntakeSafely(context, plan.id, initialStatus === "active");
+    const askedCount = intake.status === "awaiting_reply" ? intake.questions.length : 0;
+
     if (policy.initialPlanMode === "draft" && context.coachUserId) {
+      const intakeLine = askedCount > 0
+        ? `计划助理已私信学员确认 ${askedCount} 项信息（1RM、体重或疑问），学员回复后会通知你。`
+        : "";
       await sendSystemMessage(context.coachUserId, {
-        content: `系统已为新学员生成首个训练计划草稿：${plan.name || "未命名计划"}。请前往 [我的学员](/dashboard/students) 确认后发布。`,
+        content: `系统已为新学员生成首个训练计划草稿：${plan.name || "未命名计划"}。请前往 [我的学员](/dashboard/students) 确认后发布。${intakeLine}`,
       });
       await markAutomationJob(job.id, "needs_coach_review", {
         planInstanceId: plan.id,
         needsCoachConfirmation: true,
-        outputSnapshot: { planId: plan.id, status: initialStatus },
+        outputSnapshot: { planId: plan.id, status: initialStatus, intake },
       });
     } else {
+      if (askedCount > 0 && context.coachUserId) {
+        // 计划助理以教练账号私信学员，自动发放模式下也要让教练知道。
+        await sendSystemMessage(context.coachUserId, {
+          content: `新学员的训练计划已自动发放：${plan.name || "未命名计划"}。计划助理已私信学员确认 ${askedCount} 项信息（1RM、体重或疑问），学员回复后会通知你。`,
+        }).catch((error) => console.error("[automation] notify coach about intake failed:", error));
+      }
       await markAutomationJob(job.id, "succeeded", {
         planInstanceId: plan.id,
-        outputSnapshot: { planId: plan.id, status: initialStatus },
+        outputSnapshot: { planId: plan.id, status: initialStatus, intake },
       });
     }
 

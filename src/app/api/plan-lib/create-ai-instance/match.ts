@@ -31,6 +31,8 @@ export interface FillTemplateOptions {
     autoComputeActions: AutoComputeAction[];
     studentId?: string; // 学员ID，用于获取最新的PR记录
     coachId?: string; // 教练ID，用于权限校验
+    // 学员档案运动数据卡里的 1RM（buildProfileOneRmInputs），优先级最低
+    profileOneRmInputs?: Record<string, number>;
 }
 
 export async function matchPlan(questionare: TrainingItem[], coachId?: string) {
@@ -165,12 +167,14 @@ function computeActionWeight(
         return;
     }
 
-    // 检查学员是否有体重数据
-    const bodyWeight = options?.studentBodyWeight;
-    if (!bodyWeight || bodyWeight <= 0) {
-        console.log(`动作 ${action.actionId}: 学员体重数据缺失，跳过计算`);
+    // 教练锁定的固定重量不按 1RM 重算（与训练开始时的 fixedLoadOverride 口径一致）。
+    if (action.params?.fixedLoadOverride === true && Number.isFinite(Number(action.params?.load))) {
         return;
     }
+
+    // 只有包含自重的动作（引体、臂屈伸）才需要体重；calcIntensityDisplay 在缺体重时
+    // 会退回相对强度文字。卧推、深蹲这类动作没有体重也能按 1RM 算出重量。
+    const bodyWeight = Number(options?.studentBodyWeight) > 0 ? Number(options?.studentBodyWeight) : 0;
 
     // 获取学员该动作的1RM
     const oneRM = userRmInputs[actionConfig.canonical_action_id || ""] ??
@@ -256,8 +260,12 @@ export async function fillTemplate(
         | TrainingRmQuestion
         | undefined;
     const questionnaireRmInputs = rmData?.userInputs || {};
-    
-    let userRmInputs: Record<string, number> = questionnaireRmInputs;
+    const profileOneRmInputs = options?.profileOneRmInputs || {};
+
+    let userRmInputs: Record<string, number> = {
+        ...profileOneRmInputs,
+        ...questionnaireRmInputs,
+    };
     
     // 如果有学员ID和教练ID，尝试获取最新的PR记录
     // getCurrent1RMRecords 已经实现了时间优先级逻辑：
@@ -291,8 +299,9 @@ export async function fillTemplate(
                 }
             }
             
-            // 合并数据：PR记录优先（因为它已经按时间优先级处理），问卷数据作为fallback
+            // 合并数据：PR记录优先（因为它已经按时间优先级处理），问卷、档案运动卡依次兜底
             userRmInputs = {
+                ...profileOneRmInputs,
                 ...questionnaireRmInputs,
                 ...prRmMap,
             };
