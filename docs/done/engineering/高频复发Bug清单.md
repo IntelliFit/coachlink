@@ -706,3 +706,11 @@
 - **统一规则**：订阅、会员、额度这类「开通服务」的状态只能由服务端在验签的支付通知、管理员或教练确认收款时写入，创建接口一律写待支付，不读客户端的 status。
 - **改动前自检**：这个接口写入的状态或金额，客户端能不能直接指定？不付款、改请求体能得到什么？它会不会触发下游自动化（排计划、发消息、结算）？
 - **典型案例**（2026-11-04）：`src/app/api/subscription/create-subscription/route.ts`，测试 `route.test.ts` 与 `src/lib/wechatCoachPurchaseRestore.test.ts`。
+
+## 66) 思考型模型配短预算：reasoning 吃光中止时间或 max_tokens，调用方悄悄走兜底（高风险，重复出现）
+
+- **现象**：训练结束时的热量估算（`src/lib/workoutEnergy.ts`）中止时间 6 秒、`max_tokens` 700。换成 `deepseek-v4.1-flash-1017` 后 3/3 超时，结果全部退回规则 MET，只留一条 warn。
+- **根因**：万界方舟上的 deepseek 默认开启思考，短 JSON 任务也会先想几百到几千 token；中止时间和 `max_tokens` 却是按「只输出答案」定的。
+- **统一规则**：同步链路里的短 JSON 调用显式关掉思考：deepseek 传 `thinking: {type: "disabled"}`，通义传 `enable_thinking: false`。模型输出先去掉代码块、取出 `{…}`，再逐项校验（index、数值范围、枚举、字符串类型和长度），不合格的项退回规则值，不让整次估算失败。
+- **改动前自检**：这个调用的中止时间和 `max_tokens` 够不够模型先思考？换模型后有没有用真实网关、按同样参数测过？模型多给、少给、给错字段时，结果还能用吗？
+- **典型案例**（2026-11-05）：上面的热量估算，关掉思考后 2.3–3.7 秒返回。测试 `src/lib/workoutEnergy.ai.test.ts`。解析方式参考 FoodLink `backend/internal/health/service/exercise_service.go`。
