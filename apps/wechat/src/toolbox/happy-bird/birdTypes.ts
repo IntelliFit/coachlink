@@ -76,6 +76,9 @@ export type Fx = {
   y: number
 }
 
+/** 门的通道放在哪一段高度：中心和上下半宽，都以画面高度为 1。 */
+export type Lane = { center: number; halfSpan: number }
+
 export type Banner = { ageMs: number; sub: string; text: string; tone: 'fever' | 'level' }
 
 export type BirdGame = {
@@ -95,6 +98,7 @@ export type BirdGame = {
   goMs: number
   hitFlashMs: number
   invincibleMs: number
+  lane: Lane
   lastSide: -1 | 1
   level: number
   lives: number
@@ -121,7 +125,9 @@ export type BirdGame = {
 }
 
 export type BirdInput = {
-  /** 校准后的小鸟目标高度（0–1）；没有头部数据时为 null，小鸟停在原位。 */
+  /** 门的通道；不给就沿用上一次。 */
+  lane?: Lane
+  /** 小鸟目标高度（0–1），就是眼睛在画面里的高度；没有头部数据时为 null，小鸟停在原位。 */
   targetY: number | null
   tracking: boolean
 }
@@ -140,6 +146,8 @@ export type LevelConfig = {
 
 export const COUNTDOWN_MS = 5000
 export const BIRD_X = 0.24
+/** 关卡表里门的上下摆幅是按这条整屏通道写的；实际通道更窄时按比例缩。 */
+export const DEFAULT_LANE: Lane = { center: 0.5, halfSpan: 0.38 }
 /** 小鸟画面半径（宽度单位）；命中半径明显更小，擦边不算撞，手感才宽容。 */
 export const BIRD_RADIUS = 0.066
 export const BIRD_HIT_RADIUS = 0.04

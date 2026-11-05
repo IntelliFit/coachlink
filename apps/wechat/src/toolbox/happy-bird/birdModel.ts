@@ -11,6 +11,7 @@ import {
   BIRD_X,
   COIN_SCORE,
   COUNTDOWN_MS,
+  DEFAULT_LANE,
   FEVER_COMBO_STEP,
   FEVER_MS,
   FIRST_FEVER_COMBO,
@@ -54,9 +55,14 @@ const MAGNET_RANGE = 0.5
 const COINS_PER_ROUTE = 3
 const PERFECT_ZONE = 0.15
 const BANNER_MS = 1500
-const REP_HIGH_LINE = 0.38
-const REP_LOW_LINE = 0.62
+/** 眼睛高过通道中心这么多个半宽算“上”，低过算“下”；整屏通道时约等于原来的 38%/62%。 */
+const REP_ZONE = 0.32
 const SPINNER_DODGE_OFFSET = 0.3
+/** 飞天杠铃竖起来上下各占约 0.19，通道比这窄的人躲不开，就只出门。 */
+const MIN_SPINNER_HALF_SPAN = 0.22
+const BIRD_MIN_Y = 0.06
+const BIRD_MAX_Y = 0.94
+const GAP_EDGE_MARGIN = 0.04
 const MIN_SHAKER_GAP = 9
 const MAX_SHAKER_GAP = 14
 const FEVER_TRAIL_COLOR = '#ffc629'
@@ -130,6 +136,7 @@ export function createGame(options: { aspect?: number; seed?: number } = {}): Bi
     goMs: 0,
     hitFlashMs: 0,
     invincibleMs: 0,
+    lane: DEFAULT_LANE,
     lastSide: 1,
     level: 1,
     lives: MAX_LIVES,
@@ -185,7 +192,7 @@ function addScore(context: StepContext, base: number) {
 function followInput(context: StepContext) {
   const { dt, game, input } = context
   const blend = 1 - Math.exp(-dt / BIRD_FOLLOW_TAU_MS)
-  const target = input.targetY ?? game.bird.y
+  const target = input.targetY === null ? game.bird.y : clamp(input.targetY, BIRD_MIN_Y, BIRD_MAX_Y)
   const y = game.bird.y + (target - game.bird.y) * blend
   const instantVy = dt > 0 ? (y - game.bird.y) / (dt / 1000) : 0
   const vy = game.bird.vy + (instantVy - game.bird.vy) * 0.25
@@ -193,6 +200,7 @@ function followInput(context: StepContext) {
   context.game = {
     ...game,
     bird: { flapMs: game.bird.flapMs + dt, rotation, vy, y },
+    lane: input.lane ?? game.lane,
     tracking: input.tracking
   }
 }
@@ -258,10 +266,13 @@ function buildGate(context: StepContext, config: LevelConfig, id: number) {
   const { game, random } = context
   const first = game.gatesSpawned === 0
   const side = first ? game.lastSide : chooseNextSide(context, game.level)
-  const offset = first ? 0 : side * config.amplitude * (0.8 + random.next() * 0.2)
+  const { lane } = game
+  const scale = lane.halfSpan / DEFAULT_LANE.halfSpan
+  const offset = first ? 0 : side * config.amplitude * scale * (0.8 + random.next() * 0.2)
   const moves = random.next() < config.moverChance
   const gapHeight = first ? 0.42 : config.gapHeight
-  const center = 0.5 + offset
+  const edge = gapHeight / 2 + GAP_EDGE_MARGIN
+  const center = clamp(lane.center + offset, edge, 1 - edge)
   const gate: GateObstacle = {
     center,
     gapHeight,
@@ -270,7 +281,7 @@ function buildGate(context: StepContext, config: LevelConfig, id: number) {
     kind: 'gate',
     passed: false,
     swing: moves
-      ? { amplitude: 0.05 + random.next() * 0.03, periodMs: 2400 + random.next() * 800, phaseMs: random.next() * 2400 }
+      ? { amplitude: (0.05 + random.next() * 0.03) * clamp(scale, 0.5, 1), periodMs: 2400 + random.next() * 800, phaseMs: random.next() * 2400 }
       : null,
     warmup: game.gatesSpawned < WARMUP_GATES,
     width: GATE_WIDTH,
@@ -292,9 +303,10 @@ function buildSpinner(context: StepContext, id: number) {
     passed: false,
     warmup: game.gatesSpawned < WARMUP_GATES,
     x: SPAWN_X + 0.14,
-    y: 0.5
+    y: game.lane.center
   }
-  return { routeY: 0.5 + side * SPINNER_DODGE_OFFSET, side, spinner }
+  const dodge = Math.min(SPINNER_DODGE_OFFSET, game.lane.halfSpan * 0.95)
+  return { routeY: game.lane.center + side * dodge, side, spinner }
 }
 
 function buildCoinRoute(fromY: number | null, toY: number, spacing: number, firstId: number): Pickup[] {
@@ -314,6 +326,7 @@ function buildCoinRoute(fromY: number | null, toY: number, spacing: number, firs
 function spawnObstacle(context: StepContext, config: LevelConfig) {
   const { game, random } = context
   const useSpinner = game.gatesSpawned > 0
+    && game.lane.halfSpan >= MIN_SPINNER_HALF_SPAN
     && game.obstacles[game.obstacles.length - 1]?.kind !== 'spinner'
     && random.next() < config.spinnerChance
   const id = game.nextId
@@ -578,7 +591,12 @@ function resolveObstacles(context: StepContext) {
 
 function advanceReps(context: StepContext) {
   const { game } = context
-  const zone = game.bird.y < REP_HIGH_LINE ? 'high' : game.bird.y > REP_LOW_LINE ? 'low' : null
+  const threshold = game.lane.halfSpan * REP_ZONE
+  const zone = game.bird.y < game.lane.center - threshold
+    ? 'high'
+    : game.bird.y > game.lane.center + threshold
+      ? 'low'
+      : null
   if (!zone || zone === game.repPhase) return
   const repTransitions = game.repPhase ? game.repTransitions + 1 : 0
   const reps = Math.floor(repTransitions / 2)
