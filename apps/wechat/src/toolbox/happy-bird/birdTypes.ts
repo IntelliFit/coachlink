@@ -79,6 +79,11 @@ export type Fx = {
 /** 门的通道放在哪一段高度：中心和上下半宽，都以画面高度为 1。 */
 export type Lane = { center: number; halfSpan: number }
 
+/** 玩家在开始页选的速度档。 */
+export type BirdPace = 'slow' | 'normal' | 'fast'
+
+export type PaceConfig = { label: string; points: number; speed: number }
+
 export type Banner = { ageMs: number; sub: string; text: string; tone: 'fever' | 'level' }
 
 export type BirdGame = {
@@ -105,6 +110,7 @@ export type BirdGame = {
   nextFeverCombo: number
   nextId: number
   obstacles: Obstacle[]
+  pace: BirdPace
   paused: boolean
   perfectFlashMs: number
   perfects: number
@@ -173,6 +179,22 @@ export const LEVELS: LevelConfig[] = [
   { amplitude: 0.24, gapHeight: 0.27, moverChance: 0.3, name: '窄门', spacing: 0.5, speed: 0.36, spinnerChance: 0.25 },
   { amplitude: 0.26, gapHeight: 0.25, moverChance: 0.35, name: '地狱难度', spacing: 0.5, speed: 0.4, spinnerChance: 0.3 }
 ]
+
+/**
+ * 速度档：画面滚动速度整体乘 speed，门与门的距离不变，所以快档门来得更密。
+ * 每次得分乘 points：快档更难、分更高，选慢档在排行榜上不占便宜。
+ */
+export const PACES: Record<BirdPace, PaceConfig> = {
+  slow: { label: '慢', points: 0.8, speed: 0.8 },
+  normal: { label: '标准', points: 1, speed: 1 },
+  fast: { label: '快', points: 1.3, speed: 1.3 }
+}
+export const PACE_ORDER: BirdPace[] = ['slow', 'normal', 'fast']
+export const DEFAULT_PACE: BirdPace = 'normal'
+
+export function isBirdPace(value: unknown): value is BirdPace {
+  return value === 'slow' || value === 'normal' || value === 'fast'
+}
 
 export const TITLES: { min: number; title: string }[] = [
   { min: 2000, title: '鸟中之王' },

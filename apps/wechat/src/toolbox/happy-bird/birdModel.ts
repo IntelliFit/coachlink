@@ -12,6 +12,7 @@ import {
   COIN_SCORE,
   COUNTDOWN_MS,
   DEFAULT_LANE,
+  DEFAULT_PACE,
   FEVER_COMBO_STEP,
   FEVER_MS,
   FIRST_FEVER_COMBO,
@@ -20,6 +21,7 @@ import {
   GATES_PER_LEVEL,
   LEVELS,
   MAX_LIVES,
+  PACES,
   PERFECT_SCORE,
   REP_SCORE,
   SPINNER_THICKNESS,
@@ -27,6 +29,7 @@ import {
   WARMUP_GATES,
   type BirdGame,
   type BirdInput,
+  type BirdPace,
   type BirdStep,
   type FxKind,
   type GateObstacle,
@@ -118,7 +121,8 @@ function obstacleHalfWidth(obstacle: Obstacle) {
   return obstacle.kind === 'gate' ? obstacle.width / 2 : obstacle.halfLength
 }
 
-export function createGame(options: { aspect?: number; seed?: number } = {}): BirdGame {
+export function createGame(options: { aspect?: number; pace?: BirdPace; seed?: number } = {}): BirdGame {
+  const pace = options.pace ?? DEFAULT_PACE
   return {
     aspect: options.aspect && options.aspect > 0 ? options.aspect : 16 / 9,
     banner: null,
@@ -143,6 +147,7 @@ export function createGame(options: { aspect?: number; seed?: number } = {}): Bi
     nextFeverCombo: FIRST_FEVER_COMBO,
     nextId: 1,
     obstacles: [],
+    pace,
     paused: false,
     perfectFlashMs: 0,
     perfects: 0,
@@ -156,17 +161,17 @@ export function createGame(options: { aspect?: number; seed?: number } = {}): Bi
     scorePopMs: 0,
     shakeMs: 0,
     shield: false,
-    speed: LEVELS[0].speed,
+    speed: LEVELS[0].speed * PACES[pace].speed,
     status: 'idle',
     statusMs: 0,
     tracking: false
   }
 }
 
-/** 开新一局：保留小鸟当前高度，分数、障碍全部清零。 */
-export function startCountdown(game: BirdGame, seed: number): BirdGame {
+/** 开新一局：保留小鸟当前高度，分数、障碍全部清零。不给速度档就沿用上一局的。 */
+export function startCountdown(game: BirdGame, seed: number, pace: BirdPace = game.pace): BirdGame {
   return {
-    ...createGame({ aspect: game.aspect, seed }),
+    ...createGame({ aspect: game.aspect, pace, seed }),
     bird: game.bird,
     status: 'countdown',
     tracking: game.tracking
@@ -174,7 +179,7 @@ export function startCountdown(game: BirdGame, seed: number): BirdGame {
 }
 
 export function cancelToIdle(game: BirdGame): BirdGame {
-  return { ...createGame({ aspect: game.aspect, seed: game.rng }), bird: game.bird, tracking: game.tracking }
+  return { ...createGame({ aspect: game.aspect, pace: game.pace, seed: game.rng }), bird: game.bird, tracking: game.tracking }
 }
 
 /** 玩家主动结束：和撞完最后一条命走同一段坠落 + 结算。 */
@@ -184,7 +189,7 @@ export function endRun(game: BirdGame): BirdGame {
 }
 
 function addScore(context: StepContext, base: number) {
-  const gained = base * scoreMultiplier(context.game)
+  const gained = Math.round(base * scoreMultiplier(context.game) * PACES[context.game.pace].points)
   context.game = { ...context.game, score: context.game.score + gained, scorePopMs: 260 }
   return gained
 }
@@ -356,7 +361,8 @@ function spawnObstacle(context: StepContext, config: LevelConfig) {
 function moveWorld(context: StepContext, config: LevelConfig) {
   const { dt, game } = context
   const seconds = dt / 1000
-  const speed = game.speed + (config.speed - game.speed) * (1 - Math.exp(-dt / 1200))
+  const targetSpeed = config.speed * PACES[game.pace].speed
+  const speed = game.speed + (targetSpeed - game.speed) * (1 - Math.exp(-dt / 1200))
   const move = speed * seconds
   const obstacles = game.obstacles
     .map((obstacle): Obstacle => {

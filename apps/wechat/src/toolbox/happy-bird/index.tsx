@@ -32,12 +32,17 @@ import {
   advanceGame,
   cancelToIdle,
   createGame,
+  DEFAULT_PACE,
   endRun,
+  isBirdPace,
+  PACE_ORDER,
+  PACES,
   startCountdown,
   WARMUP_GATES,
   type BirdEvent,
   type BirdGame,
   type BirdInput,
+  type BirdPace,
   type Lane,
   type BirdStatus
 } from './birdModel'
@@ -63,6 +68,7 @@ const REPLAY_FRAME_INTERVAL_MS = 1000 / BIRD_REPLAY_FPS
 const RESULT_HOLD_MS = 2600
 
 type BirdPrefs = {
+  pace: BirdPace
   record: boolean
   sound: boolean
 }
@@ -82,13 +88,15 @@ type CanvasHandle = {
   width: number
 }
 
-const DEFAULT_PREFS: BirdPrefs = { record: true, sound: true }
+const DEFAULT_PREFS: BirdPrefs = { pace: DEFAULT_PACE, record: true, sound: true }
 const NO_HEAD_INPUT: BirdInput = { targetY: null, tracking: false }
 
 function readPrefs(): BirdPrefs {
   try {
     const stored = Taro.getStorageSync(PREFS_KEY) as Partial<BirdPrefs> | ''
-    return stored ? { ...DEFAULT_PREFS, ...stored } : DEFAULT_PREFS
+    if (!stored) return DEFAULT_PREFS
+    const merged = { ...DEFAULT_PREFS, ...stored }
+    return { ...merged, pace: isBirdPace(merged.pace) ? merged.pace : DEFAULT_PACE }
   } catch {
     return DEFAULT_PREFS
   }
@@ -127,7 +135,7 @@ function storedUserId() {
 }
 
 /** 体验版、开发版在开始页显示小鸟跟随是哪一版，测的时候一眼能确认；正式版不显示。改跟随逻辑时一起改。 */
-const TRACKING_BUILD_TAG = '跟随版本：眼睛 1:1 锁定 · 11-06'
+const TRACKING_BUILD_TAG = '跟随版本：眼睛 1:1 锁定 + 三档速度 · 11-06'
 const SHOW_TRACKING_BUILD_TAG = readMiniProgramEnvVersion() !== 'release'
 
 export default function HappyBirdPage() {
@@ -499,7 +507,7 @@ export default function HappyBirdPage() {
     roundSyncedRef.current = false
     sessionIdRef.current = null
     bestScoreRef.current = Math.max(bestScoreRef.current, gameRef.current.score, readLocalBest())
-    gameRef.current = startCountdown(gameRef.current, roundSeed())
+    gameRef.current = startCountdown(gameRef.current, roundSeed(), prefsRef.current.pace)
     setRanking(null)
     setSyncState('idle')
     setVideoPath('')
@@ -528,11 +536,19 @@ export default function HappyBirdPage() {
     gameRef.current = endRun(gameRef.current)
   }
 
-  const togglePref = (key: keyof BirdPrefs) => {
-    const next = { ...prefsRef.current, [key]: !prefsRef.current[key] }
+  const savePrefs = (next: BirdPrefs) => {
     prefsRef.current = next
     setPrefs(next)
     writePrefs(next)
+  }
+
+  const choosePace = (pace: BirdPace) => {
+    if (prefsRef.current.pace !== pace) savePrefs({ ...prefsRef.current, pace })
+  }
+
+  const togglePref = (key: 'record' | 'sound') => {
+    const next = { ...prefsRef.current, [key]: !prefsRef.current[key] }
+    savePrefs(next)
     if (key === 'sound') audioRef.current?.setEnabled(next.sound)
   }
 
@@ -722,6 +738,20 @@ export default function HappyBirdPage() {
           {showStartPanel ? (
             <View className='bird-controls'>
               {status === 'result' && rankLine ? <Text className='bird-rank'>{rankLine}</Text> : null}
+              <View className='bird-pace'>
+                <Text className='bird-pace__label'>速度</Text>
+                <View className='bird-pace__group'>
+                  {PACE_ORDER.map((pace) => (
+                    <View
+                      key={pace}
+                      className={`bird-pace__item ${prefs.pace === pace ? 'bird-pace__item--on' : ''}`}
+                      onClick={() => choosePace(pace)}
+                    >
+                      <Text className='bird-pace__text'>{PACES[pace].label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
               <View className='bird-chips'>
                 <View className={`bird-chip ${prefs.record ? 'bird-chip--on' : ''}`} onClick={() => togglePref('record')}>
                   <Text className='bird-chip__text'>录视频</Text>
