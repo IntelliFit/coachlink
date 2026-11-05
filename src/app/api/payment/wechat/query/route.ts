@@ -53,7 +53,9 @@ async function fulfillPaidWechatOrder(latestOrder: any, userId: string) {
         latestOrder.order_type === "coach_subscription_renew";
 
     if (isSubscriptionOrder) {
-        await fulfillSubscriptionOnPaid(latestOrder, latestOrder.id, userId, "wechat");
+        const outcome = await fulfillSubscriptionOnPaid(latestOrder, latestOrder.id, userId, "wechat");
+        // A duplicate charge waits for a refund; the coach is paid once, for the payment the subscription runs on.
+        if (outcome === "duplicate") return;
 
         const isCoachSub =
             latestOrder.order_type === "coach_subscription" ||

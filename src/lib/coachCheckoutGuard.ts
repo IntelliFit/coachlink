@@ -56,6 +56,23 @@ export function isRunningSubscription(status: string | null | undefined): boolea
     return RUNNING_STATUSES.has(String(status || ""));
 }
 
+/**
+ * A weapp first purchase that arrives while the subscription already runs on
+ * another payment is a second charge for the same thing. It must not take the
+ * row over or be settled to the coach; it stays paid until it is refunded.
+ */
+export function isDuplicateFirstPurchase(
+    orderType: string | null | undefined,
+    orderId: string,
+    subscription: Pick<CheckoutSubscription, "status" | "last_payment_order_id">,
+): boolean {
+    const applied = subscription.last_payment_order_id;
+    return orderType === "coach_subscription"
+        && Boolean(applied)
+        && applied !== orderId
+        && isRunningSubscription(subscription.status);
+}
+
 /** Paid first purchases the subscription has not recorded yet, oldest first. */
 export function findUnappliedPaidOrders<T extends CheckoutOrder>(
     subscription: CheckoutSubscription,
