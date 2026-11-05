@@ -11,6 +11,17 @@
 - 门禁：typecheck 0 错；vitest 结果和 main 一致（只有既有的 streetliftingLocationOverview 失败，3 个文件因 worktree 缺 expo 依赖未加载）；快乐小鸟相关 103 个测试通过。E2E 未跑（写正式库）。
 - 没验证：三档速度的真机手感。跟随用户在 0541 上测过，反馈“好多了”。
 
+## 重复扣款修复上线（2026-11-06 07:15 北京时间，web ee07676b）
+
+- 起因：2026-11-05 学员买教练订阅 ¥299 被扣两次（ce52538b、790362fd，订阅 c01a501d），订阅开通不了。根因和改动见 `memory/2026-11-05.md`、Bug 清单 #64。
+- main ee07676b = 90e45f16 + 合入 `fix/payment-activation-or`（e5cae9f6 开通不再用 `.update().or()`、首购下单拦已支付未开通的单、退款不再取消订阅；8c87d056 订阅已由另一笔开通时后到的首购返回 duplicate；8e07ba7e 已退款订单收到汇付重试回调保持 refunded）+ 145b7b18（两条冲肩审核配置，与线上字节一致）。
+- Web：`coachlink-main` 3/3、`coachlink-dev` 1/1 都是 `coachlink@sha256:292a0ea537238e2d03f56d1824fcf34929633146b858ed342f6809ab8007c7f6`（标签 payfix-ee07676）。回滚目标 `8195a6429e24ae6af12561fff63db9179f2fc564fa365490450a9e233f3dceaf`（reorder-90e45f1）。Worker、引擎没动。
+- 构建：product-server `~/coachlink-payfix-ee07676`，以 `~/coachlink-reorder-90e45f1` 为底换入 9 个支付文件，3533 个文件逐一核对 git blob；safe-docker-build。注意：排队脚本用 pgrep 匹配构建命令，启动它的 ssh 命令里不能含同样字样，否则会一直等自己（这次因此空等约 1 小时）。
+- 门禁：typecheck 0 错；vitest 支付相关全过（另有既有 streetliftingLocationOverview、junction 导致的 plan-calendar 和 17 个文件未加载）；E2E 4/4（一项冷编译超时重试后过）。
+- 线上验证（不写库）：dev、main 首页 307、登录 200，退款/下单/查单接口未登录 401，notify 空请求 400，与旧版一致（`/api/health` 新旧都是 404，探针用 `/`）；Pod 0 重启，切换后无 error 日志。订阅 active，`last_payment_order_id` = ce52538b，只有 ce52538b 有分账（pending）。
+- 退款已完成：用户 07:49 在 `/admin/payments` 退 790362fd。汇付退款查询返回 trans_stat=S、实退 299.00，07:49:10 完成。订单已是 refunded，订阅仍 active（ce52538b），ce52538b 的分账未动。代码目前不回查退款终态（`queryHuifuPaymentRefund` 没有调用方），这次是手动查的。
+- 注意：教练端学员详情的「退款」按钮退的是 `last_payment_order_id`。重复扣款时它指向开通订阅的那笔，不是重复的那笔，所以重复扣款要从管理员端退。
+
 ## 训练中调整顺序和选动作改进上线（2026-11-06，web 90e45f16，weapp 2026.11.06.0401）
 
 - 起因：内测反馈训练中「添加动作」搜不到自建动作（如「健腹轮」只在用户自己的动作库里）。旧版这个入口只能搜公共库。
