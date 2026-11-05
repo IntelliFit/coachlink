@@ -1,3 +1,15 @@
+## 训练中调整顺序和选动作改进上线（2026-11-06，web 90e45f16，weapp 2026.11.06.0401）
+
+- 起因：内测反馈训练中「添加动作」搜不到自建动作（如「健腹轮」只在用户自己的动作库里）。旧版这个入口只能搜公共库。
+- main 90e45f16 = 2ce1f978 + be9f56f2（训练中调整顺序、开练前起名、选动作默认公共库、搜索全部动作、训练中可加自己的动作）+ b2fd6c8a、5b0fa090（即兴删动作、删组时组视频对齐）。dev 上其余未发布改动没有带上。
+- Web：`coachlink-main` 3/3、`coachlink-dev` 1/1 都是 `coachlink@sha256:8195a6429e24ae6af12561fff63db9179f2fc564fa365490450a9e233f3dceaf`（标签 reorder-90e45f1）。回滚目标 `5a182979385744a446b7ee489e6dc950640a182fe4f62c667460665ca2187254`（planche-20261106）。Worker、引擎没动。
+- 镜像里还包含另一会话 planche 发布加的 2 条动作图审核（`src/lib/streetWorkoutImageApprovals.json`，`18f38c3a…`、`35018603…`）。**这 2 条还没进 git**，下一次 Web 发布前要先提交，否则会被回退。
+- 构建：product-server `~/coachlink-reorder-90e45f1`，以 planche 已校验的源码树为底，换入本次改动，3530 个文件逐一核对 git blob 一致；safe-docker-build，依赖镜像按 ID 复用（`coachlink-deps:lock-c5e86f3b6d1b` 标签已不在）。
+- 线上验证（不写库）：dev、main 健康检查 200，首页、登录跳转和旧版一致；两个 reorder-actions 接口和 impromptu/start 未登录返回 401（含 coachlink.fit 公网）；Pod 无重启，切换后无 error 日志。
+- 小程序开发版 **2026.11.06.0401**（描述 release-90e45f1-reorder-picker，总包 10,696,430 / 主包 1,976,788），从 main 90e45f16 构建，包内已确认有新文案和接口；待用户在公众平台设体验版或提审。父会话另从 e71f1d5d（dev 合 main）上传过试用开发版，提审用这一版。
+- 门禁：typecheck 0 错；vitest 1501/1502（既有 streetliftingLocationOverview），另 13 个 src/mobile 等文件因 worktree 缺 expo 依赖未加载。E2E 未跑（写正式库）。
+- **没验证**：登录后真实保存顺序、带标题开练、训练中从搜索结果加动作、删组视频同步（都写库，用户说自己测）；模拟器和真机界面。
+
 ## 快乐小鸟回放声音改为直接写入（2026-11-04，只发小程序）
 
 - 用户反馈上架版合成声音很慢（约两分钟）且失败。原因：createMediaContainer 会把整段视频重新编码，真机上要几分钟，那次也没完成。
