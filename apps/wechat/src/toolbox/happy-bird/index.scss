@@ -127,6 +127,47 @@ $bird-brand: #cf6d4e;
   text-align: center;
 }
 
+.bird-pace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.bird-pace__label {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.bird-pace__group {
+  display: flex;
+  gap: 8rpx;
+  padding: 8rpx;
+  border-radius: 9999rpx;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.bird-pace__item {
+  min-width: 96rpx;
+  height: 48rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999rpx;
+}
+
+.bird-pace__item--on {
+  background: $bird-brand;
+}
+
+.bird-pace__text {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #ffffff;
+}
+
 .bird-chips {
   display: flex;
   justify-content: center;
