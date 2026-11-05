@@ -756,21 +756,24 @@ export async function fulfillSubscriptionOnPaid(
         : 0;
 
     // Payment callbacks, polling and the return page can all arrive at once.
-    // The write only lands while this payment is still unrecorded and the
-    // weeks are unchanged since the read; otherwise re-read and decide again.
+    // The write only lands while the recorded payment and the weeks are both
+    // unchanged since the read; otherwise re-read and decide again.
+    // Do not use .or() here: production PostgREST rejects an update carrying an
+    // or= filter (42703 "column ... does not exist"), which left paid orders unactivated.
     let current: { subscribed_weeks?: number | null; last_payment_order_id?: string | null } = sub;
     let recorded = false;
     for (let attempt = 0; attempt < 3 && !recorded; attempt += 1) {
         if (current.last_payment_order_id === order.id) return;
         const weeksBefore = current.subscribed_weeks ?? null;
+        const paymentBefore = current.last_payment_order_id ?? null;
         const attemptUpdate = renewWeeks > 0
             ? { ...update, subscribed_weeks: Number(weeksBefore || 0) + renewWeeks }
             : update;
         let query = serviceRoleSupabase
             .from("coach_subscriptions")
             .update(attemptUpdate)
-            .eq("id", subscriptionId)
-            .or(`last_payment_order_id.is.null,last_payment_order_id.neq.${order.id}`);
+            .eq("id", subscriptionId);
+        query = paymentBefore === null ? query.is("last_payment_order_id", null) : query.eq("last_payment_order_id", paymentBefore);
         query = weeksBefore === null ? query.is("subscribed_weeks", null) : query.eq("subscribed_weeks", weeksBefore);
         const { data: written, error: writeError } = await query.select("id");
         if (writeError) throw new Error(writeError.message);

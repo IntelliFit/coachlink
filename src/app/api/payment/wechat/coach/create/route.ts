@@ -17,6 +17,7 @@ import {
     formatHuifuReqDate,
     parseHuifuPayInfo,
 } from "@/lib/huifuMiniProgramPay";
+import { guardFirstPurchaseCheckout } from "./paidOrderGuard";
 
 export const runtime = "nodejs";
 
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
 
         const { data: subscription, error: subError } = await serviceRoleSupabase
             .from("coach_subscriptions")
-            .select("id, student_id, coach_id, status, monthly_price, product_id, product_name, product_tier, subscribed_weeks, coaches(name)")
+            .select("id, student_id, coach_id, status, monthly_price, product_id, product_name, product_tier, subscribed_weeks, last_payment_order_id, payment_confirmed_at, coaches(name)")
             .eq("id", subscriptionId)
             .single();
 
@@ -145,6 +146,17 @@ export async function POST(request: NextRequest) {
                 { success: false, message: "当前订阅状态不支持续费", data: null },
                 { status: 400 },
             );
+        }
+
+        // A paid but not yet activated first purchase must not be charged again.
+        if (!renew) {
+            const guard = await guardFirstPurchaseCheckout({ userId, subscriptionId, subscription });
+            if (guard.blocked) {
+                return NextResponse.json<ApiData<{ paidOrderId: string } | null>>(
+                    { success: false, message: guard.message, data: guard.paidOrderId ? { paidOrderId: guard.paidOrderId } : null },
+                    { status: guard.status },
+                );
+            }
         }
 
         // Renewal price and weeks always come from the coach's package list, never the client.

@@ -19,6 +19,7 @@ import {
 } from "@/lib/huifuMiniProgramPay";
 import { markSettlementRefunded } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { LEGACY_DIRECT_PAY_COMMISSION_PERCENT, splitOrderAmountFen } from "@/lib/platformCommission";
+import { isFirstPurchaseOrderType, shouldCancelSubscriptionOnRefund } from "@/lib/subscriptionRefund";
 
 function asObject(value: unknown): Record<string, any> {
     return value && typeof value === "object" && !Array.isArray(value)
@@ -214,6 +215,84 @@ async function refundAlipayCollection(orderId: string, refundAmountFen: number, 
     }
 }
 
+type SubscriptionRefundOutcome = "cancelled" | "kept" | "unknown";
+
+const SUBSCRIPTION_REFUND_MESSAGES: Record<SubscriptionRefundOutcome, string> = {
+    cancelled: "退款成功，已取消订阅",
+    kept: "退款成功；这笔不是订阅当前使用的支付，订阅保持不变",
+    unknown: "退款成功，但订阅状态未能同步，请人工检查该学员的订阅",
+};
+
+/**
+ * After a coach-subscription refund, cancel only the subscriptions that ran on
+ * the refunded payment. Rows are looked up first: production PostgREST rejects
+ * an update carrying .or().
+ */
+async function cancelSubscriptionsForRefund(params: {
+    orderId: string;
+    orderType: unknown;
+    subscriptionId?: string;
+    reason: string;
+}): Promise<SubscriptionRefundOutcome> {
+    const { orderId, orderType, subscriptionId, reason } = params;
+    const linkedColumns = "id, status, order_id, last_payment_order_id";
+    const { data: linked, error: linkedError } = subscriptionId
+        ? await serviceRoleSupabase.from("coach_subscriptions").select(linkedColumns).eq("id", subscriptionId)
+        : await serviceRoleSupabase
+            .from("coach_subscriptions")
+            .select(linkedColumns)
+            .or(`last_payment_order_id.eq.${orderId},order_id.eq.${orderId}`);
+    if (linkedError) {
+        console.error("[Payment Refund] read subscription failed", linkedError);
+        return "unknown";
+    }
+
+    const appliedOrderIds = [...new Set((linked || [])
+        .map((subscription) => subscription.last_payment_order_id)
+        .filter((id): id is string => Boolean(id) && id !== orderId))];
+    const appliedOrderTypes = new Map<string, string>();
+    if (isFirstPurchaseOrderType(orderType) && appliedOrderIds.length > 0) {
+        const { data: appliedOrders, error: appliedError } = await serviceRoleSupabase
+            .from("alipay_orders")
+            .select("id, order_type")
+            .in("id", appliedOrderIds);
+        // Unknown applied types fall back to cancelling, the pre-existing behaviour.
+        if (appliedError) console.error("[Payment Refund] read applied orders failed", appliedError);
+        for (const applied of appliedOrders || []) appliedOrderTypes.set(String(applied.id), String(applied.order_type || ""));
+    }
+
+    const cancelIds = (linked || [])
+        .filter((subscription) => shouldCancelSubscriptionOnRefund({
+            orderId,
+            orderType,
+            subscription,
+            appliedOrderType: appliedOrderTypes.get(String(subscription.last_payment_order_id || "")),
+        }))
+        .map((subscription) => subscription.id);
+    if (cancelIds.length === 0) return "kept";
+
+    const nowIso = new Date().toISOString();
+    const { error: cancelError } = await serviceRoleSupabase
+        .from("coach_subscriptions")
+        .update({
+            status: "cancelled",
+            end_date: nowIso,
+            order_id: null,
+            last_payment_order_id: null,
+            payment_method: null,
+            payment_confirmed_at: null,
+            payment_confirmed_by: null,
+            cancellation_reason: reason,
+            updated_at: nowIso,
+        })
+        .in("id", cancelIds);
+    if (cancelError) {
+        console.error("[Payment Refund] cancel subscription failed", cancelError);
+        return "unknown";
+    }
+    return "cancelled";
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -404,31 +483,14 @@ export async function POST(req: Request) {
         );
     }
 
+    let subscriptionOutcome: SubscriptionRefundOutcome | null = null;
     if (isCoachSubscriptionOrder) {
-        const subscriptionId = orderData.subscriptionId as string | undefined;
-        const subscriptionUpdate = {
-            status: "cancelled",
-            end_date: new Date().toISOString(),
-            order_id: null,
-            last_payment_order_id: null,
-            payment_method: null,
-            payment_confirmed_at: null,
-            payment_confirmed_by: null,
-            cancellation_reason: isAdmin ? "管理员操作退款" : "用户申请退款",
-            updated_at: new Date().toISOString(),
-        };
-
-        if (subscriptionId) {
-            await serviceRoleSupabase
-                .from("coach_subscriptions")
-                .update(subscriptionUpdate)
-                .eq("id", subscriptionId);
-        } else {
-            await serviceRoleSupabase
-                .from("coach_subscriptions")
-                .update(subscriptionUpdate)
-                .or(`last_payment_order_id.eq.${orderId},order_id.eq.${orderId}`);
-        }
+        subscriptionOutcome = await cancelSubscriptionsForRefund({
+            orderId,
+            orderType: order.order_type,
+            subscriptionId: orderData.subscriptionId as string | undefined,
+            reason: isAdmin ? "管理员操作退款" : "用户申请退款",
+        });
     }
 
     if (isCoachContentPurchaseOrder) {
@@ -534,9 +596,10 @@ export async function POST(req: Request) {
         });
     }
 
+    const refundMessage = subscriptionOutcome ? SUBSCRIPTION_REFUND_MESSAGES[subscriptionOutcome] : "退款成功";
     return NextResponse.json<ApiData<RefundAlipayOrderResponseDto>>({
         success: true,
-        message: "退款成功",
-        data: { success: true, message: "退款成功" },
+        message: refundMessage,
+        data: { success: true, message: refundMessage, subscriptionOutcome: subscriptionOutcome ?? undefined },
     });
 }
