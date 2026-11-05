@@ -563,3 +563,11 @@
 - **统一规则**：服务端按账号占名额的长任务，客户端创建后立刻按账号把任务 id 写入本地，进入页面和 didShow 时恢复。只有服务端明确说任务不存在才删记录，断网和登录失效都要留着。没传完的任务要中断并释放名额。轮询失败不等于任务失败。账号任务在没登录或换了账号时服务端也回 404，删记录前先确认是谁在问；网关报的 404 也不算。释放名额前确认没有别的标签页正在上传。
 - **改动前自检**：返回上一页、杀进程、切后台之后，用户怎么找回这个任务？服务端的名额什么时候释放？换账号会不会看到别人的任务？
 - **典型案例**（2026-11-02）：`apps/wechat/src/toolbox/motion-effects/jobRestore.ts`、同目录 `index.tsx`，测试 `tests/motion-effects-weapp-restore.test.ts`。对照实现在 `apps/mobile/src/screens/toolbox/motionEffectsModel.ts`。网页端同样补上了恢复：`src/app/toolbox/motion-effects/jobRestore.ts`、同目录 `page.tsx`，测试 `tests/motion-effects-web-restore.test.ts`。Web 和小程序共用的规则在 `packages/core/src/motionEffectJobRestore.ts`。
+
+## 65) 网关下线了配置里的模型：计划生成悄悄退回规则匹配，问卷里的伤病被忽略（高风险，重复出现）
+
+- **现象**：万界方舟自 2026-11-04 起对 `deepseek-v4-flash` 返回「500 模型获取失败」。初始计划自动化（`createAiInstanceForSubscription`）捕获错误后改用规则匹配，计划照常发布，但规则匹配不读问卷，学员写的伤病和禁忌动作都没有避开。线上 `[workout-energy]` 的 MET 分类每天失败多次，只留下一条 warn。
+- **根因**：模型名分散在 Apollo 各用途的 key 和代码默认值里（`WANJIE_ARK_PLAN_MODEL` 没有默认值，`FAST` / `PLAN_SCRIPT` 的默认值是 `deepseek-v4-flash`），网关下线模型后没有一处统一替换。调用方的兜底把失败变成了「看起来成功」。本地配置快照和线上 Apollo 的值也不一样（本地 plan 用 `deepseek-v4-flash`，线上用 `deepseek-v4.1-flash-1017`），所以问题只在本地手动激活订阅时暴露。
+- **统一规则**：模型名最后都经过 `src/lib/coachlinkLlm.ts` 的 `resolveServedWanjieModel`。已下线的模型登记在 `RETIRED_WANJIE_MODELS`，运行时换成仍在服务的模型，并按用途告警一次。LLM 失败后走兜底的地方，必须在结果里留下标记（如 `coach_plan_instances.ai_generation_log.fallback`）。
+- **改动前自检**：网关下线一个模型，哪些用途会受影响（plan / planScript / fast / coachReply / vision / default）？兜底结果有没有标记，教练能不能看出来？本地快照里的模型名和线上 Apollo 是否一致？
+- **典型案例**（2026-11-05）：一份订阅在本地手动激活后，初始计划走了规则匹配并直接发布。线上计划生成未受影响，但 fast 和 planScript 两类调用落到了下线的默认模型。测试 `src/lib/coachlinkLlm.test.ts`。

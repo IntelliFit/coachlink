@@ -34,7 +34,44 @@ function getWanjieModel(kind: WanjieModelKind): string {
                     : kind === "fast"
                         ? process.env.WANJIE_ARK_FAST_MODEL?.trim() || "deepseek-v4-flash"
                 : undefined;
-    return override || getRequiredEnv("WANJIE_ARK_MODEL");
+    return resolveServedWanjieModel(kind, override || getRequiredEnv("WANJIE_ARK_MODEL"));
+}
+
+/**
+ * 网关已下线的模型 → 仍在服务的替代模型。
+ * deepseek-v4-flash 自 2026-11-04 起返回「500 模型获取失败」：计划生成会静默退回规则匹配（不读问卷、伤病），
+ * 短任务直接失败。配置或代码默认值仍指向这些模型时，改用替代模型并在每个进程内按用途告警一次。
+ */
+const RETIRED_WANJIE_MODELS: Readonly<Record<string, string>> = Object.freeze({
+    "deepseek-v4-flash": "deepseek-v4.1-flash",
+});
+
+const WANJIE_MODEL_ENV_KEY: Readonly<Record<WanjieModelKind, string>> = Object.freeze({
+    default: "WANJIE_ARK_MODEL",
+    plan: "WANJIE_ARK_PLAN_MODEL",
+    planScript: "WANJIE_ARK_PLAN_SCRIPT_MODEL",
+    coachReply: "WANJIE_ARK_COACH_REPLY_MODEL",
+    vision: "WANJIE_ARK_VISION_MODEL",
+    fast: "WANJIE_ARK_FAST_MODEL",
+});
+
+const warnedRetiredModels = new Set<string>();
+
+function resolveServedWanjieModel(kind: WanjieModelKind, model: string): string {
+    const replacement = RETIRED_WANJIE_MODELS[model];
+    if (!replacement) return model;
+
+    const warnKey = `${kind}:${model}`;
+    if (!warnedRetiredModels.has(warnKey)) {
+        warnedRetiredModels.add(warnKey);
+        const configKeys = kind === "default"
+            ? WANJIE_MODEL_ENV_KEY.default
+            : `${WANJIE_MODEL_ENV_KEY[kind]} / ${WANJIE_MODEL_ENV_KEY.default}`;
+        console.warn(
+            `[coachlink-llm] ${kind} 模型 ${model} 已被万界方舟网关下线，改用 ${replacement}。请检查 Apollo 中的 ${configKeys}（或代码默认值）。`,
+        );
+    }
+    return replacement;
 }
 
 function createWanjieLlm(kind: WanjieModelKind) {
