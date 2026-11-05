@@ -45,6 +45,22 @@ export function normalizeFacePoints(points: unknown, frameWidth: number, frameHe
   return parsed.map((point) => ({ x: point.x / frameWidth, y: point.y / frameHeight }))
 }
 
+type ScoredPoint = { score: number; x: number; y: number }
+
+/**
+ * 兼容识别（17 个人体关键点：0 鼻子，1–2 眼睛，3–4 耳朵）里的眼睛高度。
+ * 两眼优先；看不清眼睛时用耳朵，耳朵和眼睛差不多高。鼻子在眼睛下面，不算。
+ */
+export function eyeYFromPose(points: ScoredPoint[], minScore: number): number | undefined {
+  const pick = (indices: number[]) => indices
+    .map((index) => points[index])
+    .filter((point) => point && point.score >= minScore)
+  const eyes = pick([1, 2])
+  const source = eyes.length ? eyes : pick([3, 4])
+  if (!source.length) return undefined
+  return source.reduce((sum, point) => sum + point.y, 0) / source.length
+}
+
 export function eyeLineFromFace(face: FaceGeometry): EyeLine {
   const aspect = face.frameHeight > 0 ? face.frameWidth / face.frameHeight : 0.75
   const faceWidthY = face.sizeWidth * aspect

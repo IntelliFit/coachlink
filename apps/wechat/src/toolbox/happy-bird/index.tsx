@@ -12,6 +12,7 @@ import {
   markMotionGameRunLocalOnly,
   persistMotionGameRunLocally
 } from '@/utils/motionGameLeaderboardCache'
+import { readMiniProgramEnvVersion } from '@/utils/apiBaseUrl'
 import { usePageEnterTrace } from '@/utils/pageTrace'
 import {
   buildSharePath,
@@ -125,6 +126,10 @@ function storedUserId() {
   }
 }
 
+/** 体验版、开发版在开始页显示小鸟跟随是哪一版，测的时候一眼能确认；正式版不显示。改跟随逻辑时一起改。 */
+const TRACKING_BUILD_TAG = '跟随版本：眼睛 1:1 锁定 · 11-06'
+const SHOW_TRACKING_BUILD_TAG = readMiniProgramEnvVersion() !== 'release'
+
 export default function HappyBirdPage() {
   usePageEnterTrace()
 
@@ -154,6 +159,8 @@ export default function HappyBirdPage() {
   const lastTickAtRef = useRef(0)
   // 门的通道：开飞后记录眼睛上下的范围，热身门出完就固定，一局之内不再变。
   const laneSamplesRef = useRef<number[]>([])
+  // 眼睛比头部中心高多少：偶尔识别拿不到眼睛时沿用它，小鸟不跳到头中心。
+  const eyeOffsetRef = useRef<number | null>(null)
   const laneFrozenRef = useRef<Lane | null>(null)
   const audioRef = useRef<BirdAudio | null>(null)
   const trackerRef = useRef<BodyPointTracker | null>(null)
@@ -578,7 +585,9 @@ export default function HappyBirdPage() {
     if (!snapshot.locked) return
     const frameSize = { height: snapshot.frameHeight, width: snapshot.frameWidth }
     // 跟眼睛那一条线，不跟脸框中心：用力张嘴时脸框被下巴撑大，中心会往下跑。
-    const head = projectHeadAnchorToStage({ ...snapshot, y: snapshot.eyeY ?? snapshot.y }, frameSize, stageSizeRef.current)
+    if (snapshot.eyeY !== undefined) eyeOffsetRef.current = snapshot.eyeY - snapshot.y
+    const eyeY = snapshot.eyeY ?? snapshot.y + (eyeOffsetRef.current ?? 0)
+    const head = projectHeadAnchorToStage({ ...snapshot, y: eyeY }, frameSize, stageSizeRef.current)
     // 'holding' 是短暂没检测到（运动模糊等），高度沿用上次，游戏不因此卡顿。
     if (snapshot.lockState === 'locked') {
       // 小鸟 1:1 停在眼睛那条线上，不放大：放大会让它相对脸一会儿在眼睛、一会儿在嘴巴，抖动也跟着放大。
@@ -609,7 +618,9 @@ export default function HappyBirdPage() {
       headLockConfirmFrames: 3,
       headLostGraceMs: 720,
       onLockChange: (locked) => {
-        if (!locked) inputRef.current = NO_HEAD_INPUT
+        if (locked) return
+        inputRef.current = NO_HEAD_INPUT
+        eyeOffsetRef.current = null
       },
       onRuntimeStateChange: (state, detail) => {
         setRuntimeState(state)
@@ -744,6 +755,9 @@ export default function HappyBirdPage() {
                 <Text className='bird-hint'>
                   手机竖着放远一点。引体、俯卧撑、深蹲都能玩。
                 </Text>
+              ) : null}
+              {status === 'idle' && SHOW_TRACKING_BUILD_TAG ? (
+                <Text className='bird-hint bird-hint--build'>{TRACKING_BUILD_TAG}</Text>
               ) : null}
             </View>
           ) : null}
