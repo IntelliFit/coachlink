@@ -25,23 +25,19 @@ import {
   type BodyTrackingRuntimeState,
   type BodyTrackingSnapshot
 } from '../games/bodyPointTracker'
-import {
-  mapHeadTravelToStage,
-  HEAD_TRAVEL_DEFAULTS,
-  HEAD_TRAVEL_IN_ROUND,
-  updateHeadTravel,
-  type HeadTravelRange
-} from '../games/headTravelMapper'
 import { BirdAudio } from './birdAudio'
+import { addLaneSample, laneFromSamples } from './birdLane'
 import {
   advanceGame,
   cancelToIdle,
   createGame,
   endRun,
   startCountdown,
+  WARMUP_GATES,
   type BirdEvent,
   type BirdGame,
   type BirdInput,
+  type Lane,
   type BirdStatus
 } from './birdModel'
 import { HappyBirdRecorder } from './birdRecorder'
@@ -156,7 +152,9 @@ export default function HappyBirdPage() {
   const canvasRef = useRef<CanvasHandle | null>(null)
   const rafIdRef = useRef<number | null>(null)
   const lastTickAtRef = useRef(0)
-  const headTravelRef = useRef<HeadTravelRange | null>(null)
+  // 门的通道：开飞后记录眼睛上下的范围，热身门出完就固定，一局之内不再变。
+  const laneSamplesRef = useRef<number[]>([])
+  const laneFrozenRef = useRef<Lane | null>(null)
   const audioRef = useRef<BirdAudio | null>(null)
   const trackerRef = useRef<BodyPointTracker | null>(null)
   const frameListenerRef = useRef<any>(null)
@@ -297,8 +295,9 @@ export default function HappyBirdPage() {
     }
     switch (event.type) {
       case 'go':
-        // 倒计时里人还在走位，这段位移不算动作幅度：开飞后重新校准。
-        headTravelRef.current = null
+        // 倒计时里人还在走位，这段位移不算：开飞后重新量通道。
+        laneSamplesRef.current = []
+        laneFrozenRef.current = null
         playStartedAtRef.current = Date.now()
         audioRef.current?.startMusic()
         if (recordingRef.current) recorderRef.current?.noteMusicStart()
@@ -343,6 +342,9 @@ export default function HappyBirdPage() {
     lastTickAtRef.current = now
 
     const before = gameRef.current.status
+    if (!laneFrozenRef.current && before === 'playing' && gameRef.current.gatesSpawned >= WARMUP_GATES) {
+      laneFrozenRef.current = laneFromSamples(laneSamplesRef.current, gameRef.current.bird.y)
+    }
     const input = hiddenRef.current ? NO_HEAD_INPUT : inputRef.current
     const step = advanceGame(gameRef.current, delta, input)
     gameRef.current = step.game
@@ -579,10 +581,13 @@ export default function HappyBirdPage() {
     const head = projectHeadAnchorToStage({ ...snapshot, y: snapshot.eyeY ?? snapshot.y }, frameSize, stageSizeRef.current)
     // 'holding' 是短暂没检测到（运动模糊等），高度沿用上次，游戏不因此卡顿。
     if (snapshot.lockState === 'locked') {
-      const travelOptions = gameRef.current.status === 'playing' ? HEAD_TRAVEL_IN_ROUND : HEAD_TRAVEL_DEFAULTS
-      headTravelRef.current = updateHeadTravel(headTravelRef.current, head.y, Date.now(), travelOptions)
+      // 小鸟 1:1 停在眼睛那条线上，不放大：放大会让它相对脸一会儿在眼睛、一会儿在嘴巴，抖动也跟着放大。
+      if (!laneFrozenRef.current && gameRef.current.status === 'playing') {
+        laneSamplesRef.current = addLaneSample(laneSamplesRef.current, head.y)
+      }
       inputRef.current = {
-        targetY: mapHeadTravelToStage(headTravelRef.current, head.y),
+        lane: laneFrozenRef.current ?? laneFromSamples(laneSamplesRef.current, head.y),
+        targetY: head.y,
         tracking: true
       }
       return
@@ -604,8 +609,6 @@ export default function HappyBirdPage() {
       headLockConfirmFrames: 3,
       headLostGraceMs: 720,
       onLockChange: (locked) => {
-        // 重新锁定说明人可能换了位置，幅度从头校准。
-        headTravelRef.current = null
         if (!locked) inputRef.current = NO_HEAD_INPUT
       },
       onRuntimeStateChange: (state, detail) => {
