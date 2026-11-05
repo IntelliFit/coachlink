@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const RETIRED = "deepseek-v4-flash";
-const REPLACEMENT = "deepseek-v4.1-flash";
+// 用户指定 2026-10-17 版 v4.1 Flash；与线上 WANJIE_ARK_PLAN_MODEL 一致。
+const REPLACEMENT = "deepseek-v4.1-flash-1017";
 
 const MODEL_ENV_KEYS = [
     "WANJIE_ARK_MODEL",
@@ -63,10 +64,10 @@ describe("coachlinkLlm model resolution", () => {
     });
 
     it("keeps a served plan model as configured", async () => {
-        vi.stubEnv("WANJIE_ARK_PLAN_MODEL", "deepseek-v4.1-flash-1017");
+        vi.stubEnv("WANJIE_ARK_PLAN_MODEL", "deepseek-v4.1-flash");
         const { getCoachlinkPlanLlm } = await loadLlm();
 
-        expect(getCoachlinkPlanLlm().model).toBe("deepseek-v4.1-flash-1017");
+        expect(getCoachlinkPlanLlm().model).toBe("deepseek-v4.1-flash");
         expect(warnSpy).not.toHaveBeenCalled();
     });
 
@@ -85,11 +86,12 @@ describe("coachlinkLlm model resolution", () => {
         expect(getCoachlinkLlm().model).toBe(REPLACEMENT);
     });
 
-    it("never resolves the fast or plan-script kinds to the retired model when unset", async () => {
+    // 线上 Apollo 没配 FAST / PLAN_SCRIPT，这两类实际用的就是代码默认值。
+    it("resolves the fast and plan-script kinds to deepseek-v4.1-flash-1017 when unset", async () => {
         const { getCoachlinkFastLlm, getCoachlinkPlanScriptLlm } = await loadLlm();
 
-        expect(getCoachlinkFastLlm().model).not.toBe(RETIRED);
-        expect(getCoachlinkPlanScriptLlm().model).not.toBe(RETIRED);
+        expect(getCoachlinkFastLlm().model).toBe(REPLACEMENT);
+        expect(getCoachlinkPlanScriptLlm().model).toBe(REPLACEMENT);
     });
 
     it("replaces a retired model set explicitly for the fast and plan-script kinds", async () => {

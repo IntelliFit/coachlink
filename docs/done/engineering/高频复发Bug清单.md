@@ -568,6 +568,6 @@
 
 - **现象**：万界方舟自 2026-11-04 起对 `deepseek-v4-flash` 返回「500 模型获取失败」。初始计划自动化（`createAiInstanceForSubscription`）捕获错误后改用规则匹配，计划照常发布，但规则匹配不读问卷，学员写的伤病和禁忌动作都没有避开。线上 `[workout-energy]` 的 MET 分类每天失败多次，只留下一条 warn。
 - **根因**：模型名分散在 Apollo 各用途的 key 和代码默认值里（`WANJIE_ARK_PLAN_MODEL` 没有默认值，`FAST` / `PLAN_SCRIPT` 的默认值是 `deepseek-v4-flash`），网关下线模型后没有一处统一替换。调用方的兜底把失败变成了「看起来成功」。本地配置快照和线上 Apollo 的值也不一样（本地 plan 用 `deepseek-v4-flash`，线上用 `deepseek-v4.1-flash-1017`），所以问题只在本地手动激活订阅时暴露。
-- **统一规则**：模型名最后都经过 `src/lib/coachlinkLlm.ts` 的 `resolveServedWanjieModel`。已下线的模型登记在 `RETIRED_WANJIE_MODELS`，运行时换成仍在服务的模型，并按用途告警一次。LLM 失败后走兜底的地方，必须在结果里留下标记（如 `coach_plan_instances.ai_generation_log.fallback`）。
+- **统一规则**：模型名最后都经过 `src/lib/coachlinkLlm.ts` 的 `resolveServedWanjieModel`。已下线的模型登记在 `RETIRED_WANJIE_MODELS`，运行时换成仍在服务的模型（目前 `deepseek-v4-flash` → `deepseek-v4.1-flash-1017`，即 2026-10-17 版），并按用途告警一次。LLM 失败后走兜底的地方，必须在结果里留下标记（如 `coach_plan_instances.ai_generation_log.fallback`）。
 - **改动前自检**：网关下线一个模型，哪些用途会受影响（plan / planScript / fast / coachReply / vision / default）？兜底结果有没有标记，教练能不能看出来？本地快照里的模型名和线上 Apollo 是否一致？
 - **典型案例**（2026-11-05）：一份订阅在本地手动激活后，初始计划走了规则匹配并直接发布。线上计划生成未受影响，但 fast 和 planScript 两类调用落到了下线的默认模型。测试 `src/lib/coachlinkLlm.test.ts`。

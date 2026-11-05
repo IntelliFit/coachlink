@@ -41,9 +41,10 @@ function getWanjieModel(kind: WanjieModelKind): string {
  * 网关已下线的模型 → 仍在服务的替代模型。
  * deepseek-v4-flash 自 2026-11-04 起返回「500 模型获取失败」：计划生成会静默退回规则匹配（不读问卷、伤病），
  * 短任务直接失败。配置或代码默认值仍指向这些模型时，改用替代模型并在每个进程内按用途告警一次。
+ * 替代模型用 2026-10-17 版 deepseek-v4.1-flash-1017，与线上 WANJIE_ARK_PLAN_MODEL 一致。
  */
 const RETIRED_WANJIE_MODELS: Readonly<Record<string, string>> = Object.freeze({
-    "deepseek-v4-flash": "deepseek-v4.1-flash",
+    "deepseek-v4-flash": "deepseek-v4.1-flash-1017",
 });
 
 const WANJIE_MODEL_ENV_KEY: Readonly<Record<WanjieModelKind, string>> = Object.freeze({
