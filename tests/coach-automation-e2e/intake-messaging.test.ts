@@ -4,6 +4,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// 第一个场景要冷加载所有路由模块，全量并行跑时会超过默认 5 秒。
+vi.setConfig({ testTimeout: 30_000 });
+
 vi.mock("@/lib/supabaseClient", async () => (await import("./harness")).mockModules.supabaseClient());
 vi.mock("@/lib/coachlinkLlm", async () => (await import("./harness")).mockModules.coachlinkLlm());
 vi.mock("@/lib/getApiUserId", async () => (await import("./harness")).mockModules.getApiUserId());

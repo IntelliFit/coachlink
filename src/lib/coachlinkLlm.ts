@@ -21,18 +21,21 @@ function getWanjieBaseUrl(): string {
     return (process.env.WANJIE_ARK_BASE_URL?.trim() || WANJIE_ARK_DEFAULT_BASE_URL).replace(/\/+$/, "");
 }
 
+// 网关已不提供 deepseek-v4-flash（2026-11-04 实测返回「模型获取失败」）；没在配置里指定时用 v4.1-flash。
+const DEFAULT_WANJIE_FLASH_MODEL = "deepseek-v4.1-flash";
+
 function getWanjieModel(kind: WanjieModelKind): string {
     const override =
         kind === "plan"
             ? process.env.WANJIE_ARK_PLAN_MODEL?.trim()
             : kind === "planScript"
-                ? process.env.WANJIE_ARK_PLAN_SCRIPT_MODEL?.trim() || "deepseek-v4-flash"
+                ? process.env.WANJIE_ARK_PLAN_SCRIPT_MODEL?.trim() || DEFAULT_WANJIE_FLASH_MODEL
             : kind === "coachReply"
                 ? process.env.WANJIE_ARK_COACH_REPLY_MODEL?.trim()
                 : kind === "vision"
                     ? process.env.WANJIE_ARK_VISION_MODEL?.trim()
                     : kind === "fast"
-                        ? process.env.WANJIE_ARK_FAST_MODEL?.trim() || "deepseek-v4-flash"
+                        ? process.env.WANJIE_ARK_FAST_MODEL?.trim() || DEFAULT_WANJIE_FLASH_MODEL
                 : undefined;
     return override || getRequiredEnv("WANJIE_ARK_MODEL");
 }
