@@ -4717,5 +4717,27 @@
     "assetKind": "generated-illustration",
     "styleReference": "CoachLink v4 persona sheet",
     "poseCount": 1
+  },
+  "18f38c3a-b512-44c5-8479-3e6a5eedf12c": {
+    "canonicalActionId": "custom_2492d5ef-c4bd-4841-9151-a59f1846f10b",
+    "imageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/reviewed-library-2026-11-06/planche-lean-hold-7aeb8a07c6eb.png",
+    "sourceUrl": "https://calisthenics.com/exercise/planche-leans/",
+    "credit": "CoachLink generated anatomy illustration; human video frames used as pose references",
+    "license": "Project-generated illustration",
+    "reviewedAt": "2026-11-06",
+    "assetKind": "generated-illustration",
+    "styleReference": "CoachLink v4 anatomy; approved supinated-bar-muscleup-106ede9189d7 as style only",
+    "poseCount": 1
+  },
+  "35018603-cb60-400c-a364-aaa3d70583b4": {
+    "canonicalActionId": "custom_cb93e4bb-551a-43f2-b458-f56537066504",
+    "imageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/reviewed-library-2026-11-06/planche-lean-rocks-d6ac1bb57a92.png",
+    "sourceUrl": "https://calisthenics.com/exercise/planche-leans/",
+    "credit": "CoachLink generated anatomy illustration; human video frames used as pose references",
+    "license": "Project-generated illustration",
+    "reviewedAt": "2026-11-06",
+    "assetKind": "generated-illustration",
+    "styleReference": "CoachLink v4 anatomy; approved supinated-bar-muscleup-106ede9189d7 as style only",
+    "poseCount": 2
   }
 }
