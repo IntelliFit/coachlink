@@ -199,6 +199,17 @@ class ImpromptuService {
     return null
   }
 
+  /** 记录某一已完成组之后实际休息了多久（秒）；只写 actual_rest_seconds，不改计划间歇。失败时抛错。 */
+  async recordRest(input: { executionId: string; actionIndex: number; setIndex: number; actualRestSeconds: number; actionKey: string }): Promise<void> {
+    const res = await request({
+      url: `${this.baseUrl}/record-rest`,
+      method: 'POST',
+      data: input,
+      showErrorToast: false
+    })
+    if (!res.success) throw new Error(res.message || '记录休息时长失败')
+  }
+
   /** 删除额外动作 */
   /** 调整本次训练的动作顺序；order[新位置] = 旧下标。失败时抛出带服务端提示的错误。 */
   async reorderActions(executionId: string, order: number[], actionKeys: string[]): Promise<void> {

@@ -342,6 +342,17 @@ class ExecutionService {
     return null
   }
 
+  /** 记录某一已完成组之后实际休息了多久（秒）；只写 actual_rest_seconds，不改计划间歇。失败时抛错。 */
+  async recordRest(input: { executionId: string; actionIndex: number; setIndex: number; actualRestSeconds: number; actionKey: string }): Promise<void> {
+    const res = await request({
+      url: `${this.baseUrl}/record-rest`,
+      method: 'POST',
+      data: input,
+      showErrorToast: false
+    })
+    if (!res.success) throw new Error(res.message || '记录休息时长失败')
+  }
+
   /**
    * 删除额外动作（仅限 source: student_extra）
    */

@@ -25,6 +25,15 @@ import { toggleQuickRpe, type TrainingViewMode } from '@coachlink/core/src/train
 import { readTrainingViewMode, saveTrainingViewMode } from '@/utils/trainingViewMode'
 import { fromKg, getSetDisplayWeight, inheritedPlannedWeightUnit, toKg, weightUnitLabel, type SetWeightUnit } from '@coachlink/core/src/weightUnit'
 import { formatRestMinutes } from '@coachlink/core/src/restDisplay'
+import {
+  applyActualRest,
+  computeActualRestSeconds,
+  formatActionRestSummary,
+  formatSetRestDetail,
+  isRestTarget,
+  remapRestTarget,
+  type RestTarget
+} from '@coachlink/core/src/restRecord'
 import { resolveWeappImageThumbnailUrl } from '@/utils/mediaUrl'
 import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas, Swiper, SwiperItem } from '@tarojs/components'
 import { ClButton, ClTag } from '@/components/ui'
@@ -516,6 +525,10 @@ function TrainingExecution() {
   const loadingRef = React.useRef(true)
   const suppressAutoRefreshUntilRef = React.useRef(0)
   const restTimerDeadlineAtRef = React.useRef(0)
+  /** 正在休息的是哪一组（完成那一组时开始）；休息结束时把实际时长记到这一组。 */
+  const restTargetRef = React.useRef<RestTarget | null>(null)
+  /** 记录休息的请求串行排队；其他写执行记录的请求先等它，避免并发读改写覆盖彼此。 */
+  const restRecordSaveRef = React.useRef<Promise<void>>(Promise.resolve())
 
   const currentUser = authService.getCurrentUser() || {}
   const userId = currentUser?.id
@@ -618,7 +631,8 @@ function TrainingExecution() {
       try {
         Taro.setStorageSync(restTimerStorageKey, {
           executionId,
-          deadlineAt
+          deadlineAt,
+          target: restTargetRef.current
         })
       } catch {
         // Best effort only.
@@ -635,6 +649,8 @@ function TrainingExecution() {
         if (!stored || String(stored.executionId || '') !== String(execution.id)) return
         const deadlineAt = Number(stored.deadlineAt || 0)
         const remaining = Math.ceil((deadlineAt - Date.now()) / 1000)
+        const storedTarget = isRestTarget(stored.target) && stored.target.executionId === String(execution.id) ? stored.target : null
+        if (storedTarget && !restTargetRef.current) restTargetRef.current = storedTarget
         if (deadlineAt > 0 && remaining > 0) {
           restTimerDeadlineAtRef.current = deadlineAt
           setRestTimer(remaining)
@@ -642,6 +658,9 @@ function TrainingExecution() {
           if (minimizeWhenRestored) setRestTimerMinimized(true)
           return
         }
+        // 离开页面期间倒计时已经走完：按截止时刻记下这次休息
+        restTimerDeadlineAtRef.current = deadlineAt
+        endRestAndRecordRef.current(Date.now())
         setRestTimer(0)
         setIsResting(false)
         setRestTimerMinimized(false)
@@ -669,6 +688,54 @@ function TrainingExecution() {
     },
     [actions, dayIndex, executionSnapshotScopeKey, instanceId, isImpromptuMode, planInstance, userId]
   )
+
+  /** 其他写执行记录的请求先调用它，等排队中的休息记录写完。 */
+  const waitForRestRecordSave = React.useCallback(() => restRecordSaveRef.current, [])
+
+  /** 写到本地（界面 + 两份缓存）后排队写云端；云端失败只记日志，不打扰训练。 */
+  const recordActualRest = React.useCallback(
+    (target: RestTarget, seconds: number) => {
+      const current = executionRef.current
+      if (!current?.id || String(current.id) !== target.executionId) return
+      const applied = applyActualRest<ActionExecution>(current.action_executions || [], target.actionIndex, target.setIndex, seconds)
+      if (!applied.ok) return
+      const next = { ...current, action_executions: applied.actions }
+      executionRef.current = next
+      setExecution(next)
+      syncExecutionToCaches(next)
+      if (isPreviewExecution || !cloudExecutionReady) return
+      const payload = {
+        executionId: target.executionId,
+        actionIndex: target.actionIndex,
+        setIndex: target.setIndex,
+        actualRestSeconds: seconds,
+        actionKey: executionActionKey(applied.actions[target.actionIndex])
+      }
+      const service = isImpromptuMode ? impromptuService : executionService
+      restRecordSaveRef.current = restRecordSaveRef.current
+        .then(() => service.recordRest(payload))
+        .catch((error) => {
+          console.warn('记录组间休息时长失败:', error)
+        })
+    },
+    [cloudExecutionReady, isImpromptuMode, isPreviewExecution, syncExecutionToCaches]
+  )
+
+  /** 休息结束（走完 / 跳过 / 减到 0 / 直接完成下一组）：按 min(结束时刻, 截止时刻) 记录实际休息。 */
+  const endRestAndRecord = React.useCallback(
+    (endedAt: number) => {
+      const target = restTargetRef.current
+      restTargetRef.current = null
+      if (!target) return
+      const seconds = computeActualRestSeconds({ startedAt: target.startedAt, deadlineAt: restTimerDeadlineAtRef.current, endedAt })
+      if (seconds === null) return
+      recordActualRest(target, seconds)
+    },
+    [recordActualRest]
+  )
+  // 计时 effect 和 reconcile 在 endRestAndRecord 定义前创建，经 ref 调用最新版本。
+  const endRestAndRecordRef = React.useRef(endRestAndRecord)
+  endRestAndRecordRef.current = endRestAndRecord
 
   const parseInputNumber = React.useCallback((value: string, mode: 'int' | 'float' = 'float') => {
     const trimmed = String(value ?? '').trim()
@@ -1149,6 +1216,7 @@ function TrainingExecution() {
     const updateRestTimer = () => {
       const remaining = Math.ceil((restTimerDeadlineAtRef.current - Date.now()) / 1000)
       if (remaining <= 0) {
+        endRestAndRecordRef.current(Date.now())
         setRestTimer(0)
         setIsResting(false)
         setRestTimerMinimized(false)
@@ -1449,7 +1517,12 @@ function TrainingExecution() {
     const actionKeys = currentActions.map(executionActionKey)
     setSavingOrder(true)
     try {
+      await waitForRestRecordSave()
       await (isImpromptuMode ? impromptuService : executionService).reorderActions(current.id, order, actionKeys)
+      restTargetRef.current = remapRestTarget(restTargetRef.current, order)
+      if (isResting && restTimerDeadlineAtRef.current > 0) {
+        persistRestTimer(Math.ceil((restTimerDeadlineAtRef.current - Date.now()) / 1000), current.id)
+      }
       const updatedExecution = {
         ...current,
         action_executions: reorderExecutionActions(currentActions, order, { keepPlanIndex: !isImpromptuMode })
@@ -1592,6 +1665,8 @@ function TrainingExecution() {
     try {
       completionMutationRef.current = true
       setCompleting(true)
+      if (!isEditing && isResting) endRestAndRecord(Date.now())
+      await waitForRestRecordSave()
 
       const data = isImpromptuMode
         ? await impromptuService.completeSet(
@@ -1619,8 +1694,8 @@ function TrainingExecution() {
           )
 
       if (data) {
-        // 更新本地状态
-        const updatedExecution = { ...execution }
+        // 更新本地状态（从 ref 取：上面刚记下的休息时长还没进到这次渲染的 execution）
+        const updatedExecution = { ...(executionRef.current || execution) }
         const updatedActionExecutions = [...updatedExecution.action_executions]
         const updatedAction = { ...updatedActionExecutions[expandedAction] }
         const updatedSets = [...updatedAction.sets]
@@ -1662,6 +1737,12 @@ function TrainingExecution() {
         if (!isEditing) {
           const restSeconds = Number(currentSet.planned_rest_seconds || 90)
           if (Number.isFinite(restSeconds) && restSeconds > 0) {
+            restTargetRef.current = {
+              executionId: String(execution.id),
+              actionIndex: expandedAction,
+              setIndex: currentSetIndex,
+              startedAt: Date.now()
+            }
             setRestTimer(restSeconds)
             setIsResting(true)
             setRestTimerMinimized(false)
@@ -1745,6 +1826,7 @@ function TrainingExecution() {
         if (res.confirm) {
           try {
             setCompleting(true)
+            await waitForRestRecordSave()
 
             const finishRes = isImpromptuMode
               ? await impromptuService.finish(impromptuId)
@@ -1839,6 +1921,7 @@ function TrainingExecution() {
         if (res.confirm) {
           try {
             setCompleting(true)
+            await waitForRestRecordSave()
 
             const finishRes = isImpromptuMode
               ? await impromptuService.finish(impromptuId, { mode: 'quick' })
@@ -2034,6 +2117,7 @@ function TrainingExecution() {
     const inheritedPlanReps = inheritedSet.planned_reps || inheritedReps
     try {
       setAddingExtraSet(true)
+      await waitForRestRecordSave()
       const res = isImpromptuMode
         ? await impromptuService.addExtraSet(execution.id, actionIndex, {
             weight: inheritedPlanWeight,
@@ -2147,10 +2231,12 @@ function TrainingExecution() {
         if (!res.confirm) return
         try {
           setRemovingSet(true)
+          await waitForRestRecordSave()
           const ok = isImpromptuMode
             ? await impromptuService.deleteExtraSet(execution.id, actionIndex, setIdx)
             : await executionService.deleteExtraSet(execution.id, actionIndex, setIdx)
           if (ok) {
+            if (restTargetRef.current?.actionIndex === actionIndex) restTargetRef.current = null
             const updated = { ...execution }
             const ae = updated.action_executions[actionIndex]
             ae.sets.splice(setIdx, 1)
@@ -2190,10 +2276,12 @@ function TrainingExecution() {
         if (!res.confirm) return
         try {
           setRemovingAction(true)
+          await waitForRestRecordSave()
           const ok = isImpromptuMode
             ? await impromptuService.deleteExtraExercise(execution.id, actionIndex)
             : await executionService.deleteExtraExercise(execution.id, actionIndex)
           if (ok) {
+            if (restTargetRef.current && restTargetRef.current.actionIndex >= actionIndex) restTargetRef.current = null
             const updated = { ...execution }
             updated.action_executions.splice(actionIndex, 1)
             setExecution(updated)
@@ -2455,6 +2543,7 @@ function TrainingExecution() {
   }
 
   const handleSkipRest = () => {
+    endRestAndRecord(Date.now())
     setRestTimer(0)
     setIsResting(false)
     setRestTimerMinimized(false)
@@ -2468,6 +2557,7 @@ function TrainingExecution() {
     const next = Math.max(0, deadlineRemaining + seconds)
     setRestTimer(next)
     if (next <= 0) {
+      endRestAndRecord(Date.now())
       setIsResting(false)
       setRestTimerMinimized(false)
       clearPersistedRestTimer()
@@ -2516,6 +2606,7 @@ function TrainingExecution() {
             instanceId,
             dayIndex
           })
+          restTargetRef.current = null
           clearPersistedRestTimer()
           if (trainingTimerStorageKey) {
             try {
@@ -3066,7 +3157,7 @@ function TrainingExecution() {
         </View>
         <View className="txv3-details__cell">
           <Text className="txv3-details__label">休息</Text>
-          <Text className="txv3-details__value">{formatRestSummary(set.planned_rest_seconds)}</Text>
+          <Text className="txv3-details__value">{formatSetRestDetail(set)}</Text>
         </View>
         <View className="txv3-details__cell">
           <Text className="txv3-details__label">e1RM</Text>
@@ -3159,7 +3250,7 @@ function TrainingExecution() {
           `${action.total_sets} 组`,
           formatPlannedRepsText(firstSet) || null,
           (lbsWeightText(firstSet, 'planned') ?? firstSet?.planned_weight) || null,
-          firstSet?.planned_rest_seconds ? formatRestSummary(firstSet.planned_rest_seconds) : null
+          formatActionRestSummary(action.sets) || null
         ].filter(Boolean).join(' · ')
       : actionMeta.cue
     return {
