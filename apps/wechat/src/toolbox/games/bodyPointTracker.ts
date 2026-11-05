@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro'
 import { API_BASE_URL } from '@/utils/request'
-import { eyeLineFromFace, type EyeLine } from './faceAnchor'
+import { eyeLineFromFace, eyeYFromPose, type EyeLine } from './faceAnchor'
 import { createOneEuroFilter } from './oneEuroFilter'
 import { realtimeLog } from './realtimeLog'
 
@@ -163,6 +163,7 @@ function buildHeadAnchor(points: PosePoint[], frameAspect: number): HeadAnchor |
     const radiusX = clamp(Math.max(headWidth * 0.82, shoulderSpan * 0.28), 0.055, 0.14)
     return {
       ...head,
+      eyeY: eyeYFromPose(points, POSE_SCORE_THRESHOLD),
       headRadiusX: radiusX,
       headRadiusY: clamp(radiusX * frameAspect * 1.32, 0.06, 0.18),
       target: 'head' as const
@@ -714,6 +715,9 @@ export class BodyPointTracker {
     const alpha = anchor.presmoothed ? 1 : speed > 0.035 ? 0.94 : speed > 0.012 ? 0.88 : 0.78
     const x = previous.x * (1 - alpha) + anchor.x * alpha
     const y = previous.y * (1 - alpha) + anchor.y * alpha
+    const eyeY = anchor.eyeY === undefined
+      ? undefined
+      : previous.eyeY === undefined ? anchor.eyeY : previous.eyeY * (1 - alpha) + anchor.eyeY * alpha
 
     this.lastPoseSnapshotAt = completedAt
     return {
@@ -731,7 +735,7 @@ export class BodyPointTracker {
       velocityY: (y - previous.y) / elapsedScale,
       x: clamp(x, 0.04, 0.96),
       y: clamp(y, 0.06, 0.94),
-      ...(anchor.eyeY === undefined ? {} : { eyeY: clamp(anchor.eyeY, 0.04, 0.96) })
+      ...(eyeY === undefined ? {} : { eyeY: clamp(eyeY, 0.04, 0.96) })
     }
   }
 
