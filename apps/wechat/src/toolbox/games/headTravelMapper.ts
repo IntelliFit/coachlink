@@ -23,10 +23,20 @@ export type HeadTravelOptions = {
   relaxPerSecond: number
 }
 
+/**
+ * minRange 决定最大放大倍数（playSpan / minRange）：0.16 时约 4.7 倍，头的细小抖动也被放大成小鸟乱飘；
+ * 0.24 封顶约 3.2 倍，头要上下动出画面高度的 24% 才能碰到最上和最下的门。
+ */
 export const HEAD_TRAVEL_DEFAULTS: HeadTravelOptions = {
-  minRange: 0.16,
+  minRange: 0.24,
   playSpan: 0.76,
   relaxPerSecond: 0.1
+}
+
+/** 一局进行中只放大不回收：幅度估计不再一边玩一边缩，头的同一高度始终对应小鸟的同一高度。 */
+export const HEAD_TRAVEL_IN_ROUND: HeadTravelOptions = {
+  ...HEAD_TRAVEL_DEFAULTS,
+  relaxPerSecond: 0
 }
 
 const MAX_RELAX_GAP_MS = 1000

@@ -12,6 +12,7 @@ import {
   markMotionGameRunLocalOnly,
   persistMotionGameRunLocally
 } from '@/utils/motionGameLeaderboardCache'
+import { readMiniProgramEnvVersion } from '@/utils/apiBaseUrl'
 import { usePageEnterTrace } from '@/utils/pageTrace'
 import {
   buildSharePath,
@@ -25,21 +26,24 @@ import {
   type BodyTrackingRuntimeState,
   type BodyTrackingSnapshot
 } from '../games/bodyPointTracker'
-import {
-  mapHeadTravelToStage,
-  updateHeadTravel,
-  type HeadTravelRange
-} from '../games/headTravelMapper'
 import { BirdAudio } from './birdAudio'
+import { addLaneSample, laneFromSamples } from './birdLane'
 import {
   advanceGame,
   cancelToIdle,
   createGame,
+  DEFAULT_PACE,
   endRun,
+  isBirdPace,
+  PACE_ORDER,
+  PACES,
   startCountdown,
+  WARMUP_GATES,
   type BirdEvent,
   type BirdGame,
   type BirdInput,
+  type BirdPace,
+  type Lane,
   type BirdStatus
 } from './birdModel'
 import { HappyBirdRecorder } from './birdRecorder'
@@ -64,6 +68,7 @@ const REPLAY_FRAME_INTERVAL_MS = 1000 / BIRD_REPLAY_FPS
 const RESULT_HOLD_MS = 2600
 
 type BirdPrefs = {
+  pace: BirdPace
   record: boolean
   sound: boolean
 }
@@ -83,13 +88,15 @@ type CanvasHandle = {
   width: number
 }
 
-const DEFAULT_PREFS: BirdPrefs = { record: true, sound: true }
+const DEFAULT_PREFS: BirdPrefs = { pace: DEFAULT_PACE, record: true, sound: true }
 const NO_HEAD_INPUT: BirdInput = { targetY: null, tracking: false }
 
 function readPrefs(): BirdPrefs {
   try {
     const stored = Taro.getStorageSync(PREFS_KEY) as Partial<BirdPrefs> | ''
-    return stored ? { ...DEFAULT_PREFS, ...stored } : DEFAULT_PREFS
+    if (!stored) return DEFAULT_PREFS
+    const merged = { ...DEFAULT_PREFS, ...stored }
+    return { ...merged, pace: isBirdPace(merged.pace) ? merged.pace : DEFAULT_PACE }
   } catch {
     return DEFAULT_PREFS
   }
@@ -127,6 +134,10 @@ function storedUserId() {
   }
 }
 
+/** 体验版、开发版在开始页显示小鸟跟随是哪一版，测的时候一眼能确认；正式版不显示。改跟随逻辑时一起改。 */
+const TRACKING_BUILD_TAG = '跟随版本：眼睛 1:1 锁定 + 三档速度 · 11-06'
+const SHOW_TRACKING_BUILD_TAG = readMiniProgramEnvVersion() !== 'release'
+
 export default function HappyBirdPage() {
   usePageEnterTrace()
 
@@ -140,6 +151,8 @@ export default function HappyBirdPage() {
   const [runtimeDetail, setRuntimeDetail] = useState('正在启动头部识别')
   const [recording, setRecording] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [processingLabel, setProcessingLabel] = useState('')
+  const [processingSeconds, setProcessingSeconds] = useState(0)
   const [videoPath, setVideoPath] = useState('')
   const [saving, setSaving] = useState(false)
   const [ranking, setRanking] = useState<MotionGameRankingResult | null>(null)
@@ -152,7 +165,11 @@ export default function HappyBirdPage() {
   const canvasRef = useRef<CanvasHandle | null>(null)
   const rafIdRef = useRef<number | null>(null)
   const lastTickAtRef = useRef(0)
-  const headTravelRef = useRef<HeadTravelRange | null>(null)
+  // 门的通道：开飞后记录眼睛上下的范围，热身门出完就固定，一局之内不再变。
+  const laneSamplesRef = useRef<number[]>([])
+  // 眼睛比头部中心高多少：偶尔识别拿不到眼睛时沿用它，小鸟不跳到头中心。
+  const eyeOffsetRef = useRef<number | null>(null)
+  const laneFrozenRef = useRef<Lane | null>(null)
   const audioRef = useRef<BirdAudio | null>(null)
   const trackerRef = useRef<BodyPointTracker | null>(null)
   const frameListenerRef = useRef<any>(null)
@@ -184,9 +201,12 @@ export default function HappyBirdPage() {
     bestScore: bestScoreRef.current
   })
 
-  const withSoundtrack = async (videoPath: string, recorder: HappyBirdRecorder) => {
+  const withSoundtrack = async (videoPath: string, recorder: HappyBirdRecorder, stopMs: number) => {
     try {
-      return await addSoundtrackToVideo(videoPath, recorder.soundtrackPlan())
+      return await addSoundtrackToVideo(videoPath, recorder.soundtrackPlan(), {
+        logFields: { game: 'happy-bird', stopMs },
+        onStage: () => setProcessingLabel('写入声音')
+      })
     } catch (error: any) {
       console.warn('快乐小鸟合成声音失败:', error)
       Taro.showToast({ title: `声音没合成进去，已保存无声视频：${String(error?.message || '').slice(0, 24)}`, icon: 'none', duration: 3000 })
@@ -200,11 +220,16 @@ export default function HappyBirdPage() {
     recordingRef.current = false
     setRecording(false)
     setProcessing(true)
+    setProcessingLabel('整理画面')
+    const startedAt = Date.now()
+    setProcessingSeconds(0)
+    // 生成可能要几十秒，按秒显示进度，用户知道没卡住。
+    const secondsTimer = setInterval(() => setProcessingSeconds(Math.floor((Date.now() - startedAt) / 1000)), 1000)
     try {
       const result = await recorder.stop()
       if (unmountedRef.current) return
       if (result?.tempVideoPath) {
-        const finalPath = await withSoundtrack(result.tempVideoPath, recorder)
+        const finalPath = await withSoundtrack(result.tempVideoPath, recorder, Date.now() - startedAt)
         if (unmountedRef.current) return
         setVideoPath(await keepReplay(finalPath))
       } else {
@@ -215,6 +240,7 @@ export default function HappyBirdPage() {
         Taro.showToast({ title: error?.message || '视频生成失败', icon: 'none' })
       }
     } finally {
+      clearInterval(secondsTimer)
       await recorder.destroy()
       if (recorderRef.current === recorder) recorderRef.current = null
       if (!unmountedRef.current) setProcessing(false)
@@ -284,8 +310,9 @@ export default function HappyBirdPage() {
     }
     switch (event.type) {
       case 'go':
-        // 倒计时里人还在走位，这段位移不算动作幅度：开飞后重新校准。
-        headTravelRef.current = null
+        // 倒计时里人还在走位，这段位移不算：开飞后重新量通道。
+        laneSamplesRef.current = []
+        laneFrozenRef.current = null
         playStartedAtRef.current = Date.now()
         audioRef.current?.startMusic()
         if (recordingRef.current) recorderRef.current?.noteMusicStart()
@@ -330,6 +357,9 @@ export default function HappyBirdPage() {
     lastTickAtRef.current = now
 
     const before = gameRef.current.status
+    if (!laneFrozenRef.current && before === 'playing' && gameRef.current.gatesSpawned >= WARMUP_GATES) {
+      laneFrozenRef.current = laneFromSamples(laneSamplesRef.current, gameRef.current.bird.y)
+    }
     const input = hiddenRef.current ? NO_HEAD_INPUT : inputRef.current
     const step = advanceGame(gameRef.current, delta, input)
     gameRef.current = step.game
@@ -477,7 +507,7 @@ export default function HappyBirdPage() {
     roundSyncedRef.current = false
     sessionIdRef.current = null
     bestScoreRef.current = Math.max(bestScoreRef.current, gameRef.current.score, readLocalBest())
-    gameRef.current = startCountdown(gameRef.current, roundSeed())
+    gameRef.current = startCountdown(gameRef.current, roundSeed(), prefsRef.current.pace)
     setRanking(null)
     setSyncState('idle')
     setVideoPath('')
@@ -506,11 +536,19 @@ export default function HappyBirdPage() {
     gameRef.current = endRun(gameRef.current)
   }
 
-  const togglePref = (key: keyof BirdPrefs) => {
-    const next = { ...prefsRef.current, [key]: !prefsRef.current[key] }
+  const savePrefs = (next: BirdPrefs) => {
     prefsRef.current = next
     setPrefs(next)
     writePrefs(next)
+  }
+
+  const choosePace = (pace: BirdPace) => {
+    if (prefsRef.current.pace !== pace) savePrefs({ ...prefsRef.current, pace })
+  }
+
+  const togglePref = (key: 'record' | 'sound') => {
+    const next = { ...prefsRef.current, [key]: !prefsRef.current[key] }
+    savePrefs(next)
     if (key === 'sound') audioRef.current?.setEnabled(next.sound)
   }
 
@@ -562,12 +600,19 @@ export default function HappyBirdPage() {
   const handleSnapshot = (snapshot: BodyTrackingSnapshot) => {
     if (!snapshot.locked) return
     const frameSize = { height: snapshot.frameHeight, width: snapshot.frameWidth }
-    const head = projectHeadAnchorToStage(snapshot, frameSize, stageSizeRef.current)
+    // 跟眼睛那一条线，不跟脸框中心：用力张嘴时脸框被下巴撑大，中心会往下跑。
+    if (snapshot.eyeY !== undefined) eyeOffsetRef.current = snapshot.eyeY - snapshot.y
+    const eyeY = snapshot.eyeY ?? snapshot.y + (eyeOffsetRef.current ?? 0)
+    const head = projectHeadAnchorToStage({ ...snapshot, y: eyeY }, frameSize, stageSizeRef.current)
     // 'holding' 是短暂没检测到（运动模糊等），高度沿用上次，游戏不因此卡顿。
     if (snapshot.lockState === 'locked') {
-      headTravelRef.current = updateHeadTravel(headTravelRef.current, head.y, Date.now())
+      // 小鸟 1:1 停在眼睛那条线上，不放大：放大会让它相对脸一会儿在眼睛、一会儿在嘴巴，抖动也跟着放大。
+      if (!laneFrozenRef.current && gameRef.current.status === 'playing') {
+        laneSamplesRef.current = addLaneSample(laneSamplesRef.current, head.y)
+      }
       inputRef.current = {
-        targetY: mapHeadTravelToStage(headTravelRef.current, head.y),
+        lane: laneFrozenRef.current ?? laneFromSamples(laneSamplesRef.current, head.y),
+        targetY: head.y,
         tracking: true
       }
       return
@@ -585,12 +630,13 @@ export default function HappyBirdPage() {
     })
     trackerRef.current = new BodyPointTracker({
       anchorMode: 'head',
+      logLabel: 'happy-bird',
       headLockConfirmFrames: 3,
       headLostGraceMs: 720,
       onLockChange: (locked) => {
-        // 重新锁定说明人可能换了位置，幅度从头校准。
-        headTravelRef.current = null
-        if (!locked) inputRef.current = NO_HEAD_INPUT
+        if (locked) return
+        inputRef.current = NO_HEAD_INPUT
+        eyeOffsetRef.current = null
       },
       onRuntimeStateChange: (state, detail) => {
         setRuntimeState(state)
@@ -692,6 +738,20 @@ export default function HappyBirdPage() {
           {showStartPanel ? (
             <View className='bird-controls'>
               {status === 'result' && rankLine ? <Text className='bird-rank'>{rankLine}</Text> : null}
+              <View className='bird-pace'>
+                <Text className='bird-pace__label'>速度</Text>
+                <View className='bird-pace__group'>
+                  {PACE_ORDER.map((pace) => (
+                    <View
+                      key={pace}
+                      className={`bird-pace__item ${prefs.pace === pace ? 'bird-pace__item--on' : ''}`}
+                      onClick={() => choosePace(pace)}
+                    >
+                      <Text className='bird-pace__text'>{PACES[pace].label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
               <View className='bird-chips'>
                 <View className={`bird-chip ${prefs.record ? 'bird-chip--on' : ''}`} onClick={() => togglePref('record')}>
                   <Text className='bird-chip__text'>录视频</Text>
@@ -710,7 +770,7 @@ export default function HappyBirdPage() {
                     onClick={() => !processing && void saveVideo()}
                   >
                     <Text className='bird-btn__text'>
-                      {processing ? '视频生成中…' : saving ? '正在保存' : '保存视频'}
+                      {processing ? `${processingLabel || '视频生成'}中… ${processingSeconds}s` : saving ? '正在保存' : '保存视频'}
                     </Text>
                   </View>
                 ) : null}
@@ -725,6 +785,9 @@ export default function HappyBirdPage() {
                 <Text className='bird-hint'>
                   手机竖着放远一点。引体、俯卧撑、深蹲都能玩。
                 </Text>
+              ) : null}
+              {status === 'idle' && SHOW_TRACKING_BUILD_TAG ? (
+                <Text className='bird-hint bird-hint--build'>{TRACKING_BUILD_TAG}</Text>
               ) : null}
             </View>
           ) : null}

@@ -1,103 +1,128 @@
 import Taro from '@tarojs/taro'
-import { renderSoundtrack, type SoundtrackPlan } from './birdSoundtrack'
+import { realtimeLog } from '../games/realtimeLog'
+import { renderSoundtrackPcm, SOUNDTRACK_SAMPLE_RATE, type SoundtrackPlan } from './birdSoundtrack'
+import { listBoxes, planPcmAppend, type ReadAt } from './mp4PcmTrack'
 
 declare const wx: any
 
-const MERGE_TIMEOUT_MS = 60000
-const SOUNDTRACK_FILE = 'happy-bird-soundtrack.wav'
+const OUTPUT_DIR = 'game-replay-audio'
+const LOG_TAG = 'game-replay-audio'
 
-type MediaTrack = { kind: string; volume?: number }
+export type MergeStage = 'check' | 'merge' | 'soundtrack'
 
-function extractTracks(container: any, source: string) {
-  return new Promise<MediaTrack[]>((resolve, reject) => {
-    container.extractDataSource({
-      source,
-      success: (result: any) => resolve(result?.tracks || []),
-      fail: (error: any) => reject(new Error(error?.errMsg || '分离音视频轨道失败'))
-    })
-  })
+export type MergeOptions = {
+  /** 写进实时日志的附加字段，比如页面里录制收尾花了多久。 */
+  logFields?: Record<string, number | string>
+  onStage?: (stage: MergeStage) => void
 }
 
-function exportContainer(container: any) {
-  return new Promise<string>((resolve, reject) => {
-    container.export({
-      success: (result: any) => {
-        if (result?.tempFilePath) resolve(result.tempFilePath)
-        else reject(new Error('合成后没有得到视频文件'))
-      },
-      fail: (error: any) => reject(new Error(error?.errMsg || '合成视频失败'))
-    })
-  })
+function fileSystem() {
+  return Taro.getFileSystemManager() as any
 }
 
-function writeFile(path: string, data: ArrayBuffer) {
-  return new Promise<void>((resolve, reject) => {
-    Taro.getFileSystemManager().writeFile({
-      data,
-      filePath: path,
-      success: () => resolve(),
-      fail: (error: any) => reject(new Error(error?.errMsg || '写入音轨失败'))
-    })
-  })
+function toArrayBuffer(bytes: Uint8Array) {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
 }
 
-function withTimeout<T>(work: Promise<T>) {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('合成声音超时')), MERGE_TIMEOUT_MS)
-  })
-  return Promise.race([work, timeout]).finally(() => {
-    if (timer) clearTimeout(timer)
-  })
-}
-
-function createContainer() {
-  const create = (Taro as any).createMediaContainer
-  if (typeof create !== 'function') throw new Error('当前微信版本不支持音视频合成')
-  return create.call(Taro)
-}
-
-async function mergeTracks(videoPath: string, audioPath: string) {
-  const container = createContainer()
-  try {
-    const videoTrack = (await extractTracks(container, videoPath)).find((track) => track.kind === 'video')
-    const audioTrack = (await extractTracks(container, audioPath)).find((track) => track.kind === 'audio')
-    if (!videoTrack) throw new Error('录制的视频里没有画面轨道')
-    if (!audioTrack) throw new Error('音轨文件读不出声音')
-    container.addTrack(videoTrack)
-    container.addTrack(audioTrack)
-    audioTrack.volume = 1
-    return await exportContainer(container)
-  } finally {
-    container.destroy?.()
+function openReader(path: string) {
+  const fs = fileSystem()
+  const fd = fs.openSync({ filePath: path, flag: 'r' })
+  const readAt: ReadAt = (position, length) => {
+    const arrayBuffer = new ArrayBuffer(length)
+    fs.readSync({ arrayBuffer, fd, length, offset: 0, position })
+    return new Uint8Array(arrayBuffer)
   }
+  return { close: () => fs.closeSync({ fd }), readAt }
 }
 
-/** 部分手机合成“成功”但没声音，所以再读一遍结果，确认真的有音频轨道。 */
-async function assertHasAudio(path: string) {
-  const container = createContainer()
+/** 每局只留一份输出，开新一局前清掉上一局没转存走的文件。 */
+function prepareOutputPath() {
+  const fs = fileSystem()
+  const dir = `${wx.env.USER_DATA_PATH}/${OUTPUT_DIR}`
   try {
-    const tracks = await extractTracks(container, path)
-    if (!tracks.some((track) => track.kind === 'audio')) throw new Error('合成后的视频里没有声音')
-  } finally {
-    container.destroy?.()
+    fs.rmdirSync(dir, true)
+  } catch {
+    // 目录不存在
+  }
+  fs.mkdirSync(dir, true)
+  return `${dir}/replay-${Date.now()}.mp4`
+}
+
+/** 读不懂视频结构时把顶层布局写进日志，下次就知道微信录出来的是什么格式。 */
+function describeLayout(path: string) {
+  try {
+    const fs = fileSystem()
+    const size = fs.statSync(path).size
+    const reader = openReader(path)
+    try {
+      return listBoxes(reader.readAt, 0, size).map((box) => `${box.type}:${box.size}`).join(',').slice(0, 200)
+    } finally {
+      reader.close()
+    }
+  } catch (error: any) {
+    return `unreadable: ${String(error?.message || error).slice(0, 80)}`
   }
 }
 
 /**
- * 把游戏音效和音乐合进录好的视频，返回带声音的文件路径。
+ * 不重新编码，直接把音轨写进视频：复制原文件，moov 原地改名，末尾追加音频和新 moov。
+ * 画面数据不动，耗时只和文件复制有关，几秒内完成。
+ */
+function writeAudioTrack(videoPath: string, pcm: Int16Array) {
+  const fs = fileSystem()
+  const size = fs.statSync(videoPath).size
+  const reader = openReader(videoPath)
+  let plan
+  try {
+    plan = planPcmAppend(reader.readAt, size, pcm, SOUNDTRACK_SAMPLE_RATE)
+  } finally {
+    reader.close()
+  }
+
+  const output = prepareOutputPath()
+  fs.copyFileSync(videoPath, output)
+  const fd = fs.openSync({ filePath: output, flag: 'r+' })
+  try {
+    plan.patches.forEach((patch) => fs.writeSync({ data: toArrayBuffer(patch.bytes), fd, position: patch.position }))
+  } finally {
+    fs.closeSync({ fd })
+  }
+  plan.appendParts.forEach((part) => fs.appendFileSync(output, toArrayBuffer(part)))
+  return output
+}
+
+/**
+ * 把游戏音效和音乐写进录好的视频，返回带声音的文件路径。
  * 失败时抛错，调用方保留原来的无声视频，不能让用户一局白录。
  */
-export async function addSoundtrackToVideo(videoPath: string, plan: SoundtrackPlan) {
-  const wav = renderSoundtrack(plan)
-  if (!wav) return videoPath
-  const audioPath = `${wx.env.USER_DATA_PATH}/${SOUNDTRACK_FILE}`
-  await writeFile(audioPath, wav)
+export async function addSoundtrackToVideo(videoPath: string, plan: SoundtrackPlan, options: MergeOptions = {}) {
+  const timings: Record<string, number> = {}
+  const startedAt = Date.now()
+  const base = { ...options.logFields, videoSeconds: Math.round(plan.durationSeconds) }
   try {
-    const merged = await withTimeout(mergeTracks(videoPath, audioPath))
-    await withTimeout(assertHasAudio(merged))
+    options.onStage?.('soundtrack')
+    const pcm = renderSoundtrackPcm(plan)
+    if (!pcm) return videoPath
+    timings.soundtrackMs = Date.now() - startedAt
+
+    options.onStage?.('merge')
+    // 让按钮上的“合成声音”先显示出来，再做同步的文件读写。
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const mergeStartedAt = Date.now()
+    const merged = writeAudioTrack(videoPath, pcm)
+    timings.mergeMs = Date.now() - mergeStartedAt
+
+    realtimeLog('info', LOG_TAG, { ...base, ...timings, method: 'pcm-append', totalMs: Date.now() - startedAt })
     return merged
-  } finally {
-    Taro.getFileSystemManager().unlink({ filePath: audioPath, fail: () => undefined })
+  } catch (error: any) {
+    realtimeLog('warn', LOG_TAG, {
+      ...base,
+      ...timings,
+      error: String(error?.message || error),
+      layout: describeLayout(videoPath),
+      method: 'pcm-append',
+      totalMs: Date.now() - startedAt
+    })
+    throw error
   }
 }

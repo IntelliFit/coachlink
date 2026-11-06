@@ -1,3 +1,58 @@
+## 快乐小鸟眼睛锁定 + 三档速度（2026-11-06，只发小程序，weapp 2026.11.06.0732）
+
+- 起因：用户反馈小鸟相对脸一会儿在额头、一会儿在嘴巴。之前几次测到的其实都是别的会话从 main 打的包：所有会话共用一个开发者账号，开发版只有一个位置，后传的覆盖先传的。
+- 改动（main 4f064e51 之上 4 个提交）：
+  - 小鸟 1:1 跟眼睛那条线，不再放大。门的通道按开飞后 6 道热身门量到的眼睛范围放，一局内固定。
+  - 兼容识别（MoveNet）也用两眼（看不清时用耳朵）算眼睛线；拿不到眼睛时沿用上次眼睛和头中心的差。
+  - 开始页「慢 / 标准 / 快」三档速度：滚动 0.8 / 1 / 1.3 倍，得分同倍数，记在 `happy_bird_prefs_v1`。快档的满分打法测试低于 100 分/秒，排行榜 120 分/秒的上限不用改。
+  - 体验版、开发版开始页显示「跟随版本」小字，方便确认测的是哪一版。
+- 包内容：main 4f064e51 全部（含 0401 的训练中调顺序/选动作；支付修复是 Web，不在小程序里）+ 上述。dev 独有的功能（2026.11.06.1459 试用版里那些）按用户决定没带。
+- 小程序开发版 **2026.11.06.0732**（描述 release-main-4f064e5-happy-bird-eye-lock-pace，总包 10,699,689 / 主包 1,977,022），覆盖了 0401 和 0541；待用户在公众平台提审。Web 不用发。
+- 门禁：typecheck 0 错；vitest 结果和 main 一致（只有既有的 streetliftingLocationOverview 失败，3 个文件因 worktree 缺 expo 依赖未加载）；快乐小鸟相关 103 个测试通过。E2E 未跑（写正式库）。
+- 没验证：三档速度的真机手感。跟随用户在 0541 上测过，反馈“好多了”。
+
+## 重复扣款修复上线（2026-11-06 07:15 北京时间，web ee07676b）
+
+- 起因：2026-11-05 学员买教练订阅 ¥299 被扣两次（ce52538b、790362fd，订阅 c01a501d），订阅开通不了。根因和改动见 `memory/2026-11-05.md`、Bug 清单 #64。
+- main ee07676b = 90e45f16 + 合入 `fix/payment-activation-or`（e5cae9f6 开通不再用 `.update().or()`、首购下单拦已支付未开通的单、退款不再取消订阅；8c87d056 订阅已由另一笔开通时后到的首购返回 duplicate；8e07ba7e 已退款订单收到汇付重试回调保持 refunded）+ 145b7b18（两条冲肩审核配置，与线上字节一致）。
+- Web：`coachlink-main` 3/3、`coachlink-dev` 1/1 都是 `coachlink@sha256:292a0ea537238e2d03f56d1824fcf34929633146b858ed342f6809ab8007c7f6`（标签 payfix-ee07676）。回滚目标 `8195a6429e24ae6af12561fff63db9179f2fc564fa365490450a9e233f3dceaf`（reorder-90e45f1）。Worker、引擎没动。
+- 构建：product-server `~/coachlink-payfix-ee07676`，以 `~/coachlink-reorder-90e45f1` 为底换入 9 个支付文件，3533 个文件逐一核对 git blob；safe-docker-build。注意：排队脚本用 pgrep 匹配构建命令，启动它的 ssh 命令里不能含同样字样，否则会一直等自己（这次因此空等约 1 小时）。
+- 门禁：typecheck 0 错；vitest 支付相关全过（另有既有 streetliftingLocationOverview、junction 导致的 plan-calendar 和 17 个文件未加载）；E2E 4/4（一项冷编译超时重试后过）。
+- 线上验证（不写库）：dev、main 首页 307、登录 200，退款/下单/查单接口未登录 401，notify 空请求 400，与旧版一致（`/api/health` 新旧都是 404，探针用 `/`）；Pod 0 重启，切换后无 error 日志。订阅 active，`last_payment_order_id` = ce52538b，只有 ce52538b 有分账（pending）。
+- 退款已完成：用户 07:49 在 `/admin/payments` 退 790362fd。汇付退款查询返回 trans_stat=S、实退 299.00，07:49:10 完成。订单已是 refunded，订阅仍 active（ce52538b），ce52538b 的分账未动。代码目前不回查退款终态（`queryHuifuPaymentRefund` 没有调用方），这次是手动查的。
+- 注意：教练端学员详情的「退款」按钮退的是 `last_payment_order_id`。重复扣款时它指向开通订阅的那笔，不是重复的那笔，所以重复扣款要从管理员端退。
+
+## 训练中调整顺序和选动作改进上线（2026-11-06，web 90e45f16，weapp 2026.11.06.0401）
+
+- 起因：内测反馈训练中「添加动作」搜不到自建动作（如「健腹轮」只在用户自己的动作库里）。旧版这个入口只能搜公共库。
+- main 90e45f16 = 2ce1f978 + be9f56f2（训练中调整顺序、开练前起名、选动作默认公共库、搜索全部动作、训练中可加自己的动作）+ b2fd6c8a、5b0fa090（即兴删动作、删组时组视频对齐）。dev 上其余未发布改动没有带上。
+- Web：`coachlink-main` 3/3、`coachlink-dev` 1/1 都是 `coachlink@sha256:8195a6429e24ae6af12561fff63db9179f2fc564fa365490450a9e233f3dceaf`（标签 reorder-90e45f1）。回滚目标 `5a182979385744a446b7ee489e6dc950640a182fe4f62c667460665ca2187254`（planche-20261106）。Worker、引擎没动。
+- 静态冲肩、动态冲肩两条已通过图片审核的配置（`18f38c3a…`、`35018603…`）已随本次冲肩审核同步提交纳入 Git，后续 Web 构建从仓库保留；发布记录见 `docs/work/planche-lean-release-2026-11-06.md`。
+- 构建：product-server `~/coachlink-reorder-90e45f1`，以 planche 已校验的源码树为底，换入本次改动，3530 个文件逐一核对 git blob 一致；safe-docker-build，依赖镜像按 ID 复用（`coachlink-deps:lock-c5e86f3b6d1b` 标签已不在）。
+- 线上验证（不写库）：dev、main 健康检查 200，首页、登录跳转和旧版一致；两个 reorder-actions 接口和 impromptu/start 未登录返回 401（含 coachlink.fit 公网）；Pod 无重启，切换后无 error 日志。
+- 小程序开发版 **2026.11.06.0401**（描述 release-90e45f1-reorder-picker，总包 10,696,430 / 主包 1,976,788），从 main 90e45f16 构建，包内已确认有新文案和接口；待用户在公众平台设体验版或提审。父会话另从 e71f1d5d（dev 合 main）上传过试用开发版，提审用这一版。
+- 门禁：typecheck 0 错；vitest 1501/1502（既有 streetliftingLocationOverview），另 13 个 src/mobile 等文件因 worktree 缺 expo 依赖未加载。E2E 未跑（写正式库）。
+- **没验证**：登录后真实保存顺序、带标题开练、训练中从搜索结果加动作、删组视频同步（都写库，用户说自己测）；模拟器和真机界面。
+
+## 快乐小鸟回放声音改为直接写入（2026-11-04，只发小程序）
+
+- 用户反馈上架版合成声音很慢（约两分钟）且失败。原因：createMediaContainer 会把整段视频重新编码，真机上要几分钟，那次也没完成。
+- 5f8adc64：不再用合成接口。游戏音效和音乐混成 22.05kHz 16 位单声道 PCM，按 QuickTime `sowt` 直接写进录制器输出的 MP4：原 moov 原地改名 free，末尾追加音频 mdat 和新 moov，画面字节不动（`apps/wechat/src/toolbox/happy-bird/mp4PcmTrack.ts`，`tests/wechat-mp4-pcm-track.test.ts` 用 ffmpeg 生成的真实 MP4 逐采样核对）。分片或读不懂的文件保存无声版，并把顶层结构写进实时日志（标签 game-replay-audio）。不用麦克风，不用改隐私指引。
+- 同批：a02c3ada（生成进度秒数、实时日志），9de7f47b（另一会话：头部跟踪更稳、小鸟跟眼睛）。
+- 用户在体验版 **2026.11.04.1333**（总包 10,685,875 / 主包 1,976,047，描述 test-5f8adc6-replay-pcm-audio）真机确认有声音。未提审；提审用这一版。其他机型和抖音上传未单独验证。
+- 构建注意：发布 worktree 的 `dist-release/debug.log` 被开发者工具占着删不掉，这次输出到 `dist-pcm`；`WEAPP_OUTPUT_ROOT` 不能跨盘（会拼成 D:\...\E:\...）。
+
+## 手指光膜网页端找回任务上线（2026-11-03，web fd52c754）
+
+- main fd52c754 = 749f6657 + 89d0b307，相对上一版线上 bafd0ca1，Web 只多这次的 7 个文件。dev 上 2c6ee402 是同样的改动。用户要求更新后发布。
+- Web：`coachlink-main` 3/3、`coachlink-dev` 1/1 都是 `coachlink@sha256:5e03b986d32b6cb0d0f23ea7feefb0a7d35dff79797b04bd6d821c9acd910ae0`（标签 fd52c75）。回滚目标 `b7adb6ffea46a6704d32986a994c9df78dec7b2b0994f1de9221a08c89619e34`（bafd0ca1）。Worker 没动。
+- 行为：刷新或关页后，生成中接着显示进度，成片显示下载，失败或过期提示一次后删记录，没传完的取消并释放名额。本地记录按账号分开存。只有接口明确说任务不存在才删记录；断网、5xx、未登录、换账号、网关 404 都保留。另一个标签页还在上传时不取消。旧的 `?paymentJob=` 分支已删。
+- 服务端：取消接口数据库失败返回 500（原来 409，客户端会当成不用管了）；读取后状态变了就返回最新任务。创建接口多返回 `ownerUserId`，只是加字段。
+- 构建：product-server `~/coachlink-motion-restore-fd52c75`，走 safe-docker-build。那里的旧源码树只同步过网页部分，差异补丁打不上，改为按提交清单逐文件比对，5541 个文件核对一致才构建。
+- 验证：`tests/motion-effects-web-restore.test.ts`、`tests/motion-effects-job-routes.test.ts` 通过。全量 vitest 1494/1495（既有 streetliftingLocationOverview，基准提交上同样失败）。本地用全假配置和模拟接口跑了真实页面的恢复场景。线上 dev 用不存在的任务走了真实页面。线上 main：健康检查、页面、不存在任务的查询和取消（都是 404）正常，页面脚本含新代码、不含 paymentJob，Pod 无重启，5 分钟内无 error 日志。
+- **没验证**：线上真实上传和生成（会写库）、登录账号的完整恢复流程、e2e（写正式库）。代码审查发现的 1 个高危 3 个中危都修了，修完没有再审查一轮。
+- 已知限制：同一账号或访客生成新视频后，上一个已完成视频的记录会被替换，没下载的就找不回了，和小程序一致。
+
 ## 手指光膜退出后恢复任务（2026-11-03，只发小程序）
 
 - main 5e7a34a1（基于 b40624af），dev aeeec079，这次的代码相同。只改小程序页面和本地记录，不改服务端，线上 Web（b7adb6ff）和 Worker 没动。
@@ -29,6 +84,15 @@
 - 榜单：用户确认后执行 `scripts/power-analysis-leaderboard-cleanup.ts --apply`，`power_analysis_best_scores` 改 40 项（20 人）：8 人换回各自合格的最好成绩，12 人没有合格成绩，整行删除（100 → 88 行），其余行未变。复跑演练为 0。改前整表备份和改后对照在 `D:\CodexWork\coachlink-motion-analysis\leaderboard-cleanup\`。
 - 配置：`coachlink-power-worker-main-env` 补了 5 项 `WANJIE_*`（视觉 qwen3.8-flash，文本 deepseek-v4.1-flash-1017）并重启，此前正式环境“其他动作”的 AI 观察一直不可用。分析程序读 k8s secret，不读 Apollo，换模型或密钥要同时改 dev、main 两份 secret。备份在服务器 `~/secret-backup-*`。真实视频的完整流程还没走过。
 
+## 薄肌女性档复核上线（2026-11-03，web bafd0ca1，engine 740d400）
+
+- main bafd0ca1 = b27e5f5e（手指光膜免费，上一版线上）+ 薄肌女性和腹肌提示词的 5 个提交。dev 上其余未发布改动没有进这次发布。决策见 DECISIONS.md「薄肌检测器女性档」。
+- Web：`coachlink-main` 3/3、`coachlink-dev` 1/1 都是 `coachlink@sha256:b7adb6ffea46a6704d32986a994c9df78dec7b2b0994f1de9221a08c89619e34`。回滚目标 `14b0fa5513c49d5327c9053b3b447c9cd0844b5751ded4a5eb94115beec92016`（b27e5f5e）。
+- 引擎：`coachlink-boji-service-main`、`-dev` 都是 `coachlink-boji-service@sha256:9c533a228770020aa8e7e066bbf2345cb7965c13c50c482f45476545483cf51d`（female-740d400）。回滚目标 `fd49935753ece786def2b9bc629142076b43acbe92d666133d73b906ddb7cec1`。
+- 线上验证（直接调 main 和 dev 的引擎，不写库）：背面、穿衣照不给综合分；有马甲线照片总分 78，没有马甲线 41；男性结果照常出分。网页未登录上传返回 401，薄肌和指尖光影页面 200，Pod 无重启。
+- **没验证**：登录后的真实上传（会写 `tool_boji_scores`），所以 `[boji/ai-vest]` 模型复核还没在线上跑过；它的提示词和判定逻辑用同一网关在 306 张照片上评估过，模型答不出时保留引擎结果。
+- 小程序开发版 **2026.11.03.0319**（描述 release-fecfbda-boji-female，总包 10,695,189 / 主包 1,973,320），从 main fecfbda0 构建，待用户在公众平台提审，取代 2026.11.02.2357。它比 2357 只多薄肌标题和明星匹配参考值；已确认包内有新标题代码，没在真机或模拟器上跑过。旧版会显示「马甲线清晰度 0.6」这类标题，新版才显示「马甲线不明显/隐约可见/清晰」。同一账号还传过一次 2026.11.02.1918（内容相同，版本号取错时区），不要用它。
+- `coachlink:8a43209` 没推送，已从服务器删除：它不含 b27e5f5e，发布会回退免费改动。
 
 ## 快乐小鸟上线进度（2026-11-02，Web 已上线，迁移用户已执行，小程序未提审）
 

@@ -1674,3 +1674,6 @@
 - 小程序 AI 修改器与 Web 一致：`auto` 引擎、多轮对话（带历史和累计差异）、显示追问和查询回答。AI 的 1RM 调整和 Web 一样跟着计划保存：自动保存成功后才写学员动作库；只调 1RM、计划不变时直接写。
 - Web 两个脚本编辑器“应用脚本”改为 `mergePlanScriptPlan`：按 dayIndex 合并回原训练日，脚本里删掉的天才删除。
 - （同日合并后）计划助理追问一次后不再催，但问题保持打开到 7 天窗口结束，之后补的答案照样记；只提伤病、没回答问题的消息也由计划助理处理（标记待教练确认、通知教练、回复学员已转告），不占追问次数；处理期间又到、而问题已关闭的消息原文转告教练并交给 AI 自动回复。过期在学员再发消息时标记并通知教练哪些项没回答；定时清理 `expireStalePlanIntakes` 需部署设 `PLAN_INTAKE_EXPIRY_INTERVAL_MS` 才开启。
+
+- `2026-11-03`: 接豆派对重做（`apps/wechat/src/toolbox/motion-bean/`）：全屏相机，脸上不画任何框，脸就是接豆的嘴，豆子碰到脸就算吃到。绿豆 +1、金豆 +5、长眼睛的黑色捣蛋豆 -3 并清零连击（擦边不算）；连接 5 个分数翻倍、15 个三倍，漏接不断连击；一局 45 秒，最后 10 秒加速。复用快乐小鸟的倒计时、暂停、带声音的高清录制和本机最佳（`birdReplayStore` 按游戏分 key），没有在线榜。旧的公共游戏页 `motionArcadePage` 只服务这一个游戏，已删除；游戏代码和快乐小鸟一起放 `toolbox/happy-bird-common.js`。用户看过模拟预览后同意直接提交，真机未测。
+- `2026-10-31`: 训练中可调整动作顺序（小程序执行页，列表模式入口 + 卡片模式「···」），只改本次执行记录，不改计划；规则在 `packages/core/src/executionActionOrder.ts`，接口 `POST /api/{execution,impromptu}/extra-content/reorder-actions`（order[新位置] = 旧下标，附 actionKeys 防止覆盖其他设备的改动）。计划训练靠 `source_action_index` 对回计划动作，换序时补齐；即兴组视频按 `action_index` 关联，换序时同步改。练完当前动作后先往后找未完成动作，后面没有再回头找。开练和训练中「添加动作」（`from=execution`）默认显示公共动作库，可切到常用或我的；输入关键词时搜索全部动作，不受标签和分类限制；即兴训练可在开始前起名（`/api/impromptu/start` 的 `title`）。Web 与 APP 暂未跟进。

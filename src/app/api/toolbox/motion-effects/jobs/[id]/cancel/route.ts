@@ -56,11 +56,27 @@ export async function POST(
     .is("payment_order_id", null)
     .select("*")
     .maybeSingle();
-  if (error || !data) {
+  if (error) {
+    console.error("[motion-effects/cancel] update failed:", error);
     return NextResponse.json<ApiData<null>>(
-      { success: false, message: error?.message || "取消失败，请稍后再试", data: null },
-      { status: 409 },
+      { success: false, message: "取消失败，请稍后再试", data: null },
+      { status: 500 },
     );
+  }
+  if (!data) {
+    // 读取之后任务状态变了（比如刚好入队），把最新状态告诉客户端，由它接着跟进
+    const latest = await getAccessibleMotionEffectJob(id, identity);
+    if (!latest) {
+      return NextResponse.json<ApiData<null>>(
+        { success: false, message: "任务不存在", data: null },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json<ApiData<MotionEffectJobDto>>({
+      success: true,
+      message: "任务状态已变化，未取消",
+      data: mapMotionEffectJob(latest),
+    });
   }
   if (job.input_storage_path) {
     await db.storage

@@ -8,4 +8,6 @@ export interface RefundAlipayOrderDto {
 export interface RefundAlipayOrderResponseDto {
     success: boolean;
     message: string;
+    /** Coach-subscription refunds: whether the linked subscription was cancelled, kept, or could not be synced. */
+    subscriptionOutcome?: "cancelled" | "kept" | "unknown";
 }

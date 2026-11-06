@@ -20,6 +20,8 @@ import {
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { motionRestoreNotice } from "@coachlink/core/src/motionEffectJobRestore";
 import presets from "../../../../config/motion-effects-presets.json";
 import type {
   CreateMotionEffectUploadResponseDto,
@@ -32,6 +34,25 @@ import {
   smoothstep,
   type MotionEffectPoint as Point,
 } from "@/lib/motionEffectsGeometry";
+import { useLoginModal } from "@/components/auth/LoginModalContext";
+import { EarlierJobCard } from "./EarlierJobCard";
+import {
+  beatUploadHeartbeat,
+  fetchViewerId,
+  findRememberedJob,
+  followMotionJob,
+  forgetPendingJob,
+  hasRememberedJob,
+  holdUploadLock,
+  isMotionJobRunning,
+  motionFollowMessage,
+  motionJobDetail,
+  motionJobProgress,
+  motionPollNote,
+  readApi,
+  rememberPendingJob,
+  type PendingMotionJob,
+} from "./jobRestore";
 
 type AnalyzerStatus =
   | "idle"
@@ -582,14 +603,6 @@ function getRecorderMimeType() {
   ].find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
-async function readApi<T>(response: Response): Promise<T> {
-  const payload = await response.json().catch(() => null);
-  if (!response.ok || !payload?.success) {
-    throw new Error(payload?.message || `请求失败（${response.status}）`);
-  }
-  return payload.data as T;
-}
-
 function putFile(uploadUrl: string, file: File, onProgress: (value: number) => void) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -621,10 +634,10 @@ function getOrCreateMotionClientId() {
   return created;
 }
 
-const PENDING_JOB_KEY = "jiaolian_motion_effect_pending_job";
-
 export default function MotionEffectsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const { openLoginModal } = useLoginModal();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const exportCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -659,11 +672,28 @@ export default function MotionEffectsPage() {
   const [serverJob, setServerJob] = useState<MotionEffectJobDto | null>(null);
   const [serverExporting, setServerExporting] = useState(false);
   const [ownerToken, setOwnerToken] = useState("");
+  // 任务不属于当前载入的视频：刷新后找回的，或者生成途中换了视频
+  const [jobIsEarlier, setJobIsEarlier] = useState(false);
+  const [jobNote, setJobNote] = useState("");
+  const [signInJob, setSignInJob] = useState<PendingMotionJob | null>(null);
   const [selectedStyleKey, setSelectedStyleKey] = useState("aurora");
   const [exportQuality, setExportQuality] = useState<"standard" | "hd">("standard");
   const clientIdRef = useRef("");
+  const pageLeftRef = useRef(false);
+  const lastSessionRef = useRef(session);
+  const followRunRef = useRef(0);
+  const isFollowingRef = useRef(false);
+  const followedJobRef = useRef<PendingMotionJob | null>(null);
   const selectedStyle =
     MOTION_STYLES.find((style) => style.key === selectedStyleKey) || MOTION_STYLES[0];
+  const currentVideoJob = jobIsEarlier ? null : serverJob;
+  const exportingCurrentVideo = serverExporting && !jobIsEarlier;
+  const waitingForEarlierJob =
+    serverExporting && jobIsEarlier && (!serverJob || isMotionJobRunning(serverJob));
+  const runningJobDetail =
+    exportingCurrentVideo && currentVideoJob && isMotionJobRunning(currentVideoJob)
+      ? jobNote || motionJobDetail(currentVideoJob)
+      : "";
 
   const handCoverage = stats.analyzedFrames
     ? Math.round((stats.handFrames / stats.analyzedFrames) * 100)
@@ -712,7 +742,9 @@ export default function MotionEffectsPage() {
   }, [stopAnimation]);
 
   useEffect(() => {
+    pageLeftRef.current = false;
     return () => {
+      pageLeftRef.current = true;
       stopAnimation();
       closeTracker();
       if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -912,18 +944,23 @@ export default function MotionEffectsPage() {
       setVideoUrl(nextUrl);
       setFileName(file.name);
       setSelectedFile(file);
-      setServerJob(null);
-      setOwnerToken("");
+      // 生成中或可下载的视频换了素材也要能找回，服务端也还占着名额
+      const jobStillMatters = serverExporting || Boolean(serverJob?.canDownload);
+      setJobIsEarlier(jobStillMatters);
+      if (!jobStillMatters) {
+        setServerJob(null);
+        setOwnerToken("");
+      }
       setDuration(0);
       setCurrentTime(0);
       setIsExporting(false);
       isExportingRef.current = false;
-      setExportProgress(0);
+      if (!serverExporting) setExportProgress(0);
       setStatus("ready");
       setStatusDetail("视频已载入。建议双手完整入镜，并让要参与的手指明显伸展。");
       void ensureTracker();
     },
-    [ensureTracker, resetAnalysis, stopRecorder],
+    [ensureTracker, resetAnalysis, serverExporting, serverJob?.canDownload, stopRecorder],
   );
 
   const exportSnapshot = useCallback(() => {
@@ -943,110 +980,154 @@ export default function MotionEffectsPage() {
     link.click();
   }, [fileName]);
 
-  const pollServerJob = useCallback(
-    async (jobId: string, token: string) => {
-      setServerExporting(true);
-      try {
-        let current = await readApi<MotionEffectJobDto>(
-          await fetch(`/api/toolbox/motion-effects/jobs/${jobId}`, {
-            cache: "no-store",
-            headers: token ? { "x-motion-owner-token": token } : undefined,
-          }),
-        );
-        setServerJob(current);
-        setStatusDetail(
-          current.queueInfo?.jobsAhead
-            ? `已进入队列，前方还有 ${current.queueInfo.jobsAhead} 个真实任务。`
-            : "视频正在生成，请保持页面打开。",
-        );
-        while (!["done", "failed", "expired"].includes(current.status)) {
-          await new Promise((resolve) => window.setTimeout(resolve, 1800));
-          current = await readApi<MotionEffectJobDto>(
-            await fetch(`/api/toolbox/motion-effects/jobs/${jobId}`, {
-              cache: "no-store",
-              headers: token ? { "x-motion-owner-token": token } : undefined,
-            }),
-          );
-          setServerJob(current);
-          setExportProgress(35 + Math.max(0, Math.min(65, current.progress * 0.65)));
-        }
-        if (current.status !== "done") {
-          throw new Error(current.errorMessage || "特效视频生成失败，请重新尝试");
-        }
-        window.localStorage.removeItem(PENDING_JOB_KEY);
-        setExportProgress(100);
-        setStatus("complete");
-        setStatusDetail("MP4 已生成并保留原音频，可以直接下载。");
-      } finally {
-        setServerExporting(false);
+  const showRetryNote = useCallback((failures: number) => {
+    const note = motionPollNote(failures);
+    if (note) setJobNote(note);
+  }, []);
+
+  /** 同一时间只跟进一个任务。返回的函数用来判断这次跟进是否已作废（离开页面或用户放弃）。 */
+  const startFollowing = useCallback(() => {
+    followRunRef.current += 1;
+    const run = followRunRef.current;
+    isFollowingRef.current = true;
+    setServerExporting(true);
+    setJobNote("");
+    return () => pageLeftRef.current || followRunRef.current !== run;
+  }, []);
+
+  const stopFollowing = useCallback(() => {
+    isFollowingRef.current = false;
+    setServerExporting(false);
+    setJobNote("");
+  }, []);
+
+  const followJob = useCallback(
+    async (pending: PendingMotionJob, isStale: () => boolean) => {
+      followedJobRef.current = pending;
+      const result = await followMotionJob(pending, {
+        isStale,
+        getViewerId: fetchViewerId,
+        onJob: (job) => {
+          setServerJob(job);
+          setJobNote("");
+          setExportProgress(motionJobProgress(job));
+        },
+        onRetrying: showRetryNote,
+      });
+      if (result.outcome === "stopped") return result;
+      stopFollowing();
+      if (!("job" in result)) {
+        setServerJob(null);
+        setJobIsEarlier(false);
       }
+      if (result.outcome === "sign_in") setSignInJob(pending);
+      return result;
     },
-    [],
+    [showRetryNote, stopFollowing],
   );
 
   const exportServerVideo = useCallback(async () => {
-    if (!selectedFile || serverExporting) return;
-    setServerExporting(true);
+    if (!selectedFile || isFollowingRef.current) return;
+    const isStale = startFollowing();
     setExportProgress(0);
-    setServerJob(null);
+    let pending = null as PendingMotionJob | null;
+    let uploadFailed = false;
     try {
-      setStatusDetail("正在创建临时渲染任务…");
-      const clientId = clientIdRef.current || getOrCreateMotionClientId();
-      clientIdRef.current = clientId;
-      const created = await readApi<CreateMotionEffectUploadResponseDto>(
-        await fetch("/api/toolbox/motion-effects/create-upload-url", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-motion-client-id": clientId,
-          },
-          body: JSON.stringify({
-            originalFilename: selectedFile.name,
-            contentType: selectedFile.type || "video/mp4",
-            fileSizeBytes: selectedFile.size,
-            durationSeconds: duration,
-            exportQuality,
-            styleKey: selectedStyleKey,
-            bgmKey: "original",
+      await holdUploadLock(async () => {
+        setStatusDetail("正在创建临时渲染任务…");
+        const clientId = clientIdRef.current || getOrCreateMotionClientId();
+        clientIdRef.current = clientId;
+        const created = await readApi<CreateMotionEffectUploadResponseDto>(
+          await fetch("/api/toolbox/motion-effects/create-upload-url", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-motion-client-id": clientId,
+            },
+            body: JSON.stringify({
+              originalFilename: selectedFile.name,
+              contentType: selectedFile.type || "video/mp4",
+              fileSizeBytes: selectedFile.size,
+              durationSeconds: duration,
+              exportQuality,
+              styleKey: selectedStyleKey,
+              bgmKey: "original",
+            }),
           }),
-        }),
-      );
-      const nextOwnerToken = created.ownerToken || "";
-      setOwnerToken(nextOwnerToken);
-      setServerJob(created.job);
-      window.localStorage.setItem(
-        PENDING_JOB_KEY,
-        JSON.stringify({ jobId: created.job.id, ownerToken: nextOwnerToken }),
-      );
-      setStatusDetail("正在安全上传视频，原文件与成片最多保留 24 小时…");
-      await putFile(created.upload.uploadUrl, selectedFile, (value) => {
-        setExportProgress(value * 0.35);
+        );
+        const nextOwnerToken = created.ownerToken || "";
+        pending = {
+          jobId: created.job.id,
+          ownerToken: nextOwnerToken,
+          userId: created.ownerUserId || "",
+        };
+        rememberPendingJob(pending);
+        setOwnerToken(nextOwnerToken);
+        setJobIsEarlier(false);
+        setServerJob(created.job);
+        setStatusDetail("正在安全上传视频，传完前请不要关闭页面。原文件与成片最多保留 24 小时。");
+        await putFile(created.upload.uploadUrl, selectedFile, (value) => {
+          setExportProgress(value * 0.35);
+          beatUploadHeartbeat();
+        });
+        const queued = await readApi<MotionEffectJobDto>(
+          await fetch(`/api/toolbox/motion-effects/jobs/${created.job.id}/enqueue`, {
+            method: "POST",
+            headers: nextOwnerToken
+              ? { "x-motion-owner-token": nextOwnerToken }
+              : undefined,
+          }),
+        );
+        setServerJob(queued);
       });
-      const queued = await readApi<MotionEffectJobDto>(
-        await fetch(`/api/toolbox/motion-effects/jobs/${created.job.id}/enqueue`, {
-          method: "POST",
-          headers: nextOwnerToken
-            ? { "x-motion-owner-token": nextOwnerToken }
-            : undefined,
-        }),
-      );
-      setServerJob(queued);
-      await pollServerJob(created.job.id, nextOwnerToken);
     } catch (error) {
       console.error("[finger-motion] server export failed", error);
+      uploadFailed = true;
       setStatus("error");
       setStatusDetail(error instanceof Error ? error.message : "服务端生成失败，请稍后重试。");
-    } finally {
-      setServerExporting(false);
+      setExportProgress(0);
     }
+    if (!pending) {
+      stopFollowing();
+      return;
+    }
+    // 上传或入队失败时也走这里：没传完就释放名额，已经入队（只是响应丢了）就接着跟进
+    const result = await followJob(pending, isStale);
+    const message = motionFollowMessage(result);
+    if (!message || (uploadFailed && result.outcome !== "done")) return;
+    setStatus(result.outcome === "done" ? "complete" : "error");
+    setStatusDetail(message);
   }, [
     duration,
     exportQuality,
-    pollServerJob,
+    followJob,
     selectedFile,
     selectedStyleKey,
-    serverExporting,
+    startFollowing,
+    stopFollowing,
   ]);
+
+  const dismissEarlierJob = useCallback(() => {
+    if (followedJobRef.current) forgetPendingJob(followedJobRef.current);
+    setServerJob(null);
+    setOwnerToken("");
+    setJobIsEarlier(false);
+    setJobNote("");
+  }, []);
+
+  const dismissSignInHint = useCallback(() => {
+    if (signInJob) forgetPendingJob(signInJob);
+    setSignInJob(null);
+  }, [signInJob]);
+
+  // 记录一直查不出结果时不能把用户卡死在这里，他可以放弃它去生成新视频
+  const giveUpFindingJob = useCallback(() => {
+    followRunRef.current += 1;
+    if (followedJobRef.current) forgetPendingJob(followedJobRef.current);
+    stopFollowing();
+    setServerJob(null);
+    setJobIsEarlier(false);
+  }, [stopFollowing]);
 
   const downloadServerVideo = useCallback(async () => {
     if (!serverJob?.canDownload) return;
@@ -1064,59 +1145,52 @@ export default function MotionEffectsPage() {
       );
       window.location.href = data.url;
     } catch (error) {
+      const message = error instanceof Error ? error.message : "下载失败";
       setStatus("error");
-      setStatusDetail(error instanceof Error ? error.message : "下载失败");
+      setStatusDetail(message);
+      setJobNote(message);
     }
   }, [ownerToken, serverJob]);
 
-  useEffect(() => {
-    clientIdRef.current = getOrCreateMotionClientId();
-    const paymentJobId = new URLSearchParams(window.location.search).get("paymentJob");
-    if (!paymentJobId) return;
-    const pending = window.localStorage.getItem(PENDING_JOB_KEY);
-    let saved: { jobId?: string; ownerToken?: string } = {};
-    try {
-      saved = pending ? JSON.parse(pending) : {};
-    } catch {
-      saved = {};
-    }
-    if (saved.jobId !== paymentJobId) {
-      setStatusDetail("未找到与本次支付匹配的本机任务，请在原设备上继续。");
+  const restoreRememberedJob = useCallback(async () => {
+    if (isFollowingRef.current || !hasRememberedJob()) return;
+    setJobIsEarlier(true);
+    const isStale = startFollowing();
+    const { pending, signInJob: accountJob } = await findRememberedJob({
+      isStale,
+      getViewerId: fetchViewerId,
+      onRetrying: showRetryNote,
+    });
+    if (isStale()) return;
+    setSignInJob(accountJob);
+    if (!pending) {
+      stopFollowing();
+      setJobIsEarlier(false);
       return;
     }
-    const token = String(saved.ownerToken || "");
-    setOwnerToken(token);
-    setServerExporting(true);
-    const headers = token ? { "x-motion-owner-token": token } : undefined;
-    void (async () => {
-      try {
-        const paidJob = await readApi<MotionEffectJobDto>(
-          await fetch(
-            `/api/toolbox/motion-effects/jobs/${paymentJobId}/payment-status`,
-            { cache: "no-store", headers },
-          ),
-        );
-        setServerJob(paidJob);
-        if (paidJob.paymentStatus !== "paid") {
-          setStatusDetail("支付结果仍在确认中，请稍后刷新本页。");
-          return;
-        }
-        const queued = await readApi<MotionEffectJobDto>(
-          await fetch(`/api/toolbox/motion-effects/jobs/${paymentJobId}/enqueue`, {
-            method: "POST",
-            headers,
-          }),
-        );
-        setServerJob(queued);
-        await pollServerJob(paymentJobId, token);
-      } catch (error) {
-        setStatus("error");
-        setStatusDetail(error instanceof Error ? error.message : "恢复支付任务失败");
-      } finally {
-        setServerExporting(false);
-      }
-    })();
-  }, [pollServerJob]);
+    setOwnerToken(pending.ownerToken);
+    const result = await followJob(pending, isStale);
+    if (result.outcome === "released") {
+      setStatusDetail("上次的视频没有传完，请重新选择视频。");
+    } else if (result.outcome === "unreleasable") {
+      setStatusDetail(result.message);
+    }
+  }, [followJob, showRetryNote, startFollowing, stopFollowing]);
+
+  useEffect(() => {
+    clientIdRef.current = getOrCreateMotionClientId();
+    void restoreRememberedJob();
+  }, [restoreRememberedJob]);
+
+  // 在本页弹窗登录不一定会重新加载页面。看 session 对象而不是账号 id：
+  // 登录同一个账号时 id 不变，而查询结果还说没登录时对象也不变，不会反复请求。
+  useEffect(() => {
+    if (lastSessionRef.current === session) return;
+    lastSessionRef.current = session;
+    if (!session?.user?.id || !signInJob) return;
+    setSignInJob(null);
+    void restoreRememberedJob();
+  }, [restoreRememberedJob, session, signInJob]);
 
   const exportVideo = useCallback(async () => {
     const video = videoRef.current as CaptureVideoElement | null;
@@ -1246,6 +1320,43 @@ export default function MotionEffectsPage() {
           </span>
         </header>
 
+        {signInJob && (
+          <EarlierJobCard
+            title="上次的视频要登录后才能找回"
+            detail="登录原来的账号后，这里会继续显示进度或下载入口。"
+            primary={{ label: "去登录", onClick: openLoginModal }}
+            secondary={{ label: "不用了", onClick: dismissSignInHint }}
+          />
+        )}
+        {jobIsEarlier && !serverJob && jobNote && (
+          <EarlierJobCard
+            title="正在找回上次的视频"
+            detail={jobNote}
+            secondary={{ label: "不用了", onClick: giveUpFindingJob }}
+          />
+        )}
+        {jobIsEarlier && serverJob && serverJob.status !== "awaiting_upload" && (
+          <EarlierJobCard
+            title={motionRestoreNotice(serverJob)}
+            detail={jobNote || motionJobDetail(serverJob)}
+            progress={isMotionJobRunning(serverJob) ? exportProgress : undefined}
+            primary={
+              serverJob.canDownload
+                ? {
+                    label: "下载 MP4",
+                    icon: <Download className="h-4 w-4" />,
+                    onClick: downloadServerVideo,
+                  }
+                : undefined
+            }
+            secondary={
+              serverExporting
+                ? undefined
+                : { label: serverJob.canDownload ? "不再显示" : "知道了", onClick: dismissEarlierJob }
+            }
+          />
+        )}
+
         <section className="mb-6 overflow-hidden rounded-[32px] border border-[#E3D9D0] dark:border-[#37312B] bg-white dark:bg-[#211E1B] p-6 shadow-sm sm:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr] lg:items-end">
             <div>
@@ -1331,9 +1442,9 @@ export default function MotionEffectsPage() {
                     <span className="rounded-full bg-black/55 px-3 py-1 text-xs font-black text-white backdrop-blur">
                       {currentFingerNames}
                     </span>
-                    {(isExporting || serverExporting) && (
+                    {(isExporting || exportingCurrentVideo) && (
                       <span className="rounded-full bg-[#B4553A] px-3 py-1 text-xs font-black text-white">
-                        生成中 {Math.round(serverExporting ? exportProgress : exportProgress * 100)}%
+                        生成中 {Math.round(exportingCurrentVideo ? exportProgress : exportProgress * 100)}%
                       </span>
                     )}
                   </div>
@@ -1405,7 +1516,7 @@ export default function MotionEffectsPage() {
                     type="button"
                     disabled={isExporting || serverExporting}
                     onClick={
-                      serverJob?.canDownload
+                      currentVideoJob?.canDownload
                         ? downloadServerVideo
                         : exportServerVideo
                     }
@@ -1413,14 +1524,18 @@ export default function MotionEffectsPage() {
                   >
                     {serverExporting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : serverJob?.canDownload ? (
+                    ) : currentVideoJob?.canDownload ? (
                       <Download className="h-4 w-4" />
                     ) : (
                       <Video className="h-4 w-4" />
                     )}
                     {serverExporting
-                      ? `生成中 ${Math.round(exportProgress)}%`
-                      : serverJob?.canDownload
+                      ? waitingForEarlierJob
+                        ? "上次的视频处理完才能生成"
+                        : exportProgress > 0
+                          ? `生成中 ${Math.round(exportProgress)}%`
+                          : "处理中…"
+                      : currentVideoJob?.canDownload
                         ? "下载 MP4"
                         : "免费生成并下载"}
                   </button>
@@ -1527,15 +1642,15 @@ export default function MotionEffectsPage() {
                 </div>
                 <div>
                   <div className="text-sm font-black">识别状态</div>
-                  <div className="mt-1 text-sm leading-6 text-slate-500 dark:text-[#A0978B]">{statusDetail}</div>
+                  <div className="mt-1 text-sm leading-6 text-slate-500 dark:text-[#A0978B]">{runningJobDetail || statusDetail}</div>
                 </div>
               </div>
-              {(isExporting || serverExporting) && (
+              {(isExporting || exportingCurrentVideo) && (
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-[#2A2622]">
                   <div
                     className="h-full rounded-full bg-[#CF6D4E] transition-[width]"
                     style={{
-                      width: `${Math.round(serverExporting ? exportProgress : exportProgress * 100)}%`,
+                      width: `${Math.round(exportingCurrentVideo ? exportProgress : exportProgress * 100)}%`,
                     }}
                   />
                 </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   HEAD_TRAVEL_DEFAULTS,
+  HEAD_TRAVEL_IN_ROUND,
   mapHeadTravelToStage,
   updateHeadTravel,
   type HeadTravelRange
@@ -35,10 +36,27 @@ describe('head travel mapper', () => {
   });
 
   it('lets a full stroke reach the upper and lower lanes', () => {
-    const samples = [...repCycle(0.4, 0.58), ...repCycle(0.4, 0.58)];
+    const samples = [...repCycle(0.36, 0.6), ...repCycle(0.36, 0.6)];
     const range = feedReps(samples);
-    expect(mapHeadTravelToStage(range, 0.4)).toBeLessThanOrEqual(0.16);
-    expect(mapHeadTravelToStage(range, 0.58)).toBeGreaterThanOrEqual(0.84);
+    expect(mapHeadTravelToStage(range, 0.36)).toBeLessThanOrEqual(0.16);
+    expect(mapHeadTravelToStage(range, 0.6)).toBeGreaterThanOrEqual(0.84);
+  });
+
+  it('caps the gain so small head jitter is not blown up', () => {
+    const range = feedReps([...repCycle(0.45, 0.5), ...repCycle(0.45, 0.5)]);
+    const gain = (mapHeadTravelToStage(range, 0.49) - mapHeadTravelToStage(range, 0.47)) / 0.02;
+    expect(gain).toBeLessThanOrEqual(HEAD_TRAVEL_DEFAULTS.playSpan / 0.24 + 1e-9);
+  });
+
+  it('keeps the mapping fixed during a round: the range only grows', () => {
+    let range: HeadTravelRange | null = feedReps([...repCycle(0.3, 0.6), ...repCycle(0.3, 0.6)]);
+    const before = mapHeadTravelToStage(range, 0.45);
+    for (let t = 0; t < 30_000; t += 50) {
+      range = updateHeadTravel(range, 0.45, 2_000 + t, HEAD_TRAVEL_IN_ROUND);
+    }
+    expect(mapHeadTravelToStage(range, 0.45)).toBeCloseTo(before, 6);
+    range = updateHeadTravel(range, 0.2, 40_000, HEAD_TRAVEL_IN_ROUND);
+    expect((range as HeadTravelRange).low).toBe(0.2);
   });
 
   it('does not over-amplify jitter while the user is still', () => {

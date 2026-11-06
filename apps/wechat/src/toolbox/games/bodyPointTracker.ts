@@ -1,5 +1,8 @@
 import Taro from '@tarojs/taro'
 import { API_BASE_URL } from '@/utils/request'
+import { eyeLineFromFace, eyeYFromPose, type EyeLine } from './faceAnchor'
+import { createOneEuroFilter } from './oneEuroFilter'
+import { realtimeLog } from './realtimeLog'
 
 declare const wx: any
 
@@ -26,6 +29,8 @@ export type BodyTrackingSnapshot = {
   velocityY: number
   x: number
   y: number
+  /** 眼睛那一条线的高度（只有人脸识别有）。脸框中心会随张嘴上下跑，眼睛不会。 */
+  eyeY?: number
 }
 
 type CameraFrame = {
@@ -38,6 +43,8 @@ type TrackerOptions = {
   anchorMode?: 'auto' | 'head'
   headLockConfirmFrames?: number
   headLostGraceMs?: number
+  /** 给了就把真机识别频率和延迟每 10 秒写一次实时日志，值是游戏名。 */
+  logLabel?: string
   onLockChange?: (locked: boolean) => void
   onRuntimeStateChange?: (state: BodyTrackingRuntimeState, detail: string) => void
   onSnapshot: (snapshot: BodyTrackingSnapshot) => void
@@ -52,8 +59,11 @@ type PosePoint = {
 }
 
 type HeadAnchor = PosePoint & {
+  eyeY?: number
   headRadiusX: number
   headRadiusY: number
+  /** 已经滤过波（人脸识别结果），生成快照时不再叠一层平滑。 */
+  presmoothed?: boolean
   target: 'body' | 'head' | 'head-estimate'
 }
 
@@ -67,6 +77,10 @@ const MODEL_INPUT_PIXEL_COUNT = MODEL_INPUT_SIZE * MODEL_INPUT_SIZE
 // These rates keep input responsive while leaving time for rendering and game
 // state updates on lower-end devices.
 const FRAME_PROCESS_INTERVAL_MS = 66
+// 人脸识别是异步的，有 faceDetectionBusy 挡着不会叠起来，所以相机帧来多快就送多快，
+// 不再额外每 66ms 才看一帧：那样一来一回会多出将近一帧的延迟。
+const FACE_FRAME_INTERVAL_MS = 16
+const STATS_LOG_INTERVAL_MS = 10000
 const POSE_INTERVAL_MS = 96
 const MOTION_INTERVAL_MS = 66
 const MOTION_SAMPLE_STEP = 8
@@ -74,9 +88,8 @@ const MOTION_THRESHOLD = 22
 const POSE_SCORE_THRESHOLD = 0.28
 const HEAD_LOCK_CONFIRM_FRAMES = 3
 const HEAD_LOST_GRACE_MS = 720
-// 全局相机帧已限制为约 15fps；这里略低于全局间隔，避免二次节流后
-// 人脸与角色只剩约 7.5fps 的跟随速度。
-const FACE_DETECT_INTERVAL_MS = 60
+// 两次识别之间至少隔这么久；真正的上限是相机帧率和识别耗时。
+const FACE_DETECT_INTERVAL_MS = 30
 const FACE_DETECT_TIMEOUT_MS = 320
 const FACE_SCORE_THRESHOLD = 0.62
 
@@ -150,6 +163,7 @@ function buildHeadAnchor(points: PosePoint[], frameAspect: number): HeadAnchor |
     const radiusX = clamp(Math.max(headWidth * 0.82, shoulderSpan * 0.28), 0.055, 0.14)
     return {
       ...head,
+      eyeY: eyeYFromPose(points, POSE_SCORE_THRESHOLD),
       headRadiusX: radiusX,
       headRadiusY: clamp(radiusX * frameAspect * 1.32, 0.06, 0.18),
       target: 'head' as const
@@ -187,6 +201,9 @@ export class BodyPointTracker {
   private faceDetectionBusy = false
   private faceDetectionFailures = 0
   private faceDetectionTimer: ReturnType<typeof setTimeout> | null = null
+  private faceDetectStartedAt = 0
+  private faceFilters = { eyeY: createOneEuroFilter(), x: createOneEuroFilter(), y: createOneEuroFilter() }
+  private stats = { detections: 0, eyeFromPoints: 0, frames: 0, latencyMax: 0, latencySum: 0, since: 0, timeouts: 0 }
   private faceFrameHeight = 0
   private faceFrameWidth = 0
   private faceHandledDetectionId = 0
@@ -261,7 +278,9 @@ export class BodyPointTracker {
     if (this.destroyed || !frame.width || !frame.height || !(frame.data instanceof ArrayBuffer)) return
 
     this.expireHeadLock(at)
-    if (at - this.lastFrameAt < FRAME_PROCESS_INTERVAL_MS) return
+    this.countFrame(frame, at)
+    const interval = this.anchorMode === 'head' && this.faceReady ? FACE_FRAME_INTERVAL_MS : FRAME_PROCESS_INTERVAL_MS
+    if (at - this.lastFrameAt < interval) return
     this.lastFrameAt = at
 
     const rgba = new Uint8Array(frame.data)
@@ -383,6 +402,7 @@ export class BodyPointTracker {
     }
 
     this.lastFaceAt = at
+    this.faceDetectStartedAt = at
     this.faceDetectionBusy = true
     this.faceFrameWidth = frame.width
     this.faceFrameHeight = frame.height
@@ -402,6 +422,7 @@ export class BodyPointTracker {
         if (this.destroyed || detectionId !== this.faceActiveDetectionId) return
         this.faceDetectionBusy = false
         this.faceHandledDetectionId = detectionId
+        this.stats.timeouts += 1
         this.handleHeadPoseAnchor(null, this.faceFrameWidth, this.faceFrameHeight, Date.now())
       }, FACE_DETECT_TIMEOUT_MS)
     } catch (error: any) {
@@ -423,6 +444,11 @@ export class BodyPointTracker {
     this.faceDetectionBusy = false
     this.faceDetectionFailures = 0
     this.clearFaceDetectionTimer()
+    const completedAt = Date.now()
+    const latency = completedAt - this.faceDetectStartedAt
+    this.stats.detections += 1
+    this.stats.latencySum += latency
+    this.stats.latencyMax = Math.max(this.stats.latencyMax, latency)
 
     const anchors = Array.isArray(value)
       ? value
@@ -452,8 +478,17 @@ export class BodyPointTracker {
           return null
         }
         const confidence = Number.isFinite(rawConfidence) ? clamp(rawConfidence, 0, 1) : 1
+        const eyeLine: EyeLine = eyeLineFromFace({
+          frameHeight: this.faceFrameHeight,
+          frameWidth: this.faceFrameWidth,
+          originY,
+          points: anchor?.points,
+          sizeWidth
+        })
         return {
           anchor: {
+            eyeY: clamp(eyeLine.eyeY, 0.02, 0.98),
+            eyeSource: eyeLine.source,
             headRadiusX: clamp(sizeWidth * 0.5, 0.045, 0.22),
             headRadiusY: clamp(sizeHeight * 0.5, 0.055, 0.25),
             score: confidence,
@@ -464,15 +499,46 @@ export class BodyPointTracker {
           rank: confidence * 2 + sizeWidth * sizeHeight
         }
       })
-      .filter((item): item is { anchor: HeadAnchor; rank: number } => Boolean(item))
+      .filter((item): item is { anchor: HeadAnchor & { eyeSource: EyeLine['source'] }; rank: number } => Boolean(item))
       .sort((a, b) => b.rank - a.rank)
 
-    this.handleHeadPoseAnchor(
-      faces[0]?.anchor || null,
-      this.faceFrameWidth,
-      this.faceFrameHeight,
-      Date.now()
-    )
+    const best = faces[0]?.anchor || null
+    if (best?.eyeSource === 'points') this.stats.eyeFromPoints += 1
+    this.handleHeadPoseAnchor(best ? this.smoothFace(best, completedAt) : null, this.faceFrameWidth, this.faceFrameHeight, completedAt)
+  }
+
+  /** 人脸结果先过 One Euro 滤波：静止不抖、动起来不拖。 */
+  private smoothFace(anchor: HeadAnchor, at: number): HeadAnchor {
+    return {
+      ...anchor,
+      eyeY: anchor.eyeY === undefined ? undefined : this.faceFilters.eyeY.filter(anchor.eyeY, at),
+      presmoothed: true,
+      x: this.faceFilters.x.filter(anchor.x, at),
+      y: this.faceFilters.y.filter(anchor.y, at)
+    }
+  }
+
+  /** 每 10 秒把真机上的相机帧率、识别频率和识别耗时写进实时日志。 */
+  private countFrame(frame: CameraFrame, at: number) {
+    if (!this.options.logLabel) return
+    const stats = this.stats
+    if (!stats.since) stats.since = at
+    stats.frames += 1
+    const elapsed = at - stats.since
+    if (elapsed < STATS_LOG_INTERVAL_MS) return
+    const seconds = elapsed / 1000
+    realtimeLog('info', 'head-tracking', {
+      cameraFps: Math.round((stats.frames / seconds) * 10) / 10,
+      detectFps: Math.round((stats.detections / seconds) * 10) / 10,
+      detectMsAvg: stats.detections ? Math.round(stats.latencySum / stats.detections) : null,
+      detectMsMax: stats.latencyMax,
+      eyeFromPoints: stats.eyeFromPoints,
+      frame: `${frame.width}x${frame.height}`,
+      game: this.options.logLabel,
+      runtime: this.runtimeState,
+      timeouts: stats.timeouts
+    })
+    this.stats = { detections: 0, eyeFromPoints: 0, frames: 0, latencyMax: 0, latencySum: 0, since: at, timeouts: 0 }
   }
 
   private disableFace(detail: string) {
@@ -646,9 +712,12 @@ export class BodyPointTracker {
     const rawVelocityX = (anchor.x - previous.x) / elapsedScale
     const rawVelocityY = (anchor.y - previous.y) / elapsedScale
     const speed = Math.hypot(rawVelocityX, rawVelocityY)
-    const alpha = speed > 0.035 ? 0.94 : speed > 0.012 ? 0.88 : 0.78
+    const alpha = anchor.presmoothed ? 1 : speed > 0.035 ? 0.94 : speed > 0.012 ? 0.88 : 0.78
     const x = previous.x * (1 - alpha) + anchor.x * alpha
     const y = previous.y * (1 - alpha) + anchor.y * alpha
+    const eyeY = anchor.eyeY === undefined
+      ? undefined
+      : previous.eyeY === undefined ? anchor.eyeY : previous.eyeY * (1 - alpha) + anchor.eyeY * alpha
 
     this.lastPoseSnapshotAt = completedAt
     return {
@@ -665,7 +734,8 @@ export class BodyPointTracker {
       velocityX: (x - previous.x) / elapsedScale,
       velocityY: (y - previous.y) / elapsedScale,
       x: clamp(x, 0.04, 0.96),
-      y: clamp(y, 0.06, 0.94)
+      y: clamp(y, 0.06, 0.94),
+      ...(eyeY === undefined ? {} : { eyeY: clamp(eyeY, 0.04, 0.96) })
     }
   }
 
@@ -824,6 +894,11 @@ export class BodyPointTracker {
   private setHeadLocked(locked: boolean) {
     if (this.headLocked === locked) return
     this.headLocked = locked
+    if (!locked) {
+      this.faceFilters.x.reset()
+      this.faceFilters.y.reset()
+      this.faceFilters.eyeY.reset()
+    }
     this.options.onLockChange?.(locked)
   }
 

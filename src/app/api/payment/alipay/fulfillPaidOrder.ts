@@ -5,6 +5,7 @@ import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan
 import { onRenewalPaid } from "@/lib/coachingAutomation";
 import { finalizeSubscriptionOrder } from "@/lib/subscriptionOrders";
 import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitlementSnapshot";
+import { isDuplicateFirstPurchase } from "@/lib/coachCheckoutGuard";
 import {
     resolveCoachSettlementDelayDays,
     resolveSettlementCoachAmountFen,
@@ -41,6 +42,13 @@ interface SettlementRow {
     huifu_hf_seq_id?: string | null;
     trans_stat?: string | null;
 }
+
+/**
+ * applied: the subscription runs on this payment (now or already).
+ * duplicate: a second first purchase for a subscription another payment activated; refund it.
+ * skipped: nothing to fulfil (no subscription, wrong student, row missing).
+ */
+export type SubscriptionFulfillment = "applied" | "duplicate" | "skipped";
 
 export interface BalancePaymentResult {
     status: SettlementStatus | "skipped";
@@ -547,7 +555,9 @@ export async function fulfillSubscriptionAndMaybeCreditWallet(
 
     const paymentOrderId = String(order.id || '');
     if (!paymentOrderId) return null;
-    await fulfillSubscriptionOnPaid({ ...order, id: paymentOrderId }, paymentOrderId, userId, provider);
+    const outcome = await fulfillSubscriptionOnPaid({ ...order, id: paymentOrderId }, paymentOrderId, userId, provider);
+    // The coach is paid once, for the payment the subscription runs on.
+    if (outcome === "duplicate") return null;
 
     if (requiresHuifuSettlement(order)) {
         const splitResult = await executeBalancePayment(order);
@@ -686,7 +696,7 @@ export async function fulfillSubscriptionOnPaid(
     orderId: string,
     userId: string,
     provider: PaymentProvider = "alipay",
-): Promise<void> {
+): Promise<SubscriptionFulfillment> {
     const orderData = asObject(order.order_data);
     const subscriptionOrderId = orderData.subscriptionOrderId as string | undefined;
     const subscriptionId = orderData.subscriptionId as string | undefined;
@@ -699,10 +709,10 @@ export async function fulfillSubscriptionOnPaid(
             alipayOrderId: order.id,
             expectedStudentId: userId,
         });
-        return;
+        return "applied";
     }
 
-    if (!subscriptionId) return;
+    if (!subscriptionId) return "skipped";
 
     const { data: sub } = await serviceRoleSupabase
         .from("coach_subscriptions")
@@ -710,8 +720,8 @@ export async function fulfillSubscriptionOnPaid(
         .eq("id", subscriptionId)
         .single();
 
-    if (!sub || sub.student_id !== userId) return;
-    if (coachId && sub.coach_id !== coachId) return;
+    if (!sub || sub.student_id !== userId) return "skipped";
+    if (coachId && sub.coach_id !== coachId) return "skipped";
     const needsQueueSupport = Boolean((sub.payment_data as any)?.pending_package_switch || (sub.payment_data as any)?.current_package_activation);
     const isRenewal = order.order_type === 'subscription_renew' || order.order_type === 'coach_subscription_renew';
     const legacyPurchase = needsQueueSupport && isRenewal ? {
@@ -732,10 +742,10 @@ export async function fulfillSubscriptionOnPaid(
         if (result) {
             if (result.queued) await activateQueuedPackageIfReady(subscriptionId);
             else if (result.applied) { await refreshSubscriptionEntitlementSnapshot(subscriptionId); await onRenewalPaid(subscriptionId); }
-            return;
+            return "applied";
         }
     }
-    if (sub.last_payment_order_id === order.id) return;
+    if (sub.last_payment_order_id === order.id) return "applied";
 
     const nowIso = new Date().toISOString();
     const update: Record<string, unknown> = {
@@ -756,21 +766,32 @@ export async function fulfillSubscriptionOnPaid(
         : 0;
 
     // Payment callbacks, polling and the return page can all arrive at once.
-    // The write only lands while this payment is still unrecorded and the
-    // weeks are unchanged since the read; otherwise re-read and decide again.
-    let current: { subscribed_weeks?: number | null; last_payment_order_id?: string | null } = sub;
+    // The write only lands while the recorded payment and the weeks are both
+    // unchanged since the read; otherwise re-read and decide again.
+    // Do not use .or() here: production PostgREST rejects an update carrying an
+    // or= filter (42703 "column ... does not exist"), which left paid orders unactivated.
+    let current: { status?: string | null; subscribed_weeks?: number | null; last_payment_order_id?: string | null } = sub;
     let recorded = false;
     for (let attempt = 0; attempt < 3 && !recorded; attempt += 1) {
-        if (current.last_payment_order_id === order.id) return;
+        if (current.last_payment_order_id === order.id) return "applied";
+        if (isDuplicateFirstPurchase(order.order_type, order.id, current)) {
+            console.error("[fulfillPaidOrder] duplicate first purchase left unapplied, refund it:", {
+                orderId: order.id,
+                subscriptionId,
+                appliedOrderId: current.last_payment_order_id,
+            });
+            return "duplicate";
+        }
         const weeksBefore = current.subscribed_weeks ?? null;
+        const paymentBefore = current.last_payment_order_id ?? null;
         const attemptUpdate = renewWeeks > 0
             ? { ...update, subscribed_weeks: Number(weeksBefore || 0) + renewWeeks }
             : update;
         let query = serviceRoleSupabase
             .from("coach_subscriptions")
             .update(attemptUpdate)
-            .eq("id", subscriptionId)
-            .or(`last_payment_order_id.is.null,last_payment_order_id.neq.${order.id}`);
+            .eq("id", subscriptionId);
+        query = paymentBefore === null ? query.is("last_payment_order_id", null) : query.eq("last_payment_order_id", paymentBefore);
         query = weeksBefore === null ? query.is("subscribed_weeks", null) : query.eq("subscribed_weeks", weeksBefore);
         const { data: written, error: writeError } = await query.select("id");
         if (writeError) throw new Error(writeError.message);
@@ -778,10 +799,10 @@ export async function fulfillSubscriptionOnPaid(
         if (!recorded) {
             const { data: fresh } = await serviceRoleSupabase
                 .from("coach_subscriptions")
-                .select("subscribed_weeks, last_payment_order_id")
+                .select("status, subscribed_weeks, last_payment_order_id")
                 .eq("id", subscriptionId)
                 .single();
-            if (!fresh) return;
+            if (!fresh) return "skipped";
             current = fresh;
         }
     }
@@ -801,7 +822,7 @@ export async function fulfillSubscriptionOnPaid(
             .eq("id", sub.coach_id)
             .single();
 
-        if (!coach?.user_id) return;
+        if (!coach?.user_id) return "applied";
 
         await sendSystemMessage(coach.user_id, {
             content: `新的学员订阅已通过【${getPaymentLabel(provider)}】完成，系统已自动确认。请前往 [我的学员](/dashboard/students) 查看。`,
@@ -819,4 +840,5 @@ export async function fulfillSubscriptionOnPaid(
     } catch (error) {
         console.error("[fulfillPaidOrder] send coach system message:", error);
     }
+    return "applied";
 }

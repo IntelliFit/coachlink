@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createSoundTimeline,
   renderSoundtrack,
+  renderSoundtrackPcm,
   soundForEvent,
   SOUNDTRACK_SAMPLE_RATE,
   type SoundtrackPlan
@@ -90,10 +91,10 @@ describe('happy bird soundtrack', () => {
     expect(renderSoundtrack(plan({ durationSeconds: 0, cues: [{ ...COIN, at: 0 }] }))).toBeNull();
   });
 
-  it('writes a 44.1kHz WAV exactly as long as the video', () => {
+  it('renders at the soundtrack rate, exactly as long as the video', () => {
     const wav = renderSoundtrack(plan({ cues: [{ ...COIN, at: 1 }] })) as ArrayBuffer;
     const view = new DataView(wav);
-    expect(view.getUint32(24, true)).toBe(44100);
+    expect(view.getUint32(24, true)).toBe(SOUNDTRACK_SAMPLE_RATE);
     expect(samplesOf(wav).length).toBe(4 * SOUNDTRACK_SAMPLE_RATE);
   });
 
@@ -122,5 +123,17 @@ describe('happy bird soundtrack', () => {
     const samples = samplesOf(renderSoundtrack(plan({ durationSeconds: 1, cues: [{ ...COIN, at: 5 }] })));
     expect(samples.length).toBe(SOUNDTRACK_SAMPLE_RATE);
     expect(energy(samples, 0, 1)).toBe(0);
+  });
+});
+
+describe('happy bird soundtrack PCM', () => {
+  it('produces the same samples as the WAV, ready to write into the video', () => {
+    const p = plan({ cues: [{ ...COIN, at: 0.5 }], musicFrom: 1, musicTo: 3 });
+    const pcm = renderSoundtrackPcm(p) as Int16Array;
+    expect(Array.from(pcm)).toEqual(Array.from(samplesOf(renderSoundtrack(p))));
+  });
+
+  it('returns null when there is nothing to hear', () => {
+    expect(renderSoundtrackPcm(plan())).toBeNull();
   });
 });
