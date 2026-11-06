@@ -28,6 +28,8 @@ type PaymentStatus = "pending" | "success" | "failed" | "cancelled";
 
 interface QueryWechatPaymentResponse {
     status: PaymentStatus;
+    /** Paid, but activation failed; status stays "pending" so clients keep polling and retrying. */
+    activationPending?: boolean;
     amount: number;
     order: {
         id: string;
@@ -51,7 +53,9 @@ async function fulfillPaidWechatOrder(latestOrder: any, userId: string) {
         latestOrder.order_type === "coach_subscription_renew";
 
     if (isSubscriptionOrder) {
-        await fulfillSubscriptionOnPaid(latestOrder, latestOrder.id, userId, "wechat");
+        const outcome = await fulfillSubscriptionOnPaid(latestOrder, latestOrder.id, userId, "wechat");
+        // A duplicate charge waits for a refund; the coach is paid once, for the payment the subscription runs on.
+        if (outcome === "duplicate") return;
 
         const isCoachSub =
             latestOrder.order_type === "coach_subscription" ||
@@ -277,19 +281,27 @@ export async function POST(request: NextRequest) {
 
             latestOrder = updatedOrder || latestOrder;
             paymentStatus = mappedStatus;
+        }
 
-            if (paymentStatus === "success") {
+        // A paid order whose activation fails is reported as still pending (with
+        // activationPending) instead of a 500: the waiting page keeps polling, each poll
+        // retries the activation, and the checkout guard refuses a second first purchase.
+        let activationPending = false;
+        if (paymentStatus === "success") {
+            try {
                 await fulfillPaidWechatOrder(latestOrder, userId);
+            } catch (fulfillError) {
+                activationPending = true;
+                console.error("[Huifu Wechat Query] paid order activation failed:", latestOrder.id, fulfillError);
             }
-        } else if (paymentStatus === "success") {
-            await fulfillPaidWechatOrder(latestOrder, userId);
         }
 
         return NextResponse.json<ApiData<QueryWechatPaymentResponse>>({
             success: true,
-            message: "支付状态",
+            message: activationPending ? "支付成功，正在开通" : "支付状态",
             data: {
-                status: paymentStatus,
+                status: activationPending ? "pending" : paymentStatus,
+                activationPending: activationPending || undefined,
                 amount: fenToYuan(latestOrder.total_amount ?? 0),
                 order: {
                     id: latestOrder.id,

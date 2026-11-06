@@ -59,6 +59,11 @@ export async function POST(request: NextRequest) {
             .maybeSingle();
         if (existingOrder) {
             assertHuifuWebPaymentAmount(existingOrder, notifyData);
+            // Huifu keeps retrying a payment callback until it is acknowledged; a retry
+            // that lands after the refund must not turn the order back into a paid one.
+            if (existingOrder.status === "refunded") {
+                return new Response(`RECV_ORD_ID_${reqSeqId}`, { status: 200 });
+            }
             if (isHuifuWebPayment(existingOrder) && existingOrder.status === "paid" && nextStatus !== "paid") {
                 return new Response(`RECV_ORD_ID_${reqSeqId}`, { status: 200 });
             }

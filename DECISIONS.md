@@ -1650,3 +1650,4 @@
 - 上传收尾接口必须可重复调用：`complete` 用 upsert，错误路径只在校验出大小不对时删对象。客户端超时重试不能毁掉上一次存好的视频。
 - 分片大小不符的差值写到任务 `metadata.upload_failure_details`。Pod 日志随每次发布消失，nginx 又不记请求体长度，线上差值只能从这里查。
 - `2026-11-03`: 接豆派对重做（`apps/wechat/src/toolbox/motion-bean/`）：全屏相机，脸上不画任何框，脸就是接豆的嘴，豆子碰到脸就算吃到。绿豆 +1、金豆 +5、长眼睛的黑色捣蛋豆 -3 并清零连击（擦边不算）；连接 5 个分数翻倍、15 个三倍，漏接不断连击；一局 45 秒，最后 10 秒加速。复用快乐小鸟的倒计时、暂停、带声音的高清录制和本机最佳（`birdReplayStore` 按游戏分 key），没有在线榜。旧的公共游戏页 `motionArcadePage` 只服务这一个游戏，已删除；游戏代码和快乐小鸟一起放 `toolbox/happy-bird-common.js`。用户看过模拟预览后同意直接提交，真机未测。
+- `2026-10-31`: 训练中可调整动作顺序（小程序执行页，列表模式入口 + 卡片模式「···」），只改本次执行记录，不改计划；规则在 `packages/core/src/executionActionOrder.ts`，接口 `POST /api/{execution,impromptu}/extra-content/reorder-actions`（order[新位置] = 旧下标，附 actionKeys 防止覆盖其他设备的改动）。计划训练靠 `source_action_index` 对回计划动作，换序时补齐；即兴组视频按 `action_index` 关联，换序时同步改。练完当前动作后先往后找未完成动作，后面没有再回头找。开练和训练中「添加动作」（`from=execution`）默认显示公共动作库，可切到常用或我的；输入关键词时搜索全部动作，不受标签和分类限制；即兴训练可在开始前起名（`/api/impromptu/start` 的 `title`）。Web 与 APP 暂未跟进。
