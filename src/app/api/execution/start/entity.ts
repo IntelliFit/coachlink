@@ -3,6 +3,8 @@ export interface StartExecutionDto {
     instanceId: string;
     dayIndex: number;
     restartTimedOut?: boolean;
+    /** 'light_task': the student is only adding or ticking a light task, which does not start the subscription. */
+    purpose?: "training" | "light_task";
 }
 
 // 返回参数的接口类型

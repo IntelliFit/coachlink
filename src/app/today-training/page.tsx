@@ -470,9 +470,11 @@ const TodayTrainingPage: React.FC = () => {
 
             let executionId = selectedExec?.id as string | undefined;
             if (!executionId) {
+                // 只是加轻任务，不开始订阅计时
                 const startRes = await executionService.startExecution({
                     instanceId: instance.id,
                     dayIndex: selectedDayIndex,
+                    purpose: "light_task",
                 });
                 executionId = startRes?.data?.id;
             }

@@ -1159,7 +1159,7 @@ function TodayTrainingScreen() {
       setAddingLightweightTask(true)
       let executionId = selectedExec?.id
       if (!executionId) {
-        const startRes = await executionService.startExecution(instance.id, selectedDayIndex)
+        const startRes = await executionService.startExecution(instance.id, selectedDayIndex, { purpose: 'light_task' })
         executionId = getExecutionId(startRes)
       }
       if (!executionId) throw new Error('无法创建当天执行记录')
@@ -1318,7 +1318,7 @@ function TodayTrainingScreen() {
         setLightweightSheetSaving(true)
         let executionId = selectedExec?.id
         if (!executionId && instance?.id && selectedDayIndex) {
-          const startRes = await executionService.startExecution(instance.id, selectedDayIndex)
+          const startRes = await executionService.startExecution(instance.id, selectedDayIndex, { purpose: 'light_task' })
           executionId = getExecutionId(startRes)
         }
         if (!executionId) throw new Error('无法获取执行记录')

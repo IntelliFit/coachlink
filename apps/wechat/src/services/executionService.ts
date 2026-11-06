@@ -221,12 +221,13 @@ class ExecutionService {
   async startExecution(
     instanceId: string,
     dayIndex: number,
-    options?: { restartTimedOut?: boolean }
+    options?: { restartTimedOut?: boolean; purpose?: 'training' | 'light_task' }
   ): Promise<any> {
     const res = await request({
       url: `${this.baseUrl}/start`,
       method: 'POST',
-      data: { instanceId, dayIndex, restartTimedOut: !!options?.restartTimedOut },
+      // purpose 'light_task'：只是加或打卡轻任务，不开始订阅计时
+      data: { instanceId, dayIndex, restartTimedOut: !!options?.restartTimedOut, purpose: options?.purpose },
       showErrorToast: false
     })
     if (res.success && res.data) return res.data

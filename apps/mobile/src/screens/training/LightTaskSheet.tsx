@@ -52,7 +52,7 @@ export function LightTaskSheet({ visible, instanceId, dayIndex, executionId, onC
     try {
       let targetExecutionId = executionId || ''
       if (!targetExecutionId) {
-        const started = pickData(await apiClient.request('/api/execution/start', { method: 'POST', body: { instanceId, dayIndex }, timeoutMs: 15000 })) || {}
+        const started = pickData(await apiClient.request('/api/execution/start', { method: 'POST', body: { instanceId, dayIndex, purpose: 'light_task' }, timeoutMs: 15000 })) || {}
         targetExecutionId = String(started?.id || started?.execution?.id || started?.executionId || '')
       }
       if (!targetExecutionId) throw new Error('无法创建当天执行记录')

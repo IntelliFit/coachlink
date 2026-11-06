@@ -16,13 +16,13 @@ import { normalizeWeightUnit, toKg, type SetWeightUnit } from "@coachlink/core/s
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { getAuthUser } from "@/lib/auth";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
+import { startSubscriptionWindowIfNeeded } from "../_helpers/subscriptionWindow";
 import { normalizePlannedRestSeconds } from "@/lib/restTime";
 import {
     deriveEffectiveStartExecutionDay,
     deriveStrictSequentialProgressDay,
     dayHasRestTasks,
 } from "@/lib/planProgress";
-import { toBeijingDateKey } from "@/lib/beijingTime";
 import { expireAndActivatePendingPlanRevisions } from "@/lib/planExecutionLifecycle";
 
 function getSetPrescriptions(actionSet: any): any[] {
@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
         // 2. 解析请求参数
         const body: StartExecutionDto = await request.json();
         const { instanceId, dayIndex, restartTimedOut = false } = body;
+        const isLightTaskStart = body.purpose === "light_task";
 
         if (!instanceId || !Number.isInteger(dayIndex) || dayIndex <= 0) {
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
@@ -316,6 +317,15 @@ export async function POST(request: NextRequest) {
         }
 
         if (existingExecution && existingStatus === "in_progress") {
+            // The day may have been created by a light task; a real start opens the window now.
+            if (!isLightTaskStart) {
+                await startSubscriptionWindowIfNeeded({
+                    subscriptionId: (instance as any).coach_subscription_id as string | null,
+                    instanceId,
+                    dayIndex,
+                    startedAt: new Date().toISOString(),
+                });
+            }
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
                 success: true,
                 message: "获取执行记录成功",
@@ -584,42 +594,14 @@ export async function POST(request: NextRequest) {
         }
 
         // B1: Subscription starts when the student actually begins training (first execution).
-        // We set start_date on first start. Expiry is driven by credits consumption, not calendar days.
-        try {
-            const subscriptionId = (instance as any).coach_subscription_id as string | null;
-            if (subscriptionId) {
-                const { data: subRow } = await serviceRoleSupabase
-                    .from("coach_subscriptions")
-                    .select("id, status, start_date, subscribed_weeks")
-                    .eq("id", subscriptionId)
-                    .maybeSingle();
-
-                if (subRow && subRow.status === "active" && !subRow.start_date) {
-                        const firstStartedAt =
-                            (newExecution as any)?.started_at || new Date().toISOString();
-                        await serviceRoleSupabase
-                            .from("coach_subscriptions")
-                            .update({
-                                start_date: firstStartedAt,
-                                updated_at: firstStartedAt,
-                            } as any)
-                            .eq("id", subscriptionId);
-
-                        // D1 必须以第一次实际训练日期为准，覆盖分配计划时
-                        // 预填的日期；后续 revision 再继承这个真实键点。
-                        if (Number(dayIndex) === 1) {
-                            await serviceRoleSupabase
-                                .from("coach_plan_instances" as any)
-                                .update({
-                                    start_date: toBeijingDateKey(firstStartedAt),
-                                    updated_at: firstStartedAt,
-                                } as any)
-                                .eq("id", instanceId);
-                        }
-                }
-            }
-        } catch (e) {
-            console.error("[execution/start] Failed to start subscription window:", e);
+        // A light task creates the execution without starting it; see startSubscriptionWindowIfNeeded.
+        if (!isLightTaskStart) {
+            await startSubscriptionWindowIfNeeded({
+                subscriptionId: (instance as any).coach_subscription_id as string | null,
+                instanceId,
+                dayIndex,
+                startedAt: (newExecution as any)?.started_at || new Date().toISOString(),
+            });
         }
 
         return NextResponse.json<ApiData<StartExecutionResponseDto>>({
