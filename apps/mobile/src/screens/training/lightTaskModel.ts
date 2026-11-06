@@ -1,6 +1,6 @@
 /**
  * 今日训练「添加轻任务」（饮食 / 有氧 / 习惯），与小程序 TodayTrainingScreen.handleAddLightweightTask 一致。
- * 注意单位：执行记录里有氧距离按米、时长按秒存（计划编辑器里的 custom_data.distance 是公里，两者不同）。
+ * 注意单位：有氧距离在计划和执行记录里都按米存、按公里显示，时长按秒存。
  */
 
 export type LightTaskType = 'DIET' | 'CARDIO' | 'HABIT'

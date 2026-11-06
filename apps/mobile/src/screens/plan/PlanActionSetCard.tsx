@@ -197,7 +197,8 @@ export function PlanActionSetCard({ actionSet, index, total, actions, readOnly, 
           <TextField label="内容" value={String(custom.content || '')} readOnly={readOnly} placeholder="例如：慢跑、椭圆机" onChange={(text) => onChange(patchCustom(actionSet, { content: text }))} />
           <View style={styles.grid}>
             <NumberField label="时长(分)" decimal value={numberText(toNumber(custom.duration) === null ? null : Number(custom.duration) / 60)} readOnly={readOnly} onCommit={(value) => onChange(patchCustom(actionSet, { duration: Math.round(value * 60) }))} />
-            <NumberField label="距离(km)" decimal value={numberText(custom.distance)} readOnly={readOnly} onCommit={(value) => onChange(patchCustom(actionSet, { distance: value }))} />
+            {/* 输入公里，custom_data.distance 按米存（和执行记录、小程序一致） */}
+            <NumberField label="距离(km)" decimal value={numberText(toNumber(custom.distance) === null ? null : Number(custom.distance) / 1000)} readOnly={readOnly} onCommit={(value) => onChange(patchCustom(actionSet, { distance: Math.round(value * 1000) }))} />
           </View>
         </>
       ) : null}

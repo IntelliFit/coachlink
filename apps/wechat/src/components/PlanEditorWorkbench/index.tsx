@@ -336,7 +336,8 @@ export default function PlanEditorWorkbench({
       const pace = Number(customData.pace || 0)
       return [
         duration > 0 ? `${Math.round(duration / 60)}分钟` : '',
-        distance > 0 ? `${distance}km` : '',
+        // custom_data.distance 按米存（和执行记录、教练端学员计划一致），显示公里
+        distance > 0 ? `${Number((distance / 1000).toFixed(2))}km` : '',
         pace > 0 ? `${pace}配速` : ''
       ]
         .filter(Boolean)
@@ -1132,10 +1133,11 @@ export default function PlanEditorWorkbench({
               <Input
                 className='plan-editor__input'
                 type='digit'
-                value={String(customData.distance ?? '')}
+                value={customData.distance ? String(Number(customData.distance) / 1000) : ''}
                 onInput={(event) => {
+                  // 输入公里，按米存
                   updateActionCustomData(selectedDay.dayIndex, setIndex, {
-                    distance: Number(event.detail.value || 0)
+                    distance: Math.round(Number(event.detail.value || 0) * 1000)
                   })
                 }}
               />

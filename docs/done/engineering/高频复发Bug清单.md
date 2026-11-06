@@ -732,3 +732,11 @@
 - **统一规则**：模型名最后都经过 `src/lib/coachlinkLlm.ts` 的 `resolveServedWanjieModel`。已下线的模型登记在 `RETIRED_WANJIE_MODELS`，运行时换成仍在服务的模型（目前 `deepseek-v4-flash` → `deepseek-v4.1-flash-1017`，即 2026-10-17 版），并按用途告警一次。LLM 失败后走兜底的地方，必须在结果里留下标记（如 `coach_plan_instances.ai_generation_log.fallback`）。
 - **改动前自检**：网关下线一个模型，哪些用途会受影响（plan / planScript / fast / coachReply / vision / default）？兜底结果有没有标记，教练能不能看出来？本地快照里的模型名和线上 Apollo 是否一致？
 - **典型案例**（2026-11-05）：一份订阅在本地手动激活后，初始计划走了规则匹配并直接发布。线上计划生成未受影响，但 fast 和 planScript 两类调用落到了下线的默认模型。测试 `src/lib/coachlinkLlm.test.ts`。
+
+## 67) 有氧距离单位不一致：计划写公里，其他地方都当米读
+
+- **现象**：小程序模板编辑器或 APP 计划编辑器里写 2 公里，今日训练和训练页显示成 0.002 公里。
+- **根因**：`custom_data.distance` 没有约定单位。教练端学员计划、今日训练加轻任务、执行记录按米存；`PlanEditorWorkbench` 和 APP `PlanActionSetCard` 按公里存。
+- **统一规则**：有氧距离一律按米存、按公里显示和输入；时长按秒存、按分钟输入。新增编辑入口时输入框乘 1000 再存，回显除 1000。
+- **改动前自检**：这个字段还有哪些写入方和读取方？单位在哪一层换算？旧数据里有没有另一种单位的值？
+- **典型案例**（2026-11-06）：正式库 2 份计划共 10 个公里值（2、2.5）被显示成 0.002 公里。
