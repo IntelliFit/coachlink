@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { resolveCoachLinkAppRole } from '@coachlink/core'
 import { collectPlanOneRMActionIds, isOneRMEligibleAction } from '@coachlink/core/src/actionLoadMode'
+import { matchesBodyPartFilter } from '@coachlink/core/src/actionBodyParts'
 import {
   COACH_APPLICATION_POLICY_CONSENT,
   COACH_APPLICATION_POLICY_POINTS,
@@ -1855,7 +1856,7 @@ export function ActionLibraryScreen() {
     const haystack = actionLibrarySearchText(action)
     return matchesActionLibraryMode(action, mode)
       && (!keyword || haystack.includes(keyword))
-      && (position.key === 'all' || position.keywords.some((item) => haystack.includes(item)))
+      && (position.key === 'all' || matchesBodyPartFilter(haystack, position))
   })
 
   function refresh() {

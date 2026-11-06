@@ -1,5 +1,7 @@
 /** 训练分享页的部位统计和人体图高亮，小程序公开训练页和 APP 分享页共用。 */
 
+import { inferActionBodyParts } from './actionBodyParts'
+
 export type PublicTrainingActionSummary = {
   actionName: string
   setsCount: number
@@ -68,10 +70,7 @@ export function highlightBodySvg(svg: string, muscleLabels: string[]) {
 }
 
 function inferMusclesForAction(action: PublicTrainingActionSummary) {
-  const sourceText = String(action?.actionName || '').toLowerCase()
-  return MUSCLE_INFERENCE_RULES
-    .filter((rule) => rule.keywords.some((keyword) => sourceText.includes(keyword.toLowerCase())))
-    .map((rule) => rule.label)
+  return inferActionBodyParts(String(action?.actionName || '').toLowerCase(), MUSCLE_INFERENCE_RULES)
 }
 
 /** 按动作名推断练到的部位，分数 = 组数 + 容量（吨），从高到低。 */

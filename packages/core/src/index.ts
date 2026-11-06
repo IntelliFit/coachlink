@@ -42,6 +42,7 @@ export type MainTabKey = 'training' | 'coaches' | 'knowledge' | 'toolbox' | 'pro
 
 export * from './aiNavigator'
 export * from './wechatReleasePolicy'
+export * from './actionBodyParts'
 export * from './locationCoordinates'
 export * from './locationSearch'
 export * from './locationCountry'

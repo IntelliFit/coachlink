@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView, Input, Textarea, Image } from '@tarojs/components'
+import { matchesBodyPartFilter } from '@coachlink/core/src/actionBodyParts'
 import { DEFAULT_IMPROMPTU_TITLE, IMPROMPTU_TITLE_MAX_LENGTH } from '@coachlink/core/src/impromptuTitle'
 import { mergePickerSearchResults } from './pickerSearch'
 import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
@@ -163,6 +164,8 @@ function matchesLibraryMode(action: Action | PublicActionItemDto, mode: LibraryM
 function matchesFilter(action: Action | PublicActionItemDto, filter: FilterOption) {
   if (filter.key === 'all') return true
   const source = getSearchText(action)
+  // 部位筛选先识别「腿弯举」「悬垂举腿」这类说法，避免按单字算错部位
+  if (MUSCLE_FILTERS.includes(filter)) return matchesBodyPartFilter(source, filter)
   return filter.keywords.some(keyword => source.includes(keyword.toLowerCase()))
 }
 

@@ -6,6 +6,7 @@ import React from 'react'
 import { canStartPlanDay, executionCapabilities, resolveTrainingIntent, type TrainingIntent } from '@coachlink/core/src/trainingAccess'
 import { canCancelEmptyPlanExecution } from '@coachlink/core/src/executionCancellation'
 import { resolveActionLoadMode, type ActionLoadMode } from '@coachlink/core/src/actionLoadMode'
+import { inferActionBodyParts } from '@coachlink/core/src/actionBodyParts'
 import { IMPROMPTU_TITLE_MAX_LENGTH, resolveImpromptuTitle } from '@coachlink/core/src/impromptuTitle'
 import {
   executionActionKey,
@@ -413,9 +414,7 @@ function inferMusclesForAction(actionExecution: ActionExecution, actionDetail: a
   const directPositions = asTextList(actionDetail?.positions)
     .filter((item) => ['胸部', '背部', '肩部', '手臂', '核心', '腿部', '臀部'].includes(item))
 
-  const inferred = MUSCLE_INFERENCE_RULES
-    .filter((rule) => rule.keywords.some((keyword) => sourceText.includes(keyword.toLowerCase())))
-    .map((rule) => rule.label)
+  const inferred = inferActionBodyParts(sourceText, MUSCLE_INFERENCE_RULES)
 
   return Array.from(new Set([...directPositions, ...inferred])).slice(0, 3)
 }

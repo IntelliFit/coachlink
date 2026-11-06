@@ -123,8 +123,11 @@ function inferPositionsForAction(name: string, type: ItemType): string[] | null 
     const normalized = String(name || "").toLowerCase();
     const positions = new Set<string>();
     const has = (...keywords: string[]) => keywords.some((keyword) => normalized.includes(keyword));
+    // 「腿弯举」「leg curl」「leg extension」含 curl/extension/弯举，不能算手臂；「悬垂举腿」是腹部
+    const armText = normalized.replace(/腿弯举|腿屈伸|leg curls?|leg extensions?/g, " ");
+    const hasArm = (...keywords: string[]) => keywords.some((keyword) => armText.includes(keyword));
 
-    if (has("squat", "lunge", "leg press", "leg extension", "step up", "深蹲", "弓步", "腿举", "腿屈伸")) {
+    if (has("squat", "lunge", "leg press", "leg extension", "leg curl", "step up", "深蹲", "弓步", "腿举", "腿屈伸", "腿弯举")) {
         positions.add("大腿");
     }
     if (has("deadlift", "romanian", "good morning", "hip hinge", "硬拉", "髋铰链")) {
@@ -143,10 +146,10 @@ function inferPositionsForAction(name: string, type: ItemType): string[] | null 
     if (has("overhead press", "shoulder press", "lateral raise", "front raise", "rear delt", "推举", "侧平举", "前平举", "三角肌")) {
         positions.add("肩部");
     }
-    if (has("curl", "tricep", "skull crusher", "extension", "pushdown", "dip", "弯举", "三头", "臂屈伸")) {
+    if (hasArm("curl", "tricep", "skull crusher", "extension", "pushdown", "dip", "弯举", "三头", "臂屈伸")) {
         positions.add("手臂");
     }
-    if (has("crunch", "plank", "sit-up", "sit up", "core", "abs", "卷腹", "平板", "核心", "腹")) {
+    if (has("crunch", "plank", "sit-up", "sit up", "core", "abs", "leg raise", "knee raise", "卷腹", "平板", "核心", "腹", "举腿", "抬腿")) {
         positions.add("腹部");
     }
     if (has("snatch", "clean and jerk", "clean & jerk", "burpee", "thruster", "抓举", "挺举", "波比")) {

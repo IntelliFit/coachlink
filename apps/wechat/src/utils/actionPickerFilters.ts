@@ -1,3 +1,5 @@
+import { matchesBodyPartFilter } from '@coachlink/core/src/actionBodyParts'
+
 export interface ActionPickerFilterOption {
   key: string
   label: string
@@ -53,5 +55,7 @@ export function getActionPickerSearchText(action: any): string {
 export function matchesActionPickerFilter(action: any, filter: ActionPickerFilterOption): boolean {
   if (filter.key === 'all') return true
   const source = getActionPickerSearchText(action)
+  // 部位筛选先识别「腿弯举」「悬垂举腿」这类说法，避免按单字算错部位
+  if (ACTION_PICKER_MUSCLE_FILTERS.includes(filter)) return matchesBodyPartFilter(source, filter)
   return filter.keywords.some((keyword) => source.includes(keyword.toLowerCase()))
 }
