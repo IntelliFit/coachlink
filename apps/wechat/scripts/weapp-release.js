@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 const fs = require('fs')
 const path = require('path')
-const { execFileSync, execSync } = require('child_process')
+const { execSync, spawn } = require('child_process')
 
 const ci = require('miniprogram-ci')
+
+const { parseDevtoolsUploadOutput } = require('./devtools-upload-output')
 
 const PROJECT_DIR = path.resolve(__dirname, '..')
 const ROOT_DIR = path.resolve(PROJECT_DIR, '..')
@@ -225,6 +227,75 @@ function makeProject(appid) {
   })
 }
 
+// The CLI's spinner lines go to stderr and its upload details to stdout, so show and keep both.
+function runDevtoolsCli(cli, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cli, args, {
+      cwd: PROJECT_DIR,
+      stdio: ['inherit', 'pipe', 'pipe'],
+      shell: process.platform === 'win32',
+      env: process.env,
+    })
+    const stdout = []
+    const stderr = []
+    child.stdout.on('data', (chunk) => {
+      stdout.push(chunk)
+      process.stdout.write(chunk)
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr.push(chunk)
+      process.stderr.write(chunk)
+    })
+    child.on('error', reject)
+    child.on('close', (exitCode) => {
+      resolve({ exitCode, output: `${Buffer.concat(stdout)}\n${Buffer.concat(stderr)}` })
+    })
+  })
+}
+
+async function uploadWithDevtools({ cli, port, appid, version, desc }) {
+  // shell mode on Windows joins argv unquoted, so paths like "C:\Program Files (x86)" must be quoted.
+  const quote = (value) => (process.platform === 'win32' && /\s/.test(value) ? `"${value}"` : value)
+  const attempt = async (attemptPort) => {
+    console.log(
+      `[weapp-release] upload provider=devtools appid=${appid} version=${version} port=${attemptPort}`
+    )
+    const { exitCode, output } = await runDevtoolsCli(quote(cli), [
+      'upload',
+      '--project',
+      quote(RELEASE_DIR),
+      '--port',
+      String(attemptPort),
+      '-v',
+      version,
+      '-d',
+      quote(desc),
+    ])
+    return { exitCode, ...parseDevtoolsUploadOutput(output) }
+  }
+
+  let usedPort = port
+  let report = await attempt(usedPort)
+  // The CLI rejects a port mismatch before it starts uploading, so this retry cannot upload twice.
+  if (!report.uploaded && report.runningPort && report.runningPort !== usedPort) {
+    console.log(
+      `[weapp-release] DevTools is running on port ${report.runningPort}, not ${usedPort}. Retrying once on ${report.runningPort}.`
+    )
+    usedPort = report.runningPort
+    report = await attempt(usedPort)
+  }
+
+  if (!report.uploaded || report.exitCode !== 0) {
+    const running = report.runningPort ? ` DevTools is running on port ${report.runningPort}.` : ''
+    throw new Error(
+      `DevTools upload not confirmed on port ${usedPort}: exit code ${report.exitCode}, "√ upload" ${
+        report.uploaded ? 'printed' : 'not printed'
+      }.${running} latest-weapp-release.json was not updated.`
+    )
+  }
+  return usedPort
+}
+
 async function upload(options, context) {
   buildIfNeeded(options)
   ensureReleaseArtifacts()
@@ -245,23 +316,14 @@ async function upload(options, context) {
       devtoolsCli,
       'WeChat DevTools CLI not found. Set WEAPP_DEVTOOLS_CLI_PATH or use --provider miniprogram-ci.'
     )
-    const port = numberValue(options.port || getEnv('WEAPP_DEVTOOLS_CLI_PORT') || 28264, 28264)
     provider = 'devtools'
-    console.log(
-      `[weapp-release] upload provider=devtools appid=${context.appid} version=${version} port=${port}`
-    )
-    // shell mode on Windows joins argv unquoted, so paths like "C:\Program Files (x86)" must be quoted.
-    const quote = (value) => (process.platform === 'win32' && /\s/.test(value) ? `"${value}"` : value)
-    execFileSync(
-      quote(devtoolsCli),
-      ['upload', '--project', quote(RELEASE_DIR), '--port', String(port), '-v', version, '-d', quote(desc)],
-      {
-        cwd: PROJECT_DIR,
-        stdio: 'inherit',
-        shell: process.platform === 'win32',
-        env: process.env,
-      }
-    )
+    const port = await uploadWithDevtools({
+      cli: devtoolsCli,
+      port: numberValue(options.port || getEnv('WEAPP_DEVTOOLS_CLI_PORT') || 28264, 28264),
+      appid: context.appid,
+      version,
+      desc,
+    })
     result = { provider, port }
   } else {
     provider = 'miniprogram-ci'
