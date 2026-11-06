@@ -715,3 +715,11 @@
 - **统一规则**：update 永远不要链 `.or()`。并发保护用「按刚读到的值写」：原值为空用 `.is(col, null)`，否则 `.eq(col, 原值)`；需要 OR 选行时先 select 出 id，再 `.update().in('id', ids)`。钱已到账但开通失败时，查单接口回 `pending` 加 `activationPending`（不回 500，也不回 success：小程序等待页遇到非 pending 就停止轮询，而每次轮询都会重试开通）。首购下单前先看同一订阅有没有已支付未开通的单（或汇付查到已成功的 pending 单）：套餐（金额、productId、周数）和订阅行一致才补开通，不一致只拦截、留给人工；两种情况都拒绝新单。退款只在这笔是订阅当前用的支付时取消订阅；小程序重复首购的那笔退掉不动订阅。
 - **改动前自检**：这个 update 有没有 `.or()`？模拟 Supabase 的测试能不能发现真实 PostgREST 才有的报错（必要时用匹配 0 行的 PATCH 加 `Prefer: tx=rollback, handling=strict` 试一次）？订单标成已支付和开通订阅之间出错时，学员看到的是什么，还能不能再付一次？补开通时，订阅行上的套餐还是这笔订单买的那个吗？退款时这笔订单是不是订阅当前用的那笔（`last_payment_order_id`）？
 - **典型案例**（2026-11-05）：修复见 `src/app/api/payment/alipay/fulfillPaidOrder.ts`、`src/app/api/payment/wechat/coach/create/paidOrderGuard.ts`、`src/app/api/payment/wechat/query/route.ts`、`src/app/api/payment/alipay/refund/route.ts`（同样的 `.update().or()`，并且退重复扣款不再取消订阅）。测试 `tests/subscription-activation-postgrest.test.ts`、`tests/coach-paid-order-guard.test.ts`、`tests/coach-checkout-guard.test.ts`、`tests/postgrest-update-or-guard.test.ts`（静态扫描，禁止 `.update().or()`）。
+
+## 66) 思考型模型配短预算：reasoning 吃光中止时间或 max_tokens，调用方悄悄走兜底（高风险，重复出现）
+
+- **现象**：训练结束时的热量估算（`src/lib/workoutEnergy.ts`）中止时间 6 秒、`max_tokens` 700。换成 `deepseek-v4.1-flash-1017` 后 3/3 超时，结果全部退回规则 MET，只留一条 warn。
+- **根因**：万界方舟上的 deepseek 默认开启思考，短 JSON 任务也会先想几百到几千 token；中止时间和 `max_tokens` 却是按「只输出答案」定的。
+- **统一规则**：同步链路里的短 JSON 调用显式关掉思考：deepseek 传 `thinking: {type: "disabled"}`，通义传 `enable_thinking: false`。模型输出先去掉代码块、取出 `{…}`，再逐项校验（index、数值范围、枚举、字符串类型和长度），不合格的项退回规则值，不让整次估算失败。
+- **改动前自检**：这个调用的中止时间和 `max_tokens` 够不够模型先思考？换模型后有没有用真实网关、按同样参数测过？模型多给、少给、给错字段时，结果还能用吗？
+- **典型案例**（2026-11-05）：上面的热量估算，关掉思考后 2.3–3.7 秒返回。测试 `src/lib/workoutEnergy.ai.test.ts`。解析方式参考 FoodLink `backend/internal/health/service/exercise_service.go`。

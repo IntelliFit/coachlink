@@ -1,3 +1,4 @@
+import type OpenAI from "openai";
 import { getCoachlinkFastLlm } from "@/lib/coachlinkLlm";
 
 export type WorkoutEnergyConfidence = "high" | "medium" | "low";
@@ -148,9 +149,62 @@ function resolveDurations(actions: WorkoutEnergyActionInput[], elapsedMinutes: n
     });
 }
 
-async function classifyWithAi(actions: WorkoutEnergyActionInput[], fallback: ReturnType<typeof deterministicMet>[]) {
+// 训练结束接口同步等这一步，所以中止时间要短。
+const AI_ABORT_MS = 6_000;
+const AI_REASON_MAX_CHARS = 40;
+const CONFIDENCE_VALUES: ReadonlySet<string> = new Set(["high", "medium", "low"]);
+
+interface AiCandidate {
+    index: number;
+    action: WorkoutEnergyActionInput;
+    fallbackMet: number;
+}
+
+/**
+ * 思考模式会把 6 秒中止时间全花在 reasoning 上：2026-11-05 实测 deepseek-v4.1-flash-1017 3/3 超时，
+ * 关掉后约 3.3 秒返回。万界方舟上 deepseek 认 thinking.type，通义认 enable_thinking。
+ */
+function thinkingOffParams(model: string): Record<string, unknown> {
+    const name = model.trim().toLowerCase();
+    if (name.startsWith("deepseek")) return { thinking: { type: "disabled" } };
+    if (name.startsWith("qwen")) return { enable_thinking: false };
+    return {};
+}
+
+/** 去掉 markdown 代码块和前后说明文字，取第一个 { 到最后一个 } 之间的 JSON。 */
+function parseJsonObject(raw: string): unknown {
+    const cleaned = raw.replace(/```(?:json)?/gi, "").trim();
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new Error("模型未返回 JSON 对象");
+    return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+/** 只保留 index 合法、不重复、MET 为正数的项；confidence 不认识时按 low，reason 只收短字符串。 */
+function normalizeClassifications(payload: unknown, allowedIndexes: ReadonlySet<number>): ClassifiedAction[] {
+    const list = Array.isArray(payload) ? payload : (payload as { actions?: unknown } | null)?.actions;
+    if (!Array.isArray(list)) return [];
+    const seen = new Set<number>();
+    return list.flatMap((entry): ClassifiedAction[] => {
+        if (!entry || typeof entry !== "object") return [];
+        const item = entry as Record<string, unknown>;
+        const index = Number(item.index);
+        const met = Number(item.met ?? item.met_value ?? item.MET);
+        if (!Number.isInteger(index) || !allowedIndexes.has(index) || seen.has(index)) return [];
+        if (!Number.isFinite(met) || met <= 0) return [];
+        seen.add(index);
+        const confidence = typeof item.confidence === "string" && CONFIDENCE_VALUES.has(item.confidence)
+            ? item.confidence as WorkoutEnergyConfidence
+            : "low";
+        const reason = typeof item.reason === "string" ? item.reason.trim().slice(0, AI_REASON_MAX_CHARS) : "";
+        return [{ index, met, confidence, reason }];
+    });
+}
+
+async function classifyWithAi(candidates: AiCandidate[]): Promise<ClassifiedAction[]> {
+    if (candidates.length === 0) return [];
     const { client, model } = getCoachlinkFastLlm();
-    const completion = await client.chat.completions.create({
+    const body: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
         model,
         temperature: 0,
         max_tokens: 700,
@@ -162,25 +216,30 @@ async function classifyWithAi(actions: WorkoutEnergyActionInput[], fallback: Ret
                     "你是运动代谢分类器，只负责依据2024 Adult Compendium给动作选择MET，不直接计算热量。",
                     "参考锚点：徒手中等3.8、徒手剧烈7.5、抗阻多动作3.5、深蹲硬拉5.0、抗阻剧烈6.0、一般有氧7.3、跳绳11.0。",
                     "不得因为动作难度高就无限提高MET；静态高难度动作也必须落在合理范围。",
-                    "只输出JSON：{actions:[{index,met,confidence,reason}]}。confidence只能high/medium/low。",
+                    '只输出 JSON 对象，不要 markdown。格式为 {"actions":[{"index":0,"met":5.0,"confidence":"medium","reason":"多关节下肢抗阻"}]}。',
+                    "每个输入动作输出一项，index 与输入一致；met 取 1.5 到 16 之间的数值；confidence 只能是 high/medium/low；reason 不超过20个汉字。",
                 ].join("\n"),
             },
             {
                 role: "user",
-                content: JSON.stringify(actions.map((action, index) => ({
+                content: JSON.stringify(candidates.map(({ index, action, fallbackMet }) => ({
                     index,
                     name: action.name,
                     type: action.type,
                     attrs: action.attrs,
                     category: action.category,
-                    fallbackMet: fallback[index].met,
+                    fallbackMet,
                 }))),
             },
         ],
-    }, { signal: AbortSignal.timeout(6_000) });
-    const raw = completion.choices[0]?.message?.content || "";
-    const parsed = JSON.parse(raw) as { actions?: ClassifiedAction[] };
-    return Array.isArray(parsed.actions) ? parsed.actions : [];
+    };
+    const completion = await client.chat.completions.create(
+        { ...body, ...thinkingOffParams(model) } as typeof body,
+        { signal: AbortSignal.timeout(AI_ABORT_MS) },
+    );
+    const raw = completion.choices[0]?.message?.content?.trim() || "";
+    if (!raw) throw new Error("模型返回空内容");
+    return normalizeClassifications(parseJsonObject(raw), new Set(candidates.map((candidate) => candidate.index)));
 }
 
 export async function estimateWorkoutEnergy(input: {
@@ -196,14 +255,17 @@ export async function estimateWorkoutEnergy(input: {
     const elapsedMinutes = clamp(Number(input.elapsedMinutes) || 0, 1 / 6, 240);
     const durations = resolveDurations(actions, elapsedMinutes);
     const fallback = actions.map(deterministicMet);
+    // 动作库里配了 MET 的动作直接用动作库，不问模型，模型结果也不能覆盖它。
+    const candidates = actions.flatMap((action, index): AiCandidate[] => (
+        itemSchemaMet(action) ? [] : [{ index, action, fallbackMet: fallback[index].met }]
+    ));
     let classifications: ClassifiedAction[] = [];
-    let aiAssisted = false;
     try {
-        classifications = await classifyWithAi(actions, fallback);
-        aiAssisted = classifications.length > 0;
+        classifications = await classifyWithAi(candidates);
     } catch (error) {
         console.warn("[workout-energy] AI MET classification failed, deterministic fallback used:", error);
     }
+    const aiAssisted = classifications.length > 0;
 
     const estimates = actions.map<WorkoutEnergyActionEstimate>((action, index) => {
         const ai = classifications.find((item) => item.index === index);
@@ -224,7 +286,7 @@ export async function estimateWorkoutEnergy(input: {
             calories: round(calories),
             activeCalories: round(activeCalories),
             confidence: ai?.confidence || fallback[index].confidence,
-            basis: ai?.reason?.trim() || fallback[index].basis,
+            basis: ai?.reason || fallback[index].basis,
         };
     }).filter((item) => item.minutes > 0);
 
