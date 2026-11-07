@@ -1140,11 +1140,12 @@ export default function StudentDetailPage() {
         </View>
 
         <View className='review-editor'>
-          <Text className='field-label'>教练私密记录</Text>
+          <Text className='field-label'>教练评语</Text>
+          <Text className='review-visibility'>学员能在个人资料的「教练评语」里看到这些内容</Text>
           <Textarea
             className='review-textarea'
             value={reviewDraft}
-            placeholder='记录阶段判断、沟通重点、伤病禁忌或后续调整依据'
+            placeholder='写阶段点评、训练建议、伤病注意事项或后续调整'
             maxlength={1200}
             autoHeight
             onInput={(e) => setReviewDraft(e.detail.value)}

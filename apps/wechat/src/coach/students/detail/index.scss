@@ -430,6 +430,13 @@
       border-top: 1rpx solid var(--cl-sunk);
     }
 
+    .review-visibility {
+      display: block;
+      margin-bottom: 16rpx;
+      font-size: 22rpx;
+      color: var(--cl-ink-3);
+    }
+
     .review-textarea {
       min-height: 160rpx;
       padding: 16rpx;

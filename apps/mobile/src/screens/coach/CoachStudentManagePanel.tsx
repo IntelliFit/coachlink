@@ -133,8 +133,8 @@ export function CoachStudentManagePanel({ subscriptionId, studentId, coachId, pl
   return (
     <>
       <Card style={styles.card}>
-        <Text style={styles.title}>教练私密记录</Text>
-        <Text style={styles.subtitle}>记录学员状态、伤病和沟通要点。注意：学员在个人资料的「教练评语」里也能看到这些记录。</Text>
+        <Text style={styles.title}>教练评语</Text>
+        <Text style={styles.subtitle}>写给学员的阶段点评和建议。学员能在个人资料的「教练评语」里看到这些内容。</Text>
         <TextInput
           accessibilityLabel={editingReviewId ? '编辑记录' : '新增记录'}
           value={draft}

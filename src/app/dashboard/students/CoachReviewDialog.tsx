@@ -190,8 +190,8 @@ export const CoachReviewDialog = ({
                             <MessageSquare size={20} />
                         </div>
                         <div>
-                            <h2 className="text-lg font-black tracking-tight text-surface-900">教练评价反馈</h2>
-                            <p className="text-xs text-surface-400 font-bold uppercase tracking-tighter">学员: {student?.profile?.nickname}</p>
+                            <h2 className="text-lg font-black tracking-tight text-surface-900">教练评语</h2>
+                            <p className="text-xs text-surface-400 font-bold uppercase tracking-tighter">学员: {student?.profile?.nickname} · 学员能在个人资料里看到</p>
                         </div>
                     </div>
                     <Button 
