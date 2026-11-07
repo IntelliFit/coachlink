@@ -1,4 +1,5 @@
 import { API_BASE_URL, BaseService } from '../../utils/request'
+import type { CoachRefundOrder } from '@coachlink/core/src/coachRefund'
 import Taro from '@tarojs/taro'
 
 interface CoachApplicationMaterial {
@@ -786,6 +787,13 @@ class CoachService extends BaseService {
     }> } | null }>('get-coach-rulepacks', reqData)
     if (res.success && res.data) return res.data
     return null
+  }
+
+  /** 某个订阅里教练可退款的已付订单（新的在前）；失败时抛出服务端提示 */
+  async listSubscriptionRefundOrders(subscriptionId: string): Promise<CoachRefundOrder[]> {
+    const res = await this.post<{ orders: CoachRefundOrder[] }>('subscription-refund-orders', { subscriptionId }, { showErrorToast: false })
+    if (res.success && res.data) return res.data.orders || []
+    throw new Error(res.message || '读取订单失败')
   }
 }
 

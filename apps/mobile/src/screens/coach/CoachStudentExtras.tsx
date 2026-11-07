@@ -3,6 +3,17 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 import { colors, controlHeight, radius, spacing, typography } from '../../theme'
 import { Card, SolidButton, errorMessage, safeRequest } from '../me/MeShared'
 import {
+  COACH_REFUND_EMPTY_TEXT,
+  coachRefundAmountText,
+  coachRefundConfirmText,
+  coachRefundConsequence,
+  coachRefundProviderLabel,
+  coachRefundResult,
+  coachRefundRoleLabel,
+  type CoachRefundOrder,
+  type CoachRefundSubscriptionOutcome,
+} from '@coachlink/core/src/coachRefund'
+import {
   AUTOMATION_FIELDS,
   EMPTY_AUTOMATION_OVERRIDE,
   PLAN_HISTORY_PAGE_SIZE,
@@ -160,19 +171,21 @@ export function StudentPlanHistoryCard({ studentId, currentInstanceId, onOpenCur
 }
 
 /** 订阅周期：历史训练周数（线下已练）和订阅周数。 */
-export function SubscriptionWeeksCard({ subscriptionId, priorWeeks, subscribedWeeks, onSaved, refundOrderId, onRefunded }: {
+export function SubscriptionWeeksCard({ subscriptionId, priorWeeks, subscribedWeeks, onSaved, canRefund, onRefunded }: {
   subscriptionId: string
   priorWeeks: number
   subscribedWeeks: number
   onSaved: (next: { priorWeeks: number; subscribedWeeks: number }) => void
-  /** 平台支付宝订单才有；为空时不显示退款 */
-  refundOrderId?: string | null
-  onRefunded?: () => void
+  /** 平台代收（微信、支付宝）的订阅才显示退款 */
+  canRefund?: boolean
+  onRefunded?: (result: { subscriptionCancelled: boolean }) => void
 }) {
   const [priorText, setPriorText] = useState(String(priorWeeks || 0))
   const [subscribedText, setSubscribedText] = useState(String(subscribedWeeks || 0))
   const [saving, setSaving] = useState(false)
-  const [refunding, setRefunding] = useState(false)
+  const [refundOrders, setRefundOrders] = useState<CoachRefundOrder[] | null>(null)
+  const [loadingOrders, setLoadingOrders] = useState(false)
+  const [refundingId, setRefundingId] = useState<string | null>(null)
 
   useEffect(() => {
     setPriorText(String(priorWeeks || 0))
@@ -195,23 +208,40 @@ export function SubscriptionWeeksCard({ subscriptionId, priorWeeks, subscribedWe
     }
   }
 
-  function confirmRefund() {
-    if (!refundOrderId || refunding) return
-    Alert.alert('确认退款', '退款会同步取消订阅并扣减教练钱包余额，确认继续？', [
+  // 列出这个订阅的每笔已付订单，由教练选择退哪一笔（重复扣款只退重复的那笔）
+  async function loadRefundOrders() {
+    if (loadingOrders || !subscriptionId) return
+    setLoadingOrders(true)
+    try {
+      const data = await safeRequest<{ orders: CoachRefundOrder[] }>('/api/coach/subscription-refund-orders', { body: { subscriptionId } })
+      setRefundOrders(data?.orders || [])
+    } catch (error) {
+      Alert.alert('读取订单失败', errorMessage(error, '请稍后重试'))
+    } finally {
+      setLoadingOrders(false)
+    }
+  }
+
+  function confirmRefund(order: CoachRefundOrder) {
+    if (refundingId) return
+    Alert.alert('确认退款', coachRefundConfirmText(order), [
       { text: '取消', style: 'cancel' },
       {
         text: '退款',
         style: 'destructive',
         onPress: async () => {
-          setRefunding(true)
+          setRefundingId(order.id)
           try {
-            await safeRequest('/api/payment/alipay/refund', { body: { orderId: refundOrderId, refundReason: '教练/学员申请退款' } })
-            onRefunded?.()
-            Alert.alert('退款成功', '订阅已取消。')
+            const data = await safeRequest<{ subscriptionOutcome?: CoachRefundSubscriptionOutcome }>('/api/payment/alipay/refund', { body: { orderId: order.id, refundReason: '教练/学员申请退款' } })
+            const result = coachRefundResult(data?.subscriptionOutcome)
+            onRefunded?.({ subscriptionCancelled: result.subscriptionCancelled })
+            Alert.alert(result.title)
+            setRefundOrders(null)
+            if (!result.subscriptionCancelled) void loadRefundOrders()
           } catch (error) {
             Alert.alert('退款失败', errorMessage(error, '请稍后重试'))
           } finally {
-            setRefunding(false)
+            setRefundingId(null)
           }
         },
       },
@@ -232,7 +262,27 @@ export function SubscriptionWeeksCard({ subscriptionId, priorWeeks, subscribedWe
         </View>
       </View>
       <SolidButton label="保存订阅周期" variant="secondary" loading={saving} onPress={() => void save()} />
-      {refundOrderId ? <SolidButton label={refunding ? '退款中…' : '退款'} variant="danger" loading={refunding} onPress={confirmRefund} /> : null}
+      {canRefund && !refundOrders ? <SolidButton label="退款" variant="danger" loading={loadingOrders} onPress={() => void loadRefundOrders()} /> : null}
+      {canRefund && refundOrders ? (
+        <View style={styles.group}>
+          <Text style={styles.groupLabel}>选择要退款的订单</Text>
+          {refundOrders.length === 0 ? <Text style={styles.desc}>{COACH_REFUND_EMPTY_TEXT}</Text> : null}
+          {refundOrders.map((order) => (
+            <View key={order.id} style={styles.row}>
+              <View style={styles.rowMain}>
+                <Text style={styles.rowTitle}>{coachRefundAmountText(order)} · {coachRefundRoleLabel(order.role)}</Text>
+                <Text style={styles.rowMeta}>{coachRefundProviderLabel(order.paymentProvider)} · {coachRefundConsequence(order)}</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel={`退款 ${coachRefundAmountText(order)}`} disabled={Boolean(refundingId)} onPress={() => confirmRefund(order)}>
+                {refundingId === order.id ? <ActivityIndicator color={colors.brand} /> : <Text style={styles.rowAction}>退这笔</Text>}
+              </Pressable>
+            </View>
+          ))}
+          <Pressable accessibilityRole="button" onPress={() => setRefundOrders(null)}>
+            <Text style={styles.rowAction}>收起</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </Card>
   )
 }

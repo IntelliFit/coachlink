@@ -740,3 +740,11 @@
 - **统一规则**：有氧距离一律按米存、按公里显示和输入；时长按秒存、按分钟输入。新增编辑入口时输入框乘 1000 再存，回显除 1000。
 - **改动前自检**：这个字段还有哪些写入方和读取方？单位在哪一层换算？旧数据里有没有另一种单位的值？
 - **典型案例**（2026-11-06）：正式库 2 份计划共 10 个公里值（2、2.5）被显示成 0.002 公里。
+
+## 65) 操作按「当前指针」挑记录，还替服务端说结果：退款退错单、提示订阅已取消（权限/状态边界，三端重复）
+
+- **现象**：同一订阅被扣两次后，教练端「退款」只能退 `last_payment_order_id`，也就是订阅正在用的那笔；退完不管服务端做了什么，一律提示「订阅已取消」并在本地把订阅清空。网页、小程序、App 三端是同一份写法；入口还只认 `platform_alipay`，微信支付的订阅根本没有入口。
+- **根因**：客户端把「订阅当前指向的订单」当成「要操作的订单」，又把乐观结果写死在界面里，没有读服务端返回的 `subscriptionOutcome`。
+- **统一规则**：对多条记录中的一条做不可逆操作（退款、删除、作废）时，由服务端列出候选记录并标明每条的身份和后果，用户选定具体 id；界面结果只按服务端返回值显示和改本地状态。三端共用的文案和判断放 `packages/core`。
+- **改动前自检**：同一个对象下有两条及以上记录时，这个按钮操作的是哪一条？操作完界面说的话是服务端告诉它的，还是客户端自己猜的？网页、小程序、App 是不是同一份逻辑？
+- **典型案例**（2026-11-07）：`src/lib/coachRefundOrders.ts`、`src/app/api/coach/subscription-refund-orders/route.ts`、`packages/core/src/coachRefund.ts`，三端入口 `src/app/dashboard/students/StudentRefundDialog.tsx`、`apps/wechat/src/coach/students/detail/index.tsx`、`apps/mobile/src/screens/coach/CoachStudentExtras.tsx`；测试 `tests/coach-refund-orders*.test.ts`。

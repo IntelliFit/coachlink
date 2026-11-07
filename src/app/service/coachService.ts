@@ -28,6 +28,7 @@ import type {
     GetStudentDto,
     GetStudentResponseDto
 } from '@/app/api/coach/get-student/entity';
+import type { CoachRefundOrdersResponseDto } from '@/app/api/coach/subscription-refund-orders/entity';
 import type {
     GetStudentFeedbacksDto,
     GetStudentFeedbacksResponseDto
@@ -545,6 +546,15 @@ class CoachService extends BaseService {
             return res.data.data || null;
         }
         return null;
+    }
+
+    /** Refundable paid orders of one of the coach's subscriptions; throws with the server message on failure. */
+    async listSubscriptionRefundOrders(subscriptionId: string) {
+        const res = await this.post<CoachRefundOrdersResponseDto>('subscription-refund-orders', { subscriptionId });
+        if (res.data && res.data.success && res.data.data) {
+            return res.data.data.orders;
+        }
+        throw new Error(res.data?.message || '读取订单失败');
     }
 }
 
