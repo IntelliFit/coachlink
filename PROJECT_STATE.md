@@ -1,3 +1,23 @@
+## 本地改动统一发布（2026-11-07 21:30 北京时间，web e815e50e，worker 8975e8d6，weapp 2026.11.07.2132）
+
+- 起因：用户要求把有氧距离单位、轻任务计时、腿弯举分类、地图偏差处理完，连同本地其他基本完成的分支一起发版。
+- 内容（main 578868b3 之后 34 个提交）：
+  - 有氧距离统一按公里输入、按米存（83eb41cc）。线上 2 个按公里存的计划已改成米，备份 `E:\CodexWork\coachlink-release-2026-11-06\distance-backup-before-metres.json`。
+  - 学员自己加的轻任务不再开始订阅计时，只有正式训练开始才计（6336cf34，`purpose: "light_task"`）。
+  - 腿弯举、腿屈伸算腿部，举腿、抬腿算核心，侧卧抬腿算臀部（e07025a3，`packages/core/src/actionBodyParts.ts`）。
+  - 地图：585 个没标坐标系的旧点位全部标为 gcj02，网页和小程序不再差 350–550 米。备份 `coords-backup-before-gcj02-tag.json`（同目录）。
+  - 教练记录改名「教练评语」，三端注明学员可见（80237be7）。
+  - 教练端退款：先选退哪一笔已付订单，按服务端真实结果提示（abecbb6b，合并 6e182fcb，Bug 清单 #68）。
+  - 另含：每组实际休息记录、AI 计划助手改动与描述一致、首份计划自动化（读 1RM、问学员缺的、失败告诉教练）、网关模型兜底 deepseek-v4.1-flash-1017、MET 分类关思考、哑铃弹弹镜头修正、小程序上传误报修复、create-subscription 只建待支付订阅。
+- Web：`coachlink-main` 3/3、`coachlink-dev` 1/1 都是 `coachlink@sha256:2a5040fdf1db2bbb93682444d56626f28cd85b03378841e388b7267a1c629d36`（标签 rel-20261107-e815e50e）。回滚目标 `292a0ea537238e2d03f56d1824fcf34929633146b858ed342f6809ab8007c7f6`。
+- Worker：`coachlink-power-worker-dev`、`-main` 都是 `coachlink-power-worker@sha256:8975e8d6c31f3e09f431bfc3609322ee0fbb8e7ebe5f21d95591757e879af08e`（power-20261107-80237be7，镜像内 135 个测试通过；之后的提交不涉及 Worker）。Kafka 两组各 16 分区由新消费者持有。回滚目标 `1d3d7db7cf474272c7f91cf2abc69e62a3b3447396089169d128ab507c49b0c3`。薄肌引擎未变（9c533a22）。
+- 构建：product-server `~/coachlink-rel-20261107-e815e50e`，payfix 源码树加 diff，2413 个文件逐一核对 git blob；Dockerfile.cached 复用依赖镜像（lock 只差 apps/mobile 的 expo 包，Web 不用）；safe-docker-build。
+- 门禁：typecheck 只有 `.next` 生成文件报错；vitest 2245/2246（既有 streetliftingLocationOverview）。E2E 未跑（写正式库）。
+- 线上验证（不写库）：dev、main 首页 307、登录 200；退款、下单、查单、新退款接口、开始训练未登录都是 401，notify 空请求 400，和旧版一致；coachlink.fit 公网 200。新 pod 启动无报错。
+- 小程序开发版 **2026.11.07.2132**（描述 release-e815e50-all-local-20261107，总包 10,724,540 / 主包 1,988,965），已核对包里有退款入口、轻任务标记、腿弯举分类、教练评语可见提示；待用户设为体验版、提审。
+- 没验证：教练端退款界面（只看了代码和测试，没在界面里点）、轻任务不计时的真机流程、记录实际休息的模拟器流程。
+- 未决：Next 升级（单独做）；线上 `INITIAL_PLAN_RETRY_INTERVAL_MS`、`PLAN_INTAKE_EXPIRY_INTERVAL_MS` 未配置，两个定时任务关闭；Apollo `WANJIE_ARK_PLAN_MODEL` 和万界余额；1–3 月 9 个有订阅没计划的学员。
+
 ## 快乐小鸟眼睛锁定 + 三档速度（2026-11-06，只发小程序，weapp 2026.11.06.0732）
 
 - 起因：用户反馈小鸟相对脸一会儿在额头、一会儿在嘴巴。之前几次测到的其实都是别的会话从 main 打的包：所有会话共用一个开发者账号，开发版只有一个位置，后传的覆盖先传的。
