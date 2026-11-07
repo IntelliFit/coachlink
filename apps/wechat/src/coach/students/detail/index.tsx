@@ -11,6 +11,18 @@ import { refundAlipayOrder } from '@/services/paymentService'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { mergeQuestionnaireAnswers } from '@coachlink/core/src/questionnaireMerge'
+import {
+  canOfferCoachRefund,
+  COACH_REFUND_EMPTY_TEXT,
+  COACH_REFUND_SHEET_MORE_TEXT,
+  coachRefundSheetItems,
+  coachRefundAmountText,
+  coachRefundConfirmText,
+  coachRefundConsequence,
+  coachRefundResult,
+  coachRefundRoleLabel,
+  type CoachRefundOrder
+} from '@coachlink/core/src/coachRefund'
 
 const FITNESS_LEVEL_LABEL_MAP: Record<string, string> = {
   beginner: '零基础',
@@ -686,12 +698,10 @@ export default function StudentDetailPage() {
     })
   }
 
-  const handleRefund = () => {
-    const orderId = student?.last_payment_order_id || student?.order_id
-    if (!orderId || refunding) return
+  const refundOrder = (order: CoachRefundOrder) => {
     Taro.showModal({
       title: '确认退款',
-      content: '退款会同步取消订阅并扣减教练钱包余额，确认继续？',
+      content: coachRefundConfirmText(order),
       confirmText: '退款',
       confirmColor: '#ef4444',
       success: async (res) => {
@@ -699,25 +709,65 @@ export default function StudentDetailPage() {
         setRefunding(true)
         try {
           const result = await refundAlipayOrder({
-            orderId,
+            orderId: order.id,
             refundReason: '教练/学员申请退款',
             showErrorToast: false
           })
-          if (!result.success) throw new Error(result.message || 'refund failed')
-          setStudent((prev) => prev ? {
-            ...prev,
-            status: 'cancelled',
-            order_id: null,
-            last_payment_order_id: null,
-            payment_method: null
-          } : prev)
-          Taro.showToast({ title: '退款成功，订阅已取消', icon: 'none' })
+          if (!result.success) throw new Error(result.message || '退款失败，请稍后重试')
+          const outcome = coachRefundResult(result.subscriptionOutcome)
+          if (outcome.subscriptionCancelled) {
+            setStudent((prev) => prev ? {
+              ...prev,
+              status: 'cancelled',
+              order_id: null,
+              last_payment_order_id: null,
+              payment_method: null
+            } : prev)
+          }
+          Taro.showToast({ title: outcome.title, icon: 'none' })
         } catch (error) {
           console.error('[coach/student-detail] refund failed:', error)
-          Taro.showToast({ title: '退款失败，请稍后重试', icon: 'none' })
+          Taro.showToast({ title: (error as Error)?.message || '退款失败，请稍后重试', icon: 'none' })
         } finally {
           setRefunding(false)
         }
+      }
+    })
+  }
+
+  // 列出这个订阅的每笔已付订单，由教练选择退哪一笔（重复扣款只退重复的那笔）
+  const handleRefund = async () => {
+    if (!subscriptionId || refunding) return
+    setRefunding(true)
+    let orders: CoachRefundOrder[] = []
+    try {
+      orders = await coachService.listSubscriptionRefundOrders(subscriptionId)
+    } catch (error) {
+      console.error('[coach/student-detail] load refund orders failed:', error)
+      Taro.showToast({ title: (error as Error)?.message || '读取订单失败', icon: 'none' })
+      return
+    } finally {
+      setRefunding(false)
+    }
+    if (orders.length === 0) {
+      Taro.showModal({ title: '无法退款', content: COACH_REFUND_EMPTY_TEXT, showCancel: false })
+      return
+    }
+    if (orders.length === 1) {
+      refundOrder(orders[0])
+      return
+    }
+    const { choices, hasMore } = coachRefundSheetItems(orders)
+    const itemList = choices.map((order) => `${coachRefundAmountText(order)} ${coachRefundRoleLabel(order.role)} · ${coachRefundConsequence(order)}`)
+    Taro.showActionSheet({
+      itemList: hasMore ? [...itemList, COACH_REFUND_SHEET_MORE_TEXT] : itemList,
+      success: ({ tapIndex }) => {
+        if (hasMore && tapIndex === choices.length) {
+          Taro.showToast({ title: COACH_REFUND_SHEET_MORE_TEXT, icon: 'none' })
+          return
+        }
+        const order = choices[tapIndex]
+        if (order) refundOrder(order)
       }
     })
   }
@@ -924,7 +974,7 @@ export default function StudentDetailPage() {
 
   const profile = student.profile
   const displayedFeedbacks = showAllFeedbacks ? feedbacks : feedbacks.slice(0, 3)
-  const canRefundSubscription = student.payment_method === 'platform_alipay' && Boolean(student.last_payment_order_id || student.order_id)
+  const canRefundSubscription = canOfferCoachRefund(student)
   const questionnaireItems = questionnaireEditing ? questionnaireDraft : normalizeQuestionnaireData(student.subscribe_data)
 
   return (

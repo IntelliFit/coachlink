@@ -481,8 +481,10 @@ export function CoachStudentDetailScreen() {
             priorWeeks={Number(student?.prior_training_weeks || 0)}
             subscribedWeeks={Number(student?.subscribed_weeks || 0)}
             onSaved={({ priorWeeks, subscribedWeeks }) => setStudent((current: any) => (current ? { ...current, prior_training_weeks: priorWeeks, subscribed_weeks: subscribedWeeks } : current))}
-            refundOrderId={refundableOrderId(student)}
-            onRefunded={() => setStudent((current: any) => (current ? { ...current, status: 'cancelled', order_id: null, last_payment_order_id: null, payment_method: null } : current))}
+            canRefund={Boolean(refundableOrderId(student))}
+            onRefunded={({ subscriptionCancelled }) => {
+              if (subscriptionCancelled) setStudent((current: any) => (current ? { ...current, status: 'cancelled', order_id: null, last_payment_order_id: null, payment_method: null } : current))
+            }}
           />
           <StudentPlanHistoryCard
             studentId={String(route.params?.studentId || student?.student_id || '')}

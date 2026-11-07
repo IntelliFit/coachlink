@@ -293,8 +293,8 @@ export async function refundAlipayOrder(params: {
   orderId: string
   refundReason?: string
   showErrorToast?: boolean
-}): Promise<{ success: boolean; message?: string }> {
-  const res = await request({
+}): Promise<{ success: boolean; message?: string; subscriptionOutcome?: 'cancelled' | 'kept' | 'unknown' }> {
+  const res = await request<{ subscriptionOutcome?: 'cancelled' | 'kept' | 'unknown' }>({
     url: '/api/payment/alipay/refund',
     method: 'POST',
     data: {
@@ -306,5 +306,5 @@ export async function refundAlipayOrder(params: {
   if (!res.success) {
     return { success: false, message: res.message }
   }
-  return { success: true, message: res.message }
+  return { success: true, message: res.message, subscriptionOutcome: res.data?.subscriptionOutcome }
 }

@@ -1,3 +1,4 @@
+import { canOfferCoachRefund } from '@coachlink/core/src/coachRefund'
 /**
  * 教练查看和编辑学员入营问卷答案，与小程序 coach/students/detail 一致。
  * 答案存在 coach_subscriptions.subscribe_data，题型：tags（多选）、times（每周次数）、option（单选，存下标）、rm（1RM）、text。
@@ -90,9 +91,9 @@ export function finalizeQuestionnaireDraft(items: QuestionnaireItem[]): Question
   })
 }
 
-/** 只有平台支付宝支付、且有订单号的订阅可以退款。 */
+/** 平台代收（微信、支付宝）且有订单号的订阅显示退款入口；具体退哪笔由服务端订单列表决定。 */
 export function refundableOrderId(student: any): string | null {
-  if (student?.payment_method !== 'platform_alipay') return null
+  if (!canOfferCoachRefund(student)) return null
   const orderId = student?.last_payment_order_id || student?.order_id
   return orderId ? String(orderId) : null
 }
